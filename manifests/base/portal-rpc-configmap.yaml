@@ -1,0 +1,84 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-rpc-config
+  namespace: kube-nova
+data:
+  config.yaml: |
+    Name: portal.rpc
+    ListenOn: 0.0.0.0:30010
+    Mode: pro
+    Timeout: ${DEFAULT_TIMEOUT}
+    DemoMode: ${DEMO_MODE}
+    PortalName: ${PORTAL_NAME}
+    PortalUrl: ${PORTAL_URL}
+
+    DevServer:
+      Enabled: true
+      Port: 9999
+      HealthPath: "/healthz"
+      MetricsPath: "/metrics"
+      EnableMetrics: true
+
+    Telemetry:
+      Name: portal-rpc
+      Endpoint: ${JAEGER_ENDPOINT}
+      Sampler: ${TELEMETRY_SAMPLER}
+      Batcher: ${TELEMETRY_BATCHER}
+
+    Log:
+      ServiceName: portal-rpc
+      Mode: console
+      Encoding: plain
+      TimeFormat: "2006-01-02 15:04:05"
+      Path: logs
+      Level: info
+      MaxContentLength: 1024
+      Compress: false
+      Stat: true
+      KeepDays: 7
+      StackCooldownMillis: 100
+      MaxBackups: 0
+      MaxSize: 0
+      Rotation: daily
+
+    Cache:
+      Host: ${REDIS_HOST}:${REDIS_PORT}
+      Type: ${REDIS_TYPE}
+      Pass: ${REDIS_PASSWORD}
+      Tls: ${REDIS_TLS}
+      NonBlock: ${REDIS_NONBLOCK}
+      PingTimeout: ${REDIS_PING_TIMEOUT}
+
+    # MySQL 配置 - 只使用基础参数
+    Mysql:
+      DataSource: ${MYSQL_USER}:${MYSQL_PASSWORD}@tcp(${MYSQL_HOST}:${MYSQL_PORT})/${MYSQL_DATABASE}?charset=utf8mb4&parseTime=True&loc=Local&timeout=10s
+      MaxOpenConns: ${MYSQL_MAX_OPEN_CONNS}
+      MaxIdleConns: ${MYSQL_MAX_IDLE_CONNS}
+      ConnMaxLifetime: ${MYSQL_CONN_MAX_LIFETIME}
+
+    DBCache:
+      - Host: ${REDIS_HOST}:${REDIS_PORT}
+        Type: ${REDIS_TYPE}
+        Pass: ${REDIS_PASSWORD}
+        Tls: ${REDIS_TLS}
+        NonBlock: ${REDIS_NONBLOCK}
+        PingTimeout: ${REDIS_PING_TIMEOUT}
+
+    StorageConf:
+      Provider: minio
+      Endpoints: [ "${MINIO_ENDPOINT}" ]
+      AccessKey: ${MINIO_ACCESS_KEY}
+      AccessSecret: ${MINIO_SECRET_KEY}
+      BucketName: ${MINIO_BUCKET}
+      UseTLS: ${MINIO_USE_TLS}
+      CAFile: ""
+      CAKey: ""
+
+    AuthConfig:
+      AccessSecret: ${JWT_ACCESS_SECRET}
+      AccessExpire: ${JWT_ACCESS_EXPIRE}
+      RefreshSecret: ${JWT_REFRESH_SECRET}
+      RefreshExpire: ${JWT_REFRESH_EXPIRE}
+      RefreshAfter: ${JWT_REFRESH_AFTER}

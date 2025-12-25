@@ -1,0 +1,257 @@
+syntax = "v1"
+
+info(
+    title: "Canary Resource API"
+    desc: "Flagger Canary 金丝雀发布资源管理"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // ==================== 通用请求 ====================
+
+    // Canary 列表查询请求
+    CanaryListRequest {
+        WorkloadId uint64 `form:"workloadId" validate:"required,min=1"`
+        Search string `form:"search,optional"`               // 搜索关键字
+        LabelSelector string `form:"labelSelector,optional"` // 标签选择器
+    }
+
+    CanaryApplicationListRequest {
+        WorkloadId uint64 `form:"workloadId" validate:"required,min=1"`
+        ApplicationId uint64 `form:"applicationId" validate:"required,min=1"`
+        Search string `form:"search,optional"`               // 搜索关键字
+        LabelSelector string `form:"labelSelector,optional"` // 标签选择器
+    }
+        // Canary 名称请求
+    CanaryNameRequest {
+        WorkloadId uint64 `form:"workloadId" validate:"required,min=1"`
+        Name string `form:"name" validate:"required"`
+    }
+        // Canary 列表项
+    CanaryListItem {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        TargetRef TargetRefInfo `json:"targetRef"`         // 目标资源引用
+        ProgressDeadline int32 `json:"progressDeadline"`   // 进度截止时间（秒）
+        Status string `json:"status"`                      // 状态: Initialized, Progressing, Promoting, Finalising, Succeeded, Failed
+        CanaryWeight int `json:"canaryWeight"`             // 当前金丝雀权重
+        FailedChecks int `json:"failedChecks"`             // 失败检查次数
+        Phase string `json:"phase"`                        // 阶段: Initializing, Waiting, Progressing, Promoting, Finalising, Succeeded, Failed
+        LastTransition string `json:"lastTransition"`      // 最后状态变更时间
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        Age string `json:"age"`                            // 如: "2d5h"
+        CreationTimestamp int64 `json:"creationTimestamp"` // 时间戳（毫秒）
+    }
+
+        // Canary 列表响应
+    CanaryListResponse {
+        Total int `json:"total"`
+        Items []CanaryListItem `json:"items"`
+    }
+
+        // 阈值范围
+    ThresholdRange {
+        Min float64 `json:"min,optional"` // 最小值
+        Max float64 `json:"max,optional"` // 最大值
+    }
+
+        // 模板引用
+    TemplateRef {
+        Name string `json:"name"`           // 模板名称
+        Namespace string `json:"namespace"` // 模板命名空间
+    }
+
+        // 指标信息
+    MetricInfo {
+        Name string `json:"name"`                                      // 指标名称
+        Interval string `json:"interval,optional"`                     // 指标间隔
+        ThresholdRange ThresholdRange `json:"thresholdRange,optional"` // 阈值范围
+        Query string `json:"query,optional"`                           // 查询语句
+        TemplateRef TemplateRef `json:"templateRef,optional"`          // 模板引用
+    }
+
+        // Webhook 信息
+    WebhookInfo {
+        Name string `json:"name"`                             // Webhook 名称
+        Type string `json:"type"`                             // 类型: pre-rollout, rollout, confirm-rollout, post-rollout, rollback
+        Url string `json:"url"`                               // URL 地址
+        Timeout string `json:"timeout,optional"`              // 超时时间
+        Metadata map[string]string `json:"metadata,optional"` // 元数据
+    }
+
+        // 字符串匹配
+    StringMatch {
+        Exact string `json:"exact,optional"`   // 精确匹配
+        Prefix string `json:"prefix,optional"` // 前缀匹配
+        Suffix string `json:"suffix,optional"` // 后缀匹配
+        Regex string `json:"regex,optional"`   // 正则匹配
+    }
+
+        // 流量匹配信息
+    MatchInfo {
+        Headers map[string]StringMatch `json:"headers,optional"` // HTTP 头匹配
+    }
+
+        // 金丝雀分析配置
+    CanaryAnalysis {
+        Interval string `json:"interval"`        // 分析间隔，如: "1m"
+        Threshold int32 `json:"threshold"`       // 失败阈值
+        MaxWeight int32 `json:"maxWeight"`       // 最大权重
+        StepWeight int32 `json:"stepWeight"`     // 步进权重
+        Metrics []MetricInfo `json:"metrics"`    // 指标列表
+        Webhooks []WebhookInfo `json:"webhooks"` // Webhook 列表
+        Match []MatchInfo `json:"match"`         // 流量匹配规则
+        Iterations int32 `json:"iterations"`     // 迭代次数
+    }
+
+        // TLS 策略
+    TLSPolicy {
+        Mode string `json:"mode"` // DISABLE, SIMPLE, MUTUAL, ISTIO_MUTUAL
+    }
+
+        // 流量策略
+    TrafficPolicy {
+        Tls TLSPolicy `json:"tls,optional"` // TLS 配置
+    }
+
+        // 金丝雀服务配置
+    CanaryService {
+        Port int32 `json:"port"`                                    // 端口
+        TargetPort int32 `json:"targetPort,optional"`               // 目标端口
+        Name string `json:"name,optional"`                          // 服务名称
+        PortName string `json:"portName,optional"`                  // 端口名称
+        Gateways []string `json:"gateways,optional"`                // Istio Gateway 列表
+        Hosts []string `json:"hosts,optional"`                      // 主机列表
+        TrafficPolicy TrafficPolicy `json:"trafficPolicy,optional"` // 流量策略
+    }
+
+        // Canary 详细信息
+    CanaryDetail {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        TargetRef TargetRefInfo `json:"targetRef"`
+        ProgressDeadline int32 `json:"progressDeadline"`
+        Status string `json:"status"`
+        CanaryWeight int `json:"canaryWeight"`
+        FailedChecks int `json:"failedChecks"`
+        Phase string `json:"phase"`
+        LastTransition string `json:"lastTransition"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+        Analysis CanaryAnalysis `json:"analysis"` // 分析配置
+        Service CanaryService `json:"service"`    // 服务配置
+    }
+
+        // Canary 状态条件
+    CanaryStatusCondition {
+        Type string `json:"type"`                             // 类型: Promoted, Progressing
+        Status string `json:"status"`                         // 状态: True, False, Unknown
+        LastUpdateTime string `json:"lastUpdateTime"`         // 最后更新时间
+        LastTransitionTime string `json:"lastTransitionTime"` // 最后变更时间
+        Reason string `json:"reason"`                         // 原因
+        Message string `json:"message"`                       // 消息
+    }
+
+        // Canary 状态响应
+    CanaryStatusResponse {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Phase string `json:"phase"`                              // 当前阶段
+        CanaryWeight int `json:"canaryWeight"`                   // 金丝雀权重
+        FailedChecks int `json:"failedChecks"`                   // 失败检查次数
+        Iterations int `json:"iterations"`                       // 迭代次数
+        Conditions []CanaryStatusCondition `json:"conditions"`   // 状态条件
+        TrackedConfigs map[string]string `json:"trackedConfigs"` // 跟踪的配置
+        LastAppliedSpec string `json:"lastAppliedSpec"`          // 最后应用的规格
+    }
+
+        // ==================== Canary 操作请求 ====================
+
+        // 创建 Canary 请求
+    CreateCanaryRequest {
+        WorkloadId uint64 `json:"workloadId" validate:"required,min=1"`
+        VersionId uint64 `json:"versionId" validate:"required,min=1"`
+        FlaggerYamlStr string `json:"flaggerYamlStr" validate:"required"`
+    }
+
+        // 更新 Canary 请求
+    UpdateCanaryRequest {
+        WorkloadId uint64 `json:"workloadId" validate:"required,min=1"`
+        VersionId uint64 `json:"versionId" validate:"required,min=1"`
+        Name string `json:"name" validate:"required"`
+        FlaggerYamlStr string `json:"flaggerYamlStr" validate:"required"`
+    }
+
+        // 删除 Canary 请求
+    DeleteCanaryRequest {
+        WorkloadId uint64 `json:"workloadId" validate:"required,min=1"`
+        Name string `json:"name" validate:"required"`
+    }
+
+        // Canary 控制操作请求（暂停/恢复/重置）
+    CanaryControlRequest {
+        WorkloadId uint64 `json:"workloadId" validate:"required,min=1"`
+        Name string `json:"name" validate:"required"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: canary
+    prefix: /workload/v1/flagger
+)
+
+service workload-api {
+    // ==================== Canary 基础 CRUD ====================
+
+    @doc "获取 Canary 列表"
+    @handler CanaryListHandler
+    get /canary (CanaryListRequest) returns (CanaryListResponse)
+    @doc "获取canary应用服务级别"
+    @handler CanaryListApplicationLevelHandler
+    get /canary/application (CanaryApplicationListRequest) returns ([]CanaryListItem)
+    @doc "获取 Canary 详情"
+    @handler CanaryGetDetailHandler
+    get /canary/detail (CanaryNameRequest) returns (CanaryDetail)
+
+    @doc "获取 Canary YAML"
+    @handler CanaryGetYamlHandler
+    get /canary/yaml (CanaryNameRequest) returns (string)
+
+    @doc "创建 Canary 资源"
+    @handler CanaryCreateHandler
+    post /canary (CreateCanaryRequest) returns (string)
+
+    @doc "更新 Canary 资源"
+    @handler CanaryUpdateHandler
+    put /canary (UpdateCanaryRequest) returns (string)
+
+    @doc "删除 Canary 资源"
+    @handler CanaryDeleteHandler
+    delete /canary (DeleteCanaryRequest) returns (string)
+
+    // ==================== Canary 状态和控制 ====================
+
+    @doc "获取 Canary 状态信息"
+    @handler CanaryGetStatusHandler
+    get /canary/status (CanaryNameRequest) returns (CanaryStatusResponse)
+
+    @doc "暂停 Canary 金丝雀发布"
+    @handler CanaryPauseHandler
+    post /canary/pause (CanaryControlRequest) returns (string)
+
+    @doc "恢复 Canary 金丝雀发布"
+    @handler CanaryResumeHandler
+    post /canary/resume (CanaryControlRequest) returns (string)
+
+    @doc "重置 Canary 状态"
+    @handler CanaryResetHandler
+    post /canary/reset (CanaryControlRequest) returns (string)
+}

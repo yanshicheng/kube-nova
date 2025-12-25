@@ -1,0 +1,126 @@
+syntax = "v1"
+
+info(
+    title: "SysRole Service API"
+    desc: "API 服务用于管理系统角色相关操作"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // SysRole 表示角色信息
+    SysRole {
+        Id uint64 `json:"id"`                  // 自增主键
+        Name string `json:"name"`              // 角色名称
+        Code string `json:"code"`              // 角色编码(如: super, admin, user)
+        Remark string `json:"remark"`          // 备注说明
+        CreatedBy string `json:"createdBy"`    // 记录创建人
+        UpdatedBy string `json:"updatedBy"`    // 记录更新人
+        CreatedAt int64 `json:"createdAt"`     // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`     // 更新时间
+    }
+
+        // 添加角色请求
+    AddSysRoleRequest {
+        Name string `json:"name" validate:"required,min=2,max=50"`          // 角色名称，必填
+        Code string `json:"code" validate:"required,min=2,max=50"`          // 角色编码，必填
+        Remark string `json:"remark,optional" validate:"omitempty,max=500"` // 备注说明
+    }
+
+        // 更新角色请求
+    UpdateSysRoleRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                      // 角色ID，必填
+        Name string `json:"name" validate:"required,min=2,max=50"`          // 角色名称，必填
+        Code string `json:"code,optional" validate:"omitempty,min=2,max=50"` // 角色编码
+        Remark string `json:"remark,optional" validate:"omitempty,max=500"` // 备注说明
+    }
+
+        // 搜索角色请求
+    SearchSysRoleRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                          // 当前页码
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"`         // 每页条数
+        OrderStr string `form:"orderStr,optional" default:"id" validate:"omitempty"`                      // 排序字段
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                           // 是否升序
+        Name string `form:"name,optional" validate:"omitempty,max=50"`                                    // 角色名称
+        Code string `form:"code,optional" validate:"omitempty,max=50"`                                    // 角色编码
+    }
+
+        // 搜索角色响应
+    SearchSysRoleResponse {
+        Items []SysRole `json:"items"`  // 角色数据列表
+        Total uint64 `json:"total"`     // 总条数
+    }
+
+        // 角色绑定菜单请求
+    BindSysRoleMenuRequest {
+        RoleId uint64 `path:"roleId" validate:"required,gt=0"`          // 角色ID，必填
+        MenuIds []uint64 `json:"menuIds" validate:"required"`          // 菜单ID列表
+    }
+
+        // 查询角色菜单请求
+    SearchSysRoleMenuRequest {
+        RoleId uint64 `path:"roleId" validate:"required,gt=0"` // 角色ID，必填
+    }
+
+        // 查询角色菜单响应
+
+
+        // 角色绑定API权限请求
+    BindSysRoleApiRequest {
+        RoleId uint64 `path:"roleId" validate:"required,gt=0"`        // 角色ID，必填
+        ApiIds []uint64 `json:"apiIds" validate:"required"`          // API权限ID列表
+    }
+
+        // 查询角色API权限请求
+    SearchSysRoleApiRequest {
+        RoleId uint64 `path:"roleId" validate:"required,gt=0"` // 角色ID，必填
+    }
+
+
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: role
+    prefix: /portal/v1/role
+)
+service portal-api {
+    // 添加角色
+    @handler AddSysRoleHandler
+    post / (AddSysRoleRequest) returns (string)
+
+    // 更新角色
+    @handler UpdateSysRoleHandler
+    put /:id (UpdateSysRoleRequest) returns (string)
+
+    // 删除角色
+    @handler DelSysRoleHandler
+    delete /:id (DefaultIdRequest) returns (string)
+
+    // 根据ID获取角色
+    @handler GetSysRoleByIdHandler
+    get /:id (DefaultIdRequest) returns (SysRole)
+
+    // 搜索角色
+    @handler SearchSysRoleHandler
+    get / (SearchSysRoleRequest) returns (SearchSysRoleResponse)
+
+    // 角色绑定菜单
+    @handler BindSysRoleMenuHandler
+    post /:roleId/menus (BindSysRoleMenuRequest) returns (string)
+
+    // 查询角色菜单
+    @handler SearchSysRoleMenuHandler
+    get /:roleId/menus (SearchSysRoleMenuRequest) returns ([]uint64)
+
+    // 角色绑定API权限
+    @handler BindSysRoleApiHandler
+    post /:roleId/apis (BindSysRoleApiRequest) returns (string)
+
+    // 查询角色API权限
+    @handler SearchSysRoleApiHandler
+    get /:roleId/apis (SearchSysRoleApiRequest) returns ([]uint64 )
+}

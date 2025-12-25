@@ -1,0 +1,2054 @@
+syntax = "proto3";
+
+option go_package = "github.com/yanshicheng/kube-nova/application/manager-rpc/pb";
+
+package pb;
+
+// 增加集群
+message AddClusterRequest {
+  string name = 2; //集群名称，全局唯一
+  string avatar = 3;
+  string description = 4; //集群描述信息
+  string clusterType = 5; //集群类型: standard(标准)/edge(边缘)/serverless(无服务器)
+  string environment = 6; //环境类型: development(开发)/testing(测试)/staging(预发布)/production(生产)
+  string region = 8; //地域信息，如cn-north-1/us-east-1
+  string zone = 9; //可用区信息，如cn-north-1a
+  string datacenter = 10; //数据中心名称
+  string provider = 11; //云提供商: aws/azure/gcp/alibaba/tencent/huawei/self-hosted(自建)
+  int64 isManaged = 12; //是否为云厂商托管集群，如EKS/AKS/GKE
+  string nodeLb = 13; //Node负载均衡IP地址
+  string masterLb = 14; //Master负载均衡IP地址
+  string IngressDomain = 7;
+  string authType = 15; //认证类型: kubeconfig(配置文件)/token(令牌)/cert(证书)/incluster(集群内认证)
+  string apiServerHost = 16; //API Server地址，格式: https://ip:port
+  string kubeFile = 17; //KubeConfig文件内容
+  string token = 19; //Bearer Token
+  string caCert = 20; //CA证书内容（PEM格式）
+  string caFile = 21; //CA证书文件路径
+  string clientCert = 22; //客户端证书内容（PEM格式）
+  string certFile = 23; //客户端证书文件路径
+  string clientKey = 24; //客户端密钥内容（PEM格式，AES加密存储）
+  string keyFile = 25; //客户端密钥文件路径
+  int64 insecureSkipVerify = 26; //是否跳过TLS证书验证（仅用于测试环境）
+  string CreatedBy = 27;
+  string UpdatedBy = 28;
+}
+
+message AddClusterResponse {
+}
+
+// 修改集群
+message UpdateClusterReq {
+  uint64 id = 1;
+  string name = 2; //集群名称，全局唯一
+  string description = 4; //集群描述信息
+  string clusterType = 5; //集群类型: standard(标准)/edge(边缘)/serverless(无服务器)
+  string environment = 6; //环境类型: development(开发)/testing(测试)/staging(预发布)/production(生产)
+  string region = 8; //地域信息，如cn-north-1/us-east-1
+  string zone = 9; //可用区信息，如cn-north-1a
+  string datacenter = 10; //数据中心名称
+  string provider = 11; //云提供商: aws/azure/gcp/alibaba/tencent/huawei/self-hosted(自建)
+  int64 isManaged = 12; //是否为云厂商托管集群，如EKS/AKS/GKE
+  string nodeLb = 13; //Node负载均衡IP地址
+  string masterLb = 14; //Master负载均衡IP地址
+  string IngressDomain = 7;
+  string UpdatedBy = 28;
+}
+
+message UpdateClusterResp {
+}
+
+// 删除集群
+message DeleteClusterReq {
+  uint64 id = 1;
+  string UpdatedBy = 2;
+}
+message DeleteClusterResp {
+}
+
+
+// 获取集群列表
+message SearchClusterReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderField = 3; //orderField
+  bool isAsc = 4; //isAsc
+  string name = 5;
+  string environment = 6;
+  string uuid = 7;
+}
+
+message Cluster {
+  uint64 id = 1;
+  string name = 2; //集群名称，全局唯一
+  string avatar = 3; //头像URL
+  string uuid = 4;
+  string environment = 7; //环境类型: development(开发)/testing(测试)/staging(预发布)/production(生产)
+  string clusterType = 6; //集群类型: standard(标准)/edge(边缘)/serverless(无服务器)
+  // cpu 使用率 百分比
+  string cpuUsage = 9;
+  string memoryUsage = 10;
+  string podUsage = 11;
+  string storageUsage = 12;
+  string version = 18; //Kubernetes版本，如v1.28.0
+  int64 status = 15; //集群状态: 1: 同步中 2: 同步异常 3. 同步正常
+  int64 healthStatus = 16; //健康状态: 1 healthy(健康)/2 unhealthy(不健康)/3 degraded(降级)/4 unknown(未知)
+  int64 CreatedAt = 17;
+}
+message SearchClusterResp {
+  repeated Cluster data = 1; //cluster
+  uint64 total = 2; //total
+}
+
+// 获取集群基本信息
+message ClusterDetailReq {
+  uint64 id = 1;
+}
+
+message ClusterDetailResp {
+  uint64 id = 1; //自增主键
+  string name = 2; //集群名称，全局唯一
+  string avatar = 3; //头像URL
+  string uuid = 4; //集群唯一标识UUID
+  string description = 5; //集群描述信息
+  string clusterType = 6; //集群类型: standard(标准)/edge(边缘)/serverless(无服务器)
+  string environment = 7; //环境类型: development(开发)/testing(测试)/staging(预发布)/production(生产)
+  string region = 8; //地域信息，如cn-north-1/us-east-1
+  string zone = 9; //可用区信息，如cn-north-1a
+  string datacenter = 10; //数据中心名称
+  string provider = 11; //云提供商: aws/azure/gcp/alibaba/tencent/huawei/self-hosted(自建)
+  int64 isManaged = 12; //是否为云厂商托管集群，如EKS/AKS/GKE
+  string nodeLb = 13; //Node负载均衡IP地址
+  string IngressDomain = 23;
+  string masterLb = 14; //Master负载均衡IP地址
+  int64 status = 15; //集群状态: 1: 同步中 2: 同步异常 3. 同步正常
+  int64 healthStatus = 16; //健康状态: 1 healthy(健康)/2 unhealthy(不健康)/3 degraded(降级)/4 unknown(未知)
+  int64 lastSyncAt = 17; //最后同步时间
+  string version = 18; //Kubernetes版本，如v1.28.0
+  string gitCommit = 19; //Kubernetes Git提交版本
+  string platform = 20; //集群平台，如linux/amd64
+  int64 versionBuildAt = 21; //Kubernetes版本构建时间
+  int64 clusterCreatedAt = 22; //集群创建时间
+  string costCenter = 26; //成本中心编码
+  string businessUnit = 27; //业务单元名称
+  string ownerTeam = 28; //负责团队名称
+  string ownerEmail = 29; //负责人邮箱
+  int64 priority = 30; //集群优先级，数字越大优先级越高
+  string createdBy = 31; //记录创建人
+  string updatedBy = 32; //记录最后更新人
+  int64 createdAt = 33; //记录创建时间
+  int64 updatedAt = 34; //记录更新时间
+}
+
+// 同步集群
+message SyncClusterReq {
+  uint64 id = 1; //自增主键
+  string updatedBy = 2;
+}
+message SyncClusterResp {
+}
+
+
+
+// 查询集群认证信息
+message ClusterAuthInfoReq {
+  string clusterUuid = 1;
+}
+message  ClusterAuthInfoResp {
+  uint64 id = 1; //自增主键
+  string clusterUuid = 2; //关联的集群UUID
+  string authType = 3; //认证类型: kubeconfig(配置文件)/token(令牌)/cert(证书)/incluster(集群内认证)
+  string apiServerHost = 4; //API Server地址，格式: https://ip:port
+  string kubeFile = 5; //KubeConfig文件内容
+  string token = 6; // Token
+  string caCert = 7; //CA证书内容（PEM格式）
+  string caFile = 8; //CA证书文件路径
+  string clientCert = 9; //客户端证书内容（PEM格式）
+  string certFile = 10; //客户端证书文件路径
+  string clientKey = 11; //客户端密钥内容（PEM格式）
+  string keyFile = 12; //客户端密钥文件路径
+  int64 insecureSkipVerify = 13; //是否跳过TLS证书验证（仅用于测试环境）
+  int64 createdAt = 14; //记录创建时间
+  int64 updatedAt = 15; //记录更新时间
+}
+
+// 查询 node 信息
+message ClusterNodeInfoReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderField = 3; //orderField
+  bool isAsc = 4; //isAsc
+  string clusterUuid = 5;
+}
+
+// 返回列表node信息
+message ClusterNodeInfo {
+  uint64 id = 1;
+  string clusterUuid = 2;
+  string nodeName = 3;
+  string nodeIp = 4;
+  string nodeStatus = 5;
+  int64 createdAt = 6;
+  int64 updatedAt = 7;
+  string nodeRole = 8;
+  string architecture = 9;
+  int64 unschedulable = 10;
+}
+message  ClusterNodeInfoResp {
+  repeated ClusterNodeInfo data = 1;
+  uint64 total = 2;
+}
+
+// 返回 node 详情
+message ClusterNodeDetailReq {
+  uint64  id = 1;
+}
+message OnecClusterNodeResp {
+  uint64 id = 1; //自增主键
+  string clusterUuid = 2; //所属集群ID
+  string nodeUuid = 3; //节点UID，唯一标识
+  string name = 4; //节点名称，在同一集群中唯一
+  string hostname = 5; //主机名
+  string roles = 6; //节点角色列表
+  string osImage = 7; //操作系统
+  string nodeIp = 8; //节点地址
+  string kernelVersion = 9; //内核版本
+  string operatingSystem = 10; //操作系统类型
+  string architecture = 11; //架构类型
+  double cpu = 12; //CPU核数
+  double memory = 13; //内存大小，K
+  int64 pods = 14; //最大Pod数量
+  int64 isGpu = 15; //节点是否包含GPU
+  string runtime = 16; //容器运行时
+  int64 joinAt = 17; //节点加入集群时间
+  int64 unschedulable = 18; //节点是否不可调度（1：可调度，2：不可调度）
+  string kubeletVersion = 19; //Kubelet版本
+  string status = 21; //节点状态
+  string podCidr = 22; //Pod CIDR
+  string podCidrs = 23; //Pod CIDRs
+  string createdBy = 24; //记录创建人
+  string updatedBy = 25; //记录更新人
+  int64 createdAt = 26; //记录创建时间
+  int64 updatedAt = 27; //记录更新时间
+}
+
+
+// 集群资源信息
+message ClusterResourceInfoReq {
+  string clusterUuid = 1;
+}
+message ClusterResourceInfoResp {
+  uint64 id = 1; //自增主键
+  string clusterUuid = 2; //关联的集群UUID
+  double cpuPhysicalCapacity = 3; //CPU物理总容量（核数）
+  double cpuAllocatedTotal = 4; //CPU实际分配总量（所有project_cluster表cpu_limit的总和）
+  double cpuCapacityTotal = 5; //CPU超分后总容量（所有project_cluster表cpu_capacity的总和）
+  double memPhysicalCapacity = 6; //内存物理总容量（GiB）
+  double memAllocatedTotal = 7; //内存实际分配总量（所有project_cluster表mem_limit的总和）
+  double memCapacityTotal = 8; //内存超分后总容量（所有project_cluster表mem_capacity的总和）
+  double storagePhysicalCapacity = 9; //存储物理总容量（GiB）
+  double storageAllocatedTotal = 10; //存储分配总量（所有project_cluster表storage_limit的总和）
+  double gpuPhysicalCapacity = 11; //GPU物理总容量（个）
+  double gpuAllocatedTotal = 12; //GPU实际分配总量（所有project_cluster表gpu_limit的总和）
+  double gpuCapacityTotal = 13; //GPU超分后总容量（所有project_cluster表gpu_capacity的总和）
+  double gpuUsedTotal = 14; //GPU实际使用总量（个）
+  int64 podsPhysicalCapacity = 15; //Pod物理总容量（个）
+  int64 podsAllocatedTotal = 16; //Pod分配总量（所有project_cluster表pods_limit的总和）
+}
+
+// 集群 app 表增加
+message AddClusterAppReq {
+  string clusterUuid = 2; //关联的集群UUID
+  string appName = 3; //应用名称，如Prometheus-生产环境
+  string appCode = 4; //应用标识码，如prometheus/grafana/elasticsearch
+  int64 appType = 5; //应用类型：1. monitoring(监控)/2. logging(日志)/3. tracing(链路追踪)/4. mesh(服务网格)/ 5. alert (告警)
+  int64 isDefault = 6; //是否默认配置 true 默认， false 非默认
+  string appUrl = 7; //应用访问地址，如prometheus.example.com
+  int64 port = 8; //服务端口
+  string protocol = 9; //访问协议：http/https/grpc
+  int64 authEnabled = 10; //是否需要认证
+  string authType = 11; //认证类型：none/basic/bearer/certificate
+  string username = 12; //用户名（AES加密存储）
+  string password = 13; //密码（AES加密存储）
+  string token = 14; //Token/API Key（AES加密存储）
+  string accessKey = 15; //Access Key
+  string accessSecret = 16; //Access Secret
+  int64 tlsEnabled = 17; //是否启用TLS
+  string caFile = 18; //CA证书内容
+  string caKey = 19; //CA Key内容
+  string caCert = 20; //CA证书内容（PEM格式）
+  string clientCert = 21; //客户端证书（PEM格式）
+  string clientKey = 22; //客户端密钥（PEM格式，AES加密存储）
+  int64 insecureSkipVerify = 23; //是否跳过证书验证
+  string updatedBy = 26; //记录最后更新人
+}
+
+message AddClusterAppResp {
+}
+
+// 查询 app 配置详情
+message ClusterAppDetailReq {
+  uint64 id = 1;
+}
+
+// 验证 app 运行是否正常
+message ClusterAppValidateReq {
+  uint64 id = 1;
+}
+message ClusterAppValidateResp {
+}
+
+
+message ClusterAppDetailResp {
+  uint64 id = 1; //自增主键
+  string clusterUuid = 2; //关联的集群UUID
+  string appName = 3; //应用名称，如Prometheus-生产环境
+  string appCode = 4; //应用标识码，如prometheus/grafana/elasticsearch
+  int64 appType = 5; //应用类型：1. monitoring(监控)/2. logging(日志)/3. tracing(链路追踪)/4. mesh(服务网格)/ 5. alert (告警)
+  int64 isDefault = 6; //是否默认配置
+  string appUrl = 7; //应用访问地址，如https://prometheus.example.com
+  int64 port = 8; //服务端口
+  string protocol = 9; //访问协议：http/https/grpc
+  int64 authEnabled = 10; //是否需要认证
+  string authType = 11; //认证类型：none/basic/bearer/certificate
+  string username = 12; //用户名（AES加密存储）
+  string password = 13; //密码（AES加密存储）
+  string token = 14; //Token/API Key（AES加密存储）
+  string accessKey = 15; //Access Key
+  string accessSecret = 16; //Access Secret
+  int64 tlsEnabled = 17; //是否启用TLS
+  string caFile = 18; //CA证书内容
+  string caKey = 19; //CA Key内容
+  string caCert = 20; //CA证书内容（PEM格式）
+  string clientCert = 21; //客户端证书（PEM格式）
+  string clientKey = 22; //客户端密钥（PEM格式，AES加密存储）
+  int64 insecureSkipVerify = 23; //是否跳过证书验证
+  int64 status = 24; //状态: 0异常，1 正常
+  string createdBy = 25; //记录创建人
+  string updatedBy = 26; //记录最后更新人
+  int64 createdAt = 27; //记录创建时间
+  int64 updatedAt = 28; //记录更新时间
+}
+
+message ClusterAppListReq {
+  string clusterUuid = 1;
+}
+message ClusterAppListResp {
+  repeated ClusterAppDetailResp list = 1;
+}
+
+
+
+message AppDefaultConfigReq {
+  string clusterUuid = 1;
+  int64 appType = 2;
+}
+
+
+message AppDefaultConfigResp {
+  string uuid = 1; // 集群的uuid
+  string appName = 3; //应用名称，如Prometheus-生产环境
+  string appCode = 4; //应用标识码，如prometheus/grafana/elasticsearch
+  int64 appType = 5; //应用类型：1. monitoring(监控)/2. logging(日志)/3. tracing(链路追踪)/4. mesh(服务网格)/ 5. alert (告警)
+  int64 isDefault = 6; //是否默认配置
+  string appUrl = 7; //应用访问地址，如https://prometheus.example.com
+  int64 port = 8; //服务端口
+  string protocol = 9; //访问协议：http/https/grpc
+  int64 authEnabled = 10; //是否需要认证
+  string authType = 11; //认证类型：none/basic/bearer/certificate
+  string username = 12; //用户名（AES加密存储）
+  string password = 13; //密码（AES加密存储）
+  string token = 14; //Token/API Key（AES加密存储）
+  string accessKey = 15; //Access Key
+  string accessSecret = 16; //Access Secret
+  int64 tlsEnabled = 17; //是否启用TLS
+  string caFile = 18; //CA证书内容
+  string caKey = 19; //CA Key内容
+  string caCert = 20; //CA证书内容（PEM格式）
+  string clientCert = 21; //客户端证书（PEM格式）
+  string clientKey = 22; //客户端密钥（PEM格式，AES加密存储）
+  int64 insecureSkipVerify = 23; //是否跳过证书验证
+}
+
+
+
+// node 禁用或者启用调度
+message ClusterNodeDisableReq {
+  uint64 id = 1;
+  int64 status = 2;
+  string updatedBy = 3;
+}
+
+// node 增加 labels
+message ClusterNodeAddLabelsReq {
+  uint64 id = 1;
+  string key = 2;
+  string value = 3;
+  string updatedBy = 4;
+}
+
+// node 删除 labesl
+message ClusterNodeDeleteLabelsReq {
+  uint64 id = 1;
+  string key = 2;
+  string updatedBy = 4;
+}
+message ClusterNodeDisableResp {
+}
+
+// node 查询labels列表
+message ClusterNodeLabelsListReq {
+  uint64 id = 1;
+}
+message ClusterNodeLabel {
+  string key = 1;
+  string value = 2;
+  bool  isDelete = 3;
+}
+message ClusterNodeLabelsListResp {
+  repeated ClusterNodeLabel labels = 1;
+}
+
+
+// node 增加 注解
+message ClusterNodeAddAnnotationsReq {
+  uint64 Id = 1;
+  string key = 2;
+  string value = 3;
+  string updatedBy = 4;
+}
+message ClusterNodeAddAnnotationsResp {
+}
+
+// node 删除注解
+message ClusterNodeDeleteAnnotationsReq {
+  uint64 id = 1;
+  string key = 2;
+  string updatedBy = 4;
+}
+message ClusterNodeDeleteAnnotationsResp {
+}
+
+// node 查询注解列表
+message ClusterNodeAnnotationsListReq {
+  uint64 id = 1;
+}
+
+message ClusterNodeAnnotation {
+  string key = 1;
+  string value = 2;
+  bool  isDelete = 3;
+}
+message ClusterNodeAnnotationsListResp {
+  repeated ClusterNodeAnnotation annotations = 1;
+}
+
+// node 增加污点
+message ClusterNodeAddTaintReq {
+  uint64 id = 1;
+  string key = 2;
+  string value = 3;
+  string effect = 4;
+  string updatedBy = 5;
+}
+message ClusterNodeAddTaintResp {
+}
+message ClusterNodeDeleteTaintReq {
+  uint64 id = 1;
+  string key = 2;
+  string updatedBy = 4;
+  string effect = 3;
+}
+
+message ClusterNodeDeleteTaintResp {
+}
+
+message ClusterNodeTaintsListReq {
+  uint64 id = 1;
+}
+message ClusterNodeTaint {
+  string key = 1;
+  string value = 2;
+  string effect = 3;
+  int64 time = 4;
+  bool isDelete = 5;
+}
+message ClusterNodeTaintsListResp {
+  repeated ClusterNodeTaint taints = 1;
+}
+
+
+// 驱逐
+message ClusterEvictReq {
+  uint64 id = 1;
+  string updatedBy = 2;
+}
+
+message ClusterEvictResp {
+}
+
+
+// 测试集群连通性
+message ClusterTestConnectReq {
+  string authType = 15; //认证类型: kubeconfig(配置文件)/token(令牌)/cert(证书)/incluster(集群内认证)
+  string apiServerHost = 16; //API Server地址，格式: https://ip:port
+  string kubeFile = 17; //KubeConfig文件内容
+  string token = 19; //Bearer Token
+  string caCert = 20; //CA证书内容（PEM格式）
+  string caFile = 21; //CA证书文件路径
+  string clientCert = 22; //客户端证书内容（PEM格式）
+  string certFile = 23; //客户端证书文件路径
+  string clientKey = 24; //客户端密钥内容（PEM格式，AES加密存储）
+  string keyFile = 25; //客户端密钥文件路径
+  int64 insecureSkipVerify = 26; //是否跳过TLS证书验证（仅用于测试环境）
+}
+message ClusterTestConnectResp {
+}
+
+// 修改集群图标
+message ClusterUpdateAvatarReq {
+  uint64 id = 1;
+  string avatar = 2;
+}
+message ClusterUpdateAvatarResp {
+}
+
+// 修改集群认证信息
+message ClusterUpdateAuthInfoReq {
+  uint64 id = 1;
+  string authType = 15; //认证类型: kubeconfig(配置文件)/token(令牌)/cert(证书)/incluster(集群内认证)
+  string apiServerHost = 16; //API Server地址，格式: https://ip:port
+  string kubeFile = 17; //KubeConfig文件内容
+  string token = 19; //Bearer Token
+  string caCert = 20; //CA证书内容（PEM格式）
+  string caFile = 21; //CA证书文件路径
+  string clientCert = 22; //客户端证书内容（PEM格式）
+  string certFile = 23; //客户端证书文件路径
+  string clientKey = 24; //客户端密钥内容（PEM格式，AES加密存储）
+  string keyFile = 25; //客户端密钥文件路径
+  int64 insecureSkipVerify = 26; //是否跳过TLS证书验证（仅用于测试环境）
+  string UpdatedBy = 28;
+
+}
+
+message ClusterUpdateAuthInfoResp {
+}
+
+// 通过集群uuid 获取集群认证信息
+message GetClusterAuthInfoReq {
+  string ClusterUuid = 1; //集群uuid
+}
+message GetClusterAuthInfoResp {
+  string authType = 15; //认证类型: kubeconfig(配置文件)/token(令牌)/cert(证书)/incluster(集群内认证)
+  string apiServerHost = 16; //API Server地址，格式: https://ip:port
+  string kubeFile = 17; //KubeConfig文件内容
+  string token = 19; //Bearer Token
+  string caCert = 20; //CA证书内容（PEM格式）
+  string caFile = 21; //CA证书文件路径
+  string clientCert = 22; //客户端证书内容（PEM格式）
+  string certFile = 23; //客户端证书文件路径
+  string clientKey = 24; //客户端密钥内容（PEM格式，AES加密存储）
+  string keyFile = 25; //客户端密钥文件路径
+  int64 insecureSkipVerify = 26; //是否跳过TLS证书验证（仅用于测试环境）
+}
+
+
+
+
+//--------------------------------项目表，记录项目信息--------------------------------
+message ProjectInfo {
+  uint64 id = 1; //主键，自增 ID
+  string name = 2; //项目的中文名称
+  string uuid = 3; //项目的唯一标识符（英文），便于程序中唯一标识
+  int64 adminCount = 10;
+  int64 resourceCount = 11;
+  string description = 4; //项目描述信息
+  string createdBy = 5; //记录创建人
+  string updatedBy = 6; //记录最后更新人
+  int64 createdAt = 7; //记录创建时间
+  int64 updatedAt = 8; //记录更新时间
+  int64 isSystem = 9; // '是否为系统级别项目，如果是则不需要资源限制 并且只能关联一个集群',
+
+}
+
+message AddOnecProjectReq {
+  string name = 1; //项目的中文名称
+  int64 isSystem = 2;
+  string description = 3; //项目描述信息
+  string createdBy = 4; //记录创建人
+  string updatedBy = 5; //记录最后更新人
+}
+message AddOnecProjectResp {}
+
+message UpdateOnecProjectReq {
+  uint64 id = 1; //主键，自增 ID
+  string name = 2; //项目的中文名称
+  string description = 4; //项目描述信息
+  string updatedBy = 6; //记录最后更新人
+}
+
+message UpdateOnecProjectResp {
+}
+
+
+message DelOnecProjectReq {
+  uint64 id = 1; //id
+}
+
+message DelOnecProjectResp {
+}
+
+
+message GetOnecProjectByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetOnecProjectByIdResp {
+  ProjectInfo data = 1; //onecProject
+}
+
+
+message SearchOnecProjectReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderStr = 3; //orderStr
+  bool isAsc = 4; //isAsc
+  string name = 5; //项目的中文名称
+  string uuid = 6; //项目的唯一标识符（英文），便于程序中唯一标识
+}
+
+message SearchOnecProjectResp {
+  repeated ProjectInfo data = 1; //onecProject
+  uint64 total = 2; //total
+}
+
+
+// Project数据同步
+message ProjectSyncReq {
+  uint64 projectId = 1;
+  string operator = 2;
+}
+message ProjectSyncResp {
+}
+
+//--------------------------------项目管理员表，关联项目与用户的多对多关系--------------------------------
+message OnecProjectAdmin {
+  uint64 id = 1; //主键，自增 ID
+  uint64 projectId = 2; //关联的项目 ID
+  uint64 userId = 3; //关联的用户 ID
+  int64 createdAt = 6; //记录创建时间
+}
+
+message AddOnecProjectAdminReq {
+  uint64 projectId = 1; //关联的项目 ID
+  repeated uint64 userIds = 2;
+}
+
+message AddOnecProjectAdminResp {
+}
+
+
+// 通过 ProjectID 查询所有的项目管理员
+message GetOnecProjectAdminsByProjectIdReq {
+  uint64 projectId = 1;
+}
+message GetOnecProjectAdminsByProjectIdResp {
+  repeated OnecProjectAdmin data = 1;
+}
+
+
+//--------------------------------项目与集群的对应关系表，记录资源配额和使用情况--------------------------------
+message OnecProjectCluster {
+  uint64 id = 1; //主键，自增 ID
+  string clusterUuid = 2; //关联的集群 ID
+  uint64 projectId = 3; //关联的项目 ID
+  string cpuLimit = 4; //上级分配的 CPU 配额（核心数）
+  double cpuOvercommitRatio = 5; //CPU 超分比例
+  string cpuCapacity = 6; //CPU 超分后总容量 (limit * overcommit_ratio)
+  string cpuAllocated = 7; //已分配给工作空间的 CPU 总量
+  string memLimit = 8; //上级分配的内存配额（单位：GiB）
+  double memOvercommitRatio = 9; //内存超分比例
+  string memCapacity = 10; //内存超分后总容量 (limit * overcommit_ratio)
+  string memAllocated = 11; //已分配给工作空间的内存总量
+  string storageLimit = 12; //存储配额上限（单位：GiB）
+  string storageAllocated = 13; //已分配给工作空间的存储总量
+  string gpuLimit = 14; //上级分配的 GPU 配额（个数）
+  double gpuOvercommitRatio = 15; //GPU 超分比例
+  string gpuCapacity = 16; //GPU 超分后总容量 (limit * overcommit_ratio)
+  string gpuAllocated = 17; //已分配给工作空间的 GPU 总量
+  int64 podsLimit = 18; //Pod 配额上限
+  int64 podsAllocated = 19; //已分配给工作空间的 Pod 总量
+  int64 configmapLimit = 20; //ConfigMap 配额上限
+  int64 configmapAllocated = 21; //已分配给工作空间的 ConfigMap 总量
+  int64 secretLimit = 22; //Secret 配额上限
+  int64 secretAllocated = 23; //已分配给工作空间的 Secret 总量
+  int64 pvcLimit = 24; //PVC 配额上限
+  int64 pvcAllocated = 25; //已分配给工作空间的 PVC 总量
+  string ephemeralStorageLimit = 26; //临时存储配额上限（单位：GiB）
+  string ephemeralStorageAllocated = 27; //已分配给工作空间的临时存储总量
+  int64 serviceLimit = 28; //Service 配额上限
+  int64 serviceAllocated = 29; //已分配给工作空间的 Service 总量
+  int64 loadbalancersLimit = 30; //LoadBalancer 配额上限
+  int64 loadbalancersAllocated = 31; //已分配给工作空间的 LoadBalancer 总量
+  int64 nodeportsLimit = 32; //NodePort 配额上限
+  int64 nodeportsAllocated = 33; //已分配给工作空间的 NodePort 总量
+  int64 deploymentsLimit = 34; //Deployment 配额上限
+  int64 deploymentsAllocated = 35; //已分配给工作空间的 Deployment 总量
+  int64 jobsLimit = 36; //Job 配额上限
+  int64 jobsAllocated = 37; //已分配给工作空间的 Job 总量
+  int64 cronjobsLimit = 38; //CronJob 配额上限
+  int64 cronjobsAllocated = 39; //已分配给工作空间的 CronJob 总量
+  int64 daemonsetsLimit = 40; //DaemonSet 配额上限
+  int64 daemonsetsAllocated = 41; //已分配给工作空间的 DaemonSet 总量
+  int64 statefulsetsLimit = 42; //StatefulSet 配额上限
+  int64 statefulsetsAllocated = 43; //已分配给工作空间的 StatefulSet 总量
+  int64 ingressesLimit = 44; //Ingress 配额上限
+  int64 ingressesAllocated = 45; //已分配给工作空间的 Ingress 总量
+  string createdBy = 46; //记录创建人
+  string updatedBy = 47; //记录最后更新人
+  int64 createdAt = 48; //记录创建时间
+  int64 updatedAt = 49; //记录更新时间
+  string clusterName = 50;
+  string status = 51;
+}
+
+message AddOnecProjectClusterReq {
+  string clusterUuid = 1; //关联的集群 ID
+  uint64 projectId = 2; //关联的项目 ID
+  string cpuLimit = 3; //上级分配的 CPU 配额（核心数）
+  double cpuOvercommitRatio = 4; //CPU 超分比例
+  string cpuCapacity = 5; //CPU 超分后总容量 (limit * overcommit_ratio)
+  string memLimit = 7; //上级分配的内存配额（单位：GiB）
+  double memOvercommitRatio = 8; //内存超分比例
+  string memCapacity = 9; //内存超分后总容量 (limit * overcommit_ratio)
+  string storageLimit = 11; //存储配额上限（单位：GiB）
+  string gpuLimit = 13; //上级分配的 GPU 配额（个数）
+  double gpuOvercommitRatio = 14; //GPU 超分比例
+  string gpuCapacity = 15; //GPU 超分后总容量 (limit * overcommit_ratio)
+  int64 podsLimit = 17; //Pod 配额上限
+  int64 configmapLimit = 19; //ConfigMap 配额上限
+  int64 secretLimit = 21; //Secret 配额上限
+  int64 pvcLimit = 23; //PVC 配额上限
+  string ephemeralStorageLimit = 25; //临时存储配额上限（单位：GiB）
+  int64 serviceLimit = 27; //Service 配额上限
+  int64 loadbalancersLimit = 29; //LoadBalancer 配额上限
+  int64 nodeportsLimit = 31; //NodePort 配额上限
+  int64 deploymentsLimit = 33; //Deployment 配额上限
+  int64 jobsLimit = 35; //Job 配额上限
+  int64 cronjobsLimit = 37; //CronJob 配额上限
+  int64 daemonsetsLimit = 39; //DaemonSet 配额上限
+  int64 statefulsetsLimit = 41; //StatefulSet 配额上限
+  int64 ingressesLimit = 43; //Ingress 配额上限
+  string createdBy = 45; //记录创建人
+  string updatedBy = 46; //记录最后更新人
+}
+
+
+message AddOnecProjectClusterResp {
+}
+
+message UpdateOnecProjectClusterReq {
+  uint64 id = 1; //主键，自增 ID
+  string cpuLimit = 4; //上级分配的 CPU 配额（核心数）
+  double cpuOvercommitRatio = 5; //CPU 超分比例
+  string cpuCapacity = 6; //CPU 超分后总容量 (limit * overcommit_ratio)
+  string memLimit = 8; //上级分配的内存配额（单位：GiB）
+  double memOvercommitRatio = 9; //内存超分比例
+  string memCapacity = 10; //内存超分后总容量 (limit * overcommit_ratio)
+  string storageLimit = 12; //存储配额上限（单位：GiB）
+  string gpuLimit = 14; //上级分配的 GPU 配额（个数）
+  double gpuOvercommitRatio = 15; //GPU 超分比例
+  string gpuCapacity = 16; //GPU 超分后总容量 (limit * overcommit_ratio)
+  int64 podsLimit = 18; //Pod 配额上限
+  int64 configmapLimit = 20; //ConfigMap 配额上限
+  int64 secretLimit = 22; //Secret 配额上限
+  int64 pvcLimit = 24; //PVC 配额上限
+  string ephemeralStorageLimit = 26; //临时存储配额上限（单位：GiB）
+  int64 serviceLimit = 28; //Service 配额上限
+  int64 loadbalancersLimit = 30; //LoadBalancer 配额上限
+  int64 nodeportsLimit = 32; //NodePort 配额上限
+  int64 deploymentsLimit = 34; //Deployment 配额上限
+  int64 jobsLimit = 36; //Job 配额上限
+  int64 cronjobsLimit = 38; //CronJob 配额上限
+  int64 daemonsetsLimit = 40; //DaemonSet 配额上限
+  int64 statefulsetsLimit = 42; //StatefulSet 配额上限
+  int64 ingressesLimit = 44; //Ingress 配额上限
+  string updatedBy = 47; //记录最后更新人
+}
+
+
+
+message UpdateOnecProjectClusterResp {
+}
+
+message DelOnecProjectClusterReq {
+  uint64 id = 1; //id
+}
+
+message DelOnecProjectClusterResp {
+}
+
+message GetOnecProjectClusterByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetOnecProjectClusterByIdResp {
+  OnecProjectCluster data = 1; //onecProjectCluster
+}
+
+message SearchOnecProjectClusterReq {
+  string clusterUuid = 5; //关联的集群 ID
+  uint64 projectId = 6; // 关联的项目 ID  必须传递参数
+}
+
+message SearchOnecProjectClusterResp {
+  repeated OnecProjectCluster data = 1; //onecProjectCluster
+}
+
+
+
+
+//--------------------------------工作空间表对应k8s namespace--------------------------------
+message OnecProjectWorkspace {
+  uint64 id = 1; //主键，自增 ID
+  uint64 projectClusterId = 2; //关联到onec_project_cluster
+  string clusterUuid = 3; //关联的集群 ID
+  string name = 4; //工作空间中文名称
+  string namespace = 5; //工作空间的唯一标识符（英文，等同于 Kubernetes 的命名空间名称）
+  string description = 6; //工作空间描述信息
+  string cpuAllocated = 7; //分配的 CPU 核心数
+  string memAllocated = 8; //分配的内存（单位：GiB）
+  string storageAllocated = 9; //分配的存储（单位：GiB）
+  string gpuAllocated = 10; //分配的 GPU 数量
+  int64 podsAllocated = 11; //分配的 Pod 数量
+  int64 configmapAllocated = 12; //分配的 ConfigMap 数量上限
+  int64 secretAllocated = 13; //分配的 Secret 数量上限
+  int64 pvcAllocated = 14; //分配的 PVC 数量上限
+  string ephemeralStorageAllocated = 15; //分配的临时存储数量上限
+  int64 serviceAllocated = 16; //分配的 Service 数量上限
+  int64 loadbalancersAllocated = 17; //分配的 LoadBalancer 数量上限
+  int64 nodeportsAllocated = 18; //分配的 NodePort 数量上限
+  int64 deploymentsAllocated = 19; //分配的 Deployment 数量上限
+  int64 jobsAllocated = 20; //分配的 Job 数量上限
+  int64 cronjobsAllocated = 21; //分配的 CronJob 数量上限
+  int64 daemonsetsAllocated = 22; //分配的 DaemonSet 数量上限
+  int64 statefulsetsAllocated = 23; //分配的 StatefulSet 数量上限
+  int64 ingressesAllocated = 24; //分配的 Ingress 数量上限
+  string podMaxCpu = 25; //Pod 级别最大 CPU 限制（单位：核）
+  string podMaxMemory = 26; //Pod 级别最大内存限制（单位：GiB）
+  string podMaxEphemeralStorage = 27; //Pod 级别最大临时存储限制（单位：GiB）
+  string podMinCpu = 28; //Pod 级别最小 CPU 请求（单位：核，支持毫核）
+  string podMinMemory = 29; //Pod 级别最小内存请求（单位：MiB）
+  string podMinEphemeralStorage = 30; //Pod 级别最小临时存储请求（单位：MiB）
+  string containerMaxCpu = 31; //Container 级别最大 CPU 限制（单位：核）
+  string containerMaxMemory = 32; //Container 级别最大内存限制（单位：GiB）
+  string containerMaxEphemeralStorage = 33; //Container 级别最大临时存储限制（单位：GiB）
+  string containerMinCpu = 34; //Container 级别最小 CPU 请求（单位：核，支持毫核）
+  string containerMinMemory = 35; //Container 级别最小内存请求（单位：MiB）
+  string containerMinEphemeralStorage = 36; //Container 级别最小临时存储请求（单位：MiB）
+  string containerDefaultCpu = 37; //Container 默认 CPU 限制（单位：核）
+  string containerDefaultMemory = 38; //Container 默认内存限制（单位：MiB）
+  string containerDefaultEphemeralStorage = 39; //Container 默认临时存储限制（单位：GiB）
+  string containerDefaultRequestCpu = 40; //Container 默认 CPU 请求（单位：核）
+  string containerDefaultRequestMemory = 41; //Container 默认内存请求（单位：MiB）
+  string containerDefaultRequestEphemeralStorage = 42; //Container 默认临时存储请求（单位：MiB）
+  int64 isSystem = 43; //是否为系统级别项目，如果是则不需要资源限制
+  int64 status = 44; //namespace pod 全是正常则true 否则false 后台管理字段
+  int64 appCreateTime = 45; //应用创建时间，标识该应用在业务系统中首次创建的时间
+  string createdBy = 46; //记录创建人
+  string updatedBy = 47; //记录最后更新人
+  int64 createdAt = 48; //记录创建时间
+  int64 updatedAt = 49; //记录更新时间
+  string clusterName = 50;
+}
+
+message AddOnecProjectWorkspaceReq {
+  uint64 projectClusterId = 1; //关联到onec_project_cluster
+  string clusterUuid = 2; //关联的集群 ID
+  string name = 3; //工作空间中文名称
+  string namespace = 4; //工作空间的唯一标识符（英文，等同于 Kubernetes 的命名空间名称）
+  string description = 5; //工作空间描述信息
+  string cpuAllocated = 6; //分配的 CPU 核心数
+  string memAllocated = 7; //分配的内存（单位：GiB）
+  string storageAllocated = 8; //分配的存储（单位：GiB）
+  string gpuAllocated = 9; //分配的 GPU 数量
+  int64 podsAllocated = 10; //分配的 Pod 数量
+  int64 configmapAllocated = 11; //分配的 ConfigMap 数量上限
+  int64 secretAllocated = 12; //分配的 Secret 数量上限
+  int64 pvcAllocated = 13; //分配的 PVC 数量上限
+  string ephemeralStorageAllocated = 14; //分配的临时存储数量上限
+  int64 serviceAllocated = 15; //分配的 Service 数量上限
+  int64 loadbalancersAllocated = 16; //分配的 LoadBalancer 数量上限
+  int64 nodeportsAllocated = 17; //分配的 NodePort 数量上限
+  int64 deploymentsAllocated = 18; //分配的 Deployment 数量上限
+  int64 jobsAllocated = 19; //分配的 Job 数量上限
+  int64 cronjobsAllocated = 20; //分配的 CronJob 数量上限
+  int64 daemonsetsAllocated = 21; //分配的 DaemonSet 数量上限
+  int64 statefulsetsAllocated = 22; //分配的 StatefulSet 数量上限
+  int64 ingressesAllocated = 23; //分配的 Ingress 数量上限
+  string podMaxCpu = 24; //Pod 级别最大 CPU 限制（单位：核）
+  string podMaxMemory = 25; //Pod 级别最大内存限制（单位：GiB）
+  string podMaxEphemeralStorage = 26; //Pod 级别最大临时存储限制（单位：GiB）
+  string podMinCpu = 27; //Pod 级别最小 CPU 请求（单位：核，支持毫核）
+  string podMinMemory = 28; //Pod 级别最小内存请求（单位：MiB）
+  string podMinEphemeralStorage = 29; //Pod 级别最小临时存储请求（单位：MiB）
+  string containerMaxCpu = 30; //Container 级别最大 CPU 限制（单位：核）
+  string containerMaxMemory = 31; //Container 级别最大内存限制（单位：GiB）
+  string containerMaxEphemeralStorage = 32; //Container 级别最大临时存储限制（单位：GiB）
+  string containerMinCpu = 33; //Container 级别最小 CPU 请求（单位：核，支持毫核）
+  string containerMinMemory = 34; //Container 级别最小内存请求（单位：MiB）
+  string containerMinEphemeralStorage = 35; //Container 级别最小临时存储请求（单位：MiB）
+  string containerDefaultCpu = 36; //Container 默认 CPU 限制（单位：核）
+  string containerDefaultMemory = 37; //Container 默认内存限制（单位：MiB）
+  string containerDefaultEphemeralStorage = 38; //Container 默认临时存储限制（单位：GiB）
+  string containerDefaultRequestCpu = 39; //Container 默认 CPU 请求（单位：核）
+  string containerDefaultRequestMemory = 40; //Container 默认内存请求（单位：MiB）
+  string containerDefaultRequestEphemeralStorage = 41; //Container 默认临时存储请求（单位：MiB）
+  int64 isSystem = 42; //是否为系统级别项目， 前端传递只能设置0
+  string createdBy = 45; //记录创建人
+  string updatedBy = 46; //记录最后更新人
+}
+
+message AddOnecProjectWorkspaceResp {
+  uint64 id = 1;
+}
+
+message UpdateOnecProjectWorkspaceReq {
+  uint64 id = 1; //主键，自增 ID
+  string name = 4; //工作空间中文名称
+  string description = 6; //工作空间描述信息
+  string cpuAllocated = 7; //分配的 CPU 核心数
+  string memAllocated = 8; //分配的内存（单位：GiB）
+  string storageAllocated = 9; //分配的存储（单位：GiB）
+  string gpuAllocated = 10; //分配的 GPU 数量
+  int64 podsAllocated = 11; //分配的 Pod 数量
+  int64 configmapAllocated = 12; //分配的 ConfigMap 数量上限
+  int64 secretAllocated = 13; //分配的 Secret 数量上限
+  int64 pvcAllocated = 14; //分配的 PVC 数量上限
+  string ephemeralStorageAllocated = 15; //分配的临时存储数量上限
+  int64 serviceAllocated = 16; //分配的 Service 数量上限
+  int64 loadbalancersAllocated = 17; //分配的 LoadBalancer 数量上限
+  int64 nodeportsAllocated = 18; //分配的 NodePort 数量上限
+  int64 deploymentsAllocated = 19; //分配的 Deployment 数量上限
+  int64 jobsAllocated = 20; //分配的 Job 数量上限
+  int64 cronjobsAllocated = 21; //分配的 CronJob 数量上限
+  int64 daemonsetsAllocated = 22; //分配的 DaemonSet 数量上限
+  int64 statefulsetsAllocated = 23; //分配的 StatefulSet 数量上限
+  int64 ingressesAllocated = 24; //分配的 Ingress 数量上限
+  string podMaxCpu = 25; //Pod 级别最大 CPU 限制（单位：核）
+  string podMaxMemory = 26; //Pod 级别最大内存限制（单位：GiB）
+  string podMaxEphemeralStorage = 27; //Pod 级别最大临时存储限制（单位：GiB）
+  string podMinCpu = 28; //Pod 级别最小 CPU 请求（单位：核，支持毫核）
+  string podMinMemory = 29; //Pod 级别最小内存请求（单位：MiB）
+  string podMinEphemeralStorage = 30; //Pod 级别最小临时存储请求（单位：MiB）
+  string containerMaxCpu = 31; //Container 级别最大 CPU 限制（单位：核）
+  string containerMaxMemory = 32; //Container 级别最大内存限制（单位：GiB）
+  string containerMaxEphemeralStorage = 33; //Container 级别最大临时存储限制（单位：GiB）
+  string containerMinCpu = 34; //Container 级别最小 CPU 请求（单位：核，支持毫核）
+  string containerMinMemory = 35; //Container 级别最小内存请求（单位：MiB）
+  string containerMinEphemeralStorage = 36; //Container 级别最小临时存储请求（单位：MiB）
+  string containerDefaultCpu = 37; //Container 默认 CPU 限制（单位：核）
+  string containerDefaultMemory = 38; //Container 默认内存限制（单位：MiB）
+  string containerDefaultEphemeralStorage = 39; //Container 默认临时存储限制（单位：GiB）
+  string containerDefaultRequestCpu = 40; //Container 默认 CPU 请求（单位：核）
+  string containerDefaultRequestMemory = 41; //Container 默认内存请求（单位：MiB）
+  string containerDefaultRequestEphemeralStorage = 42; //Container 默认临时存储请求（单位：MiB）
+  string updatedBy = 47; //记录最后更新人
+}
+
+
+message UpdateOnecProjectWorkspaceResp {
+}
+
+message DelOnecProjectWorkspaceReq {
+  uint64 id = 1; //id
+}
+
+message DelOnecProjectWorkspaceResp {
+}
+
+
+message GetOnecProjectWorkspaceByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetOnecProjectWorkspaceByIdResp {
+  OnecProjectWorkspace data = 1; //onecProjectWorkspace
+}
+
+message SearchOnecProjectWorkspaceReq {
+  uint64 projectClusterId = 5; //关联到项目表的 ID，表示应用所属的项目   必须传递
+  string name = 7; //工作空间中文名称
+  string namespace = 8; //工作空间的唯一标识符（英文，等同于 Kubernetes 的命名空间名称）
+}
+
+message SearchOnecProjectWorkspaceResp {
+  repeated OnecProjectWorkspace data = 1; //onecProjectWorkspace
+}
+
+
+message ProjectWorkspaceSyncReq {
+  uint64 Id = 1;
+  string operator = 2;
+}
+message ProjectWorkspaceSyncResp {
+
+}
+
+// ProjectClusterSyncResp ProjectClusterSyncReq
+message ProjectClusterSyncReq {
+  uint64 Id = 1;
+  string operator = 2;
+}
+message ProjectClusterSyncResp {
+}
+
+message ProjectQuotaSyncReq {
+  string operator = 1;
+}
+message ProjectQuotaSyncResp {}
+
+message ClusterResourceSyncReq {
+  uint64 Id = 1;
+  string operator = 2;
+}
+message ClusterResourceSyncResp {
+}
+
+message ClusterSyncAllReq {
+  string operator = 1;
+}
+message ClusterSyncAllResp {}
+
+message GetOnecProjectsByUserIdReq {
+  uint64 userId = 1;
+  string name = 2;
+  repeated string roles = 3;
+}
+
+message GetOnecProjectsByUserIdResp {
+  repeated ProjectInfo data = 1; //onecProject
+}
+
+
+
+
+//--------------------------------工作空间服务表--------------------------------
+message OnecProjectApplication {
+  uint64 id = 1; //id
+  uint64 workspaceId = 2; //工作空间ID
+  string nameCn = 3; //服务中文名
+  string nameEn = 4; //服务英文名
+  string resourceType = 5; //服务资源类型
+  string description = 6; //服务描述
+  string createdBy = 7; //记录创建人
+  string updatedBy = 8; //记录最后更新人
+  int64 createdAt = 9; //记录创建时间
+  int64 updatedAt = 10; //记录更新时间
+}
+
+message AddOnecProjectApplicationReq {
+  uint64 workspaceId = 1; //工作空间ID
+  string nameCn = 2; // 服务中文名
+  string nameEn = 3; // 服务英文名
+  string resourceType = 4; //服务类型
+  string description = 5; //服务描述
+  string createdBy = 6; //记录创建人
+  string updatedBy = 7; //记录最后更新人
+}
+
+message AddOnecProjectApplicationResp {
+  uint64 id = 1;
+}
+
+message UpdateOnecProjectApplicationReq {// 更新只允许修改中文名称和描述
+  uint64 id = 1; //id
+  string nameCn = 3; //服务中文名
+  string description = 6; //服务描述
+  string updatedBy = 8; //记录最后更新人
+}
+
+message UpdateOnecProjectApplicationResp {
+}
+
+message DelOnecProjectApplicationReq {
+  uint64 id = 1; //id
+}
+
+message DelOnecProjectApplicationResp {
+}
+
+
+
+message GetOnecProjectApplicationByIdResp {
+  OnecProjectApplication data = 1; //onecProjectApplication
+}
+
+message SearchOnecProjectApplicationReq {
+  uint64 workspaceId = 5; // 工作空间ID 必须输入
+  string nameCn = 6; // 服务中文名    可以为空
+}
+
+message SearchOnecProjectApplicationResp {
+  repeated OnecProjectApplication data = 1; //onecProjectApplication
+}
+
+
+//--------------------------------项目版本表--------------------------------
+message OnecProjectVersion {
+  uint64 id = 1; //id
+  uint64 applicationId = 2; //应用ID
+  string version = 3; // 版本名称
+  string resourceName = 4; // 标签名称
+  string createdBy = 5; //记录创建人
+  string updatedBy = 6; //记录最后更新人
+  int64 createdAt = 7; //记录创建时间
+  int64 updatedAt = 8; //记录更新时间
+  int64 status = 9;
+  string versionRole = 10;
+
+  string parentAppName = 11;
+
+}
+
+message AddOnecProjectVersionReq {
+  uint64 applicationId = 1; //应用ID
+  string version = 2; //版本名称
+  string resourceName = 3; //标签名称
+  string createdBy = 4; //记录创建人
+  string updatedBy = 5; //记录最后更新人
+}
+
+message AddOnecProjectVersionResp {
+  uint64 id = 1;
+}
+
+
+message DelOnecProjectVersionReq {
+  uint64 id = 1; //id
+}
+
+message DelOnecProjectVersionResp {
+}
+
+
+message SearchOnecProjectVersionReq {
+  uint64 applicationId = 5; //应用ID 必须传递
+}
+
+message SearchOnecProjectVersionResp {
+  repeated OnecProjectVersion data = 1; //onecProjectVersion
+}
+
+
+
+//--------------------------------资源操作审计日志表，记录所有资源控制器操作--------------------------------
+message OnecProjectAuditLog {
+  uint64 id = 1; //主键，自增 ID
+  string clusterName = 2; //集群名称
+  string clusterUuid = 3; //集群UUID
+  uint64 projectId = 4; //项目ID
+  string projectName = 5; //项目名称
+  uint64 workspaceId = 6; //工作空间ID，0表示项目级别操作
+  string workspaceName = 7; //工作空间名称
+  uint64 applicationId = 8; //应用ID
+  string applicationName = 9; //应用名称
+  string title = 10; //简称 资源副本扩容
+  string actionDetail = 11; //操作详情描述：如"xx deployment 扩容副本数从 2到 5"
+  int64 status = 12; //操作状态 true 成功 false 失败
+  uint64 operatorId = 13; //操作人用户ID
+  string operatorName = 14; //操作人姓名
+  int64 createdAt = 15; //记录创建时间
+  int64 updatedAt = 16; //记录更新时间
+}
+
+
+message AddOnecProjectAuditLogReq {
+  string clusterUuid = 1; //集群UUID
+  uint64 projectId = 4; //项目ID
+  uint64 workspaceId = 3; //工作空间ID，0表示项目级别操作
+  uint64 applicationId = 5; //应用ID
+  uint64 versionId = 6;
+  string title = 7; //简称 资源副本扩容
+  string actionDetail = 8; //操作详情描述：如"xx deployment 扩容副本数从 2到 5"
+  int64 status = 9; //操作状态 true 成功 false 失败
+}
+
+message AddOnecProjectAuditLogResp {
+}
+
+message DelOnecProjectAuditLogReq {
+  uint64 id = 1; //id
+}
+
+message DelOnecProjectAuditLogResp {
+}
+
+
+// 批量删除
+message BatchDelOnecProjectAuditLogReq {
+  repeated uint64 ids = 1;
+}
+message BatchDelOnecProjectAuditLogResp {
+}
+
+// 删除指定天数之前的
+message DelOnecProjectAuditLogBeforeDaysReq {
+  uint64 days = 1;
+}
+message DelOnecProjectAuditLogBeforeDaysResp {
+}
+
+message GetOnecProjectAuditLogByIdResp {
+  OnecProjectAuditLog data = 1; //onecProjectAuditLog
+}
+
+message SearchOnecProjectAuditLogReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderField = 3; //orderStr
+  bool isAsc = 4; //isAsc
+  int64 projectId = 5;
+  string clusterUuid = 6; //资源集群uuid 不可为空
+
+  int64 workspaceId = 7; //工作空间ID，-1表示项目级别操作  必须传递
+  int64 applicationId = 8; //应用ID，-1 可以为空           可以为空
+  int64 status = 9;
+  string title = 10;
+  string operatorName = 13; //操作人姓名
+  int64 StartAt = 14;
+  int64 EndAt = 15;
+}
+
+message SearchOnecProjectAuditLogResp {
+  repeated OnecProjectAuditLog data = 1; //onecProjectAuditLog
+  uint64 total = 2; //total
+}
+
+message GetOnecProjectVersionDetailReq {
+  uint64 id = 1;
+}
+message GetOnecProjectVersionDetailResp {
+  string clusterUuid = 1;
+  string ClusterName = 2;
+
+  uint64 resourceClusterId = 5;
+  string projectNameCn = 6;
+  string projectDetails = 7;
+  string ProjectUuid = 8;
+  string Namespace = 9;
+  string WorkspaceNameCn = 10;
+
+  string version = 15;
+  string resourceName = 16;
+  string resourceType = 17;
+  uint64 applicationId = 18;
+  string applicationNameCn = 19;
+  uint64 workspaceId = 20;
+  uint64 versionId = 21;
+
+}
+
+message GetOnecProjectApplicationByIdReq {
+  uint64 Id = 1;
+}
+
+
+
+// 获取 某一个集群 域名列表
+message GetClusterDomainListReq {
+  string uuid = 1;
+}
+message GetClusterDomainListResp {
+  repeated string data = 1;
+}
+
+message GetClusterNetworkReq {
+  string uuid = 1;
+}
+message GetClusterNetworkResp {
+  uint64 Id = 1;
+  string ClusterUuid = 2;
+  string ClusterCidr = 3;
+  string ServiceCidr = 4;
+  int64 NodeCidrMaskSize = 5;
+  string DnsDomain = 6;
+  string DnsServiceIp = 7;
+  string DnsProvider = 8;
+  string CniPlugin = 9;
+  string CniVersion = 10;
+  string ProxyMode = 11;
+  string IngressController = 12;
+  string IngressClass = 13;
+  int64 Ipv6Enabled = 14;
+  int64 DualStackEnabled = 15;
+  int64 MtuSize = 16;
+  string NodePortRange = 18;
+  string CreatedBy = 19;
+  string UpdatedBy = 20;
+  int64 CreatedAt = 21;
+  int64 UpdatedAt = 22;
+}
+
+// 修改集群的存储容量
+message UpdateClusterStorageCapacityReq {
+  uint64 Id = 1;
+  double storagePhysicalCapacity = 2;
+}
+message UpdateClusterStorageCapacityResp {
+}
+
+// 获取集群默认的域名后缀
+message GetClusterDefaultDomainSuffixReq {
+  string uuid = 1;
+}
+message GetClusterDefaultDomainSuffixResp {
+  string data = 1;
+}
+
+// 获取集群 lb 列表
+message GetClusterLbListReq {
+  string uuid = 1;
+  string lbName = 2;
+}
+
+message GetClusterLbListResp {
+  repeated string data = 1;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ================================ 告警规则文件表 ================================
+message AlertRuleFile {
+  uint64 id = 1;
+  string fileCode = 2;
+  string fileName = 3;
+  string description = 4;
+  string namespace = 5;
+  string labels = 6;      // JSON string
+  bool isEnabled = 7;
+  int64 sortOrder = 8;
+  string createdBy = 9;
+  string updatedBy = 10;
+  int64 createdAt = 11;
+  int64 updatedAt = 12;
+  int64 groupCount = 13;  // 关联的分组数量(查询时填充)
+  int64 ruleCount = 14;   // 关联的规则数量(查询时填充)
+}
+
+message AddAlertRuleFileReq {
+  string fileCode = 1;
+  string fileName = 2;
+  string description = 3;
+  string namespace = 4;
+  string labels = 5;
+  bool isEnabled = 6;
+  int64 sortOrder = 7;
+  string createdBy = 8;
+}
+
+message AddAlertRuleFileResp {
+  uint64 id = 1;
+}
+
+message UpdateAlertRuleFileReq {
+  uint64 id = 1;
+  string fileCode = 2;
+  string fileName = 3;
+  string description = 4;
+  string namespace = 5;
+  string labels = 6;
+  bool isEnabled = 7;
+  int64 sortOrder = 8;
+  string updatedBy = 9;
+}
+
+message UpdateAlertRuleFileResp {}
+
+message DelAlertRuleFileReq {
+  uint64 id = 1;
+  bool cascade = 2;  // 是否级联删除关联的groups和rules
+}
+
+message DelAlertRuleFileResp {}
+
+message GetAlertRuleFileByIdReq {
+  uint64 id = 1;
+}
+
+message GetAlertRuleFileByIdResp {
+  AlertRuleFile data = 1;
+}
+
+message SearchAlertRuleFileReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string orderField = 3;
+  bool isAsc = 4;
+  string fileCode = 5;
+  string fileName = 6;
+  string namespace = 7;
+}
+
+message SearchAlertRuleFileResp {
+  repeated AlertRuleFile data = 1;
+  uint64 total = 2;
+}
+// 无分页查询(用于下拉选择等场景)
+message ListAlertRuleFileReq {
+  string namespace = 1;  // 可选，按命名空间筛选
+}
+
+message ListAlertRuleFileResp {
+  repeated AlertRuleFile data = 1;
+}
+
+// ================================ 告警规则分组表 ================================
+message AlertRuleGroup {
+  uint64 id = 1;
+  uint64 fileId = 2;
+  string groupCode = 3;
+  string groupName = 4;
+  string description = 5;
+  string interval = 6;
+  bool isEnabled = 7;
+  int64 sortOrder = 8;
+  string createdBy = 9;
+  string updatedBy = 10;
+  int64 createdAt = 11;
+  int64 updatedAt = 12;
+  int64 ruleCount = 13;    // 关联的规则数量(查询时填充)
+  string fileCode = 14;    // 所属文件代码(查询时填充)
+  string fileName = 15;    // 所属文件名称(查询时填充)
+}
+
+message AddAlertRuleGroupReq {
+  uint64 fileId = 1;
+  string groupCode = 2;
+  string groupName = 3;
+  string description = 4;
+  string interval = 5;
+  bool isEnabled = 6;
+  int64 sortOrder = 7;
+  string createdBy = 8;
+}
+
+message AddAlertRuleGroupResp {
+  uint64 id = 1;
+}
+
+message UpdateAlertRuleGroupReq {
+  uint64 id = 1;
+  string groupCode = 2;
+  string groupName = 3;
+  string description = 4;
+  string interval = 5;
+  bool isEnabled = 6;
+  int64 sortOrder = 7;
+  string updatedBy = 8;
+}
+
+message UpdateAlertRuleGroupResp {}
+
+message DelAlertRuleGroupReq {
+  uint64 id = 1;
+  bool cascade = 2;  // 是否级联删除关联的rules
+}
+
+message DelAlertRuleGroupResp {}
+
+message GetAlertRuleGroupByIdReq {
+  uint64 id = 1;
+}
+
+message GetAlertRuleGroupByIdResp {
+  AlertRuleGroup data = 1;
+}
+
+message SearchAlertRuleGroupReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string orderField = 3;
+  bool isAsc = 4;
+  uint64 fileId = 5;
+  string groupCode = 6;
+  string groupName = 7;
+}
+
+message SearchAlertRuleGroupResp {
+  repeated AlertRuleGroup data = 1;
+  uint64 total = 2;
+}
+
+// 无分页查询(用于下拉选择等场景)
+message ListAlertRuleGroupReq {
+  uint64 fileId = 1;  // 可选，按文件筛选
+}
+
+message ListAlertRuleGroupResp {
+  repeated AlertRuleGroup data = 1;
+}
+
+
+// ================================ 告警规则表 ================================
+message AlertRule {
+  uint64 id = 1;
+  uint64 groupId = 2;
+  string alertName = 3;
+  string ruleNameCn = 4;
+  string expr = 5;
+  string forDuration = 6;
+  string severity = 7;
+  string summary = 8;
+  string description = 9;
+  string labels = 10;      // JSON string
+  string annotations = 11; // JSON string
+  bool isEnabled = 12;
+  int64 sortOrder = 13;
+  string createdBy = 14;
+  string updatedBy = 15;
+  int64 createdAt = 16;
+  int64 updatedAt = 17;
+  string groupCode = 18;   // 所属分组代码(查询时填充)
+  string groupName = 19;   // 所属分组名称(查询时填充)
+  uint64 fileId = 20;      // 所属文件ID(查询时填充)
+  string fileCode = 21;    // 所属文件代码(查询时填充)
+}
+
+message AddAlertRuleReq {
+  uint64 groupId = 1;
+  string alertName = 2;
+  string ruleNameCn = 3;
+  string expr = 4;
+  string forDuration = 5;
+  string severity = 6;
+  string summary = 7;
+  string description = 8;
+  string labels = 9;
+  string annotations = 10;
+  bool isEnabled = 11;
+  int64 sortOrder = 12;
+  string createdBy = 13;
+}
+
+message AddAlertRuleResp {
+  uint64 id = 1;
+}
+
+message UpdateAlertRuleReq {
+  uint64 id = 1;
+  string alertName = 2;
+  string ruleNameCn = 3;
+  string expr = 4;
+  string forDuration = 5;
+  string severity = 6;
+  string summary = 7;
+  string description = 8;
+  string labels = 9;
+  string annotations = 10;
+  bool isEnabled = 11;
+  int64 sortOrder = 12;
+  string updatedBy = 13;
+}
+
+message UpdateAlertRuleResp {}
+
+message DelAlertRuleReq {
+  uint64 id = 1;
+}
+
+message DelAlertRuleResp {}
+
+message GetAlertRuleByIdReq {
+  uint64 id = 1;
+}
+
+message GetAlertRuleByIdResp {
+  AlertRule data = 1;
+}
+
+message SearchAlertRuleReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string orderField = 3;
+  bool isAsc = 4;
+  uint64 fileId = 5;       // 按文件筛选
+  uint64 groupId = 6;      // 按分组筛选
+  string alertName = 7;    // 告警名称模糊搜索
+  string ruleNameCn = 8;   // 中文名模糊搜索
+  string severity = 9;     // 按级别筛选
+}
+
+message SearchAlertRuleResp {
+  repeated AlertRule data = 1;
+  uint64 total = 2;
+}
+// 批量删除
+message BatchDelAlertRuleReq {
+  repeated uint64 ids = 1;
+}
+
+message BatchDelAlertRuleResp {
+  int64 deletedCount = 1;
+}
+
+// ================================ 导入/导出/部署 ================================
+
+// 批量导入 YAML (file级别)
+message BatchImportAlertRulesReq {
+  string yamlStr = 1;
+  string createdBy = 2;
+  bool overwrite = 3;  // 是否覆盖已存在的file
+}
+
+message BatchImportAlertRulesResp {
+  uint64 fileId = 1;
+  int64 groupCount = 2;
+  int64 ruleCount = 3;
+}
+
+// 批量导出 YAML (file级别 + 可选groups)
+message BatchExportAlertRulesReq {
+  uint64 fileId = 1;
+  repeated uint64 groupIds = 2;  // 可选，为空则导出全部groups
+}
+
+message BatchExportAlertRulesResp {
+  string yamlStr = 1;
+}
+
+// 部署到集群
+message DeployAlertRulesReq {
+  uint64 fileId = 1;
+  string clusterUuid = 2;
+  string namespace = 3;
+  repeated uint64 groupIds = 4;  // 可选，为空则部署全部groups
+  repeated uint64 ruleIds = 5;   // 可选，为空则部署选中groups的全部rules
+}
+
+message DeployAlertRulesResp {
+  string yamlStr = 1;  // 返回生成的YAML供前端预览
+}
+
+// 预览生成的 YAML (不实际部署)
+message PreviewAlertRulesYamlReq {
+  uint64 fileId = 1;
+  string namespace = 2;
+  repeated uint64 groupIds = 3;
+  repeated uint64 ruleIds = 4;
+}
+
+message PreviewAlertRulesYamlResp {
+  string yamlStr = 1;
+}
+
+
+// ================================ 树形结构查询 ================================
+
+// 获取完整树形结构 (用于前端展示)
+message GetAlertRuleTreeReq {
+  uint64 fileId = 1;  // 可选，指定文件
+}
+
+message AlertRuleTreeNode {
+  uint64 id = 1;
+  string code = 2;
+  string name = 3;
+  string type = 4;  // file / group / rule
+  bool isEnabled = 5;
+  string severity = 6;  // 仅 rule 类型有值  ← 这里有
+  repeated AlertRuleTreeNode children = 7;
+}
+
+message GetAlertRuleTreeResp {
+  repeated AlertRuleTreeNode data = 1;
+}
+// 导出全部告警规则请求 - 无需参数
+message ExportAllAlertRulesReq {
+}
+
+// 导出全部告警规则响应 - 返回多个文件的 YAML 内容
+message ExportAllAlertRulesResp {
+  repeated ExportedAlertRuleFile files = 1;  // 导出的文件列表
+}
+
+// 单个导出的告警规则文件
+message ExportedAlertRuleFile {
+  string fileName = 1;   // 文件名 (fileCode.yaml)
+  string yamlStr = 2;    // YAML 内容
+}
+
+// 部署全部告警规则请求 - 只需要集群和命名空间
+message DeployAllAlertRulesReq {
+  string clusterUuid = 1;  // 集群UUID
+  string namespace = 2;    // 命名空间
+  string createdBy = 3;    // 操作人
+}
+
+// 部署全部告警规则响应
+message DeployAllAlertRulesResp {
+  int64 fileCount = 1;   // 部署的文件数量
+  int64 groupCount = 2;  // 部署的分组数量
+  int64 ruleCount = 3;   // 部署的规则数量
+}
+
+// ===================== Alertmanager Webhook 相关定义 =====================
+
+// 单个告警
+message Alert {
+  string status = 1;
+  map<string, string> labels = 2;
+  map<string, string> annotations = 3;
+  string startsAt = 4;
+  string endsAt = 5;
+  string generatorURL = 6;
+  string fingerprint = 7;
+}
+
+// Alertmanager Webhook 请求体
+message AlertmanagerWebhook {
+  string receiver = 1;
+  string status = 2;
+  repeated Alert alerts = 3;
+  map<string, string> groupLabels = 4;
+  map<string, string> commonLabels = 5;
+  map<string, string> commonAnnotations = 6;
+  string externalURL = 7;
+  string version = 8;
+  string groupKey = 9;
+  int32 truncatedAlerts = 10;  // optional
+}
+
+// 接收 Alertmanager 告警请求
+message ReceiveAlertmanagerWebhookReq {
+  AlertmanagerWebhook webhook = 1;
+}
+
+// 接收 Alertmanager 告警响应
+message ReceiveAlertmanagerWebhookResp {
+}
+
+
+
+//--------------------------------告警实例表--------------------------------
+message AlertInstances {
+  uint64 id = 1; //主键ID
+  string instance = 2; //告警实例
+  string fingerprint = 3; //告警指纹(用于去重和关联)
+  string clusterUuid = 4; //关联的集群UUID
+  string clusterName = 5; //关联的集群名称
+  uint64 projectId = 6; //关联的项目ID
+  string projectName = 7; //关联的项目名称
+  uint64 workspaceId = 8; //关联的工作空间ID
+  string workspaceName = 9; //关联的工作空间名称
+  string alertName = 10; //告警名称
+  string severity = 11; //严重级别(info, warning, critical)
+  string status = 12; //告警状态(firing, resolved)
+  string labels = 13; //告警标签(JSON格式)
+  string annotations = 14; //告警注解(JSON格式)
+  string generatorUrl = 15; //生成器URL
+  int64 startsAt = 16; //告警开始时间
+  int64 endsAt = 17; //告警结束时间
+  int64 resolvedAt = 18; //告警恢复时间
+  int64 duration = 19; //持续时长(秒)
+  int64 repeatCount = 20; //告警重复次数(同一fingerprint在firing状态下的触发次数)
+  string notifiedGroups = 21; //已通知的告警组ID列表(逗号分隔)
+  int64 notificationCount = 22; //通知次数
+  int64 lastNotifiedAt = 23; //最后通知时间
+  string createdBy = 24; //创建人
+  string updatedBy = 25; //更新人
+  int64 createdAt = 26; //创建时间
+  int64 updatedAt = 27; //更新时间
+}
+
+
+message AddAlertInstancesResp {
+}
+
+
+message DelAlertInstancesReq {
+  uint64 id = 1; //id
+}
+
+message DelAlertInstancesResp {
+}
+
+message GetAlertInstancesByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetAlertInstancesByIdResp {
+  AlertInstances data = 1; //alertInstances
+}
+
+message SearchAlertInstancesReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderField = 3; //orderField
+  bool isAsc = 4; //isAsc
+  string instance = 5; //告警实例
+  string fingerprint = 6; //告警指纹(用于去重和关联)
+  string clusterUuid = 7; //关联的集群UUID
+  string clusterName = 8; //关联的集群名称
+  uint64 projectId = 9; //关联的项目ID
+  string projectName = 10; //关联的项目名称
+  uint64 workspaceId = 11; //关联的工作空间ID
+  string workspaceName = 12; //关联的工作空间名称
+  string alertName = 13; //告警名称
+  string severity = 14; //严重级别(info, warning, critical)
+  string status = 15; //告警状态(firing, resolved)
+  int64 repeatCount = 23; //告警重复次数(同一fingerprint在firing状态下的触发次数)
+}
+
+message SearchAlertInstancesResp {
+  repeated AlertInstances data = 1; //alertInstances
+  uint64 total = 2; //total
+}
+// 批量删除
+message BatchDelAlertInstancesReq {
+  repeated uint64 ids = 1;
+}
+message BatchDelAlertInstancesResp {
+}
+
+
+
+// 迁移 workspace
+message MigrateWorkspaceReq {
+  uint64 workspaceId = 1;
+  uint64 newProjectId = 2;
+}
+
+message  MigrateWorkspaceResp {
+
+}
+
+// 获取某一个集群的所有ns
+message  GetClusterNsReq {
+  string clusterUuid = 1;
+}
+message  GetClusterNsResp {
+  repeated string namespaces = 1;
+}
+
+
+//通过 clusterUuid 和 namespace 获取 详情信息
+message GetClusterNsDetailReq {
+  string clusterUuid = 1;
+  string namespace = 2;
+}
+message GetClusterNsDetailResp {
+  uint64 clusterId = 1;
+  string clusterUuid = 2;
+  string ClusterName = 3;
+
+  uint64 projectId = 4;
+  string projectNameCn = 6;
+  string projectDetails = 7;
+  string ProjectUuid = 8;
+  string Namespace = 9;
+  uint64 workspaceId = 10;
+  string WorkspaceNameCn = 11;
+}
+//   GetOnecProjectVersionDetailResp
+
+//
+
+service ManagerService {
+  // //通过 clusterUuid 和 namespace 获取 详情信息
+  rpc GetClusterNsDetail(GetClusterNsDetailReq) returns (GetClusterNsDetailResp);
+  // 获取某一个集群的所有ns
+  rpc GetClusterNs(GetClusterNsReq) returns (GetClusterNsResp);
+  //-----------------------告警实例表-----------------------
+  rpc AlertInstancesDel(DelAlertInstancesReq) returns (DelAlertInstancesResp);
+  rpc AlertInstancesByIdGet(GetAlertInstancesByIdReq) returns (GetAlertInstancesByIdResp);
+  rpc AlertInstancesSearch(SearchAlertInstancesReq) returns (SearchAlertInstancesResp);
+  rpc AlertInstancesBatchDel(BatchDelAlertInstancesReq) returns (BatchDelAlertInstancesResp);
+  //-----------------------告警规则表-----------------------
+  // ===================== 告警规则文件表 =====================
+  rpc AlertRuleFileAdd(AddAlertRuleFileReq) returns (AddAlertRuleFileResp);
+  rpc AlertRuleFileUpdate(UpdateAlertRuleFileReq) returns (UpdateAlertRuleFileResp);
+  rpc AlertRuleFileDel(DelAlertRuleFileReq) returns (DelAlertRuleFileResp);
+  rpc AlertRuleFileGetById(GetAlertRuleFileByIdReq) returns (GetAlertRuleFileByIdResp);
+  rpc AlertRuleFileSearch(SearchAlertRuleFileReq) returns (SearchAlertRuleFileResp);
+  rpc AlertRuleFileList(ListAlertRuleFileReq) returns (ListAlertRuleFileResp);
+  // ===================== 告警规则分组表 =====================
+  rpc AlertRuleGroupAdd(AddAlertRuleGroupReq) returns (AddAlertRuleGroupResp);
+  rpc AlertRuleGroupUpdate(UpdateAlertRuleGroupReq) returns (UpdateAlertRuleGroupResp);
+  rpc AlertRuleGroupDel(DelAlertRuleGroupReq) returns (DelAlertRuleGroupResp);
+  rpc AlertRuleGroupGetById(GetAlertRuleGroupByIdReq) returns (GetAlertRuleGroupByIdResp);
+  rpc AlertRuleGroupSearch(SearchAlertRuleGroupReq) returns (SearchAlertRuleGroupResp);
+  rpc AlertRuleGroupList(ListAlertRuleGroupReq) returns (ListAlertRuleGroupResp);
+
+  // ===================== 告警规则表 =====================
+  rpc AlertRuleAdd(AddAlertRuleReq) returns (AddAlertRuleResp);
+  rpc AlertRuleUpdate(UpdateAlertRuleReq) returns (UpdateAlertRuleResp);
+  rpc AlertRuleDel(DelAlertRuleReq) returns (DelAlertRuleResp);
+  rpc AlertRuleGetById(GetAlertRuleByIdReq) returns (GetAlertRuleByIdResp);
+  rpc AlertRuleSearch(SearchAlertRuleReq) returns (SearchAlertRuleResp);
+  rpc AlertRuleBatchDel(BatchDelAlertRuleReq) returns (BatchDelAlertRuleResp);
+  // ===================== 导入/导出/部署 =====================
+  rpc AlertRulesBatchImport(BatchImportAlertRulesReq) returns (BatchImportAlertRulesResp);
+  rpc AlertRulesBatchExport(BatchExportAlertRulesReq) returns (BatchExportAlertRulesResp);
+  rpc AlertRulesDeploy(DeployAlertRulesReq) returns (DeployAlertRulesResp);
+  rpc AlertRulesPreviewYaml(PreviewAlertRulesYamlReq) returns (PreviewAlertRulesYamlResp);
+  rpc AlertRulesExportAll(ExportAllAlertRulesReq) returns (ExportAllAlertRulesResp);
+  rpc AlertRulesDeployAll(DeployAllAlertRulesReq) returns (DeployAllAlertRulesResp);
+
+  // ===================== 树形结构 =====================
+  rpc AlertRuleTreeGet(GetAlertRuleTreeReq) returns (GetAlertRuleTreeResp);
+
+  // ===================== Alertmanager Webhook =====================
+  rpc ReceiveAlertmanagerWebhook(ReceiveAlertmanagerWebhookReq) returns (ReceiveAlertmanagerWebhookResp);
+
+
+
+
+
+
+
+  // 获取集群默认域名后缀
+  rpc GetClusterDefaultDomainSuffix(GetClusterDefaultDomainSuffixReq) returns (GetClusterDefaultDomainSuffixResp);
+  // 获取集群 node or master lb 列表
+  rpc GetClusterLbList(GetClusterLbListReq) returns (GetClusterLbListResp);
+  // 通过集群uuid获取集群认证信息
+  rpc GetClusterAuthInfo(GetClusterAuthInfoReq) returns (GetClusterAuthInfoResp);
+  // 修改集群认证信息
+  rpc ClusterUpdateAuthInfo(ClusterUpdateAuthInfoReq) returns (ClusterUpdateAuthInfoResp);
+  // 修改集群图标
+  rpc ClusterUpdateIcon(ClusterUpdateAvatarReq) returns (ClusterUpdateAvatarResp);
+  // 测试集群连通性
+  rpc ClusterTestConnect(ClusterTestConnectReq) returns (ClusterTestConnectResp);
+  // 删除集群
+  rpc ClusterDelete(DeleteClusterReq) returns (DeleteClusterResp);
+  // 修改集群
+  rpc ClusterUpdate(UpdateClusterReq) returns (UpdateClusterResp);
+  rpc ClusterSearch(SearchClusterReq) returns (SearchClusterResp);
+  rpc ClusterAdd(AddClusterRequest) returns (AddClusterResponse);
+
+  // 获取 某一个集群 ingressDomain 列表
+  rpc GetClusterIngressDomainList(GetClusterDomainListReq) returns (GetClusterDomainListResp);
+  rpc GetClusterNetwork(GetClusterNetworkReq) returns (GetClusterNetworkResp);
+  rpc UpdateClusterStorageCapacity(UpdateClusterStorageCapacityReq) returns (UpdateClusterStorageCapacityResp);
+  // 获取集群详情
+  rpc ClusterDetail(ClusterDetailReq) returns (ClusterDetailResp);
+  rpc ClusterSync(SyncClusterReq) returns (SyncClusterResp);
+  rpc ClusterAuthInfo(ClusterAuthInfoReq) returns (ClusterAuthInfoResp);
+  // 集群资源
+  rpc ClusterResourceInfo(ClusterResourceInfoReq) returns (ClusterResourceInfoResp);
+  // 同步某一个集群资源
+  rpc ClusterResourceSync(ClusterResourceSyncReq) returns (ClusterResourceSyncResp);
+  rpc ClusterSyncAll(ClusterSyncAllReq) returns (ClusterSyncAllResp);
+  // node 相关
+    rpc NodeInfo(ClusterNodeInfoReq) returns (ClusterNodeInfoResp);
+    rpc NodeDetail(ClusterNodeDetailReq) returns (OnecClusterNodeResp);
+  //   labels 相关
+    rpc NodeLabelsList(ClusterNodeLabelsListReq) returns (ClusterNodeLabelsListResp);
+  // 添加 labels
+    rpc NodeAddLabels(ClusterNodeAddLabelsReq) returns (ClusterNodeDisableResp);
+  // 删除 labels
+    rpc NodeDeleteLabels(ClusterNodeDeleteLabelsReq) returns (ClusterNodeDisableResp);
+  // 注解相关
+  // 添加注解
+    rpc NodeAddAnnotations(ClusterNodeAddAnnotationsReq) returns (ClusterNodeAddAnnotationsResp);
+  // 删除注解
+    rpc NodeDeleteAnnotations(ClusterNodeDeleteAnnotationsReq) returns (ClusterNodeDeleteAnnotationsResp);
+  // 获取注解列表
+    rpc NodeAnnotationsList(ClusterNodeAnnotationsListReq) returns (ClusterNodeAnnotationsListResp);
+  // 污点相关
+  // 启用或者禁用调度
+    rpc NodeDisable(ClusterNodeDisableReq) returns (ClusterNodeDisableResp);
+  // 添加污点
+    rpc NodeAddTaint(ClusterNodeAddTaintReq) returns (ClusterNodeAddTaintResp);
+  // 删除污点
+    rpc NodeDeleteTaint(ClusterNodeDeleteTaintReq) returns (ClusterNodeDisableResp);
+  // 获取污点列表
+    rpc NodeTaintList(ClusterNodeTaintsListReq) returns (ClusterNodeTaintsListResp);
+
+  // 驱逐
+    rpc NodeEvict(ClusterEvictReq) returns (ClusterEvictResp);
+  // app 相关
+  // add 属于更新创建合并，存在就修改，否则就创建
+  rpc AppAdd(AddClusterAppReq) returns (AddClusterAppResp);
+  // 获取 app 详情信息
+  rpc AppDetail(ClusterAppDetailReq) returns (ClusterAppDetailResp);
+  // 测试中间件是否正常。
+  rpc AppValidate(ClusterAppValidateReq) returns (ClusterAppValidateResp);
+  // 获取某一个集群 app 列表
+  rpc AppOnClusterList(ClusterAppListReq) returns (ClusterAppListResp);
+  // 通过集群以及apptype 获取默认app 的配置信息
+  rpc AppDefaultConfig(AppDefaultConfigReq) returns (AppDefaultConfigResp);
+
+
+
+  //-----------------------项目表，记录项目信息-----------------------
+  rpc ProjectAdd(AddOnecProjectReq) returns (AddOnecProjectResp);
+  rpc ProjectUpdate(UpdateOnecProjectReq) returns (UpdateOnecProjectResp);
+  rpc ProjectDel(DelOnecProjectReq) returns (DelOnecProjectResp);
+  rpc ProjectGetById(GetOnecProjectByIdReq) returns (GetOnecProjectByIdResp);
+  rpc ProjectSearch(SearchOnecProjectReq) returns (SearchOnecProjectResp);
+  rpc ProjectSync(ProjectSyncReq) returns (ProjectSyncResp);
+  // 同步所有项目配额
+  rpc ProjectAllSync(ProjectQuotaSyncReq) returns (ProjectQuotaSyncResp);
+  //-----------------------项目管理员表，关联项目与用户的多对多关系-----------------------
+  rpc ProjectAdminAdd(AddOnecProjectAdminReq) returns (AddOnecProjectAdminResp);
+  rpc ProjectAdminGetByProjectId(GetOnecProjectAdminsByProjectIdReq) returns (GetOnecProjectAdminsByProjectIdResp);
+  // 通过用户ID查询可用的项目
+  rpc ProjectGetByUserId(GetOnecProjectsByUserIdReq) returns (GetOnecProjectsByUserIdResp);
+  // -----------------------项目集群配额表，记录项目配额信息-----------------------
+  rpc ProjectClusterAdd(AddOnecProjectClusterReq) returns (AddOnecProjectClusterResp);
+  rpc ProjectClusterUpdate(UpdateOnecProjectClusterReq) returns (UpdateOnecProjectClusterResp);
+  rpc ProjectClusterDel(DelOnecProjectClusterReq) returns (DelOnecProjectClusterResp);
+  rpc ProjectClusterGetById(GetOnecProjectClusterByIdReq) returns (GetOnecProjectClusterByIdResp);
+  rpc ProjectClusterSearch(SearchOnecProjectClusterReq) returns (SearchOnecProjectClusterResp);
+  // 同步项目集群配额 同步就是计算各种资源的 使用量，更新表
+  rpc ProjectClusterSync(ProjectClusterSyncReq) returns (ProjectClusterSyncResp);
+  // -----------------------项目工作空间表，记录项目工作空间信息-----------------------
+  rpc ProjectWorkspaceAdd(AddOnecProjectWorkspaceReq) returns (AddOnecProjectWorkspaceResp);
+  rpc ProjectWorkspaceUpdate(UpdateOnecProjectWorkspaceReq) returns (UpdateOnecProjectWorkspaceResp);
+  rpc ProjectWorkspaceDel(DelOnecProjectWorkspaceReq) returns (DelOnecProjectWorkspaceResp);
+  rpc ProjectWorkspaceGetById(GetOnecProjectWorkspaceByIdReq) returns (GetOnecProjectWorkspaceByIdResp);
+  rpc ProjectWorkspaceSearch(SearchOnecProjectWorkspaceReq) returns (SearchOnecProjectWorkspaceResp);
+  rpc ProjectWorkspaceSync(ProjectWorkspaceSyncReq) returns (ProjectWorkspaceSyncResp);
+
+
+  // 项目的应用表相关rpc
+  rpc ApplicationAdd(AddOnecProjectApplicationReq) returns (AddOnecProjectApplicationResp);
+  rpc ApplicationUpdate(UpdateOnecProjectApplicationReq) returns (UpdateOnecProjectApplicationResp);
+  rpc ApplicationDel(DelOnecProjectApplicationReq) returns (DelOnecProjectApplicationResp);
+  rpc ApplicationGetById(GetOnecProjectApplicationByIdReq) returns (GetOnecProjectApplicationByIdResp);
+  rpc ApplicationSearch(SearchOnecProjectApplicationReq) returns (SearchOnecProjectApplicationResp);
+  // 项目的应用表 版本相关 rpc
+  rpc VersionAdd(AddOnecProjectVersionReq) returns (AddOnecProjectVersionResp);
+  rpc VersionDel(DelOnecProjectVersionReq) returns (DelOnecProjectVersionResp);
+  rpc VersionSearch(SearchOnecProjectVersionReq) returns (SearchOnecProjectVersionResp);
+  // 获取版本detailinfo
+  rpc VersionDetail(GetOnecProjectVersionDetailReq) returns (GetOnecProjectVersionDetailResp);
+  //-----------------------资源操作审计日志表，记录所有资源控制器操作-----------------------
+  rpc ProjectAuditLogAdd(AddOnecProjectAuditLogReq) returns (AddOnecProjectAuditLogResp);
+  rpc ProjectAuditLogDel(DelOnecProjectAuditLogReq) returns (DelOnecProjectAuditLogResp);
+  rpc ProjectAuditLogSearch(SearchOnecProjectAuditLogReq) returns (SearchOnecProjectAuditLogResp);
+  // 批量删除
+  rpc ProjectAuditLogBatchDel(BatchDelOnecProjectAuditLogReq) returns (BatchDelOnecProjectAuditLogResp);
+  // 删除指定天数之前的数据
+  rpc ProjectAuditLogDelBeforeDays(DelOnecProjectAuditLogBeforeDaysReq) returns (DelOnecProjectAuditLogBeforeDaysResp);
+
+  // 迁移相关
+  // 迁移 workspace 到新的 project
+  rpc MigrateWorkspace(MigrateWorkspaceReq) returns (MigrateWorkspaceResp);
+}
+
+

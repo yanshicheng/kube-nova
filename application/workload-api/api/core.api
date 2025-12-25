@@ -1,0 +1,929 @@
+syntax = "v1"
+
+info(
+    title: "Config Resource API"
+    desc: "ConfigMap、Secret、Service、PVC、Ingress、ServiceAccount、Role、RoleBinding 配置资源管理"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // ==================== 通用请求类型 ====================
+
+    // 列表查询请求（workloadId 模式）
+    ListRequest {
+        WorkloadId uint64 `form:"workloadId" validate:"required,min=1"`
+        Search string `form:"search,optional"`               // 搜索关键字
+        LabelSelector string `form:"labelSelector,optional"` // 标签选择器，如: "app=nginx,env=prod"
+    }
+
+        // 通用名称请求（workloadId 模式）
+    DefaultNameRequest {
+        WorkloadId uint64 `form:"workloadId" validate:"required,min=1"`
+        Name string `form:"name" validate:"required"`
+    }
+
+        // 集群命名空间请求（新增：用于 SA/Role/RoleBinding/PVC）
+    ClusterNamespaceRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Search string `form:"search,optional"`
+        LabelSelector string `form:"labelSelector,optional"`
+    }
+
+        // 集群命名空间资源请求
+    ClusterNamespaceResourceRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Name string `form:"name" validate:"required"`
+    }
+
+        // 集群命名空间资源更新请求
+    ClusterNamespaceResourceUpdateRequest {
+        ClusterUuid string `json:"clusterUuid" validate:"required"`
+        Namespace string `json:"namespace" validate:"required"`
+        Name string `json:"name" validate:"required"`
+        YamlStr string `json:"yamlStr" validate:"required"`
+    }
+
+    GetAppServicesRequest {
+        WorkloadId uint64 `form:"workloadId" validate:"required,min=1"`
+        ApplicationId uint64 `form:"applicationId" validate:"required"`
+    }
+
+    GetAppIngressRequest {
+        WorkloadId uint64 `form:"workloadId" validate:"required,min=1"`
+        ApplicationId uint64 `form:"applicationId" validate:"required"`
+    }
+
+        // ==================== ConfigMap 相关 ====================
+
+        // ConfigMap 列表项
+    ConfigMapListItem {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        DataCount int `json:"dataCount"`                   // 数据项数量
+        Age string `json:"age"`                            // 如: "2d5h"
+        CreationTimestamp int64 `json:"creationTimestamp"` // 时间戳（毫秒）
+    }
+
+        // ConfigMap 列表响应（无分页）
+    ConfigMapListResponse {
+        Total int `json:"total"`
+        Items []ConfigMapListItem `json:"items"`
+    }
+
+        // ConfigMap 数据项
+    ConfigMapDataItem {
+        Key string `json:"key"`
+        Value string `json:"value"`
+    }
+
+        // ConfigMap 数据响应
+    GetConfigMapDataResponse {
+        Name string `json:"name"`
+        Data []ConfigMapDataItem `json:"data"`
+    }
+
+        // ConfigMap 详细信息
+    ConfigMapDetail {
+        Name string `json:"name"`
+        Data map[string]string `json:"data"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+        // ConfigMap 创建/更新请求
+    ConfigMapRequest {
+        WorkloadId uint64 `json:"workloadId" validate:"required,min=1"`
+        Name string `json:"name" validate:"required"`
+        Data map[string]string `json:"data" validate:"required"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+    }
+
+        // ConfigMap 引用信息
+    ConfigMapUsageReference {
+        ResourceType string `json:"resourceType"`       // Deployment, StatefulSet, DaemonSet, Job, CronJob, Pod
+        ResourceName string `json:"resourceName"`
+        Namespace string `json:"namespace"`
+        UsageType []string `json:"usageType"`           // volume, env, envFrom
+        UsedKeys []string `json:"usedKeys"`             // 使用的具体 key
+        ContainerNames []string `json:"containerNames"` // 使用的容器名称
+    }
+
+    ConfigMapUsageResponse {
+        ConfigMapName string `json:"configMapName"`
+        ConfigMapNamespace string `json:"configMapNamespace"`
+        UsedBy []ConfigMapUsageReference `json:"usedBy"`
+        TotalUsageCount int `json:"totalUsageCount"`
+        CanDelete bool `json:"canDelete"`
+        DeleteWarning string `json:"deleteWarning,optional"`
+    }
+
+        // ==================== Secret 相关 ====================
+
+    SecretListRequest {
+        WorkloadId uint64 `form:"workloadId" validate:"required,min=1"`
+        Search string `form:"search,optional"`               // 搜索关键字
+        Type string `form:"type,optional"`                   // 查询类型。默认为空，表示所有类型
+        LabelSelector string `form:"labelSelector,optional"` // 标签选择器，如: "app=nginx,env=prod"
+    }
+
+        // Secret 列表项
+    SecretListItem {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Type string `json:"type"`                // Opaque, kubernetes.io/tls, etc.
+        DataCount int `json:"dataCount"`         // DATA 列
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+        Labels map[string]string `json:"labels,optional"`
+    }
+
+        // Secret 列表响应（无分页）
+    SecretListResponse {
+        Total int `json:"total"`
+        Items []SecretListItem `json:"items"`
+    }
+
+        // Secret 数据项
+    SecretDataItem {
+        Key string `json:"key"`
+        Value string `json:"value"` // base64 解码后的值
+    }
+
+        // Secret 数据响应
+    GetSecretDataResponse {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Type string `json:"type"`
+        Data []SecretDataItem `json:"data"`
+    }
+
+        // Secret 详细信息
+    SecretDetail {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Type string `json:"type"`
+        Data map[string][]byte `json:"data,optional"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+        // Secret 创建/更新请求
+    SecretRequest {
+        WorkloadId uint64 `json:"workloadId" validate:"required,min=1"`
+        Name string `json:"name" validate:"required"`
+        SecretYamlStr string `json:"secretYamlStr" validate:"required"`
+    }
+
+        // Secret 引用信息
+    SecretUsageReference {
+        ResourceType string `json:"resourceType"`   // Deployment, StatefulSet, DaemonSet, Job, CronJob, Pod, ServiceAccount
+        ResourceName string `json:"resourceName"`
+        Namespace string `json:"namespace"`
+        UsageType []string `json:"usageType"`       // volume, env, envFrom, imagePullSecret, serviceAccountToken
+        UsedKeys []string `json:"usedKeys"`
+        ContainerNames []string `json:"containerNames"`
+    }
+
+    SecretUsageResponse {
+        SecretName string `json:"secretName"`
+        SecretNamespace string `json:"secretNamespace"`
+        SecretType string `json:"secretType"`
+        UsedBy []SecretUsageReference `json:"usedBy"`
+        TotalUsageCount int `json:"totalUsageCount"`
+        CanDelete bool `json:"canDelete"`
+        DeleteWarning string `json:"deleteWarning,optional"`
+    }
+
+        // ==================== Service 相关 ====================
+
+        // Service 列表项
+    ServiceListItem {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Type string `json:"type"`                    // ClusterIP, NodePort, LoadBalancer, ExternalName
+        ClusterIP string `json:"clusterIP"`          // CLUSTER-IP
+        ExternalIP string `json:"externalIP"`        // EXTERNAL-IP
+        Ports string `json:"ports"`                  // PORT(S): "80:30080/TCP,443:30443/TCP"
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+        Labels map[string]string `json:"labels,optional"`
+    }
+
+        // Service 列表响应（无分页）
+    ServiceListResponse {
+        Total int `json:"total"`
+        Items []ServiceListItem `json:"items"`
+    }
+
+        // Service 详细信息
+    ServiceDetail {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Type string `json:"type"`
+        ClusterIP string `json:"clusterIP"`
+        ExternalIPs []string `json:"externalIPs,optional"`
+        LoadBalancerIP string `json:"loadBalancerIP,optional"`
+        LoadBalancerStatus string `json:"loadBalancerStatus,optional"`  // Pending, Available
+        Ports []ServicePort `json:"ports"`
+        Selector map[string]string `json:"selector,optional"`
+        SessionAffinity string `json:"sessionAffinity"`                 // None, ClientIP
+        EndpointCount int `json:"endpointCount"`                        // Endpoint 数量
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+        // Service 创建/更新请求
+    ServiceRequest {
+        WorkloadId uint64 `json:"workloadId" validate:"required,min=1"`
+        Name string `json:"name" validate:"required"`
+        Type string `json:"type" validate:"required,oneof=ClusterIP NodePort LoadBalancer ExternalName"`
+        Ports []ServicePort `json:"ports" validate:"required,min=1"`
+        Selector map[string]string `json:"selector,optional"`
+        ClusterIP string `json:"clusterIP,optional"`
+        ExternalIPs []string `json:"externalIPs,optional"`
+        LoadBalancerIP string `json:"loadBalancerIP,optional"`
+        SessionAffinity string `json:"sessionAffinity,optional"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        ClusterIPs []string `json:"clusterIPs,optional"`
+        IpFamilies []string `json:"ipFamilies,optional"`
+        IpFamilyPolicy string `json:"ipFamilyPolicy,optional"`
+        ExternalName string `json:"externalName,optional"`
+        LoadBalancerClass string `json:"loadBalancerClass,optional"`
+        LoadBalancerSourceRanges []string `json:"loadBalancerSourceRanges,optional"`
+        AllocateLoadBalancerNodePorts bool `json:"allocateLoadBalancerNodePorts,optional"`
+        ExternalTrafficPolicy string `json:"externalTrafficPolicy,optional"`
+        InternalTrafficPolicy string `json:"internalTrafficPolicy,optional"`
+        SessionAffinityConfig SessionAffinityConfig `json:"sessionAffinityConfig,optional"`
+        HealthCheckNodePort int32 `json:"healthCheckNodePort,optional"`
+        PublishNotReadyAddresses bool `json:"publishNotReadyAddresses,optional"`
+    }
+
+        // Service Endpoint 信息
+    ServiceEndpoint {
+        PodName string `json:"podName"`
+        PodIP string `json:"podIP"`
+        NodeName string `json:"nodeName"`
+        Ready bool `json:"ready"`
+        Ports []int32 `json:"ports"`
+        Addresses []string `json:"addresses"`
+    }
+
+    ServiceEndpointsResponse {
+        ServiceName string `json:"serviceName"`
+        Namespace string `json:"namespace"`
+        Endpoints []ServiceEndpoint `json:"endpoints"`
+        TotalCount int `json:"totalCount"`
+    }
+
+        // 匹配的 Pod 信息（简化版）
+    MatchedPodInfo {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        PodIP string `json:"podIP"`
+        Status string `json:"status"`
+        NodeName string `json:"nodeName"`
+    }
+
+    ServicesGetResourceResponse {
+        VersionId uint64 `form:"versionId" validate:"required,min=1"`
+    }
+
+    ServicePort {
+        Name string `json:"name"`
+        Protocol string `json:"protocol"`
+        Port int32 `json:"port"`
+        TargetPort string `json:"targetPort"`
+        NodePort int32 `json:"nodePort,optional"`
+        AppProtocol string `json:"appProtocol,optional"`
+    }
+
+        // ==================== 会话保持配置 ====================
+
+    ClientIPConfig {
+        TimeoutSeconds int32 `json:"timeoutSeconds,optional"`
+    }
+
+    SessionAffinityConfig {
+        ClientIP ClientIPConfig `json:"clientIP,optional"`
+    }
+
+    ApplicationServiceRequest {
+        WorkloadId uint64 `json:"workloadId" validate:"required,min=1"`
+        ApplicationId uint64 `json:"applicationId" validate:"required,min=1"`
+        IsAppSvc bool `json:"isAppSvc"`
+        IsAllSvc bool `json:"isAllSvc"`
+        Name string `json:"name" validate:"required"`
+        Type string `json:"type" validate:"required,oneof=ClusterIP NodePort LoadBalancer ExternalName"`
+        Ports []ServicePort `json:"ports" validate:"required,min=1"`
+        Selector map[string]string `json:"selector,optional"`
+        ClusterIP string `json:"clusterIP,optional"`
+        ExternalIPs []string `json:"externalIPs,optional"`
+        LoadBalancerIP string `json:"loadBalancerIP,optional"`
+        SessionAffinity string `json:"sessionAffinity,optional"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        ClusterIPs []string `json:"clusterIPs,optional"`
+        IpFamilies []string `json:"ipFamilies,optional"`
+        IpFamilyPolicy string `json:"ipFamilyPolicy,optional"`
+        ExternalName string `json:"externalName,optional"`
+        LoadBalancerClass string `json:"loadBalancerClass,optional"`
+        LoadBalancerSourceRanges []string `json:"loadBalancerSourceRanges,optional"`
+        AllocateLoadBalancerNodePorts bool `json:"allocateLoadBalancerNodePorts,optional"`
+        ExternalTrafficPolicy string `json:"externalTrafficPolicy,optional"`
+        InternalTrafficPolicy string `json:"internalTrafficPolicy,optional"`
+        SessionAffinityConfig SessionAffinityConfig `json:"sessionAffinityConfig,optional"`
+        HealthCheckNodePort int32 `json:"healthCheckNodePort,optional"`
+        PublishNotReadyAddresses bool `json:"publishNotReadyAddresses,optional"`
+    }
+
+    ApplicationServiceListResponse {
+        Name string `json:"name"`
+        Version uint64 `json:"version"`
+        VersionName string `json:"versionName"`
+        Namespace string `json:"namespace"`
+        Type string `json:"type"`
+        ClusterIP string `json:"clusterIP"`
+        ExternalIP string `json:"externalIP"`
+        Ports string `json:"ports"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+        Labels map[string]string `json:"labels,optional"`
+        ClusterIPs []string `json:"clusterIPs,optional"`
+        IpFamilies []string `json:"ipFamilies,optional"`
+        IpFamilyPolicy string `json:"ipFamilyPolicy,optional"`
+        ExternalTrafficPolicy string `json:"externalTrafficPolicy,optional"`
+        SessionAffinity string `json:"sessionAffinity,optional"`
+        LoadBalancerClass string `json:"loadBalancerClass,optional"`
+    }
+
+    ServicePortsRequest {
+        WorkloadId uint64 `form:"workloadId" validate:"required,min=1"`
+        ApplicationId uint64 `form:"applicationId,optional"`
+        VersionId uint64 `form:"versionId,optional"`
+    }
+
+    ServicePortsResponse {
+        Name string `json:"name"`
+        Ports []int32 `json:"ports"`
+    }
+
+        // ==================== PVC 相关 ====================
+
+        // PVC 列表项
+    PVCListItem {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Status string `json:"status"`               // Pending, Bound, Lost
+        Volume string `json:"volume"`               // 绑定的 PV
+        Capacity string `json:"capacity"`           // 如: "10Gi"
+        AccessModes []string `json:"accessModes"`   // ReadWriteOnce, ReadOnlyMany, ReadWriteMany
+        StorageClass string `json:"storageClass"`   // 存储类名称
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+        // PVC 列表响应
+    PVCListResponse {
+        Total int `json:"total"`
+        Items []PVCListItem `json:"items"`
+    }
+
+        // PVC 详情
+    PVCDetail {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Status string `json:"status"`
+        Volume string `json:"volume"`
+        Capacity string `json:"capacity"`
+        AccessModes []string `json:"accessModes"`
+        StorageClass string `json:"storageClass"`
+        VolumeMode string `json:"volumeMode,optional"`       // Filesystem, Block
+        RequestStorage string `json:"requestStorage"`        // 请求的存储大小
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+        // PVC 关联信息
+    PVCAssociation {
+        PVCName string `json:"pvcName"`
+        Namespace string `json:"namespace"`
+        PVName string `json:"pvName"`
+        Pods []string `json:"pods"`
+        PodCount int `json:"podCount"`
+    }
+
+        // ==================== Ingress 相关 ====================
+
+        // Ingress 列表项
+    IngressListItem {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        IngressClass string `json:"ingressClass"`   // IngressClass 名称
+        Hosts []string `json:"hosts"`               // 主机列表
+        Address string `json:"address"`             // 负载均衡器地址
+        Ports string `json:"ports"`                 // 端口列表
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+        Labels map[string]string `json:"labels,optional"`
+    }
+
+        // Ingress 列表响应
+    IngressListResponse {
+        Total int `json:"total"`
+        Items []IngressListItem `json:"items"`
+    }
+
+        // Ingress 详情
+    IngressDetail {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        IngressClass string `json:"ingressClass"`
+        Rules []IngressRuleInfo `json:"rules"`
+        TLS []IngressTLSInfo `json:"tls,optional"`
+        DefaultBackend IngressBackendInfo `json:"defaultBackend,optional"`
+        LoadBalancer IngressLoadBalancerInfo `json:"loadBalancer"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+        // Ingress 规则信息
+    IngressRuleInfo {
+        Host string `json:"host"`
+        Paths []IngressPathInfo `json:"paths"`
+    }
+
+        // Ingress 路径信息
+    IngressPathInfo {
+        Path string `json:"path"`
+        PathType string `json:"pathType"`
+        Backend IngressBackendInfo `json:"backend"`
+    }
+
+        // Ingress 后端信息
+    IngressBackendInfo {
+        ServiceName string `json:"serviceName"`
+        ServicePort string `json:"servicePort"`
+        ResourceRef IngressResourceRef `json:"resourceRef,optional"`
+    }
+
+        // Ingress 资源引用
+    IngressResourceRef {
+        APIGroup string `json:"apiGroup,optional"`
+        Kind string `json:"kind"`
+        Name string `json:"name"`
+    }
+
+        // Ingress TLS 信息
+    IngressTLSInfo {
+        Hosts []string `json:"hosts"`
+        SecretName string `json:"secretName"`
+    }
+
+        // Ingress 负载均衡器信息
+    IngressLoadBalancerInfo {
+        Ingress []IngressLoadBalancerIngress `json:"ingress,optional"`
+    }
+
+        // Ingress 负载均衡器入口
+    IngressLoadBalancerIngress {
+        IP string `json:"ip,optional"`
+        Hostname string `json:"hostname,optional"`
+    }
+
+        // Ingress 创建/更新请求
+    IngressRequest {
+        WorkloadId uint64 `json:"workloadId" validate:"required,min=1"`
+        Name string `json:"name" validate:"required"`
+        IngressYamlStr string `json:"ingressYamlStr" validate:"required"`
+    }
+
+        // ==================== ServiceAccount 相关 ====================
+
+        // ServiceAccount 列表项
+    ServiceAccountListItem {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Secrets int `json:"secrets"`
+        Age string `json:"age"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+        // ServiceAccount 列表响应
+    ServiceAccountListResponse {
+        Total int `json:"total"`
+        Items []ServiceAccountListItem `json:"items"`
+    }
+
+        // ServiceAccount 详情
+    ServiceAccountDescribe {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        ImagePullSecrets []string `json:"imagePullSecrets,optional"`
+        Secrets []string `json:"secrets,optional"`
+        AutomountServiceAccountToken bool `json:"automountServiceAccountToken,optional"`
+        CreationTimestamp string `json:"creationTimestamp"`
+        Events []EventInfo `json:"events,optional"`
+    }
+
+        // ServiceAccount 关联信息
+    ServiceAccountAssociation {
+        ServiceAccountName string `json:"serviceAccountName"`
+        Namespace string `json:"namespace"`
+        Pods []string `json:"pods"`
+        PodCount int `json:"podCount"`
+        Secrets []string `json:"secrets"`
+        ImagePullSecrets []string `json:"imagePullSecrets"`
+    }
+
+        // ==================== Role 相关 ====================
+
+        // Role 列表项
+    RoleListItem {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Age string `json:"age"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+        // Role 列表响应
+    RoleListResponse {
+        Total int `json:"total"`
+        Items []RoleListItem `json:"items"`
+    }
+
+
+
+        // Role 详情
+    RoleDescribe {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        PolicyRules []PolicyRuleInfo `json:"policyRules"`
+        CreationTimestamp string `json:"creationTimestamp"`
+        Events []EventInfo `json:"events,optional"`
+    }
+
+        // Role 关联信息
+    RoleAssociation {
+        RoleName string `json:"roleName"`
+        Namespace string `json:"namespace"`
+        RoleBindings []string `json:"roleBindings"`
+        BindingCount int `json:"bindingCount"`
+        Subjects []string `json:"subjects"`
+    }
+
+        // ==================== RoleBinding 相关 ====================
+
+
+
+
+
+        // RoleBinding 列表项
+    RoleBindingListItem {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Role string `json:"role"`        // Role 名称（格式：Role/rolename 或 ClusterRole/clusterrolename）
+        Age string `json:"age"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+        // RoleBinding 列表响应
+    RoleBindingListResponse {
+        Total int `json:"total"`
+        Items []RoleBindingListItem `json:"items"`
+    }
+
+        // RoleBinding 详情
+    RoleBindingDescribe {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        RoleRef RoleRefInfo `json:"roleRef"`
+        Subjects []SubjectInfo `json:"subjects"`
+        CreationTimestamp string `json:"creationTimestamp"`
+        Events []EventInfo `json:"events,optional"`
+    }
+
+        // RoleBinding 关联信息
+    RoleBindingAssociation {
+        RoleBindingName string `json:"roleBindingName"`
+        Namespace string `json:"namespace"`
+        RoleName string `json:"roleName"`
+        RoleKind string `json:"roleKind"`
+        Subjects []SubjectInfo `json:"subjects"`
+        SubjectCount int `json:"subjectCount"`
+    }
+    DefaultCoreCreateRequest {
+        ClusterUuid string `json:"clusterUuid"`
+        Namespace string `json:"namespace"`
+        YamlStr string `json:"yamlStr"`
+    }
+    ServcePortsResponse {
+        Nmae string `json:"name"`
+        Ports []int32 `json:"ports"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: core
+    prefix: /workload/v1/core
+)
+
+service workload-api {
+    // ==================== ConfigMap 接口 ====================
+
+    @doc "获取 ConfigMap 列表"
+    @handler ConfigMapListsHandler
+    get /configmap (ListRequest) returns (ConfigMapListResponse)
+
+    @doc "获取 ConfigMap 详情"
+    @handler ConfigMapGetHandler
+    get /configmap/detail (DefaultNameRequest) returns (ConfigMapDetail)
+
+    @doc "获取 ConfigMap 数据（key-value 列表）"
+    @handler ConfigMapGetDataHandler
+    get /configmap/data (DefaultNameRequest) returns (GetConfigMapDataResponse)
+
+    @doc "获取 ConfigMap YAML"
+    @handler ConfigMapGetYamlHandler
+    get /configmap/yaml (DefaultNameRequest) returns (string)
+
+    @doc "创建 ConfigMap"
+    @handler CreateConfigMapHandler
+    post /configmap (ConfigMapRequest) returns (string)
+
+    @doc "更新 ConfigMap"
+    @handler ConfigMapUpdateHandler
+    put /configmap (ConfigMapRequest) returns (string)
+
+    @doc "删除 ConfigMap"
+    @handler ConfigMapDeleteHandler
+    delete /configmap (DefaultNameRequest) returns (string)
+
+    @doc "获取 ConfigMap 引用情况"
+    @handler ConfigMapGetUsageHandler
+    get /configmap/usage (DefaultNameRequest) returns (ConfigMapUsageResponse)
+
+    // ==================== Secret 接口 ====================
+
+    @doc "获取 Secret 列表"
+    @handler ListSecretsHandler
+    get /secret (SecretListRequest) returns (SecretListResponse)
+
+    @doc "获取 Secret 详情"
+    @handler SecretGetHandler
+    get /secret/detail (DefaultNameRequest) returns (SecretDetail)
+
+    @doc "获取 Secret 数据（key-value 列表）"
+    @handler SecretGetDataHandler
+    get /secret/data (DefaultNameRequest) returns (GetSecretDataResponse)
+
+    @doc "获取 Secret YAML"
+    @handler SecretGetYamlHandler
+    get /secret/yaml (DefaultNameRequest) returns (string)
+
+    @doc "创建 Secret"
+    @handler SecretCreateHandler
+    post /secret (SecretRequest) returns (string)
+
+    @doc "更新 Secret"
+    @handler SecretUpdateHandler
+    put /secret (SecretRequest) returns (string)
+
+    @doc "删除 Secret"
+    @handler SecretDeleteHandler
+    delete /secret (DefaultNameRequest) returns (string)
+
+    @doc "获取 Secret 引用情况"
+    @handler SecretGetUsageHandler
+    get /secret/usage (DefaultNameRequest) returns (SecretUsageResponse)
+
+    // ==================== Service 接口 ====================
+
+    @doc "获取 Service 列表"
+    @handler ServicesListHandler
+    get /service (ListRequest) returns (ServiceListResponse)
+
+    @doc "获取 Service 详情"
+    @handler GetServiceHandler
+    get /service/detail (DefaultNameRequest) returns (ServiceDetail)
+
+    @doc "获取 Service 端口"
+    @handler GetServicePortsHandler
+    get /service/ports (ServicePortsRequest) returns ([]ServicePortsResponse)
+
+    @doc "获取 Service YAML"
+    @handler GetServiceYamlHandler
+    get /service/yaml (DefaultNameRequest) returns (string)
+
+    @doc "创建 Service"
+    @handler ServiceCreateHandler
+    post /service (ServiceRequest) returns (string)
+
+    @doc "更新 Service"
+    @handler ServiceUpdateHandler
+    put /service (ServiceRequest) returns (string)
+
+    @doc "删除 Service"
+    @handler ServiceDeleteHandler
+    delete /service (DefaultNameRequest) returns (string)
+
+    @doc "获取 Service Endpoints"
+    @handler ServiceGetEndpointsHandler
+    get /service/endpoints (DefaultNameRequest) returns (ServiceEndpointsResponse)
+
+    @doc "获取 Service 选择器匹配的 Pods"
+    @handler ServiceGetMatchingPodsHandler
+    get /service/matching-pods (DefaultNameRequest) returns ([]MatchedPodInfo)
+
+    @doc "获取资源关联的 Service 列表"
+    @handler ServicesGetResourceHandler
+    get /service/resource-services (ServicesGetResourceResponse) returns ([]ServiceListItem)
+
+    @doc "应用级 Service 创建"
+    @handler ApplicationServiceHandler
+    post /service/application (ApplicationServiceRequest) returns (string)
+
+    @doc "应用级 Service 获取"
+    @handler ApplicationServiceGetHandler
+    get /service/application (GetAppServicesRequest) returns ([]ApplicationServiceListResponse)
+
+    @doc "应用级 Service 更新"
+    @handler ApplicationServiceUpdateHandler
+    put /service/application (ApplicationServiceRequest) returns (string)
+
+    // ==================== PVC 接口 ====================
+    // 创建 pvc
+    @handler CreatePVC
+    post /pvc (DefaultCoreCreateRequest) returns (string)
+    @doc "获取 PVC 列表"
+    @handler PVCListHandler
+    get /pvc (ClusterNamespaceRequest) returns (PVCListResponse)
+
+    @doc "获取 PVC 详情"
+    @handler PVCGetHandler
+    get /pvc/detail (ClusterNamespaceResourceRequest) returns (PVCDetail)
+
+    @doc "获取 PVC YAML"
+    @handler PVCGetYamlHandler
+    get /pvc/yaml (ClusterNamespaceResourceRequest) returns (string)
+
+    @doc "更新 PVC"
+    @handler PVCUpdateHandler
+    put /pvc (ClusterNamespaceResourceUpdateRequest) returns (string)
+
+    @doc "删除 PVC"
+    @handler PVCDeleteHandler
+    delete /pvc (ClusterNamespaceResourceRequest) returns (string)
+
+    @doc "获取 PVC 详细描述"
+    @handler PVCDescribeHandler
+    get /pvc/describe (ClusterNamespaceResourceRequest) returns (string)
+
+    @doc "获取 PVC 关联信息"
+    @handler PVCGetAssociationHandler
+    get /pvc/association (ClusterNamespaceResourceRequest) returns (PVCAssociation)
+
+    // ==================== Ingress 接口 ====================
+
+    @doc "应用级 Ingress 获取"
+    @handler ApplicationIngressGetHandler
+    get /ingress/application (GetAppIngressRequest) returns ([]IngressListItem)
+
+    @doc "获取 Ingress 列表"
+    @handler IngressListHandler
+    get /ingress (ListRequest) returns (IngressListResponse)
+
+    @doc "获取 Ingress 详情"
+    @handler IngressGetHandler
+    get /ingress/detail (DefaultNameRequest) returns (IngressDetail)
+
+    @doc "获取 Ingress YAML"
+    @handler IngressGetYamlHandler
+    get /ingress/yaml (DefaultNameRequest) returns (string)
+
+    @doc "创建 Ingress"
+    @handler IngressCreateHandler
+    post /ingress (IngressRequest) returns (string)
+
+    @doc "更新 Ingress"
+    @handler IngressUpdateHandler
+    put /ingress (IngressRequest) returns (string)
+
+    @doc "删除 Ingress"
+    @handler IngressDeleteHandler
+    delete /ingress (DefaultNameRequest) returns (string)
+
+    // ==================== ServiceAccount 接口 ====================
+    // 创建 ServiceAccount
+    @handler ServiceAccountCreateHandler
+    post /serviceaccount (DefaultCoreCreateRequest) returns (string)
+    @doc "获取 ServiceAccount 列表"
+    @handler ServiceAccountListHandler
+    get /serviceaccount (ClusterNamespaceRequest) returns (ServiceAccountListResponse)
+
+    @doc "获取 ServiceAccount YAML"
+    @handler ServiceAccountGetYamlHandler
+    get /serviceaccount/yaml (ClusterNamespaceResourceRequest) returns (string)
+
+    @doc "更新 ServiceAccount"
+    @handler ServiceAccountUpdateHandler
+    put /serviceaccount (ClusterNamespaceResourceUpdateRequest) returns (string)
+
+    @doc "删除 ServiceAccount"
+    @handler ServiceAccountDeleteHandler
+    delete /serviceaccount (ClusterNamespaceResourceRequest) returns (string)
+
+    @doc "获取 ServiceAccount 详细描述"
+    @handler ServiceAccountDescribeHandler
+    get /serviceaccount/describe (ClusterNamespaceResourceRequest) returns (string)
+
+    @doc "获取 ServiceAccount 关联信息"
+    @handler ServiceAccountGetAssociationHandler
+    get /serviceaccount/association (ClusterNamespaceResourceRequest) returns (ServiceAccountAssociation)
+
+    // ==================== Role 接口 ====================
+    // 创建  Role
+    @handler RoleCreateHandler
+    post /role (DefaultCoreCreateRequest) returns (string)
+    @doc "获取 Role 列表"
+    @handler RoleListHandler
+    get /role (ClusterNamespaceRequest) returns (RoleListResponse)
+
+    @doc "获取 Role YAML"
+    @handler RoleGetYamlHandler
+    get /role/yaml (ClusterNamespaceResourceRequest) returns (string)
+
+    @doc "更新 Role"
+    @handler RoleUpdateHandler
+    put /role (ClusterNamespaceResourceUpdateRequest) returns (string)
+
+    @doc "删除 Role"
+    @handler RoleDeleteHandler
+    delete /role (ClusterNamespaceResourceRequest) returns (string)
+
+    @doc "获取 Role 详细描述"
+    @handler RoleDescribeHandler
+    get /role/describe (ClusterNamespaceResourceRequest) returns (string)
+
+    @doc "获取 Role 关联信息"
+    @handler RoleGetAssociationHandler
+    get /role/association (ClusterNamespaceResourceRequest) returns (RoleAssociation)
+
+    // ==================== RoleBinding 接口 ====================
+    // 创建RoleBinding
+    @handler RoleBindingCreateHandler
+    post /rolebinding (DefaultCoreCreateRequest) returns (string)
+    @doc "获取 RoleBinding 列表"
+    @handler RoleBindingListHandler
+    get /rolebinding (ClusterNamespaceRequest) returns (RoleBindingListResponse)
+
+    @doc "获取 RoleBinding YAML"
+    @handler RoleBindingGetYamlHandler
+    get /rolebinding/yaml (ClusterNamespaceResourceRequest) returns (string)
+
+    @doc "更新 RoleBinding"
+    @handler RoleBindingUpdateHandler
+    put /rolebinding (ClusterNamespaceResourceUpdateRequest) returns (string)
+
+    @doc "删除 RoleBinding"
+    @handler RoleBindingDeleteHandler
+    delete /rolebinding (ClusterNamespaceResourceRequest) returns (string)
+
+    @doc "获取 RoleBinding 详细描述"
+    @handler RoleBindingDescribeHandler
+    get /rolebinding/describe (ClusterNamespaceResourceRequest) returns (string)
+
+    @doc "获取 RoleBinding 关联信息"
+    @handler RoleBindingGetAssociationHandler
+    get /rolebinding/association (ClusterNamespaceResourceRequest) returns (RoleBindingAssociation)
+}

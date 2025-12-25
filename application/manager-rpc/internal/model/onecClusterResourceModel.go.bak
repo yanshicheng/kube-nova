@@ -1,0 +1,134 @@
+package model
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"github.com/zeromicro/go-zero/core/stores/cache"
+	"github.com/zeromicro/go-zero/core/stores/sqlx"
+)
+
+var _ OnecClusterResourceModel = (*customOnecClusterResourceModel)(nil)
+
+type ProjectClusterStats struct {
+	CpuLimitTotal     float64 `db:"cpu_limit_total"`
+	MemLimitTotal     float64 `db:"mem_limit_total"`
+	StorageLimitTotal int64   `db:"storage_limit_total"`
+	GpuLimitTotal     float64 `db:"gpu_limit_total"`
+	PodsLimitTotal    int64   `db:"pods_limit_total"`
+	CpuCapacityTotal  float64 `db:"cpu_capacity_total"`
+	MemCapacityTotal  float64 `db:"mem_capacity_total"`
+	GpuCapacityTotal  float64 `db:"gpu_capacity_total"`
+}
+type (
+	// OnecClusterResourceModel is an interface to be customized, add more methods here,
+	// and implement the added methods in customOnecClusterResourceModel.
+	OnecClusterResourceModel interface {
+		onecClusterResourceModel
+		// GetProjectClusterStats 获取集群下所有项目的资源统计
+		GetProjectClusterStats(ctx context.Context, id uint64) (*ProjectClusterStats, error)
+		// SyncProjectClusterStats 同步项目集群统计数据到集群资源表
+		SyncProjectClusterStats(ctx context.Context, id uint64) error
+	}
+
+	customOnecClusterResourceModel struct {
+		*defaultOnecClusterResourceModel
+	}
+)
+
+// NewOnecClusterResourceModel returns a model for the database table.
+func NewOnecClusterResourceModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Option) OnecClusterResourceModel {
+	return &customOnecClusterResourceModel{
+		defaultOnecClusterResourceModel: newOnecClusterResourceModel(conn, c, opts...),
+	}
+}
+
+// GetProjectClusterStats 获取集群下所有项目的资源统计
+func (m *customOnecClusterResourceModel) GetProjectClusterStats(ctx context.Context, id uint64) (*ProjectClusterStats, error) {
+	// 首先查询 onec_cluster_resource 记录
+	clusterResource, err := m.FindOne(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 查询并统计 onec_project_cluster 表中相同 cluster_uuid 的所有记录
+	query := `
+		SELECT
+			COALESCE(SUM(cpu_limit), 0) as cpu_limit_total,
+			COALESCE(SUM(mem_limit), 0) as mem_limit_total,
+			COALESCE(SUM(storage_limit), 0) as storage_limit_total,
+			COALESCE(SUM(gpu_limit), 0) as gpu_limit_total,
+			COALESCE(SUM(pods_limit), 0) as pods_limit_total,
+			COALESCE(SUM(cpu_capacity), 0) as cpu_capacity_total,
+			COALESCE(SUM(mem_capacity), 0) as mem_capacity_total,
+			COALESCE(SUM(gpu_capacity), 0) as gpu_capacity_total
+		FROM onec_project_cluster
+		WHERE cluster_uuid = ? AND is_deleted = 0
+	`
+
+	var stats ProjectClusterStats
+	err = m.QueryRowNoCacheCtx(ctx, &stats, query, clusterResource.ClusterUuid)
+	if err != nil {
+		// 如果没有找到任何记录，返回零值统计
+		if errors.Is(err, sqlx.ErrNotFound) {
+			return &ProjectClusterStats{}, nil
+		}
+		return nil, err
+	}
+
+	return &stats, nil
+}
+
+// SyncProjectClusterStats 同步项目集群统计数据到集群资源表
+func (m *customOnecClusterResourceModel) SyncProjectClusterStats(ctx context.Context, id uint64) error {
+	// 首先获取统计数据
+	stats, err := m.GetProjectClusterStats(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 查找集群资源记录，验证是否存在
+	clusterResource, err := m.FindOne(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 构造更新 SQL
+	updateQuery := `
+		UPDATE onec_cluster_resource SET
+			cpu_allocated_total = ?,
+			mem_allocated_total = ?,
+			storage_allocated_total = ?,
+			gpu_allocated_total = ?,
+			pods_allocated_total = ?,
+			cpu_capacity_total = ?,
+			mem_capacity_total = ?,
+			gpu_capacity_total = ?
+		WHERE id = ? AND is_deleted = 0
+	`
+
+	// 清除缓存并执行更新
+	kubeOnecOnecClusterResourceClusterUuidKey := fmt.Sprintf("%s%v",
+		cacheIkubeopsOnecClusterResourceClusterUuidPrefix,
+		clusterResource.ClusterUuid)
+	kubeOnecOnecClusterResourceIdKey := fmt.Sprintf("%s%v",
+		cacheIkubeopsOnecClusterResourceIdPrefix,
+		id)
+
+	_, err = m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
+		return conn.ExecCtx(ctx, updateQuery,
+			stats.CpuLimitTotal,     // cpu_allocated_total
+			stats.MemLimitTotal,     // mem_allocated_total
+			stats.StorageLimitTotal, // storage_allocated_total
+			stats.GpuLimitTotal,     // gpu_allocated_total
+			stats.PodsLimitTotal,    // pods_allocated_total
+			stats.CpuCapacityTotal,  // cpu_capacity_total
+			stats.MemCapacityTotal,  // mem_capacity_total
+			stats.GpuCapacityTotal,  // gpu_capacity_total
+			id,
+		)
+	}, kubeOnecOnecClusterResourceClusterUuidKey, kubeOnecOnecClusterResourceIdKey)
+
+	return err
+}

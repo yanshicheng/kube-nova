@@ -1,0 +1,149 @@
+syntax = "v1"
+
+info(
+    title: "Cluster workload-api API"
+    desc: "application 及版本，管理"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // 添加应用和版本 统一接口
+    AddApplicationResource {
+        ResourceClusterId uint64 `json:"resourceClusterId" validate:"required,min=1"`
+        ClusterUuid string `json:"clusterUuid" validate:"required,uuid"`
+        WorkspaceId uint64 `json:"workspaceId" validate:"required,min=1"`
+        NameCn string `json:"nameCn" validate:"required,min=1,max=50"`
+        ResourceName string `json:"resourceName" validate:"required`
+        NameEn string `json:"nameEn" validate:"required,min=1,max=20,alphanum|contains=-|contains=_"`
+        Version string `json:"version" validate:"required,min=1,max=10,alphanum|contains=-|contains=_"`
+        ResourceType string `json:"resourceType" validate:"required,oneof=deployment statefulset daemonset job cronjob pod POD "`
+        ResourceYamlStr string `json:"resourceYamlStr" validate:"required,min=1"`
+        Description string `json:"description" validate:"omitempty,max=200"`
+    }
+
+
+    OnecProjectApplication {
+        Id uint64 `json:"id"`
+        WorkspaceId uint64 `json:"workspaceId"`
+        NameCn string `json:"nameCn"`
+        NameEn string `json:"nameEn"`
+        ResourceType string `json:"resourceType"`
+        Description string `json:"description"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+
+    UpdateOnecProjectApplicationReq {
+        Id uint64 `json:"id" validate:"required,min=1"`
+        NameCn string `json:"nameCn" validate:"required,min=1,max=50"`
+        Description string `json:"description" validate:"omitempty,max=500"`
+    }
+
+    SearchOnecProjectApplicationReq {
+        WorkspaceId uint64 `form:"workspaceId" validate:"required,min=1"`
+        NameCn string `form:"nameCn,optional"`
+    }
+
+
+        //--------------------------------项目版本表--------------------------------
+    OnecProjectVersion {
+        Id uint64 `json:"id"`
+        ApplicationId uint64 `json:"applicationId"`
+        Version string `json:"version"`
+        Status int64 `json:"status"`
+        ResourceName string `json:"resourceName"`
+        versionRole string `json:"versionRole"`     // '版本角色: stable/primary/canary/blue/green'
+        parentAppName string `json:"parentAppName"` // '父应用名称，用于关联 Flagger 的 primary 和 canary 版本'
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    AddOnecProjectVersionReq {
+        ApplicationId uint64 `json:"applicationId" validate:"required,min=1"`
+        Version string `json:"version" validate:"required,min=1,max=50"`
+        ResourceName string `json:"resourceName"`
+        ResourceYamlStr string `json:"resourceYamlStr" validate:"required,min=1"`
+    }
+
+    SearchOnecProjectVersionReq {
+        ApplicationId uint64 `form:"applicationId" validate:"required,min=1"`
+    }
+
+
+
+
+
+    UpdateOnecProjectVersionReq {
+        Id uint64 `json:"id" validate:"required,min=1"`
+        ResourceYamlStr string `json:"resourceYamlStr" validate:"required,min=1"`
+    }
+
+
+    VersionLabelsResp {
+        Key string `json:"key"`
+        Value string `json:"value"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: application
+    prefix: /workload/v1/application
+)
+
+service workload-api {
+    @doc "添加应用资源"
+    @handler AddApplicationResourceHandler
+    post /resource (AddApplicationResource) returns (string)
+
+    @doc "获取应用详情"
+    @handler ApplicationDetailHandler
+    get /detail/:id (DefaultIdRequest) returns (OnecProjectApplication)
+
+    @doc "更新应用"
+    @handler ApplicationUpdateHandler
+    put /update (UpdateOnecProjectApplicationReq) returns (string)
+
+    @doc "删除应用"
+    @handler ApplicationDelHandler
+    delete /del/:id (DefaultIdRequest) returns (string)
+
+    @doc "查询应用列表"
+    @handler ApplicationSearchHandler
+    get /search (SearchOnecProjectApplicationReq) returns ([]OnecProjectApplication)
+
+    @doc "添加版本"
+    @handler VersionAddHandler
+    post /version/add (AddOnecProjectVersionReq) returns (string)
+
+    @doc "删除版本"
+    @handler VersionDelHandler
+    delete /version/del/:id (DefaultIdRequest) returns (string)
+
+    @doc "查询版本列表"
+    @handler VersionSearchHandler
+    get /version/search (SearchOnecProjectVersionReq) returns ([]OnecProjectVersion)
+
+    @doc "查询版本详情"
+    @handler VersionDetailHandler
+    get /version/detail/:id (DefaultIdRequest) returns (OnecProjectVersion)
+
+
+
+    @doc "更新版本"
+    @handler VersionUpdateHandler
+    put /version/update (UpdateOnecProjectVersionReq) returns (string)
+
+    @doc "获取某一个版本的 labels"
+    @handler GetVersionLabelsHandler
+    get /version/labels/:id (DefaultIdRequest) returns ([]VersionLabelsResp)
+}

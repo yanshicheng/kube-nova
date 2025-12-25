@@ -1,0 +1,10 @@
+syntax = "v1"
+
+import "api/cluster.api"
+import "api/app.api"
+import "api/project.api"
+import "api/sync.api"
+import "api/node.api"
+import "api/webhook.api"
+import "api/alert.api"
+import "api/audit-log.api"

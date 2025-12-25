@@ -1,0 +1,1153 @@
+syntax = "v1"
+
+info(
+    title: "Pod Monitor API"
+    desc: "Pod 监控指标查询 API"
+    author: "System"
+    version: "1.0"
+)
+
+
+import "./base.api"
+
+type (
+
+    //================================CPU 指标================================
+    CPUUsageSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        UsageCores float64 `json:"usageCores"`
+        UsagePercent float64 `json:"usagePercent"`
+        RequestCores float64 `json:"requestCores"`
+        LimitCores float64 `json:"limitCores"`
+        ThrottledTime float64 `json:"throttledTime"`
+    }
+
+    CPUUsageDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        UsageCores float64 `json:"usageCores"`
+        UsagePercent float64 `json:"usagePercent"`
+    }
+
+    CPULimits {
+        RequestCores float64 `json:"requestCores"`
+        LimitCores float64 `json:"limitCores"`
+        HasLimit bool `json:"hasLimit"`
+    }
+
+    CPUSummary {
+        AvgUsageCores float64 `json:"avgUsageCores"`
+        MaxUsageCores float64 `json:"maxUsageCores"`
+        MinUsageCores float64 `json:"minUsageCores"`
+        AvgUsagePercent float64 `json:"avgUsagePercent"`
+        MaxUsagePercent float64 `json:"maxUsagePercent"`
+        TotalThrottled float64 `json:"totalThrottled"`
+        ThrottledPercent float64 `json:"throttledPercent"`
+    }
+
+    PodCPUMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Current CPUUsageSnapshot `json:"current"`
+        Trend []CPUUsageDataPoint `json:"trend"`
+        Limits CPULimits `json:"limits"`
+        Summary CPUSummary `json:"summary"`
+    }
+
+    ContainerCPUMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        ContainerName string `json:"containerName"`
+        Current CPUUsageSnapshot `json:"current"`
+        Trend []CPUUsageDataPoint `json:"trend"`
+        Limits CPULimits `json:"limits"`
+        Summary CPUSummary `json:"summary"`
+    }
+
+    CPUThrottlingDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        ThrottledSeconds float64 `json:"throttledSeconds"`
+        ThrottledPercent float64 `json:"throttledPercent"`
+    }
+
+    ContainerThrottling {
+        ContainerName string `json:"containerName"`
+        ThrottledSeconds float64 `json:"throttledSeconds"`
+        ThrottledPercent float64 `json:"throttledPercent"`
+    }
+
+    CPUThrottlingMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        TotalThrottled float64 `json:"totalThrottled"`
+        ThrottledPercent float64 `json:"throttledPercent"`
+        Trend []CPUThrottlingDataPoint `json:"trend"`
+        ByContainer []ContainerThrottling `json:"byContainer"`
+    }
+
+        //================================内存指标================================
+    MemoryUsageSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        UsageBytes int64 `json:"usageBytes"`
+        UsagePercent float64 `json:"usagePercent"`
+        RequestBytes int64 `json:"requestBytes"`
+        LimitBytes int64 `json:"limitBytes"`
+        WorkingSetBytes int64 `json:"workingSetBytes"`
+        RSSBytes int64 `json:"rssBytes"`
+        CacheBytes int64 `json:"cacheBytes"`
+    }
+
+    MemoryUsageDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        UsageBytes int64 `json:"usageBytes"`
+        UsagePercent float64 `json:"usagePercent"`
+        WorkingSetBytes int64 `json:"workingSetBytes"`
+    }
+
+    MemoryLimits {
+        RequestBytes int64 `json:"requestBytes"`
+        LimitBytes int64 `json:"limitBytes"`
+        HasLimit bool `json:"hasLimit"`
+    }
+
+    MemorySummary {
+        AvgUsageBytes int64 `json:"avgUsageBytes"`
+        MaxUsageBytes int64 `json:"maxUsageBytes"`
+        MinUsageBytes int64 `json:"minUsageBytes"`
+        AvgUsagePercent float64 `json:"avgUsagePercent"`
+        MaxUsagePercent float64 `json:"maxUsagePercent"`
+        OOMKills int64 `json:"oomKills"`
+    }
+
+    PodMemoryMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Current MemoryUsageSnapshot `json:"current"`
+        Trend []MemoryUsageDataPoint `json:"trend"`
+        Limits MemoryLimits `json:"limits"`
+        Summary MemorySummary `json:"summary"`
+    }
+
+    ContainerMemoryMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        ContainerName string `json:"containerName"`
+        Current MemoryUsageSnapshot `json:"current"`
+        Trend []MemoryUsageDataPoint `json:"trend"`
+        Limits MemoryLimits `json:"limits"`
+        Summary MemorySummary `json:"summary"`
+    }
+
+    ContainerOOM {
+        ContainerName string `json:"containerName"`
+        OOMKills int64 `json:"oomKills"`
+    }
+
+    OOMEvent {
+        Timestamp int64 `json:"timestamp"`
+        ContainerName string `json:"containerName"`
+        Reason string `json:"reason"`
+    }
+
+    OOMMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        TotalOOMKills int64 `json:"totalOOMKills"`
+        ByContainer []ContainerOOM `json:"byContainer"`
+        Events []OOMEvent `json:"events"`
+    }
+
+        //================================网络指标================================
+    NetworkSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        ReceiveBytes int64 `json:"receiveBytes"`
+        TransmitBytes int64 `json:"transmitBytes"`
+        ReceivePackets int64 `json:"receivePackets"`
+        TransmitPackets int64 `json:"transmitPackets"`
+        ReceiveErrors int64 `json:"receiveErrors"`
+        TransmitErrors int64 `json:"transmitErrors"`
+    }
+
+    NetworkDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        ReceiveBytes int64 `json:"receiveBytes"`
+        TransmitBytes int64 `json:"transmitBytes"`
+    }
+
+    NetworkSummary {
+        TotalReceiveBytes int64 `json:"totalReceiveBytes"`
+        TotalTransmitBytes int64 `json:"totalTransmitBytes"`
+        TotalReceivePackets int64 `json:"totalReceivePackets"`
+        TotalTransmitPackets int64 `json:"totalTransmitPackets"`
+        TotalErrors int64 `json:"totalErrors"`
+        MaxReceiveBytesPerSec int64 `json:"maxReceiveBytesPerSec"`
+        MaxTransmitBytesPerSec int64 `json:"maxTransmitBytesPerSec"`
+        AvgReceiveBytesPerSec int64 `json:"avgReceiveBytesPerSec"`
+        AvgTransmitBytesPerSec int64 `json:"avgTransmitBytesPerSec"`
+    }
+
+    NetworkMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Current NetworkSnapshot `json:"current"`
+        Trend []NetworkDataPoint `json:"trend"`
+        Summary NetworkSummary `json:"summary"`
+    }
+
+    ContainerNetworkMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        ContainerName string `json:"containerName"`
+        Current NetworkSnapshot `json:"current"`
+        Trend []NetworkDataPoint `json:"trend"`
+        Summary NetworkSummary `json:"summary"`
+    }
+
+    NetworkRateSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        ReceiveBytesPerSec float64 `json:"receiveBytesPerSec"`
+        TransmitBytesPerSec float64 `json:"transmitBytesPerSec"`
+    }
+
+    NetworkRateDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        ReceiveBytesPerSec float64 `json:"receiveBytesPerSec"`
+        TransmitBytesPerSec float64 `json:"transmitBytesPerSec"`
+    }
+
+    NetworkRateSummary {
+        AvgReceiveBytesPerSec int64 `json:"avgReceiveBytesPerSec"`
+        MaxReceiveBytesPerSec int64 `json:"maxReceiveBytesPerSec"`
+        AvgTransmitBytesPerSec int64 `json:"avgTransmitBytesPerSec"`
+        MaxTransmitBytesPerSec int64 `json:"maxTransmitBytesPerSec"`
+    }
+
+    NetworkRateMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Current NetworkRateSnapshot `json:"current"`
+        Trend []NetworkRateDataPoint `json:"trend"`
+        Summary NetworkRateSummary `json:"summary"`
+    }
+
+    ContainerNetworkRateMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        ContainerName string `json:"containerName"`
+        Current NetworkRateSnapshot `json:"current"`
+        Trend []NetworkRateDataPoint `json:"trend"`
+        Summary NetworkRateSummary `json:"summary"`
+    }
+
+        //================================磁盘指标================================
+    DiskSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        ReadBytes int64 `json:"readBytes"`
+        WriteBytes int64 `json:"writeBytes"`
+        ReadOps int64 `json:"readOps"`
+        WriteOps int64 `json:"writeOps"`
+    }
+
+    DiskDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        ReadBytes int64 `json:"readBytes"`
+        WriteBytes int64 `json:"writeBytes"`
+    }
+
+    DiskSummary {
+        TotalReadBytes int64 `json:"totalReadBytes"`
+        TotalWriteBytes int64 `json:"totalWriteBytes"`
+        TotalReadOps int64 `json:"totalReadOps"`
+        TotalWriteOps int64 `json:"totalWriteOps"`
+        MaxReadBytesPerSec int64 `json:"maxReadBytesPerSec"`
+        MaxWriteBytesPerSec int64 `json:"maxWriteBytesPerSec"`
+        AvgReadBytesPerSec int64 `json:"avgReadBytesPerSec"`
+        AvgWriteBytesPerSec int64 `json:"avgWriteBytesPerSec"`
+    }
+
+    DiskMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Current DiskSnapshot `json:"current"`
+        Trend []DiskDataPoint `json:"trend"`
+        Summary DiskSummary `json:"summary"`
+    }
+
+    ContainerDiskMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        ContainerName string `json:"containerName"`
+        Current DiskSnapshot `json:"current"`
+        Trend []DiskDataPoint `json:"trend"`
+        Summary DiskSummary `json:"summary"`
+    }
+
+    DiskRateSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        ReadBytesPerSec float64 `json:"readBytesPerSec"`
+        WriteBytesPerSec float64 `json:"writeBytesPerSec"`
+        ReadOpsPerSec float64 `json:"readOpsPerSec"`
+        WriteOpsPerSec float64 `json:"writeOpsPerSec"`
+    }
+
+    DiskRateDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        ReadBytesPerSec float64 `json:"readBytesPerSec"`
+        WriteBytesPerSec float64 `json:"writeBytesPerSec"`
+    }
+
+    DiskRateSummary {
+        AvgReadBytesPerSec float64 `json:"avgReadBytesPerSec"`
+        MaxReadBytesPerSec float64 `json:"maxReadBytesPerSec"`
+        AvgWriteBytesPerSec float64 `json:"avgWriteBytesPerSec"`
+        MaxWriteBytesPerSec float64 `json:"maxWriteBytesPerSec"`
+    }
+
+    DiskRateMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Current DiskRateSnapshot `json:"current"`
+        Trend []DiskRateDataPoint `json:"trend"`
+        Summary DiskRateSummary `json:"summary"`
+    }
+
+        //================================Pod 状态指标================================
+    ContainerState {
+        ContainerName string `json:"containerName"`
+        Ready bool `json:"ready"`
+        RestartCount int64 `json:"restartCount"`
+        State string `json:"state"`
+        Reason string `json:"reason"`
+    }
+
+    PodStatusSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        Phase string `json:"phase"`
+        Ready bool `json:"ready"`
+        Reason string `json:"reason"`
+        Message string `json:"message"`
+        ContainerStates []ContainerState `json:"containerStates"`
+    }
+
+    PodStatusDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        Phase string `json:"phase"`
+        Ready bool `json:"ready"`
+    }
+
+    StatusTransition {
+        Timestamp int64 `json:"timestamp"`
+        FromPhase string `json:"fromPhase"`
+        ToPhase string `json:"toPhase"`
+        Reason string `json:"reason"`
+    }
+
+    PodStatusMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Current PodStatusSnapshot `json:"current"`
+        History []PodStatusDataPoint `json:"history"`
+        Transitions []StatusTransition `json:"transitions"`
+    }
+
+    ContainerRestart {
+        ContainerName string `json:"containerName"`
+        RestartCount int64 `json:"restartCount"`
+        LastRestart int64 `json:"lastRestart,optional"`
+    }
+
+    RestartEvent {
+        Timestamp int64 `json:"timestamp"`
+        ContainerName string `json:"containerName"`
+        Reason string `json:"reason"`
+        ExitCode int `json:"exitCode"`
+    }
+
+    RestartDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        RestartCount int64 `json:"restartCount"`
+    }
+
+    RestartMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        TotalRestarts int64 `json:"totalRestarts"`
+        ByContainer []ContainerRestart `json:"byContainer"`
+        RecentRestarts []RestartEvent `json:"recentRestarts"`
+        Trend []RestartDataPoint `json:"trend"`
+    }
+
+    PodAgeMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        CreationTime int64 `json:"creationTime"`
+        Age string `json:"age"`
+        AgeSeconds int64 `json:"ageSeconds"`
+        Uptime string `json:"uptime"`
+        UptimeSeconds int64 `json:"uptimeSeconds"`
+    }
+
+        //================================存储/Volume 指标================================
+    VolumeUsage {
+        VolumeName string `json:"volumeName"`
+        MountPath string `json:"mountPath"`
+        Device string `json:"device"`
+        CapacityBytes int64 `json:"capacityBytes"`
+        UsedBytes int64 `json:"usedBytes"`
+        AvailBytes int64 `json:"availBytes"`
+        UsagePercent float64 `json:"usagePercent"`
+        PVCName string `json:"pvcName"`
+        StorageClass string `json:"storageClass"`
+        AccessMode string `json:"accessMode"`
+    }
+
+    PodVolumeMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Volumes []VolumeUsage `json:"volumes"`
+        TotalCapacity int64 `json:"totalCapacity"`
+        TotalUsed int64 `json:"totalUsed"`
+        UsagePercent float64 `json:"usagePercent"`
+    }
+
+    IOPSSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        ReadIOPS float64 `json:"readIOPS"`
+        WriteIOPS float64 `json:"writeIOPS"`
+        TotalIOPS float64 `json:"totalIOPS"`
+    }
+
+    IOPSDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        ReadIOPS float64 `json:"readIOPS"`
+        WriteIOPS float64 `json:"writeIOPS"`
+        TotalIOPS float64 `json:"totalIOPS"`
+    }
+
+    IOPSSummary {
+        AvgReadIOPS float64 `json:"avgReadIOPS"`
+        MaxReadIOPS float64 `json:"maxReadIOPS"`
+        AvgWriteIOPS float64 `json:"avgWriteIOPS"`
+        MaxWriteIOPS float64 `json:"maxWriteIOPS"`
+    }
+
+    VolumeIOPSMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Current IOPSSnapshot `json:"current"`
+        Trend []IOPSDataPoint `json:"trend"`
+        Summary IOPSSummary `json:"summary"`
+    }
+
+        //================================健康检查/探针指标================================
+    ProbeStatus {
+        ContainerName string `json:"containerName"`
+        ProbeType string `json:"probeType"`
+        Status string `json:"status"`
+        SuccessCount int64 `json:"successCount"`
+        FailureCount int64 `json:"failureCount"`
+        TotalProbes int64 `json:"totalProbes"`
+        LastProbeTime string `json:"lastProbeTime"`
+        LastSuccessTime string `json:"lastSuccessTime,optional"`
+        LastFailureTime string `json:"lastFailureTime,optional"`
+        FailureReason string `json:"failureReason,optional"`
+    }
+
+    PodProbeMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        LivenessProbes []ProbeStatus `json:"livenessProbes"`
+        ReadinessProbes []ProbeStatus `json:"readinessProbes"`
+        StartupProbes []ProbeStatus `json:"startupProbes"`
+    }
+
+        //================================文件描述符指标================================
+    FDSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        OpenFDs int64 `json:"openFDs"`
+        MaxFDs int64 `json:"maxFDs"`
+        UsagePercent float64 `json:"usagePercent"`
+    }
+
+    FDDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        OpenFDs int64 `json:"openFDs"`
+        UsagePercent float64 `json:"usagePercent"`
+    }
+
+    FDSummary {
+        AvgOpenFDs int64 `json:"avgOpenFDs"`
+        MaxOpenFDs int64 `json:"maxOpenFDs"`
+        AvgUsagePercent float64 `json:"avgUsagePercent"`
+        MaxUsagePercent float64 `json:"maxUsagePercent"`
+    }
+
+    FileDescriptorMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Current FDSnapshot `json:"current"`
+        Trend []FDDataPoint `json:"trend"`
+        Summary FDSummary `json:"summary"`
+    }
+
+        //================================网络连接指标================================
+    ConnectionSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        TCPConnections int64 `json:"tcpConnections"`
+        UDPConnections int64 `json:"udpConnections"`
+        TCPListening int64 `json:"tcpListening"`
+        TCPEstablished int64 `json:"tcpEstablished"`
+        TCPTimeWait int64 `json:"tcpTimeWait"`
+        TCPCloseWait int64 `json:"tcpCloseWait"`
+    }
+
+    ConnectionDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        TCPEstablished int64 `json:"tcpEstablished"`
+        TCPTimeWait int64 `json:"tcpTimeWait"`
+        TotalActive int64 `json:"totalActive"`
+    }
+
+    ConnectionSummary {
+        AvgTCPEstablished int64 `json:"avgTCPEstablished"`
+        MaxTCPEstablished int64 `json:"maxTCPEstablished"`
+        AvgTCPTimeWait int64 `json:"avgTCPTimeWait"`
+        MaxTCPTimeWait int64 `json:"maxTCPTimeWait"`
+    }
+
+    NetworkConnectionMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Current ConnectionSnapshot `json:"current"`
+        Trend []ConnectionDataPoint `json:"trend"`
+        Summary ConnectionSummary `json:"summary"`
+    }
+
+        //================================容器详细状态指标================================
+    ContainerStatusMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        ContainerName string `json:"containerName"`
+        State string `json:"state"`
+        Ready bool `json:"ready"`
+        RestartCount int64 `json:"restartCount"`
+        StartTime int64 `json:"startTime,optional"`
+        LastRestart int64 `json:"lastRestart,optional"`
+        ExitCode int `json:"exitCode"`
+        Reason string `json:"reason"`
+        Message string `json:"message"`
+        Image string `json:"image"`
+        ImageID string `json:"imageID"`
+        ContainerID string `json:"containerID"`
+    }
+
+    EnvFromSource {
+        ConfigMapRef string `json:"configMapRef,optional"`
+        SecretRef string `json:"secretRef,optional"`
+    }
+
+    VolumeMountInfo {
+        Name string `json:"name"`
+        MountPath string `json:"mountPath"`
+        SubPath string `json:"subPath,optional"`
+        ReadOnly bool `json:"readOnly"`
+    }
+
+    ContainerEnvironment {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        ContainerName string `json:"containerName"`
+        Image string `json:"image"`
+        ImagePullPolicy string `json:"imagePullPolicy"`
+        Command []string `json:"command,optional"`
+        Args []string `json:"args,optional"`
+        EnvVars map[string]string `json:"envVars,optional"`
+        EnvFrom []EnvFromSource `json:"envFrom,optional"`
+        VolumeMounts []VolumeMountInfo `json:"volumeMounts,optional"`
+        WorkingDir string `json:"workingDir,optional"`
+    }
+
+        //================================资源配额指标================================
+
+
+        //================================日志指标================================
+    LogRateDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        LinesCount int64 `json:"linesCount"`
+        ErrorRate float64 `json:"errorRate"`
+    }
+
+    ContainerLogMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        ContainerName string `json:"containerName"`
+        TotalLines int64 `json:"totalLines"`
+        ErrorCount int64 `json:"errorCount"`
+        WarningCount int64 `json:"warningCount"`
+        LogRate float64 `json:"logRate"`
+        Trend []LogRateDataPoint `json:"trend,optional"`
+    }
+
+        //================================进程指标================================
+    ProcessInfo {
+        PID int64 `json:"pid"`
+        Name string `json:"name"`
+        State string `json:"state"`
+        CPUPercent float64 `json:"cpuPercent"`
+        MemoryBytes int64 `json:"memoryBytes"`
+        Threads int64 `json:"threads"`
+    }
+
+    ProcessMetrics {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        ContainerName string `json:"containerName"`
+        ProcessCount int64 `json:"processCount"`
+        ThreadCount int64 `json:"threadCount"`
+        ZombieCount int64 `json:"zombieCount"`
+        Processes []ProcessInfo `json:"processes,optional"`
+    }
+
+        //================================Pod 综合概览================================
+    PodOverview {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Status PodStatusSnapshot `json:"status"`
+        CPU CPUUsageSnapshot `json:"cpu"`
+        Memory MemoryUsageSnapshot `json:"memory"`
+        Network NetworkSnapshot `json:"network"`
+        Disk DiskSnapshot `json:"disk"`
+        RestartCount int64 `json:"restartCount"`
+        Age PodAgeMetrics `json:"age"`
+        Labels map[string]string `json:"labels"`
+        Annotations map[string]string `json:"annotations"`
+    }
+
+
+
+        //================================请求和响应结构================================
+
+        // CPU 相关
+    GetCPUUsageRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetCPUUsageResponse {
+        Data PodCPUMetrics `json:"data"`
+    }
+
+    GetCPUUsageByContainerRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        ContainerName string `form:"containerName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetCPUUsageByContainerResponse {
+        Data ContainerCPUMetrics `json:"data"`
+    }
+
+    GetCPUThrottlingRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetCPUThrottlingResponse {
+        Data CPUThrottlingMetrics `json:"data"`
+    }
+
+        // 内存相关
+    GetMemoryUsageRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetMemoryUsageResponse {
+        Data PodMemoryMetrics `json:"data"`
+    }
+
+    GetMemoryUsageByContainerRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        ContainerName string `form:"containerName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetMemoryUsageByContainerResponse {
+        Data ContainerMemoryMetrics `json:"data"`
+    }
+
+    GetMemoryOOMRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetMemoryOOMResponse {
+        Data OOMMetrics `json:"data"`
+    }
+
+        // 网络相关
+    GetNetworkIORequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetNetworkIOResponse {
+        Data NetworkMetrics `json:"data"`
+    }
+
+    GetNetworkIOByContainerRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        ContainerName string `form:"containerName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetNetworkIOByContainerResponse {
+        Data ContainerNetworkMetrics `json:"data"`
+    }
+
+    GetNetworkRateRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetNetworkRateResponse {
+        Data NetworkRateMetrics `json:"data"`
+    }
+
+    GetNetworkRateByContainerRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        ContainerName string `form:"containerName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetNetworkRateByContainerResponse {
+        Data ContainerNetworkRateMetrics `json:"data"`
+    }
+
+        // 磁盘相关
+    GetDiskIORequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetDiskIOResponse {
+        Data DiskMetrics `json:"data"`
+    }
+
+    GetDiskIOByContainerRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        ContainerName string `form:"containerName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetDiskIOByContainerResponse {
+        Data ContainerDiskMetrics `json:"data"`
+    }
+
+    GetDiskRateRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetDiskRateResponse {
+        Data DiskRateMetrics `json:"data"`
+    }
+
+        // Pod 状态相关
+    GetPodStatusRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetPodStatusResponse {
+        Data PodStatusMetrics `json:"data"`
+    }
+
+    GetRestartCountRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetRestartCountResponse {
+        Data RestartMetrics `json:"data"`
+    }
+
+    GetPodAgeRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+    }
+    GetPodAgeResponse {
+        Data PodAgeMetrics `json:"data"`
+    }
+
+        // 存储/Volume 相关
+    GetVolumeUsageRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+    }
+    GetVolumeUsageResponse {
+        Data PodVolumeMetrics `json:"data"`
+    }
+
+    GetVolumeIOPSRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetVolumeIOPSResponse {
+        Data VolumeIOPSMetrics `json:"data"`
+    }
+
+        // 健康检查/探针相关
+    GetProbeStatusRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+    }
+    GetProbeStatusResponse {
+        Data PodProbeMetrics `json:"data"`
+    }
+
+        // 文件描述符相关
+    GetFileDescriptorUsageRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetFileDescriptorUsageResponse {
+        Data FileDescriptorMetrics `json:"data"`
+    }
+
+        // 网络连接相关
+    GetNetworkConnectionsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetNetworkConnectionsResponse {
+        Data NetworkConnectionMetrics `json:"data"`
+    }
+
+        // 容器详细信息相关
+    GetContainerStatusRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        ContainerName string `form:"containerName" validate:"required"`
+    }
+    GetContainerStatusResponse {
+        Data ContainerStatusMetrics `json:"data"`
+    }
+
+    GetContainerEnvironmentRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        ContainerName string `form:"containerName" validate:"required"`
+    }
+    GetContainerEnvironmentResponse {
+        Data ContainerEnvironment `json:"data"`
+    }
+
+        // 资源配额相关
+    GetResourceQuotaRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+    }
+    GetResourceQuotaResponse {
+        Data ResourceQuotaMetrics `json:"data"`
+    }
+
+        // 日志指标相关
+    GetContainerLogMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        ContainerName string `form:"containerName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetContainerLogMetricsResponse {
+        Data ContainerLogMetrics `json:"data"`
+    }
+
+        // 进程指标相关
+    GetProcessMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        ContainerName string `form:"containerName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetProcessMetricsResponse {
+        Data ProcessMetrics `json:"data"`
+    }
+
+        // 聚合查询
+    GetPodOverviewRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        PodName string `form:"podName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetPodOverviewResponse {
+        Data PodOverview `json:"data"`
+    }
+
+    ListPodsMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    ListPodsMetricsResponse {
+        Data []PodOverview `json:"data"`
+    }
+
+        // Top 查询
+    GetTopPodsByCPURequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Limit int `form:"limit,default=10" validate:"min=1,max=100"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetTopPodsByCPUResponse {
+        Data []PodResourceRanking `json:"data"`
+    }
+
+    GetTopPodsByMemoryRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Limit int `form:"limit,default=10" validate:"min=1,max=100"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetTopPodsByMemoryResponse {
+        Data []PodResourceRanking `json:"data"`
+    }
+
+    GetTopPodsByNetworkRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Limit int `form:"limit,default=10" validate:"min=1,max=100"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+        Step string `form:"step,optional"`
+    }
+    GetTopPodsByNetworkResponse {
+        Data []PodResourceRanking `json:"data"`
+    }
+)
+
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: podmonitor
+    prefix: /console/v1/pod-monitor
+)
+
+service console-api {
+    // ============ CPU 监控 ============
+    @doc "获取 Pod CPU 使用情况"
+    @handler GetCPUUsageHandler
+    get /cpu/usage (GetCPUUsageRequest) returns (GetCPUUsageResponse)
+
+    @doc "获取容器 CPU 使用情况"
+    @handler GetCPUUsageByContainerHandler
+    get /cpu/usage/container (GetCPUUsageByContainerRequest) returns (GetCPUUsageByContainerResponse)
+
+    @doc "获取 CPU 节流情况"
+    @handler GetCPUThrottlingHandler
+    get /cpu/throttling (GetCPUThrottlingRequest) returns (GetCPUThrottlingResponse)
+
+    // ============ 内存监控 ============
+    @doc "获取 Pod 内存使用情况"
+    @handler GetMemoryUsageHandler
+    get /memory/usage (GetMemoryUsageRequest) returns (GetMemoryUsageResponse)
+
+    @doc "获取容器内存使用情况"
+    @handler GetMemoryUsageByContainerHandler
+    get /memory/usage/container (GetMemoryUsageByContainerRequest) returns (GetMemoryUsageByContainerResponse)
+
+    @doc "获取 OOM 情况"
+    @handler GetMemoryOOMHandler
+    get /memory/oom (GetMemoryOOMRequest) returns (GetMemoryOOMResponse)
+
+    // ============ 网络监控 ============
+    @doc "获取网络 I/O"
+    @handler GetNetworkIOHandler
+    get /network/io (GetNetworkIORequest) returns (GetNetworkIOResponse)
+
+    @doc "获取容器网络 I/O"
+    @handler GetNetworkIOByContainerHandler
+    get /network/io/container (GetNetworkIOByContainerRequest) returns (GetNetworkIOByContainerResponse)
+
+    @doc "获取网络速率"
+    @handler GetNetworkRateHandler
+    get /network/rate (GetNetworkRateRequest) returns (GetNetworkRateResponse)
+
+    @doc "获取容器网络速率"
+    @handler GetNetworkRateByContainerHandler
+    get /network/rate/container (GetNetworkRateByContainerRequest) returns (GetNetworkRateByContainerResponse)
+
+    // ============ 磁盘监控 ============
+    @doc "获取磁盘 I/O"
+    @handler GetDiskIOHandler
+    get /disk/io (GetDiskIORequest) returns (GetDiskIOResponse)
+
+    @doc "获取容器磁盘 I/O"
+    @handler GetDiskIOByContainerHandler
+    get /disk/io/container (GetDiskIOByContainerRequest) returns (GetDiskIOByContainerResponse)
+
+    @doc "获取磁盘速率"
+    @handler GetDiskRateHandler
+    get /disk/rate (GetDiskRateRequest) returns (GetDiskRateResponse)
+
+    // ============ Pod 状态监控 ============
+    @doc "获取 Pod 状态"
+    @handler GetPodStatusHandler
+    get /status (GetPodStatusRequest) returns (GetPodStatusResponse)
+
+    @doc "获取重启次数"
+    @handler GetRestartCountHandler
+    get /restart (GetRestartCountRequest) returns (GetRestartCountResponse)
+
+    @doc "获取 Pod 年龄"
+    @handler GetPodAgeHandler
+    get /age (GetPodAgeRequest) returns (GetPodAgeResponse)
+
+    // ============ 存储/Volume 监控 ============
+    @doc "获取存储使用情况"
+    @handler GetVolumeUsageHandler
+    get /volume/usage (GetVolumeUsageRequest) returns (GetVolumeUsageResponse)
+
+    @doc "获取 Volume IOPS"
+    @handler GetVolumeIOPSHandler
+    get /volume/iops (GetVolumeIOPSRequest) returns (GetVolumeIOPSResponse)
+
+    // ============ 健康检查/探针监控 ============
+    @doc "获取探针状态"
+    @handler GetProbeStatusHandler
+    get /probe/status (GetProbeStatusRequest) returns (GetProbeStatusResponse)
+
+    // ============ 文件描述符监控 ============
+    @doc "获取文件描述符使用情况"
+    @handler GetFileDescriptorUsageHandler
+    get /fd/usage (GetFileDescriptorUsageRequest) returns (GetFileDescriptorUsageResponse)
+
+    // ============ 网络连接监控 ============
+    @doc "获取网络连接情况"
+    @handler GetNetworkConnectionsHandler
+    get /network/connections (GetNetworkConnectionsRequest) returns (GetNetworkConnectionsResponse)
+
+    // ============ 容器详细信息 ============
+    @doc "获取容器状态"
+    @handler GetContainerStatusHandler
+    get /container/status (GetContainerStatusRequest) returns (GetContainerStatusResponse)
+
+    @doc "获取容器环境信息"
+    @handler GetContainerEnvironmentHandler
+    get /container/environment (GetContainerEnvironmentRequest) returns (GetContainerEnvironmentResponse)
+
+    // ============ 资源配额 ============
+    @doc "获取命名空间资源配额"
+    @handler GetResourceQuotaHandler
+    get /quota (GetResourceQuotaRequest) returns (GetResourceQuotaResponse)
+
+    // ============ 日志指标 ============
+    @doc "获取容器日志指标"
+    @handler GetContainerLogMetricsHandler
+    get /logs/metrics (GetContainerLogMetricsRequest) returns (GetContainerLogMetricsResponse)
+
+    // ============ 进程指标 ============
+    @doc "获取进程指标"
+    @handler GetProcessMetricsHandler
+    get /process/metrics (GetProcessMetricsRequest) returns (GetProcessMetricsResponse)
+
+    // ============ 聚合查询 ============
+    @doc "获取 Pod 概览"
+    @handler GetPodOverviewHandler
+    get /overview (GetPodOverviewRequest) returns (GetPodOverviewResponse)
+
+    @doc "列出 Pods 指标"
+    @handler ListPodsMetricsHandler
+    get /list (ListPodsMetricsRequest) returns (ListPodsMetricsResponse)
+
+    // ============ Top 查询 ============
+    @doc "获取 CPU Top Pods"
+    @handler GetTopPodsByCPUHandler
+    get /top/cpu (GetTopPodsByCPURequest) returns (GetTopPodsByCPUResponse)
+
+    @doc "获取内存 Top Pods"
+    @handler GetTopPodsByMemoryHandler
+    get /top/memory (GetTopPodsByMemoryRequest) returns (GetTopPodsByMemoryResponse)
+
+    @doc "获取网络 Top Pods"
+    @handler GetTopPodsByNetworkHandler
+    get /top/network (GetTopPodsByNetworkRequest) returns (GetTopPodsByNetworkResponse)
+}
+

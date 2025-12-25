@@ -1,0 +1,170 @@
+---
+# Redis 配置文件
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: kube-nova
+data:
+  redis.conf: |
+    bind 0.0.0.0
+    protected-mode yes
+    port 6379
+    
+    # 认证
+    requirepass 2VOSiz0vhGtxaBJb
+    
+    # 内存配置
+    maxmemory 2gb
+    maxmemory-policy allkeys-lru
+    
+    # AOF 持久化配置
+    appendonly yes
+    appendfilename "appendonly.aof"
+    appendfsync everysec 
+    # appendfsync always 
+    # appendfsync no
+    
+    auto-aof-rewrite-percentage 100
+    auto-aof-rewrite-min-size 64mb
+    
+    save 900 1 
+    save 300 10  
+    save 60 10000
+    
+    # RDB 文件配置
+    dbfilename dump.rdb
+    dir /data
+    
+    # RDB 压缩
+    rdbcompression yes
+    rdbchecksum yes
+    
+    # 日志配置
+    loglevel notice
+    logfile ""
+    
+    # 客户端输出缓冲限制
+    client-output-buffer-limit normal 0 0 0
+    client-output-buffer-limit replica 256mb 64mb 60
+    client-output-buffer-limit pubsub 32mb 8mb 60
+    
+    # 慢查询日志
+    slowlog-log-slower-than 10000
+    slowlog-max-len 128
+
+---
+# Redis Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: kube-nova
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  # 使用 Recreate 策略确保数据一致性
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      # 安全上下文配置
+      securityContext:
+        fsGroup: 999  # Redis 用户组 ID
+        runAsUser: 999  # Redis 用户 ID
+        runAsNonRoot: true
+      
+      containers:
+        - name: redis
+          image: registry.cn-hangzhou.aliyuncs.com/kube-nova/redis:7-alpine
+          command:
+            - redis-server
+            - /etc/redis/redis.conf
+          
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+          
+          ports:
+            - containerPort: 6379
+              name: redis
+              protocol: TCP
+          
+          # 挂载配置文件和数据目录
+          volumeMounts:
+            - name: redis-config
+              mountPath: /etc/redis
+              readOnly: true
+            - name: redis-data
+              mountPath: /data  # Redis 数据持久化目录
+          
+          # 存活探针
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - redis-cli -a "${REDIS_PASSWORD:-2VOSiz0vhGtxaBJb}" ping | grep -q PONG
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          # 就绪探针
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - redis-cli -a "${REDIS_PASSWORD:-2VOSiz0vhGtxaBJb}" ping | grep -q PONG
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
+          # 资源限制
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+      
+      # 数据卷定义
+      volumes:
+        - name: redis-config
+          configMap:
+            name: redis-config
+            defaultMode: 0644
+        - name: redis-data
+          persistentVolumeClaim:
+            claimName: redis-pvc
+
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: kube-nova
+  labels:
+    app: redis
+spec:
+  type: ClusterIP
+  selector:
+    app: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800

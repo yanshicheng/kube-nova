@@ -1,0 +1,671 @@
+syntax = "v1"
+
+info(
+    title: "Cluster Monitor API"
+    desc: "Cluster 监控指标查询 API"
+    author: "System"
+    version: "2.0"
+)
+
+import "./base.api"
+
+type (
+    //================================ Cluster 级别类型 ================================
+
+    ClusterOverview {
+        ClusterName string `json:"clusterName"`
+        Timestamp int64 `json:"timestamp"`
+        Resources ClusterResourceMetrics `json:"resources"`
+        Nodes ClusterNodeMetrics `json:"nodes"`
+        ControlPlane ClusterControlPlaneMetrics `json:"controlPlane"`
+        Workloads ClusterWorkloadMetrics `json:"workloads"`
+        Network ClusterNetworkMetrics `json:"network"`
+        Storage ClusterStorageMetrics `json:"storage"`
+        Namespaces ClusterNamespaceMetrics `json:"namespaces"`
+    }
+
+        //================================ 集群资源指标 ================================
+
+    ClusterResourceMetrics {
+        CPU ClusterResourceSummary `json:"cpu"`
+        Memory ClusterResourceSummary `json:"memory"`
+        Pods ClusterPodSummary `json:"pods"`
+        Storage ClusterStorageSummary `json:"storage"`
+    }
+
+    ClusterResourceSummary {
+        Capacity float64 `json:"capacity"`
+        Allocatable float64 `json:"allocatable"`
+        RequestsAllocated float64 `json:"requestsAllocated"`
+        LimitsAllocated float64 `json:"limitsAllocated"`
+        Usage float64 `json:"usage"`
+        RequestsPercent float64 `json:"requestsPercent"`
+        UsagePercent float64 `json:"usagePercent"`
+        Trend []ClusterResourceDataPoint `json:"trend"`
+        NoRequestsCount int64 `json:"noRequestsCount"`
+        NoLimitsCount int64 `json:"noLimitsCount"`
+    }
+
+    ClusterResourceDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        Usage float64 `json:"usage"`
+        UsagePercent float64 `json:"usagePercent"`
+        RequestsPercent float64 `json:"requestsPercent"`
+    }
+
+    ClusterPodSummary {
+        Capacity int64 `json:"capacity"`
+        Running int64 `json:"running"`
+        UsagePercent float64 `json:"usagePercent"`
+    }
+
+    ClusterStorageSummary {
+        TotalCapacityBytes int64 `json:"totalCapacityBytes"`
+        AllocatedBytes int64 `json:"allocatedBytes"`
+        AllocationPercent float64 `json:"allocationPercent"`
+    }
+
+        //================================ 节点状态统计 ================================
+
+    ClusterNodeMetrics {
+        Total int64 `json:"total"`
+        Ready int64 `json:"ready"`
+        NotReady int64 `json:"notReady"`
+        Unknown int64 `json:"unknown"`
+        MemoryPressure int64 `json:"memoryPressure"`
+        DiskPressure int64 `json:"diskPressure"`
+        PIDPressure int64 `json:"pidPressure"`
+        AvgCPUUsage float64 `json:"avgCPUUsage"`
+        AvgMemoryUsage float64 `json:"avgMemoryUsage"`
+        HighLoadNodes int64 `json:"highLoadNodes"`
+        NodeList []NodeBriefStatus `json:"nodeList"`
+        Trend []ClusterNodeDataPoint `json:"trend"`
+    }
+
+    NodeBriefStatus {
+        NodeName string `json:"nodeName"`
+        Ready bool `json:"ready"`
+        MemoryPressure bool `json:"memoryPressure"`
+        DiskPressure bool `json:"diskPressure"`
+        CPUUsage float64 `json:"cpuUsage"`
+        MemoryUsage float64 `json:"memoryUsage"`
+        PodsCount int64 `json:"podsCount"`
+    }
+
+    ClusterNodeDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        ReadyNodes int64 `json:"readyNodes"`
+        NotReadyNodes int64 `json:"notReadyNodes"`
+        AvgCPUUsage float64 `json:"avgCPUUsage"`
+        AvgMemoryUsage float64 `json:"avgMemoryUsage"`
+    }
+
+        //================================ 控制平面指标（完善版）================================
+
+    ClusterControlPlaneMetrics {
+        APIServer APIServerMetrics `json:"apiServer"`
+        Etcd EtcdMetrics `json:"etcd"`
+        Scheduler SchedulerMetrics `json:"scheduler"`
+        ControllerManager ControllerManagerMetrics `json:"controllerManager"`
+    }
+
+        // ==================== API Server（完善版）====================
+    APIServerMetrics {
+        // 基础指标
+        RequestsPerSecond float64 `json:"requestsPerSecond"`
+        ErrorRate float64 `json:"errorRate"`
+
+        // 延迟指标
+        P50Latency float64 `json:"p50Latency"`
+        P95Latency float64 `json:"p95Latency"`
+        P99Latency float64 `json:"p99Latency"`
+
+        // 并发指标
+        CurrentInflightRequests int64 `json:"currentInflightRequests"`
+        InflightReadRequests int64 `json:"inflightReadRequests"`
+        InflightMutatingRequests int64 `json:"inflightMutatingRequests"`
+        LongRunningRequests int64 `json:"longRunningRequests"`
+        WatchCount int64 `json:"watchCount"`
+
+        // 性能指标
+        RequestDropped int64 `json:"requestDropped"`
+        RequestTimeout int64 `json:"requestTimeout"`
+        ResponseSizeBytes float64 `json:"responseSizeBytes"`
+        WebhookDurationSeconds float64 `json:"webhookDurationSeconds"`
+
+        // 认证鉴权
+        AuthenticationAttempts float64 `json:"authenticationAttempts"`
+        AuthenticationFailures float64 `json:"authenticationFailures"`
+        AuthorizationAttempts float64 `json:"authorizationAttempts"`
+        AuthorizationDuration float64 `json:"authorizationDuration"`
+        ClientCertExpirationDays float64 `json:"clientCertExpirationDays"`
+
+        // 分类统计
+        RequestsByVerb []VerbMetrics `json:"requestsByVerb"`
+        RequestsByCode StatusCodeDistribution `json:"requestsByCode"`
+        RequestsByResource []ResourceMetrics `json:"requestsByResource"`
+
+        // 趋势数据
+        Trend []APIServerDataPoint `json:"trend"`
+    }
+
+    ResourceMetrics {
+        Resource string `json:"resource"`
+        RequestsPerSecond float64 `json:"requestsPerSecond"`
+    }
+
+    VerbMetrics {
+        Verb string `json:"verb"`
+        RequestsPerSecond float64 `json:"requestsPerSecond"`
+    }
+
+
+
+    APIServerDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        RequestsPerSecond float64 `json:"requestsPerSecond"`
+        ErrorRate float64 `json:"errorRate"`
+        P95Latency float64 `json:"p95Latency"`
+        CurrentInflightRequests int64 `json:"currentInflightRequests"`
+        LongRunningRequests int64 `json:"longRunningRequests"`
+    }
+
+        // ==================== etcd（完善版）====================
+    EtcdMetrics {
+        // 集群状态
+        HasLeader bool `json:"hasLeader"`
+        LeaderChanges int64 `json:"leaderChanges"`
+        MemberCount int64 `json:"memberCount"`
+        IsLearner bool `json:"isLearner"`
+
+        // 存储指标
+        DBSizeBytes int64 `json:"dbSizeBytes"`
+        DBSizeInUse int64 `json:"dbSizeInUse"`
+        DBSizeLimit int64 `json:"dbSizeLimit"`
+        KeyTotal int64 `json:"keyTotal"`
+
+        // 性能指标
+        CommitLatency float64 `json:"commitLatency"`
+        WALFsyncLatency float64 `json:"walFsyncLatency"`
+        ApplyLatency float64 `json:"applyLatency"`
+        SnapshotLatency float64 `json:"snapshotLatency"`
+        CompactLatency float64 `json:"compactLatency"`
+
+        // 网络指标
+        PeerRTT float64 `json:"peerRTT"`
+        NetworkSendRate float64 `json:"networkSendRate"`
+        NetworkRecvRate float64 `json:"networkRecvRate"`
+
+        // 操作统计
+        ProposalsFailed int64 `json:"proposalsFailed"`
+        ProposalsPending int64 `json:"proposalsPending"`
+        ProposalsApplied int64 `json:"proposalsApplied"`
+        ProposalsCommitted int64 `json:"proposalsCommitted"`
+
+        // 操作速率
+        GetRate float64 `json:"getRate"`
+        PutRate float64 `json:"putRate"`
+        DeleteRate float64 `json:"deleteRate"`
+
+        // 慢操作
+        SlowApplies int64 `json:"slowApplies"`
+        SlowCommits int64 `json:"slowCommits"`
+
+        // 趋势数据
+        Trend []EtcdDataPoint `json:"trend"`
+    }
+
+    EtcdDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        DBSizeBytes int64 `json:"dbSizeBytes"`
+        CommitLatency float64 `json:"commitLatency"`
+        ProposalsFailed int64 `json:"proposalsFailed"`
+        PeerRTT float64 `json:"peerRTT"`
+        GetRate float64 `json:"getRate"`
+        PutRate float64 `json:"putRate"`
+    }
+
+        // ==================== Scheduler（完善版）====================
+    SchedulerMetrics {
+        // 基础指标
+        ScheduleSuccessRate float64 `json:"scheduleSuccessRate"`
+        ScheduleAttempts float64 `json:"scheduleAttempts"`
+        PendingPods int64 `json:"pendingPods"`
+        UnschedulablePods int64 `json:"unschedulablePods"`
+
+        // 延迟指标
+        P50ScheduleLatency float64 `json:"p50ScheduleLatency"`
+        P95ScheduleLatency float64 `json:"p95ScheduleLatency"`
+        P99ScheduleLatency float64 `json:"p99ScheduleLatency"`
+        BindingLatency float64 `json:"bindingLatency"`
+
+        // 调度结果
+        ScheduledPods int64 `json:"scheduledPods"`
+        FailedScheduling int64 `json:"failedScheduling"`
+        PreemptionAttempts int64 `json:"preemptionAttempts"`
+        PreemptionVictims int64 `json:"preemptionVictims"`
+
+        // 失败原因
+        FailureReasons ScheduleFailureReasons `json:"failureReasons"`
+
+        // 调度队列
+        SchedulingQueueLength int64 `json:"schedulingQueueLength"`
+        ActiveQueueLength int64 `json:"activeQueueLength"`
+        BackoffQueueLength int64 `json:"backoffQueueLength"`
+
+        // 插件延迟
+        PluginLatency SchedulerPluginLatency `json:"pluginLatency"`
+
+        // 趋势数据
+        Trend []SchedulerDataPoint `json:"trend"`
+    }
+
+    ScheduleFailureReasons {
+        InsufficientCPU int64 `json:"insufficientCPU"`
+        InsufficientMemory int64 `json:"insufficientMemory"`
+        NodeAffinity int64 `json:"nodeAffinity"`
+        PodAffinity int64 `json:"podAffinity"`
+        Taint int64 `json:"taint"`
+        VolumeBinding int64 `json:"volumeBinding"`
+        NoNodesAvailable int64 `json:"noNodesAvailable"`
+    }
+
+    SchedulerPluginLatency {
+        FilterLatency float64 `json:"filterLatency"`
+        ScoreLatency float64 `json:"scoreLatency"`
+        PreBindLatency float64 `json:"preBindLatency"`
+        BindLatency float64 `json:"bindLatency"`
+    }
+
+    SchedulerDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        ScheduleSuccessRate float64 `json:"scheduleSuccessRate"`
+        PendingPods int64 `json:"pendingPods"`
+        P95ScheduleLatency float64 `json:"p95ScheduleLatency"`
+        ScheduleAttempts float64 `json:"scheduleAttempts"`
+    }
+
+        // ==================== Controller Manager（完善版）====================
+    ControllerManagerMetrics {
+        // Leader 选举
+        IsLeader bool `json:"isLeader"`
+        LeaderChanges int64 `json:"leaderChanges"`
+
+        // 工作队列深度
+        DeploymentQueueDepth int64 `json:"deploymentQueueDepth"`
+        ReplicaSetQueueDepth int64 `json:"replicaSetQueueDepth"`
+        StatefulSetQueueDepth int64 `json:"statefulSetQueueDepth"`
+        DaemonSetQueueDepth int64 `json:"daemonSetQueueDepth"`
+        JobQueueDepth int64 `json:"jobQueueDepth"`
+        NodeQueueDepth int64 `json:"nodeQueueDepth"`
+        ServiceQueueDepth int64 `json:"serviceQueueDepth"`
+        EndpointQueueDepth int64 `json:"endpointQueueDepth"`
+
+        // 队列延迟
+        QueueLatency QueueLatencyMetrics `json:"queueLatency"`
+
+        // 工作队列统计
+        WorkQueueMetrics ControllerWorkQueueMetrics `json:"workQueueMetrics"`
+
+        // 控制器协调延迟
+        ReconcileLatency ControllerReconcileLatency `json:"reconcileLatency"`
+
+        // 错误和重试
+        TotalSyncErrors int64 `json:"totalSyncErrors"`
+        RetryRate float64 `json:"retryRate"`
+
+        // 趋势数据
+        Trend []ControllerManagerDataPoint `json:"trend"`
+    }
+
+    QueueLatencyMetrics {
+        QueueDuration float64 `json:"queueDuration"`
+        WorkDuration float64 `json:"workDuration"`
+    }
+
+    ControllerWorkQueueMetrics {
+        AddsRate float64 `json:"addsRate"`
+        DepthTotal int64 `json:"depthTotal"`
+        UnfinishedWork int64 `json:"unfinishedWork"`
+        LongestRunning float64 `json:"longestRunning"`
+        RetriesRate float64 `json:"retriesRate"`
+    }
+
+    ControllerReconcileLatency {
+        DeploymentP99 float64 `json:"deploymentP99"`
+        ReplicaSetP99 float64 `json:"replicaSetP99"`
+        StatefulSetP99 float64 `json:"statefulSetP99"`
+        DaemonSetP99 float64 `json:"daemonSetP99"`
+        JobP99 float64 `json:"jobP99"`
+    }
+
+    ControllerManagerDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        DeploymentQueueDepth int64 `json:"deploymentQueueDepth"`
+        ReplicaSetQueueDepth int64 `json:"replicaSetQueueDepth"`
+        StatefulSetQueueDepth int64 `json:"statefulSetQueueDepth"`
+        TotalQueueDepth int64 `json:"totalQueueDepth"`
+        RetryRate float64 `json:"retryRate"`
+    }
+
+        //================================ 工作负载统计 ================================
+
+    ClusterWorkloadMetrics {
+        Pods ClusterPodMetrics `json:"pods"`
+        Deployments ClusterDeploymentMetrics `json:"deployments"`
+        StatefulSets ClusterStatefulSetMetrics `json:"statefulSets"`
+        DaemonSets ClusterDaemonSetMetrics `json:"daemonSets"`
+        Jobs ClusterJobMetrics `json:"jobs"`
+        Services ClusterServiceMetrics `json:"services"`
+        Containers ClusterContainerMetrics `json:"containers"`
+    }
+
+    ClusterPodMetrics {
+        Total int64 `json:"total"`
+        Running int64 `json:"running"`
+        Pending int64 `json:"pending"`
+        Failed int64 `json:"failed"`
+        Succeeded int64 `json:"succeeded"`
+        Unknown int64 `json:"unknown"`
+        Ready int64 `json:"ready"`
+        NotReady int64 `json:"notReady"`
+        TotalRestarts int64 `json:"totalRestarts"`
+        HighRestartPods []PodRestartInfo `json:"highRestartPods"`
+        Trend []ClusterPodDataPoint `json:"trend"`
+    }
+
+
+
+    ClusterPodDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        Total int64 `json:"total"`
+        Running int64 `json:"running"`
+        Pending int64 `json:"pending"`
+        Failed int64 `json:"failed"`
+    }
+
+    ClusterDeploymentMetrics {
+        Total int64 `json:"total"`
+        AvailableReplicas int64 `json:"availableReplicas"`
+        UnavailableReplicas int64 `json:"unavailableReplicas"`
+        Updating int64 `json:"updating"`
+    }
+
+    ClusterStatefulSetMetrics {
+        Total int64 `json:"total"`
+        ReadyReplicas int64 `json:"readyReplicas"`
+        CurrentReplicas int64 `json:"currentReplicas"`
+    }
+
+    ClusterDaemonSetMetrics {
+        Total int64 `json:"total"`
+        DesiredPods int64 `json:"desiredPods"`
+        AvailablePods int64 `json:"availablePods"`
+        UnavailablePods int64 `json:"unavailablePods"`
+    }
+
+    ClusterJobMetrics {
+        Active int64 `json:"active"`
+        Succeeded int64 `json:"succeeded"`
+        Failed int64 `json:"failed"`
+        CronJobsTotal int64 `json:"cronJobsTotal"`
+    }
+
+    ClusterServiceMetrics {
+        Total int64 `json:"total"`
+        ByType []ServiceTypeCount `json:"byType"`
+    }
+
+
+
+    ClusterContainerMetrics {
+        Total int64 `json:"total"`
+        Running int64 `json:"running"`
+    }
+
+        //================================ 网络和存储 ================================
+
+    ClusterNetworkMetrics {
+        TotalIngressBytesPerSec float64 `json:"totalIngressBytesPerSec"`
+        TotalEgressBytesPerSec float64 `json:"totalEgressBytesPerSec"`
+        Trend []ClusterNetworkDataPoint `json:"trend"`
+    }
+
+    ClusterNetworkDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        IngressBytesPerSec float64 `json:"ingressBytesPerSec"`
+        EgressBytesPerSec float64 `json:"egressBytesPerSec"`
+    }
+
+    ClusterStorageMetrics {
+        PVTotal int64 `json:"pvTotal"`
+        PVBound int64 `json:"pvBound"`
+        PVAvailable int64 `json:"pvAvailable"`
+        PVReleased int64 `json:"pvReleased"`
+        PVFailed int64 `json:"pvFailed"`
+        PVCTotal int64 `json:"pvcTotal"`
+        PVCBound int64 `json:"pvcBound"`
+        PVCPending int64 `json:"pvcPending"`
+        PVCLost int64 `json:"pvcLost"`
+        StorageClasses []StorageClassUsage `json:"storageClasses"`
+    }
+
+
+
+        //================================ Namespace 统计 ================================
+
+    ClusterNamespaceMetrics {
+        Total int64 `json:"total"`
+        Active int64 `json:"active"`
+        TopByCPU []NamespaceResourceRanking `json:"topByCPU"`
+        TopByMemory []NamespaceResourceRanking `json:"topByMemory"`
+        TopByPods []NamespaceResourceRanking `json:"topByPods"`
+    }
+
+    NamespaceResourceRanking {
+        Namespace string `json:"namespace"`
+        Value float64 `json:"value"`
+        Unit string `json:"unit"`
+    }
+
+        //================================ 请求和响应结构 ================================
+
+    GetClusterOverviewRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetClusterOverviewResponse {
+        Data ClusterOverview `json:"data"`
+    }
+
+    GetClusterResourcesRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetClusterResourcesResponse {
+        Data ClusterResourceMetrics `json:"data"`
+    }
+
+    GetClusterCPUMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetClusterCPUMetricsResponse {
+        Data ClusterResourceSummary `json:"data"`
+    }
+
+    GetClusterMemoryMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetClusterMemoryMetricsResponse {
+        Data ClusterResourceSummary `json:"data"`
+    }
+
+    GetClusterNodesRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetClusterNodesResponse {
+        Data ClusterNodeMetrics `json:"data"`
+    }
+
+    GetAPIServerMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetAPIServerMetricsResponse {
+        Data APIServerMetrics `json:"data"`
+    }
+
+    GetEtcdMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetEtcdMetricsResponse {
+        Data EtcdMetrics `json:"data"`
+    }
+
+    GetSchedulerMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetSchedulerMetricsResponse {
+        Data SchedulerMetrics `json:"data"`
+    }
+
+    GetControllerManagerMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetControllerManagerMetricsResponse {
+        Data ControllerManagerMetrics `json:"data"`
+    }
+
+    GetClusterWorkloadsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetClusterWorkloadsResponse {
+        Data ClusterWorkloadMetrics `json:"data"`
+    }
+
+    GetClusterPodsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetClusterPodsResponse {
+        Data ClusterPodMetrics `json:"data"`
+    }
+
+    GetClusterDeploymentsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+    }
+    GetClusterDeploymentsResponse {
+        Data ClusterDeploymentMetrics `json:"data"`
+    }
+
+    GetClusterNetworkRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetClusterNetworkResponse {
+        Data ClusterNetworkMetrics `json:"data"`
+    }
+
+    GetClusterStorageRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+    }
+    GetClusterStorageResponse {
+        Data ClusterStorageMetrics `json:"data"`
+    }
+
+    GetClusterNamespacesRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetClusterNamespacesResponse {
+        Data ClusterNamespaceMetrics `json:"data"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: clustermonitor
+    prefix: /console/v1/cluster-monitor
+)
+
+service console-api {
+    @doc "获取集群综合概览"
+    @handler GetClusterOverviewHandler
+    get /overview (GetClusterOverviewRequest) returns (GetClusterOverviewResponse)
+
+    @doc "获取集群资源指标"
+    @handler GetClusterResourcesHandler
+    get /resources (GetClusterResourcesRequest) returns (GetClusterResourcesResponse)
+
+    @doc "获取集群 CPU 指标"
+    @handler GetClusterCPUMetricsHandler
+    get /cpu (GetClusterCPUMetricsRequest) returns (GetClusterCPUMetricsResponse)
+
+    @doc "获取集群内存指标"
+    @handler GetClusterMemoryMetricsHandler
+    get /memory (GetClusterMemoryMetricsRequest) returns (GetClusterMemoryMetricsResponse)
+
+    @doc "获取集群节点统计"
+    @handler GetClusterNodesHandler
+    get /nodes (GetClusterNodesRequest) returns (GetClusterNodesResponse)
+
+    @doc "获取 API Server 指标"
+    @handler GetAPIServerMetricsHandler
+    get /control-plane/apiserver (GetAPIServerMetricsRequest) returns (GetAPIServerMetricsResponse)
+
+    @doc "获取 Etcd 指标"
+    @handler GetEtcdMetricsHandler
+    get /control-plane/etcd (GetEtcdMetricsRequest) returns (GetEtcdMetricsResponse)
+
+    @doc "获取 Scheduler 指标"
+    @handler GetSchedulerMetricsHandler
+    get /control-plane/scheduler (GetSchedulerMetricsRequest) returns (GetSchedulerMetricsResponse)
+
+    @doc "获取 Controller Manager 指标"
+    @handler GetControllerManagerMetricsHandler
+    get /control-plane/controller-manager (GetControllerManagerMetricsRequest) returns (GetControllerManagerMetricsResponse)
+
+    @doc "获取集群工作负载统计"
+    @handler GetClusterWorkloadsHandler
+    get /workloads (GetClusterWorkloadsRequest) returns (GetClusterWorkloadsResponse)
+
+    @doc "获取集群 Pod 统计"
+    @handler GetClusterPodsHandler
+    get /workloads/pods (GetClusterPodsRequest) returns (GetClusterPodsResponse)
+
+    @doc "获取集群 Deployment 统计"
+    @handler GetClusterDeploymentsHandler
+    get /workloads/deployments (GetClusterDeploymentsRequest) returns (GetClusterDeploymentsResponse)
+
+    @doc "获取集群网络统计"
+    @handler GetClusterNetworkHandler
+    get /network (GetClusterNetworkRequest) returns (GetClusterNetworkResponse)
+
+    @doc "获取集群存储统计"
+    @handler GetClusterStorageHandler
+    get /storage (GetClusterStorageRequest) returns (GetClusterStorageResponse)
+
+    @doc "获取集群 Namespace 统计"
+    @handler GetClusterNamespacesHandler
+    get /namespaces (GetClusterNamespacesRequest) returns (GetClusterNamespacesResponse)
+}

@@ -1,0 +1,18 @@
+syntax = "v1"
+
+info (
+	title:   "type title here"
+	desc:    "type desc here"
+	author:  "type author here"
+	email:   "type email here"
+	version: "type version here"
+)
+
+import "api/application.api"
+import "api/workload.api"
+import "api/core.api"
+import "api/node.api"
+import "api/flagger.api"
+import "api/autoscaling.api"
+import "api/cluster-resource.api"
+import "api/monitor.api"

@@ -1,0 +1,70 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: console-api-config
+  namespace: kube-nova
+data:
+  config.yaml: |
+    Name: console-api
+    Host: 0.0.0.0
+    Port: 8818
+    Mode: pro
+    Timeout: ${DEFAULT_TIMEOUT}
+    MaxBytes: 5048576000
+    LocalCacheDir: /app/cache
+
+    DevServer:
+      Enabled: true
+      Port: 9999
+      HealthPath: "/healthz"
+      MetricsPath: "/metrics"
+      EnableMetrics: true
+
+    Telemetry:
+      Name: console-api
+      Endpoint: ${JAEGER_ENDPOINT}
+      Sampler: ${TELEMETRY_SAMPLER}
+      Batcher: ${TELEMETRY_BATCHER}
+
+    Log:
+      ServiceName: console-api
+      Mode: console
+      Encoding: plain
+      TimeFormat: "2006-01-02 15:04:05"
+      Path: logs
+      Level: info
+      MaxContentLength: 1024
+      Compress: false
+      Stat: true
+      KeepDays: 7
+      StackCooldownMillis: 100
+      MaxBackups: 0
+      MaxSize: 0
+      Rotation: daily
+
+    Cache:
+      Host: ${REDIS_HOST}:${REDIS_PORT}
+      Type: ${REDIS_TYPE}
+      Pass: ${REDIS_PASSWORD}
+      Tls: ${REDIS_TLS}
+      NonBlock: ${REDIS_NONBLOCK}
+      PingTimeout: ${REDIS_PING_TIMEOUT}
+
+    ManagerRpc:
+      Target: k8s://${POD_NAMESPACE}/manager-rpc:30011
+      Optional: true
+      NonBlock: true
+      Timeout: ${DEFAULT_TIMEOUT}
+
+    ConsoleRpc:
+      Target: k8s://${POD_NAMESPACE}/console-rpc:30018
+      Optional: true
+      NonBlock: true
+      Timeout: ${DEFAULT_TIMEOUT}
+
+    PortalRpc:
+      Target: k8s://${POD_NAMESPACE}/portal-rpc:30010
+      Optional: true
+      NonBlock: true
+      Timeout: ${DEFAULT_TIMEOUT}

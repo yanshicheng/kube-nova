@@ -1,0 +1,1689 @@
+syntax = "proto3";
+
+option go_package = "github.com/yanshicheng/kube-nova/application/portal-rpc/pb";
+
+package pb;
+
+// ------------------------------------ 
+// Messages and Services
+// ------------------------------------ 
+//--------------------------------系统API权限表--------------------------------
+message SysAPI {
+  uint64 id = 1; //主键ID
+  uint64 parentId = 2; //父级API ID，0为顶级
+  string name = 3; //API名称
+  string path = 4; //API路径，支持RESTful风格如 /api/users/:id
+  string method = 5; //HTTP方法: GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD
+  int64 isPermission = 6; //是否为权限(权限 or 分组) 0: 分组 1: 权限
+  string createdBy = 7; //创建人
+  string updatedBy = 8; //更新人
+  int64 createdAt = 9; //创建时间
+  int64 updatedAt = 10; //更新时间
+}
+
+message AddSysAPIReq {
+  uint64 parentId = 1; //父级API ID，0为顶级
+  string name = 2; //API名称
+  string path = 3; //API路径，支持RESTful风格如 /api/users/:id
+  string method = 4; //HTTP方法: GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD
+  int64 isPermission = 5; //是否为权限(权限 or 分组) 0: 分组 1: 权限
+  string createdBy = 6; //创建人
+  string updatedBy = 7; //更新人
+}
+
+message AddSysAPIResp {
+}
+
+message UpdateSysAPIReq {
+  uint64 id = 1; //主键ID
+  uint64 parentId = 2; //父级API ID，0为顶级
+  string name = 3; //API名称
+  string path = 4; //API路径，支持RESTful风格如 /api/users/:id
+  string method = 5; //HTTP方法: GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD
+  int64 isPermission = 6; //是否为权限(权限 or 分组) 0: 分组 1: 权限
+  string updatedBy = 8; //更新人
+}
+
+message UpdateSysAPIResp {
+}
+
+message DelSysAPIReq {
+  uint64 id = 1; //id
+}
+
+message DelSysAPIResp {
+}
+
+message GetSysAPIByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetSysAPIByIdResp {
+  SysAPI data = 1; //sysAPI
+}
+
+message SearchSysAPIReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderField = 3; //orderField
+  bool isAsc = 4; //isAsc
+  uint64 parentId = 5; //父级API ID，0为顶级
+  string name = 6; //API名称
+  string path = 7; //API路径，支持RESTful风格如 /api/users/:id
+  string method = 8; //HTTP方法: GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD
+  int64 isPermission = 9; //是否为权限(权限 or 分组) 0: 分组 1: 权限
+}
+
+message SearchSysAPIResp {
+  repeated SysAPI data = 1; //sysAPI
+  uint64 total = 2; //total
+}
+
+
+// 分组树状结构节点（包含id、name、pid）
+message GroupTreeNode {
+  uint64 id = 1; //主键ID
+  string name = 2; //分组名称
+  uint64 pid = 3; //父级ID
+  repeated GroupTreeNode children = 4; //子节点
+}
+
+// 方法4: 获取所有分组的树状数据 树状返回 isPermission= 0 or 1
+message GetGroupsTreeReq {
+  uint64 isPermission = 1;
+}
+
+message GetGroupsTreeResp {
+  repeated GroupTreeNode data = 1; //分组树状数据（平铺形式）
+}
+
+
+//--------------------------------部门表--------------------------------
+message SysDept {
+  uint64 id = 1; //自增主键
+  string name = 2; //部门名称
+  uint64 parentId = 3; //父部门ID, 0为顶级部门
+  string remark = 4; //备注说明
+  string leader = 5; //部门负责人
+  string phone = 6; //联系电话
+  string email = 7; //邮箱
+  int64 status = 8; //状态: 0-禁用, 1-启用
+  int64 sort = 9; //排序
+  string createdBy = 10; //记录创建人
+  string updatedBy = 11; //记录更新人
+  int64 createdAt = 12; //创建时间
+  int64 updatedAt = 13; //更新时间
+}
+
+// 部门树节点
+message SysDeptTree {
+  uint64 id = 1; //自增主键
+  string name = 2; //部门名称
+  uint64 parentId = 3; //父部门ID, 0为顶级部门
+  string remark = 4; //备注说明
+  string leader = 5; //部门负责人
+  string phone = 6; //联系电话
+  string email = 7; //邮箱
+  int64 status = 8; //状态: 0-禁用, 1-启用
+  int64 sort = 9; //排序
+  string createdBy = 10; //记录创建人
+  string updatedBy = 11; //记录更新人
+  int64 createdAt = 12; //创建时间
+  int64 updatedAt = 13; //更新时间
+  repeated SysDeptTree children = 14; //子部门列表
+}
+
+message AddSysDeptReq {
+  string name = 1; //部门名称
+  uint64 parentId = 2; //父部门ID, 0为顶级部门
+  string remark = 3; //备注说明
+  string leader = 4; //部门负责人
+  string phone = 5; //联系电话
+  string email = 6; //邮箱
+  int64 status = 7; //状态: 0-禁用, 1-启用
+  int64 sort = 8; //排序
+  string createdBy = 9; //记录创建人
+  string updatedBy = 10; //记录更新人
+}
+
+message AddSysDeptResp {
+}
+
+message UpdateSysDeptReq {
+  uint64 id = 1; //自增主键
+  string name = 2; //部门名称
+  uint64 parentId = 3; //父部门ID, 0为顶级部门
+  string remark = 4; //备注说明
+  string leader = 5; //部门负责人
+  string phone = 6; //联系电话
+  string email = 7; //邮箱
+  int64 status = 8; //状态: 0-禁用, 1-启用
+  int64 sort = 9; //排序
+  string updatedBy = 11; //记录更新人
+}
+
+message UpdateSysDeptResp {
+}
+
+message DelSysDeptReq {
+  uint64 id = 1; //id
+}
+
+message DelSysDeptResp {
+}
+
+message GetSysDeptByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetSysDeptByIdResp {
+  SysDept data = 1; //sysDept
+}
+
+message SearchSysDeptReq {
+}
+
+message SearchSysDeptResp {
+  repeated SysDeptTree data = 1; //部门树结构数据
+}
+
+// 根据 父id 查询 下一级 部门
+message SearchSysDeptByParentIdReq {
+  uint64 parentId = 1;
+}
+
+message SearchSysDeptByParentIdResp {
+  repeated SysDept data = 1; //sysDept
+}
+
+// 查询所有父级 部门
+message GetAllParentDeptReq {}
+
+message GetAllParentDeptResp {
+  repeated SysDept data = 1; //sysDept
+}
+
+
+//--------------------------------登录日志表--------------------------------
+message SysLoginLog {
+  uint64 id = 1; //自增主键
+  uint64 userId = 2; //用户ID(登录成功才有)
+  string username = 3; //登录用户名
+  int64 loginStatus = 4; //登录状态: 0-失败, 1-成功
+  string ipAddress = 5; //IP地址
+  string userAgent = 6; //用户代理
+  int64 loginTime = 7; //登录时间
+}
+
+
+message DelSysLoginLogReq {
+  uint64 id = 1; //id
+}
+
+message DelSysLoginLogResp {
+}
+
+
+message SearchSysLoginLogReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderField = 3; //orderField
+  bool isAsc = 4; //isAsc
+  uint64 userId = 5; //用户ID(登录成功才有)
+  string username = 6; //登录用户名
+  string ipAddress = 8; //IP地址
+  string userAgent = 9; //用户代理
+}
+
+message SearchSysLoginLogResp {
+  repeated SysLoginLog data = 1; //sysLoginLog
+  uint64 total = 2; //total
+}
+
+
+
+
+//--------------------------------角色表--------------------------------
+message SysRole {
+  uint64 id = 1; //自增主键
+  string name = 2; //角色名称
+  string code = 3; //角色编码(如: super, admin, user)
+  string remark = 4; //备注说明
+  string createdBy = 5; //记录创建人
+  string updatedBy = 6; //记录更新人
+  int64 createdAt = 7; //创建时间
+  int64 updatedAt = 8; //更新时间
+}
+
+message AddSysRoleReq {
+  string name = 1; //角色名称
+  string code = 2; //角色编码(如: super, admin, user)
+  string remark = 3; //备注说明
+  string createdBy = 4; //记录创建人
+  string updatedBy = 5; //记录更新人
+}
+
+message AddSysRoleResp {
+}
+
+message UpdateSysRoleReq {
+  uint64 id = 1; //自增主键
+  string name = 2; //角色名称
+  string code = 3; //角色编码(如: super, admin, user)
+  string remark = 4; //备注说明
+  string updatedBy = 6; //记录更新人
+}
+
+message UpdateSysRoleResp {
+}
+
+message DelSysRoleReq {
+  uint64 id = 1; //id
+}
+
+message DelSysRoleResp {
+}
+
+message GetSysRoleByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetSysRoleByIdResp {
+  SysRole data = 1; //sysRole
+}
+
+message SearchSysRoleReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderField = 3; //orderField
+  bool isAsc = 4; //isAsc
+  string name = 5; //角色名称
+  string code = 6; //角色编码(如: super, admin, user)
+}
+
+message SearchSysRoleResp {
+  repeated SysRole data = 1; //sysRole
+  uint64 total = 2; //total
+}
+
+
+// 角色和菜单关联方法
+message AddSysRoleMenuReq {
+  uint64 roleId = 1;
+  repeated uint64 menuIds = 2;
+}
+message AddSysRoleMenuResp {
+}
+
+// 查询角色关联了哪些菜单
+message SearchSysRoleMenuReq {
+  uint64 roleId = 1;
+}
+message SearchSysRoleMenuResp {
+  repeated uint64 menuIds = 1;
+}
+
+// 角色 api权限关联 方法
+message AddSysRoleApiReq {
+  uint64 roleId = 1;
+  repeated uint64 apiIds = 2;
+}
+message AddSysRoleApiResp {
+}
+
+// 查询角色关联了哪些api权限
+message SearchSysRoleApiReq {
+  uint64 roleId = 1;
+}
+message SearchSysRoleApiResp {
+  repeated uint64 apiIds = 1;
+}
+
+//--------------------------------API Token表--------------------------------
+message SysToken {
+  uint64 id = 1; //自增主键
+  int64 ownerType = 2; //所有者类型: 1-用户, 2-角色
+  uint64 ownerId = 3; //所有者ID（用户ID或角色ID）
+  string token = 4; //Token值
+  string name = 5; //Token名称
+  int64 type = 6; //类型: 1-临时, 2-长期, 3-永久
+  int64 expireTime = 7; //过期时间
+  int64 status = 11; //状态: 0-禁用, 1-启用
+  string createdBy = 12; //记录创建人
+  string updatedBy = 13; //记录更新人
+  int64 createdAt = 14; //创建时间
+  int64 updatedAt = 15; //更新时间
+}
+
+message AddSysTokenReq {
+  int64 ownerType = 1; //所有者类型: 1-用户, 2-角色
+  uint64 ownerId = 2; //所有者ID（用户ID或角色ID）
+  string name = 4; //Token名称
+  int64 type = 5; //类型: 1-临时, 2-长期, 3-永久
+  int64 expireTime = 6; //过期时间
+  int64 status = 10; //状态: 0-禁用, 1-启用
+  string createdBy = 11; //记录创建人
+  string updatedBy = 12; //记录更新人
+}
+
+message AddSysTokenResp {
+  string token = 1;
+}
+
+
+message DelSysTokenReq {
+  uint64 id = 1; //id
+}
+
+message DelSysTokenResp {
+}
+
+message GetSysTokenByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetSysTokenByIdResp {
+  SysToken data = 1; //sysToken
+}
+
+message SearchSysTokenReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderField = 3; //orderField
+  bool isAsc = 4; //isAsc
+  int64 ownerType = 5; //所有者类型: 1-用户, 2-角色
+  uint64 ownerId = 6; //所有者ID（用户ID或角色ID）
+  string token = 7; //Token值
+  string name = 8; //Token名称
+  int64 type = 9; //类型: 1-临时, 2-长期, 3-永久
+}
+
+message SearchSysTokenResp {
+  repeated SysToken data = 1; //sysToken
+  uint64 total = 2; //total
+}
+
+// 获取某个用户token 方法
+message GetSysTokenByUserIdReq {
+  uint64 userId = 1;
+}
+message GetSysTokenByUserIdResp {
+  string token = 1; //sysToken
+}
+
+
+//--------------------------------用户表--------------------------------
+message SysUser {
+  uint64 id = 1; //自增主键
+  string username = 2; //用户名
+  string nickname = 4; //昵称
+  string avatar = 5; //头像URL
+  string email = 6; //邮箱
+  string phone = 7; //手机号
+  string workNumber = 8; //工号
+  uint64 deptId = 9; //部门ID
+  int64 status = 10; //状态: 0-禁用, 1-启用
+  int64 isNeedResetPwd = 11; //是否需要重置密码: 0-否, 1-是
+  string createdBy = 14; //记录创建人
+  string updatedBy = 15; //记录更新人
+  int64 createdAt = 16; //创建时间
+  int64 updatedAt = 17; //更新时间
+}
+
+message AddSysUserReq {
+  string username = 1; //用户名
+  string nickname = 3; //昵称
+  string email = 5; //邮箱
+  string phone = 6; //手机号
+  string workNumber = 7; //工号
+  uint64 deptId = 8; //部门ID
+  string createdBy = 13; //记录创建人
+  string updatedBy = 14; //记录更新人
+}
+
+message AddSysUserResp {
+}
+
+message UpdateSysUserReq {
+  uint64 id = 1; //自增主键
+  string nickname = 4; //昵称
+  string email = 6; //邮箱
+  string phone = 7; //手机号
+  string workNumber = 8; //工号
+  uint64 deptId = 9; //部门ID
+  int64 status = 10; //状态: 0-禁用, 1-启用
+  int64 isNeedResetPwd = 11; //是否需要重置密码: 0-否, 1-是
+  string updatedBy = 14;
+}
+
+message UpdateSysUserResp {
+}
+
+message DelSysUserReq {
+  uint64 id = 1; //id
+}
+
+message DelSysUserResp {
+}
+
+message GetSysUserByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetSysUserByIdResp {
+  SysUser data = 1; //sysUser
+}
+
+message SearchSysUserReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderField = 3; //orderField
+  bool isAsc = 4; //isAsc
+  string username = 5; //用户名
+  string password = 6; //密码
+  string nickname = 7; //昵称
+  string email = 9; //邮箱
+  string phone = 10; //手机号
+  string workNumber = 11; //工号
+  string createdBy = 17; //记录创建人
+  string updatedBy = 18; //记录更新人
+}
+
+message SearchSysUserResp {
+  repeated SysUser data = 1; //sysUser
+  uint64 total = 2; //total
+}
+
+// UpdateSysUserInfoResp UpdateSysUserInfoReq
+
+message UpdateSysUserInfoReq {
+  uint64 id = 1; //自增主键
+  string nickname = 4; //昵称
+  string email = 6; //邮箱
+  string phone = 7; //手机号
+  string updatedBy = 18;
+}
+message UpdateSysUserInfoResp {
+
+}
+//  修改头像 UpdateSysUserAvatarResp UpdateSysUserAvatarReq
+
+message UpdateSysUserAvatarReq {
+  uint64 id = 1;
+  string avatar = 2;
+  string updatedBy = 18;
+}
+message UpdateSysUserAvatarResp {
+}
+// UpdateSysUserPwdReq
+message UpdateSysUserPwdReq {
+  string username = 1; //id
+  string oldPassword = 2; //旧密码
+  string newPassword = 3; //新密码
+  string confirmPassword = 4; // 确认密码
+  string updatedBy = 18;
+}
+message UpdateSysUserPwdResp {
+}
+
+// 禁用或者启用用户 UpdateSysUserStatusReq
+message UpdateSysUserStatusReq {
+  uint64 id = 1;
+  int64 status = 10;
+  string updatedBy = 18;
+}
+message UpdateSysUserStatusResp {
+}
+
+// 用户绑定角色
+message UpdateSysUserBindRoleReq {
+  uint64 id = 1;
+  repeated uint64 roleIds = 2;
+  string updatedBy = 18;
+}
+message UpdateSysUserBindRoleResp {
+}
+
+// 用户个人详情
+message GetSysUserInfoReq {
+  uint64 id = 1;
+}
+
+message GetSysUserInfoResp {
+  uint64 id = 1; //自增主键
+  string username = 2; //用户名
+  string nickname = 4; //昵称
+  string avatar = 5; //头像URL
+  string email = 6; //邮箱
+  string phone = 7; //手机号
+  string workNumber = 8; //工号
+  int64 status = 10; //状态: 0-禁用, 1-启用
+  int64 isNeedResetPwd = 11; //是否需要重置密码: 0-否, 1-是
+  string createdBy = 14; //记录创建人
+  string updatedBy = 15; //记录更新人
+  int64 createdAt = 16; //创建时间
+  int64 updatedAt = 17; //更新时间
+  // 部门完整信息 / 分割
+  string deptNames = 18;
+  // 角色列表names
+  string roleNames = 19;
+}
+
+// 重置密码 ResetSysUserPwdReq
+message ResetSysUserPwdReq {
+  uint64 id = 1;
+  string updatedBy = 18;
+}
+
+message ResetSysUserPwdResp {
+
+}
+
+
+
+
+// 上传图片请求消息
+message UploadImageRequest {
+  bytes imageData = 1;  // 图片的二进制数据
+  string fileName = 2;  // 图片文件的名称
+  string project = 3;   // 项目名称
+}
+
+// 上传图片响应消息
+message UploadImageResponse {
+  string imageUri = 1;   // 图片名称
+  string imageUrl = 2;
+}
+
+// 获取存储的访问 url
+message GetStorageUrlRequest {}
+message GetStorageUrlResponse {
+  string url = 1;
+}
+
+// StorageService 提供图片上传和获取 URL 的功能
+service StorageService {
+  // 上传图片
+  rpc UploadImage(UploadImageRequest) returns (UploadImageResponse);
+  // 获取存储的访问 url
+  rpc GetStorageUrl(GetStorageUrlRequest) returns (GetStorageUrlResponse);
+}
+
+
+
+// token 验证相关
+// 获取token
+
+// 获取令牌的请求消息
+message GetTokenRequest {
+  string username = 1;     // 账号
+  string password = 2;    // 密码
+}
+
+// Token 响应消息，包含访问令牌和刷新令牌
+message TokenResponse {
+  string accessToken = 1;         // 访问令牌
+  int64 accessExpiresIn = 2;     // 访问令牌过期时间（秒）
+  string refreshToken = 3;        // 刷新令牌
+  int64 refreshExpiresIn = 4;    // 刷新令牌过期时间（秒）
+}
+
+// 获取令牌的响应消息
+message GetTokenResponse {
+  uint64 userId = 1;        // 账号ID
+  string username = 2;           // 账号
+  string nickName = 3;         // 用户名
+  string uuid = 4;
+  repeated string roles = 5;    // 角色列表
+  TokenResponse token = 6;      // 令牌信息
+}
+
+// 验证令牌的请求消息
+message VerifyTokenRequest {
+  string token = 1; // 令牌
+}
+
+// 验证令牌的响应消息
+message VerifyTokenResponse {
+  bool isValid = 1;            // 令牌是否有效
+  int64 errorType = 2;        // 错误类型
+  string errorMessage = 3;     // 错误信息
+  int64 expireTime = 4;        // 过期时间（Unix 时间戳）
+  uint64 userId = 5;        // 账号ID
+  string username = 6;           // 账号
+  string uuid = 7;              // 用户UUID
+  string NickName = 8;         // 用户名
+  repeated string roles = 9;    // 角色列表
+}
+
+// 注销的请求消息
+message LogoutRequest {
+  string username = 1; // 用户UUID
+  string uuid = 2;
+}
+
+// 注销的响应消息
+message LogoutResponse {
+}
+
+// 刷新令牌的请求消息
+message RefreshTokenRequest {
+  string refreshToken = 1; // 刷新令牌
+}
+
+// 刷新令牌的响应消息
+message RefreshTokenResponse {
+  string accessToken = 1;         // 访问令牌
+  int64 accessExpiresIn = 2;     // 访问令牌过期时间（秒）
+}
+
+message ApiAuthRequest {
+  repeated string userRoles = 1;
+  string apiPath = 2;
+  string apiMethod = 3;
+}
+
+// 返回是否有权限
+message ApiAuthResponse {
+  bool isAuth = 1;
+}
+
+// 系统认证服务定义
+service SysAuthService {
+  // 获取令牌
+  rpc GetToken(GetTokenRequest) returns (GetTokenResponse);
+
+  // 验证令牌
+  rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenResponse);
+
+  // 注销
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+
+  // 刷新令牌
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+
+  // api 鉴权
+  rpc ApiAuth(ApiAuthRequest) returns (ApiAuthResponse);
+}
+
+//--------------------------------系统菜单表--------------------------------
+//--------------------------------系统菜单表--------------------------------
+message SysMenu {
+  uint64 id = 1; //自增主键
+  uint64 parentId = 2; //父菜单ID，顶级菜单为0
+  int64 menuType = 3; //菜单类型（1目录 2菜单 3按钮）
+  string name = 4; //菜单名称（路由name）
+  string path = 5; //路由地址
+  string component = 6; //组件路径
+  string redirect = 7; //重定向地址
+  string label = 8; //权限标识
+  string title = 9; //菜单标题（meta.title）
+  string icon = 10; //菜单图标
+  int64 sort = 11; //排序
+  string link = 12; //外部链接/内嵌地址
+  int64 isEnable = 13; //是否启用（0否 1是）
+  int64 isMenu = 14; //是否为菜单（0否 1是）
+  int64 keepAlive = 15; //页面缓存（0否 1是）
+  int64 isHide = 16; //是否隐藏（0否 1是）
+  int64 isIframe = 17; //是否内嵌（0否 1是）
+  int64 isHideTab = 18; //是否在标签页中隐藏（0否 1是）
+  int64 showBadge = 19; //是否显示徽章（0否 1是）
+  string showTextBadge = 20; //文本徽章内容
+  int64 isFirstLevel = 21; //是否为一级菜单（0否 1是）
+  int64 fixedTab = 22; //是否固定标签页（0否 1是）
+  int64 isFullPage = 23; //是否为全屏页面（0否 1是）
+  string activePath = 24; //激活菜单路径
+  string roles = 25; //角色权限（JSON格式存储）
+  string authName = 26; //按钮权限名称
+  string authLabel = 27; //按钮权限标识
+  string authIcon = 28; //按钮图标
+  int64 authSort = 29; //按钮权限排序
+  int64 status = 30; //状态（0停用 1启用）
+  int64 createTime = 31; //创建时间
+  int64 updateTime = 32; //更新时间
+  string createBy = 33; //创建人
+  string updateBy = 34; //更新人
+}
+
+// 菜单树节点
+message SysMenuTree {
+  uint64 id = 1; //自增主键
+  uint64 parentId = 2; //父菜单ID，顶级菜单为0
+  int64 menuType = 3; //菜单类型（1目录 2菜单 3按钮）
+  string name = 4; //菜单名称（路由name）
+  string path = 5; //路由地址
+  string component = 6; //组件路径
+  string redirect = 7; //重定向地址
+  string label = 8; //权限标识
+  string title = 9; //菜单标题（meta.title）
+  string icon = 10; //菜单图标
+  int64 sort = 11; //排序
+  string link = 12; //外部链接/内嵌地址
+  int64 isEnable = 13; //是否启用（0否 1是）
+  int64 isMenu = 14; //是否为菜单（0否 1是）
+  int64 keepAlive = 15; //页面缓存（0否 1是）
+  int64 isHide = 16; //是否隐藏（0否 1是）
+  int64 isIframe = 17; //是否内嵌（0否 1是）
+  int64 isHideTab = 18; //是否在标签页中隐藏（0否 1是）
+  int64 showBadge = 19; //是否显示徽章（0否 1是）
+  string showTextBadge = 20; //文本徽章内容
+  int64 isFirstLevel = 21; //是否为一级菜单（0否 1是）
+  int64 fixedTab = 22; //是否固定标签页（0否 1是）
+  int64 isFullPage = 23; //是否为全屏页面（0否 1是）
+  string activePath = 24; //激活菜单路径
+  string roles = 25; //角色权限（JSON格式存储）
+  string authName = 26; //按钮权限名称
+  string authLabel = 27; //按钮权限标识
+  string authIcon = 28; //按钮图标
+  int64 authSort = 29; //按钮权限排序
+  int64 status = 30; //状态（0停用 1启用）
+  int64 createTime = 31; //创建时间
+  int64 updateTime = 32; //更新时间
+  string createBy = 33; //创建人
+  string updateBy = 34; //更新人
+  repeated SysMenuTree children = 35; //子菜单列表
+}
+
+message AddSysMenuReq {
+  uint64 parentId = 1; //父菜单ID，顶级菜单为0
+  int64 menuType = 2; //菜单类型（1目录 2菜单 3按钮）
+  string name = 3; //菜单名称（路由name）
+  string path = 4; //路由地址
+  string component = 5; //组件路径
+  string redirect = 6; //重定向地址
+  string label = 7; //权限标识
+  string title = 8; //菜单标题（meta.title）
+  string icon = 9; //菜单图标
+  int64 sort = 10; //排序
+  string link = 11; //外部链接/内嵌地址
+  int64 isEnable = 12; //是否启用（0否 1是）
+  int64 isMenu = 13; //是否为菜单（0否 1是）
+  int64 keepAlive = 14; //页面缓存（0否 1是）
+  int64 isHide = 15; //是否隐藏（0否 1是）
+  int64 isIframe = 16; //是否内嵌（0否 1是）
+  int64 isHideTab = 17; //是否在标签页中隐藏（0否 1是）
+  int64 showBadge = 18; //是否显示徽章（0否 1是）
+  string showTextBadge = 19; //文本徽章内容
+  int64 isFirstLevel = 20; //是否为一级菜单（0否 1是）
+  int64 fixedTab = 21; //是否固定标签页（0否 1是）
+  int64 isFullPage = 22; //是否为全屏页面（0否 1是）
+  string activePath = 23; //激活菜单路径
+  string roles = 24; //角色权限（JSON格式存储）
+  string authName = 25; //按钮权限名称
+  string authLabel = 26; //按钮权限标识
+  string authIcon = 27; //按钮图标
+  int64 authSort = 28; //按钮权限排序
+  int64 status = 29; //状态（0停用 1启用）
+  string createBy = 30; //创建人
+  string updateBy = 31; //更新人
+}
+
+message AddSysMenuResp {
+}
+
+message UpdateSysMenuReq {
+  uint64 id = 1; //自增主键
+  uint64 parentId = 2; //父菜单ID，顶级菜单为0
+  int64 menuType = 3; //菜单类型（1目录 2菜单 3按钮）
+  string name = 4; //菜单名称（路由name）
+  string path = 5; //路由地址
+  string component = 6; //组件路径
+  string redirect = 7; //重定向地址
+  string label = 8; //权限标识
+  string title = 9; //菜单标题（meta.title）
+  string icon = 10; //菜单图标
+  int64 sort = 11; //排序
+  string link = 12; //外部链接/内嵌地址
+  int64 isEnable = 13; //是否启用（0否 1是）
+  int64 isMenu = 14; //是否为菜单（0否 1是）
+  int64 keepAlive = 15; //页面缓存（0否 1是）
+  int64 isHide = 16; //是否隐藏（0否 1是）
+  int64 isIframe = 17; //是否内嵌（0否 1是）
+  int64 isHideTab = 18; //是否在标签页中隐藏（0否 1是）
+  int64 showBadge = 19; //是否显示徽章（0否 1是）
+  string showTextBadge = 20; //文本徽章内容
+  int64 isFirstLevel = 21; //是否为一级菜单（0否 1是）
+  int64 fixedTab = 22; //是否固定标签页（0否 1是）
+  int64 isFullPage = 23; //是否为全屏页面（0否 1是）
+  string activePath = 24; //激活菜单路径
+  string roles = 25; //角色权限（JSON格式存储）
+  string authName = 26; //按钮权限名称
+  string authLabel = 27; //按钮权限标识
+  string authIcon = 28; //按钮图标
+  int64 authSort = 29; //按钮权限排序
+  int64 status = 30; //状态（0停用 1启用）
+  string updateBy = 31; //更新人
+}
+
+message UpdateSysMenuResp {
+}
+
+message DelSysMenuReq {
+  uint64 id = 1; //id
+}
+
+message DelSysMenuResp {
+}
+
+message GetSysMenuByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetSysMenuByIdResp {
+  SysMenu data = 1; //sysMenu
+}
+
+// 搜索系统菜单请求（返回树状结构）
+message SearchSysMenuReq {
+  uint64 parentId = 1; //父菜单ID，顶级菜单为0
+  int64 menuType = 2; //菜单类型（1目录 2菜单 3按钮）
+  string name = 3; //菜单名称（路由name）
+  string path = 4; //路由地址
+  string component = 5; //组件路径
+  string redirect = 6; //重定向地址
+  string label = 7; //权限标识
+  string title = 8; //菜单标题（meta.title）
+  string icon = 9; //菜单图标
+  int64 sort = 10; //排序
+  string link = 11; //外部链接/内嵌地址
+  int64 isEnable = 12; //是否启用（0否 1是）
+  int64 isMenu = 13; //是否为菜单（0否 1是）
+  int64 keepAlive = 14; //页面缓存（0否 1是）
+  int64 isHide = 15; //是否隐藏（0否 1是）
+  int64 isIframe = 16; //是否内嵌（0否 1是）
+  int64 isHideTab = 17; //是否在标签页中隐藏（0否 1是）
+  int64 showBadge = 18; //是否显示徽章（0否 1是）
+  string showTextBadge = 19; //文本徽章内容
+  int64 isFirstLevel = 20; //是否为一级菜单（0否 1是）
+  int64 fixedTab = 21; //是否固定标签页（0否 1是）
+  int64 isFullPage = 22; //是否为全屏页面（0否 1是）
+  string activePath = 23; //激活菜单路径
+  string roles = 24; //角色权限（JSON格式存储）
+  string authName = 25; //按钮权限名称
+  string authLabel = 26; //按钮权限标识
+  string authIcon = 27; //按钮图标
+  int64 authSort = 28; //按钮权限排序
+  int64 status = 29; //状态（0停用 1启用）
+  string createBy = 30; //创建人
+  string updateBy = 31; //更新人
+}
+
+// 搜索系统菜单响应（返回树状结构）
+message SearchSysMenuResp {
+  repeated SysMenuTree data = 1; //菜单树
+  uint64 total = 2; //总数
+}
+
+// 获取角色菜单树请求
+message GetRolesMenuTreeReq {
+  repeated string roleCodes = 1; //角色编码列表
+}
+
+// 获取角色菜单树响应
+message GetRolesMenuTreeResp {
+  repeated SysMenuTree data = 1; //菜单树
+}
+
+// 获取系统菜单列表请求（扁平结构）
+message GetSysMenuListReq {
+  uint64 page = 1; //页码
+  uint64 pageSize = 2; //页大小
+  string orderField = 3; //排序字段
+  bool isAsc = 4; //是否升序
+  uint64 parentId = 5; //父菜单ID，顶级菜单为0
+  int64 menuType = 6; //菜单类型（1目录 2菜单 3按钮）
+  string name = 7; //菜单名称（路由name）
+  string title = 8; //菜单标题（meta.title）
+  string label = 9; //权限标识
+  int64 status = 10; //状态（0停用 1启用）
+  string roles = 11; //角色权限（JSON格式存储）
+  int64 isMenu = 12; //是否为菜单（0否 1是）
+}
+
+// 获取系统菜单列表响应（扁平结构）
+message GetSysMenuListResp {
+  repeated SysMenu data = 1; //菜单列表
+  uint64 total = 2; //总数
+  uint64 page = 3; //当前页
+  uint64 pageSize = 4; //页大小
+}
+
+// 获取所有菜单树请求
+message GetAllMenuTreeReq {
+  int64 status = 1; //状态过滤（0停用 1启用，-1或不传表示全部）
+}
+
+// 获取所有菜单树响应
+message GetAllMenuTreeResp {
+  repeated SysMenuTree data = 1; //菜单树
+}
+
+
+// API权限树状结构节点（精简版）
+message SysAPITreeNode {
+  uint64 id = 1; //主键ID
+  string name = 2; //API名称
+  int64 isPermission = 3; //是否为权限(权限 or 分组) 0: 分组 1: 权限
+  repeated SysAPITreeNode children = 4; //子节点
+}
+
+// 获取API权限树请求
+message GetSysAPITreeReq {
+  // 可以添加过滤条件，如只获取权限或只获取分组
+}
+
+// 获取API权限树响应
+message GetSysAPITreeResp {
+  repeated SysAPITreeNode data = 1; //API权限树
+}
+
+// 菜单树状结构节点（精简版，仅包含id和title）
+message SysMenuSimpleTreeNode {
+  uint64 id = 1; //主键ID
+  string title = 2; //菜单标题
+  repeated SysMenuSimpleTreeNode children = 3; //子菜单
+}
+
+// 获取精简菜单树请求
+message GetSysMenuSimpleTreeReq {
+  int64 status = 1; //状态过滤（0停用 1启用，-1或不传表示全部）
+}
+
+// 获取精简菜单树响应
+message GetSysMenuSimpleTreeResp {
+  repeated SysMenuSimpleTreeNode data = 1; //精简菜单树
+}
+
+message SearchSysUserRoleReq {
+  uint64 userId = 1; //用户ID
+}
+
+message SearchSysUserRoleResp{
+  repeated string RoleNames = 1;
+  repeated uint64 RoleIds = 2;
+}
+
+service PortalService {
+  //-----------------------系统API权限表-----------------------
+  rpc APIAdd(AddSysAPIReq) returns (AddSysAPIResp);
+  rpc APIUpdate(UpdateSysAPIReq) returns (UpdateSysAPIResp);
+  rpc APIDel(DelSysAPIReq) returns (DelSysAPIResp);
+  rpc APIGetById(GetSysAPIByIdReq) returns (GetSysAPIByIdResp);
+  rpc APISearch(SearchSysAPIReq) returns (SearchSysAPIResp);
+  // 获取所有分组树状数据(仅包含id,name,pid，平铺形式)
+  rpc APIGetGroupsTree(GetGroupsTreeReq) returns (GetGroupsTreeResp);
+  rpc APIGetTree(GetSysAPITreeReq) returns (GetSysAPITreeResp);
+
+  //-----------------------部门表-----------------------
+  rpc DeptAdd(AddSysDeptReq) returns (AddSysDeptResp);
+  rpc DeptUpdate(UpdateSysDeptReq) returns (UpdateSysDeptResp);
+  rpc DeptDel(DelSysDeptReq) returns (DelSysDeptResp);
+  rpc DeptGetById(GetSysDeptByIdReq) returns (GetSysDeptByIdResp);
+  rpc DeptSearch(SearchSysDeptReq) returns (SearchSysDeptResp);
+  // 根据 父id 查询 下一级 部门
+  rpc DeptGetNextLevel(SearchSysDeptByParentIdReq) returns (SearchSysDeptByParentIdResp);
+  // 查询所有父级 部门
+  rpc DeptGetAllParent(GetAllParentDeptReq) returns (GetAllParentDeptResp);
+  //-----------------------登录日志表-----------------------
+  rpc LoginLogDel(DelSysLoginLogReq) returns (DelSysLoginLogResp);
+  rpc LoginLogSearch(SearchSysLoginLogReq) returns (SearchSysLoginLogResp);
+  //-----------------------角色表-----------------------
+  rpc RoleAdd(AddSysRoleReq) returns (AddSysRoleResp);
+  rpc RoleUpdate(UpdateSysRoleReq) returns (UpdateSysRoleResp);
+  rpc RoleDel(DelSysRoleReq) returns (DelSysRoleResp);
+  rpc RoleGetById(GetSysRoleByIdReq) returns (GetSysRoleByIdResp);
+  rpc RoleSearch(SearchSysRoleReq) returns (SearchSysRoleResp);
+
+  // 角色菜单关联方法
+  rpc RoleAddMenu(AddSysRoleMenuReq) returns (AddSysRoleMenuResp);
+
+  // 查询关联了哪些菜单
+  rpc RoleSearchMenu(SearchSysRoleMenuReq) returns (SearchSysRoleMenuResp);
+
+  // 角色 api权限关联方法
+  rpc RoleAddApi(AddSysRoleApiReq) returns (AddSysRoleApiResp);
+  // 查询关联了哪些 api权限
+  rpc RoleSearchApi(SearchSysRoleApiReq) returns (SearchSysRoleApiResp);
+
+  //-----------------------API Token表-----------------------
+  rpc TokenAdd(AddSysTokenReq) returns (AddSysTokenResp);
+  rpc TokenDel(DelSysTokenReq) returns (DelSysTokenResp);
+  rpc TokenGetById(GetSysTokenByIdReq) returns (GetSysTokenByIdResp);
+  rpc TokenSearch(SearchSysTokenReq) returns (SearchSysTokenResp);
+  // 获取某个用户token 方法
+  rpc TokenGetByUserId(GetSysTokenByUserIdReq) returns (GetSysTokenByUserIdResp);
+
+  //-----------------------用户表-----------------------
+  rpc UserAdd(AddSysUserReq) returns (AddSysUserResp);
+  rpc UserUpdate(UpdateSysUserReq) returns (UpdateSysUserResp);
+  rpc UserDel(DelSysUserReq) returns (DelSysUserResp);
+  rpc UserGetById(GetSysUserByIdReq) returns (GetSysUserByIdResp);
+  rpc UserSearch(SearchSysUserReq) returns (SearchSysUserResp);
+  // 通过用户ID 查询用户角色列表
+  rpc UserSearchRole(SearchSysUserRoleReq) returns (SearchSysUserRoleResp);
+  // 个人修改信息
+  rpc UserUpdateInfo(UpdateSysUserInfoReq) returns (UpdateSysUserInfoResp);
+  // 修改头像
+  rpc UserUpdateAvatar(UpdateSysUserAvatarReq) returns (UpdateSysUserAvatarResp);
+  // 修改密码
+  rpc UserUpdatePwd(UpdateSysUserPwdReq) returns (UpdateSysUserPwdResp);
+  // 禁用或启用用户
+  rpc UserUpdateStatus(UpdateSysUserStatusReq) returns (UpdateSysUserStatusResp);
+  // 用户绑定角色
+  rpc UserUpdateBindRole(UpdateSysUserBindRoleReq) returns (UpdateSysUserBindRoleResp);
+  // 用户个人详情
+  rpc UserGetInfo(GetSysUserInfoReq) returns (GetSysUserInfoResp);
+  // 重置密码
+  rpc UserResetPwd(ResetSysUserPwdReq) returns (ResetSysUserPwdResp);
+
+  //-----------------------系统菜单表-----------------------
+  // 基础CRUD操作
+  rpc MenuAdd(AddSysMenuReq) returns (AddSysMenuResp); //添加菜单
+  rpc MenuUpdate(UpdateSysMenuReq) returns (UpdateSysMenuResp); //更新菜单
+  rpc MenuDel(DelSysMenuReq) returns (DelSysMenuResp); //删除菜单
+  rpc MenuGetById(GetSysMenuByIdReq) returns (GetSysMenuByIdResp); //根据ID获取菜单
+
+  // 搜索和列表操作
+  rpc MenuSearch(SearchSysMenuReq) returns (SearchSysMenuResp); //搜索菜单（返回树状结构）
+  rpc MenuGetList(GetSysMenuListReq) returns (GetSysMenuListResp); //获取菜单列表（扁平结构，支持分页）
+
+  // 树状结构操作
+  // 根据角色id组 获取菜单树 注意去重
+  rpc MenuGetRolesMenuTree(GetRolesMenuTreeReq) returns (GetRolesMenuTreeResp); //获取角色菜单树
+  rpc MenuGetAllMenuTree(GetAllMenuTreeReq) returns (GetAllMenuTreeResp);       //获取所有菜单树
+  rpc MenuGetSimpleTree(GetSysMenuSimpleTreeReq) returns (GetSysMenuSimpleTreeResp);
+
+}
+
+
+
+
+
+
+
+//--------------------------------告警渠道配置表--------------------------------
+message AlertChannels {
+  uint64 id = 1; //主键ID
+  string uuid = 2; //渠道唯一标识UUID
+  string channelName = 3; //渠道名称
+  string channelType = 4; //渠道类型(dingtalk, wechat, feishu, email, sms, voice_call, webhook, site_message)
+  string config = 5; //渠道配置(JSON格式)
+  string description = 6; //渠道描述
+  int64 retryTimes = 7; //重试次数
+  int64 timeout = 8; //超时时间(秒)
+  int64 rateLimit = 9; //速率限制(每分钟最多发送数,0=无限制)
+  string createdBy = 10; //创建人
+  string updatedBy = 11; //更新人
+  int64 createdAt = 12; //创建时间
+  int64 updatedAt = 13; //更新时间
+}
+
+
+
+message AddAlertChannelsReq {
+  string channelName = 2; //渠道名称
+  string channelType = 3; //渠道类型(dingtalk, wechat, feishu, email, sms, voice_call, webhook, site_message)
+  string config = 4; //渠道配置(JSON格式)
+  string description = 5; //渠道描述
+  int64 retryTimes = 6; //重试次数
+  int64 timeout = 7; //超时时间(秒)
+  int64 rateLimit = 8; //速率限制(每分钟最多发送数,0=无限制)
+  string createdBy = 9; //创建人
+  string updatedBy = 10; //更新人
+}
+
+message AddAlertChannelsResp {
+}
+
+message UpdateAlertChannelsReq {
+  uint64 id = 1; //主键ID
+  string channelName = 3; //渠道名称
+  string channelType = 4; //渠道类型(dingtalk, wechat, feishu, email, sms, voice_call, webhook, site_message)
+  string config = 5; //渠道配置(JSON格式)
+  string description = 6; //渠道描述
+  int64 retryTimes = 7; //重试次数
+  int64 timeout = 8; //超时时间(秒)
+  int64 rateLimit = 9; //速率限制(每分钟最多发送数,0=无限制)
+  string updatedBy = 11; //更新人
+}
+
+message UpdateAlertChannelsResp {
+}
+
+message DelAlertChannelsReq {
+  uint64 id = 1; //id
+}
+
+message DelAlertChannelsResp {
+}
+
+message GetAlertChannelsByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetAlertChannelsByIdResp {
+  AlertChannels data = 1; //alertChannels
+}
+
+message SearchAlertChannelsReq {
+  string uuid = 5; //渠道唯一标识UUID
+  string channelName = 6; //渠道名称
+  string channelType = 7; //渠道类型(dingtalk, wechat, feishu, email, sms, voice_call, webhook, site_message)
+}
+
+message SearchAlertChannelsResp {
+  repeated AlertChannels data = 1; //alertChannels
+}
+
+message TestLinkReq {
+  string channelType = 1; //渠道类型(dingtalk, wechat, feishu, email, sms, voice_call, webhook, site_message)
+  string config = 2; //渠道配置(JSON格式)
+  repeated string toNotifys = 3;
+}
+message TestLinkResp {
+}
+
+
+//--------------------------------告警组表--------------------------------
+message AlertGroups {
+  uint64 id = 1; //主键ID
+  string uuid = 2; //告警组UUID
+  string groupName = 3; //告警组名称
+  string groupType = 4; //组类型(normal=普通, duty=值班)
+  string description = 5; //告警组描述
+  string filterRules = 6; //告警过滤规则(标签匹配规则)
+  string dutySchedule = 7; //值班排班表(仅duty类型有效,格式:{"schedule":[{"day":"Monday","user_ids":[1,2]}]})
+  int64 sortOrder = 8; //排序序号
+  string createdBy = 9; //创建人
+  string updatedBy = 10; //更新人
+  int64 createdAt = 11; //创建时间
+  int64 updatedAt = 12; //更新时间
+}
+
+message AddRAlertGroupUserReq {
+  uint64 userId = 2; //用户ID
+  string role = 3; //角色(owner, admin, member)
+}
+
+message AddGroupLevelChannelsReq {
+  string severity = 2; //严重级别(default, info, warning, critical, notification) default 必须存在
+  string channelId = 3; //'告警渠道IDs , 逗号分隔'
+}
+
+message AddAlertGroupsReq {
+  string groupName = 2; //告警组名称
+  string groupType = 3; //组类型(normal=普通, duty=值班)
+  string description = 4; //告警组描述
+  string filterRules = 5; //告警过滤规则(标签匹配规则)
+  string dutySchedule = 6; //值班排班表(仅duty类型有效,格式:{"schedule":[{"day":"Monday","user_ids":[1,2]}]})
+  int64 sortOrder = 7; //排序序号
+  repeated AddRAlertGroupUserReq users = 8;  // 用户列表
+  repeated AddGroupLevelChannelsReq channels = 9;
+  string createdBy = 20; //创建人
+  string updatedBy = 21; //更新人
+}
+
+message AddAlertGroupsResp {
+}
+
+message UpdateAlertGroupsReq {
+  uint64 id = 1; //主键ID
+  string groupName = 3; //告警组名称
+  string groupType = 4; //组类型(normal=普通, duty=值班)
+  string description = 5; //告警组描述
+  string filterRules = 6; //告警过滤规则(标签匹配规则)
+  string dutySchedule = 7; //值班排班表(仅duty类型有效,格式:{"schedule":[{"day":"Monday","user_ids":[1,2]}]})
+  int64 sortOrder = 8; //排序序号
+  string updatedBy = 10; //更新人
+}
+
+message UpdateAlertGroupsResp {
+}
+
+message DelAlertGroupsReq {
+  uint64 id = 1; //id
+}
+
+message DelAlertGroupsResp {
+}
+
+message GetAlertGroupsByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetAlertGroupsByIdResp {
+  AlertGroups data = 1; //alertGroups
+}
+
+message SearchAlertGroupsReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderField = 3; //orderField
+  bool isAsc = 4; //isAsc
+  string uuid = 5; //告警组UUID
+  string groupName = 6; //告警组名称
+  string groupType = 7; //组类型(normal=普通, duty=值班)
+}
+
+message SearchAlertGroupsResp {
+  repeated AlertGroups data = 1; //alertGroups
+  uint64 total = 2; //total
+}
+
+
+
+//--------------------------------告警组成员表--------------------------------
+message AlertGroupMembers {
+  uint64 id = 1; //主键ID
+  uint64 groupId = 2; //告警组ID
+  uint64 userId = 3; //用户ID
+  string userName = 4;
+  string userAccount = 5;
+  string role = 6; //角色(owner, admin, member)
+  string createdBy = 7; //创建人
+  string updatedBy = 8; //更新人
+  int64 createdAt = 9; //创建时间
+  int64 updatedAt = 10; //更新时间
+}
+
+message AddAlertGroupMembersReq {
+  uint64 groupId = 1; //告警组ID
+  uint64 userId = 2; //用户ID
+  string role = 3; //角色(owner, admin, member)
+  string createdBy = 4; //创建人
+  string updatedBy = 5; //更新人
+}
+
+message AddAlertGroupMembersResp {
+}
+
+message UpdateAlertGroupMembersReq {
+  uint64 id = 1; //主键ID
+  uint64 groupId = 2; //告警组ID
+  uint64 userId = 3; //用户ID
+  string role = 4; //角色(owner, admin, member)
+  string createdBy = 5; //创建人
+  string updatedBy = 6; //更新人
+}
+
+message UpdateAlertGroupMembersResp {
+}
+
+message DelAlertGroupMembersReq {
+  uint64 id = 1; //id
+}
+
+message DelAlertGroupMembersResp {
+}
+
+message GetAlertGroupMembersByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetAlertGroupMembersByIdResp {
+  AlertGroupMembers data = 1; //alertGroupMembers
+}
+
+message SearchAlertGroupMembersReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderStr = 3; //orderStr
+  bool isAsc = 4; //isAsc
+  uint64 groupId = 5; //告警组ID
+  uint64 userId = 6; //用户ID
+  string role = 7; //角色(owner, admin, member)
+}
+
+message SearchAlertGroupMembersResp {
+  repeated AlertGroupMembers data = 1; //alertGroupMembers
+  uint64 total = 2; //total
+}
+
+
+
+//--------------------------------告警组级别渠道关联表--------------------------------
+message AlertGroupLevelChannels {
+  uint64 id = 1; //主键ID
+  uint64 groupId = 2; //告警组ID
+  string severity = 3; //严重级别(default, info, warning, critical, notification)
+  string channelId = 4; //'告警渠道IDs , 逗号分隔'
+  string createdBy = 5; //创建人
+  string updatedBy = 6; //更新人
+  int64 createdAt = 7; //创建时间
+  int64 updatedAt = 8; //更新时间
+}
+
+message AddAlertGroupLevelChannelsReq {
+  uint64 groupId = 1; //告警组ID
+  string severity = 2; //严重级别(default, info, warning, critical, notification)
+  string channelId = 3; //'告警渠道IDs , 逗号分隔'
+  string createdBy = 4; //创建人
+  string updatedBy = 5; //更新人
+}
+
+message AddAlertGroupLevelChannelsResp {
+}
+
+message UpdateAlertGroupLevelChannelsReq {
+  uint64 id = 1; //主键ID
+  uint64 groupId = 2; //告警组ID
+  string severity = 3; //严重级别(default, info, warning, critical, notification)
+  string channelId = 4; //'告警渠道IDs , 逗号分隔'
+  string updatedBy = 6; //更新人
+}
+
+message UpdateAlertGroupLevelChannelsResp {
+}
+
+message DelAlertGroupLevelChannelsReq {
+  uint64 id = 1; //id
+}
+
+message DelAlertGroupLevelChannelsResp {
+}
+
+message GetAlertGroupLevelChannelsByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetAlertGroupLevelChannelsByIdResp {
+  AlertGroupLevelChannels data = 1; //alertGroupLevelChannels
+}
+
+message SearchAlertGroupLevelChannelsReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderStr = 3; //orderStr
+  bool isAsc = 4; //isAsc
+  uint64 groupId = 5; //告警组ID
+  string severity = 6; //严重级别(default, info, warning, critical, notification)
+}
+
+message SearchAlertGroupLevelChannelsResp {
+  repeated AlertGroupLevelChannels data = 1; //alertGroupLevelChannels
+}
+
+
+//--------------------------------告警通知记录表--------------------------------
+message AlertNotifications {
+  uint64 id = 1; //主键ID
+  string uuid = 2; //通知记录UUID
+  uint64 instanceId = 3; //告警实例ID
+  uint64 groupId = 4; //告警组ID
+  string severity = 5; //告警级别
+  uint64 channelId = 6; //告警渠道ID
+  string channelType = 7; //渠道类型
+  string sendFormat = 8; //发送格式(markdown, html, text)
+  string recipients = 9; //接收人列表(JSON格式)
+  string subject = 10; //通知主题
+  string content = 11; //发送内容
+  string status = 12; //发送状态(pending, sending, success, failed, cancelled)
+  string errorMsg = 13; //错误信息
+  int64 sentAt = 14; //发送时间
+  string response = 15; //渠道响应信息
+  uint64 costMs = 16; //发送耗时(毫秒)
+  string createdBy = 17; //创建人
+  string updatedBy = 18; //更新人
+  int64 createdAt = 19; //创建时间
+  int64 updatedAt = 20; //更新时间
+}
+
+
+message DelAlertNotificationsReq {
+  uint64 id = 1; //id
+}
+
+message DelAlertNotificationsResp {
+}
+
+message GetAlertNotificationsByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetAlertNotificationsByIdResp {
+  AlertNotifications data = 1; //alertNotifications
+}
+
+message SearchAlertNotificationsReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderField = 3; //orderField
+  bool isAsc = 4; //isAsc
+  string uuid = 5; //通知记录UUID
+  string severity = 8; //告警级别
+  uint64 channelId = 9; //告警渠道ID
+  string channelType = 10; //渠道类型
+  string subject = 13; //通知主题
+  string status = 15; //发送状态(pending, sending, success, failed, cancelled)
+}
+
+message SearchAlertNotificationsResp {
+  repeated AlertNotifications data = 1; //alertNotifications
+  uint64 total = 2; //total
+}
+
+message BatchDelAlertNotificationsReq {
+  repeated uint64 ids = 1; //ids
+}
+message BatchDelAlertNotificationsResp {
+}
+
+
+// 告警组关联app
+message BindAlertGroupAppsReq {
+  uint64 groupId = 1;
+  uint64 appId = 2;
+  string appType = 3;
+  string createdBy = 4;
+  string updatedBy = 5;
+}
+message BindAlertGroupAppsResp {
+}
+
+// 取消关联 app
+message UnbindAlertGroupAppsReq {
+  uint64 id = 1;
+}
+message UnbindAlertGroupAppsResp {
+}
+
+// 查询
+message SearchAlertGroupAppsReq {
+  uint64 groupId = 1;
+  string appType = 3;
+}
+message SearchAlertGroupAppsResp {
+  uint64 id = 1;
+  uint64 groupId = 2;
+  uint64 appId = 3;
+  string appType = 4;
+  string createdBy = 5;
+  string updatedBy = 6;
+}
+
+
+
+// 告警通知接口
+message AlertNotifyReq {
+  string alertType = 1; //告警类型(prometheus, system)
+  string alertData = 2; // 告警数据
+  repeated uint64 userIds = 3;
+  string title = 4;
+}
+message AlertNotifyResp {
+}
+
+
+service AlertService {
+  //-----------------------告警渠道配置表-----------------------
+  rpc AlertChannelsAdd(AddAlertChannelsReq) returns (AddAlertChannelsResp);
+  rpc AlertChannelsUpdate(UpdateAlertChannelsReq) returns (UpdateAlertChannelsResp);
+  rpc AlertChannelsDel(DelAlertChannelsReq) returns (DelAlertChannelsResp);
+  rpc AlertChannelsGetById(GetAlertChannelsByIdReq) returns (GetAlertChannelsByIdResp);
+  rpc AlertChannelsSearch(SearchAlertChannelsReq) returns (SearchAlertChannelsResp);
+  // 测试链接
+  rpc AlertChannelsTestLink(TestLinkReq) returns (TestLinkResp);
+
+  //-----------------------告警组表-----------------------
+  rpc AlertGroupsAdd(AddAlertGroupsReq) returns (AddAlertGroupsResp);
+  rpc AlertGroupsUpdate(UpdateAlertGroupsReq) returns (UpdateAlertGroupsResp);
+  rpc AlertGroupsDel(DelAlertGroupsReq) returns (DelAlertGroupsResp);
+  rpc AlertGroupsGetById(GetAlertGroupsByIdReq) returns (GetAlertGroupsByIdResp);
+  rpc AlertGroupsSearch(SearchAlertGroupsReq) returns (SearchAlertGroupsResp);
+
+  //-----------------------告警组成员表-----------------------
+  rpc AlertGroupMembersAdd(AddAlertGroupMembersReq) returns (AddAlertGroupMembersResp);
+  rpc AlertGroupMembersUpdate(UpdateAlertGroupMembersReq) returns (UpdateAlertGroupMembersResp);
+  rpc AlertGroupMembersDel(DelAlertGroupMembersReq) returns (DelAlertGroupMembersResp);
+  rpc AlertGroupMembersGetById(GetAlertGroupMembersByIdReq) returns (GetAlertGroupMembersByIdResp);
+  rpc AlertGroupMembersSearch(SearchAlertGroupMembersReq) returns (SearchAlertGroupMembersResp);
+
+
+  // 告警组 app 关联接口
+  rpc BindAlertGroupApps(BindAlertGroupAppsReq) returns (BindAlertGroupAppsResp);
+  rpc UnbindAlertGroupApps(UnbindAlertGroupAppsReq) returns (UnbindAlertGroupAppsResp);
+  rpc SearchAlertGroupApps(SearchAlertGroupAppsReq) returns (SearchAlertGroupAppsResp);
+  //-----------------------告警组级别渠道关联表-----------------------
+  rpc AlertGroupLevelChannelsAdd(AddAlertGroupLevelChannelsReq) returns (AddAlertGroupLevelChannelsResp);
+  rpc AlertGroupLevelChannelsUpdate(UpdateAlertGroupLevelChannelsReq) returns (UpdateAlertGroupLevelChannelsResp);
+  rpc AlertGroupLevelChannelsDel(DelAlertGroupLevelChannelsReq) returns (DelAlertGroupLevelChannelsResp);
+  rpc AlertGroupLevelChannelsGetById(GetAlertGroupLevelChannelsByIdReq) returns (GetAlertGroupLevelChannelsByIdResp);
+  rpc AlertGroupLevelChannelsSearch(SearchAlertGroupLevelChannelsReq) returns (SearchAlertGroupLevelChannelsResp);
+
+  //-----------------------告警通知记录表-----------------------
+  rpc DelAlertNotifications(DelAlertNotificationsReq) returns (DelAlertNotificationsResp);
+  rpc GetAlertNotificationsById(GetAlertNotificationsByIdReq) returns (GetAlertNotificationsByIdResp);
+  rpc SearchAlertNotifications(SearchAlertNotificationsReq) returns (SearchAlertNotificationsResp);
+  // 批量删除
+  rpc BatchDelAlertNotifications(BatchDelAlertNotificationsReq) returns (BatchDelAlertNotificationsResp);
+  rpc AlertNotify(AlertNotifyReq) returns (AlertNotifyResp);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//--------------------------------站内信表--------------------------------
+message SiteMessages {
+  uint64 id = 1; //主键ID
+  string uuid = 2; //消息UUID
+  uint64 notificationId = 3; //关联的通知记录ID(0=平台消息无关联)
+  uint64 instanceId = 4; //关联的告警实例ID(0=无关联)
+  uint64 userId = 5; //接收用户ID
+  string title = 6; //消息标题
+  string content = 7; //消息内容(支持Markdown)
+  string messageType = 8; //消息类型(alert=告警, notification=通知, system=系统消息)
+  string severity = 9; //严重级别(info, warning, critical)
+  string category = 10; //消息分类(便于筛选)
+  string extraData = 11; //扩展数据(JSON格式)
+  string actionUrl = 12; //操作链接
+  string actionText = 13; //操作按钮文本
+  int64 isRead = 14; //是否已读
+  int64 readAt = 15; //阅读时间
+  int64 isStarred = 16; //是否标星
+  int64 expireAt = 17; //过期时间
+  int64 createdAt = 18; //创建时间
+  int64 updatedAt = 19; //更新时间
+}
+
+
+message DelSiteMessagesReq {
+  uint64 id = 1; //id
+}
+
+message DelSiteMessagesResp {
+}
+
+message GetSiteMessagesByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetSiteMessagesByIdResp {
+  SiteMessages data = 1; //siteMessages
+}
+
+message SearchSiteMessagesReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderStr = 3; //orderStr
+  bool isAsc = 4; //isAsc
+  string uuid = 5; //消息UUID
+  string title = 9; //消息标题
+  string content = 10;
+  uint64 userId = 6;
+  string severity = 12; //严重级别(info, warning, critical)
+  string category = 13; //消息分类(便于筛选)
+  int64 isRead = 17; //是否已读
+}
+
+message SearchSiteMessagesResp {
+  repeated SiteMessages data = 1; //siteMessages
+  uint64 total = 2; //total
+}
+message SetAllReadReq {
+  uint64 userId = 1; //用户ID
+}
+message SetAllReadResp {}
+
+message BatchDelSiteMessagesReq {
+  repeated uint64 ids = 1; //ids
+}
+message BatchDelSiteMessagesResp {
+}
+
+// 批量已读
+message BatchReadSiteMessagesReq {
+  repeated uint64 ids = 1;
+}
+message BatchReadSiteMessagesResp {
+}
+
+// 获取某一个用户的所有站内消息数量和 已读数量 和 未读数量
+message GetSiteMessagesCountReq {
+  uint64 userId = 1;
+}
+message GetSiteMessagesCountResp {
+  uint64 total = 1; //总数
+  uint64 read = 2; //已读
+  uint64 unread = 3; //未读
+}
+// 获取用户未读消息列表（用于首次连接）
+message GetUserUnreadMessagesReq {
+  uint64 userId = 1;
+  uint64 limit = 2; // 限制返回数量，默认50
+}
+
+message GetUserUnreadMessagesResp {
+  repeated SiteMessages data = 1;
+  uint64 total = 2; // 总未读数
+}
+service SiteMessagesService {
+  //-----------------------站内信表-----------------------
+  rpc SiteMessagesDel(DelSiteMessagesReq) returns (DelSiteMessagesResp);
+  rpc SiteMessagesByIdGet(GetSiteMessagesByIdReq) returns (GetSiteMessagesByIdResp);
+  rpc SiteMessagesSearch(SearchSiteMessagesReq) returns (SearchSiteMessagesResp);
+  // 设置全部已读
+  rpc SiteMessagesSetAllRead(SetAllReadReq) returns (SetAllReadResp);
+  // 批量删除
+  rpc SiteMessagesBatchDel(BatchDelSiteMessagesReq) returns (BatchDelSiteMessagesResp);
+  // 批量已读
+  rpc SiteMessagesBatchRead(BatchReadSiteMessagesReq) returns (BatchReadSiteMessagesResp);
+  // 获取某用户所有站内消息数量和 已读数量 和 未读数量
+  rpc SiteMessagesCount(GetSiteMessagesCountReq) returns (GetSiteMessagesCountResp);
+  rpc GetUserUnreadMessages(GetUserUnreadMessagesReq) returns (GetUserUnreadMessagesResp);
+
+}

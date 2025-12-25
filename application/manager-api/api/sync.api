@@ -1,0 +1,63 @@
+syntax = "v1"
+
+info(
+    title: "type title here"
+    desc: "type desc here"
+    author: "type author here"
+    email: "type email here"
+    version: "type version here"
+)
+
+type (
+    // 同步集群请求
+    SyncClusterRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"` // 集群ID
+    }
+    SyncClusterResourceRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+    }
+        // 同步请求（通用）
+    SyncRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"` // ID
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: sync
+    prefix: /manager/v1/sync
+)
+
+service manager-api {
+    // 同步集群
+    @handler ClusterOneSyncHandler
+    post /cluster/:id (SyncClusterRequest) returns (string)
+
+    // 同步所有集群信息
+    @handler ClusterAllSyncHandler
+    post /cluster/all returns (string)
+
+    // 同步集群资源信息
+    @handler ClusterResourceSyncHandler
+    post /cluster/:id/resource (SyncClusterResourceRequest) returns (string)
+
+    // 同步项目
+    @doc "同步项目相关数据"
+    @handler ProjectOneSyncHandler
+    post /project/:id (SyncRequest) returns (string)
+
+    // 同步项目集群配额
+    @doc "同步计算项目集群的资源使用量，更新到数据库"
+    @handler ProjectOneClusterResourceHandler
+    post /project/:id/sync (SyncRequest) returns (string)
+
+    // 同步所有项目集群配额
+    @doc "同步所有项目集群配额"
+    @handler ProjectAllClusterResourceHandler
+    post /project/all returns (string)
+
+    // 同步工作空间状态
+    @doc "同步工作空间的实际运行状态和资源使用情况"
+    @handler ProjectWorkspaceSyncHandler
+    post /workspace/:id/sync (SyncRequest) returns (string)
+}

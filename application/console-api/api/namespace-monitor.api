@@ -1,0 +1,569 @@
+syntax = "v1"
+
+info(
+    title: "Namespace Monitor API"
+    desc: "Namespace 监控指标查询 API"
+    author: "System"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    //================================ Namespace 综合指标 ================================
+
+    NamespaceMetrics {
+        Namespace string `json:"namespace"`
+        Timestamp int64 `json:"timestamp"`
+        Resources NamespaceResourceMetrics `json:"resources"`
+        Quota NamespaceQuotaMetrics `json:"quota"`
+        Workloads NamespaceWorkloadMetrics `json:"workloads"`
+        Network NamespaceNetworkMetrics `json:"network"`
+        Storage NamespaceStorageMetrics `json:"storage"`
+        Config NamespaceConfigMetrics `json:"config"`
+    }
+
+        //================================ Namespace 资源使用 ================================
+
+    NamespaceResourceMetrics {
+        CPU NamespaceCPUMetrics `json:"cpu"`
+        Memory NamespaceMemoryMetrics `json:"memory"`
+    }
+
+    NamespaceCPUMetrics {
+        Current NamespaceCPUSnapshot `json:"current"`
+        Requests float64 `json:"requests"`
+        Limits float64 `json:"limits"`
+        Trend []NamespaceCPUDataPoint `json:"trend"`
+        TopPods []ResourceRanking `json:"topPods"`
+        TopContainers []ContainerResourceRanking `json:"topContainers"`
+        ContainersNoRequests int64 `json:"containersNoRequests"`
+        ContainersNoLimits int64 `json:"containersNoLimits"`
+    }
+
+    NamespaceCPUSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        UsageCores float64 `json:"usageCores"`
+        AvgCores float64 `json:"avgCores"`
+        MaxCores float64 `json:"maxCores"`
+        UsagePercent float64 `json:"usagePercent"`
+    }
+
+    NamespaceCPUDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        UsageCores float64 `json:"usageCores"`
+        UsagePercent float64 `json:"usagePercent"`
+    }
+
+    NamespaceMemoryMetrics {
+        Current NamespaceMemorySnapshot `json:"current"`
+        Requests int64 `json:"requests"`
+        Limits int64 `json:"limits"`
+        Trend []NamespaceMemoryDataPoint `json:"trend"`
+        TopPods []ResourceRanking `json:"topPods"`
+        TopContainers []ContainerResourceRanking `json:"topContainers"`
+        OOMKills int64 `json:"oomKills"`
+    }
+
+    NamespaceMemorySnapshot {
+        Timestamp int64 `json:"timestamp"`
+        WorkingSetBytes int64 `json:"workingSetBytes"`
+        RSSBytes int64 `json:"rssBytes"`
+        CacheBytes int64 `json:"cacheBytes"`
+        AvgBytes int64 `json:"avgBytes"`
+        MaxBytes int64 `json:"maxBytes"`
+        UsagePercent float64 `json:"usagePercent"`
+    }
+
+    NamespaceMemoryDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        WorkingSetBytes int64 `json:"workingSetBytes"`
+        UsagePercent float64 `json:"usagePercent"`
+    }
+
+    ContainerResourceRanking {
+        PodName string `json:"podName"`
+        ContainerName string `json:"containerName"`
+        Value float64 `json:"value"`
+        Unit string `json:"unit"`
+    }
+
+    ResourceRanking {
+        Name string `json:"name"`
+        Value float64 `json:"value"`
+        Unit string `json:"unit"`
+    }
+
+        //================================ 配额管理 ================================
+
+    NamespaceQuotaMetrics {
+        HasQuota bool `json:"hasQuota"`
+        QuotaName string `json:"quotaName,optional"`
+        CPU QuotaUsage `json:"cpu"`
+        Memory QuotaUsage `json:"memory"`
+        Pods QuotaUsage `json:"pods"`
+        Services QuotaUsage `json:"services"`
+        ConfigMaps QuotaUsage `json:"configMaps"`
+        Secrets QuotaUsage `json:"secrets"`
+        PVCs QuotaUsage `json:"pvcs"`
+        Storage QuotaUsage `json:"storage"`
+        AllResources []ResourceQuotaDetail `json:"allResources,optional"`
+    }
+
+    QuotaUsage {
+        Hard float64 `json:"hard"`
+        Used float64 `json:"used"`
+        UsagePercent float64 `json:"usagePercent"`
+        HasQuota bool `json:"hasQuota"`
+    }
+
+        //================================ 工作负载统计 ================================
+
+    NamespaceWorkloadMetrics {
+        Pods NamespacePodStatistics `json:"pods"`
+        Deployments NamespaceDeploymentStatistics `json:"deployments"`
+        StatefulSets NamespaceStatefulSetStatistics `json:"statefulSets"`
+        DaemonSets NamespaceDaemonSetStatistics `json:"daemonSets"`
+        Jobs NamespaceJobStatistics `json:"jobs"`
+        Containers NamespaceContainerStatistics `json:"containers"`
+        Services NamespaceServiceStatistics `json:"services"`
+        Endpoints NamespaceEndpointStatistics `json:"endpoints"`
+        Ingresses NamespaceIngressStatistics `json:"ingresses"`
+    }
+
+    NamespacePodStatistics {
+        Total int64 `json:"total"`
+        Running int64 `json:"running"`
+        Pending int64 `json:"pending"`
+        Failed int64 `json:"failed"`
+        Succeeded int64 `json:"succeeded"`
+        Unknown int64 `json:"unknown"`
+        Ready int64 `json:"ready"`
+        NotReady int64 `json:"notReady"`
+        TotalRestarts int64 `json:"totalRestarts"`
+        HighRestartPods []PodRestartInfo `json:"highRestartPods"`
+        Trend []NamespacePodDataPoint `json:"trend"`
+    }
+
+    NamespacePodDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        Total int64 `json:"total"`
+        Running int64 `json:"running"`
+        Pending int64 `json:"pending"`
+        Failed int64 `json:"failed"`
+    }
+
+
+
+    NamespaceDeploymentStatistics {
+        Total int64 `json:"total"`
+        DesiredReplicas int64 `json:"desiredReplicas"`
+        AvailableReplicas int64 `json:"availableReplicas"`
+        UnavailableReplicas int64 `json:"unavailableReplicas"`
+        Updating int64 `json:"updating"`
+    }
+
+    NamespaceStatefulSetStatistics {
+        Total int64 `json:"total"`
+        DesiredReplicas int64 `json:"desiredReplicas"`
+        ReadyReplicas int64 `json:"readyReplicas"`
+        CurrentReplicas int64 `json:"currentReplicas"`
+    }
+
+    NamespaceDaemonSetStatistics {
+        Total int64 `json:"total"`
+        DesiredScheduled int64 `json:"desiredScheduled"`
+        CurrentScheduled int64 `json:"currentScheduled"`
+        AvailableScheduled int64 `json:"availableScheduled"`
+        UnavailableScheduled int64 `json:"unavailableScheduled"`
+    }
+
+    NamespaceJobStatistics {
+        Active int64 `json:"active"`
+        Succeeded int64 `json:"succeeded"`
+        Failed int64 `json:"failed"`
+        CronJobsTotal int64 `json:"cronJobsTotal"`
+        AvgDuration float64 `json:"avgDuration"`
+    }
+
+    NamespaceContainerStatistics {
+        Total int64 `json:"total"`
+        Running int64 `json:"running"`
+        Waiting int64 `json:"waiting"`
+        Terminated int64 `json:"terminated"`
+    }
+
+    NamespaceServiceStatistics {
+        Total int64 `json:"total"`
+        ByType []ServiceTypeCount `json:"byType"`
+        WithoutEndpoints int64 `json:"withoutEndpoints"`
+    }
+
+
+    NamespaceEndpointStatistics {
+        TotalAddresses int64 `json:"totalAddresses"`
+        ServicesWithEndpoints int64 `json:"servicesWithEndpoints"`
+    }
+
+    NamespaceIngressStatistics {
+        Total int64 `json:"total"`
+        PathCount int64 `json:"pathCount"`
+    }
+
+        //================================ 网络指标 ================================
+
+    NamespaceNetworkMetrics {
+        Current NamespaceNetworkSnapshot `json:"current"`
+        Trend []NamespaceNetworkDataPoint `json:"trend"`
+        Summary NamespaceNetworkSummary `json:"summary"`
+        TopPodsByRx []ResourceRanking `json:"topPodsByRx"`
+        TopPodsByTx []ResourceRanking `json:"topPodsByTx"`
+    }
+
+    NamespaceNetworkSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        ReceiveBytesPerSec float64 `json:"receiveBytesPerSec"`
+        TransmitBytesPerSec float64 `json:"transmitBytesPerSec"`
+        ReceivePacketsPerSec float64 `json:"receivePacketsPerSec"`
+        TransmitPacketsPerSec float64 `json:"transmitPacketsPerSec"`
+        ReceiveErrors float64 `json:"receiveErrors"`
+        TransmitErrors float64 `json:"transmitErrors"`
+        ReceiveDrops float64 `json:"receiveDrops"`
+        TransmitDrops float64 `json:"transmitDrops"`
+    }
+
+    NamespaceNetworkDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        ReceiveBytesPerSec float64 `json:"receiveBytesPerSec"`
+        TransmitBytesPerSec float64 `json:"transmitBytesPerSec"`
+    }
+
+    NamespaceNetworkSummary {
+        TotalReceiveBytes int64 `json:"totalReceiveBytes"`
+        TotalTransmitBytes int64 `json:"totalTransmitBytes"`
+        MaxReceiveBytesPerSec float64 `json:"maxReceiveBytesPerSec"`
+        MaxTransmitBytesPerSec float64 `json:"maxTransmitBytesPerSec"`
+        AvgReceiveBytesPerSec float64 `json:"avgReceiveBytesPerSec"`
+        AvgTransmitBytesPerSec float64 `json:"avgTransmitBytesPerSec"`
+        TotalErrors int64 `json:"totalErrors"`
+    }
+
+        //================================ 存储指标 ================================
+
+    NamespaceStorageMetrics {
+        PVCTotal int64 `json:"pvcTotal"`
+        PVCBound int64 `json:"pvcBound"`
+        PVCPending int64 `json:"pvcPending"`
+        PVCLost int64 `json:"pvcLost"`
+        TotalRequestedBytes int64 `json:"totalRequestedBytes"`
+        ByStorageClass []StorageClassUsage `json:"byStorageClass"`
+    }
+
+
+        //================================ 配置管理 ================================
+
+    NamespaceConfigMetrics {
+        ConfigMaps ConfigMapStatistics `json:"configMaps"`
+        Secrets SecretStatistics `json:"secrets"`
+    }
+
+    ConfigMapStatistics {
+        Total int64 `json:"total"`
+        DataItems int64 `json:"dataItems"`
+    }
+
+    SecretStatistics {
+        Total int64 `json:"total"`
+        ByType []SecretTypeCount `json:"byType"`
+    }
+
+    SecretTypeCount {
+        Type string `json:"type"`
+        Count int64 `json:"count"`
+    }
+
+        //================================ Namespace 对比 ================================
+
+    NamespaceComparison {
+        Namespaces []NamespaceComparisonItem `json:"namespaces"`
+        Timestamp int64 `json:"timestamp"`
+    }
+
+    NamespaceComparisonItem {
+        Namespace string `json:"namespace"`
+        CPUUsage float64 `json:"cpuUsage"`
+        MemoryUsage int64 `json:"memoryUsage"`
+        PodCount int64 `json:"podCount"`
+        NetworkRxRate float64 `json:"networkRxRate"`
+        NetworkTxRate float64 `json:"networkTxRate"`
+    }
+
+
+
+        //================================ Namespace 简要信息 ================================
+
+    NamespaceBrief {
+        Namespace string `json:"namespace"`
+        Status string `json:"status"`
+        PodCount int64 `json:"podCount"`
+        CPUUsage float64 `json:"cpuUsage"`
+        MemoryUsage float64 `json:"memoryUsage"`
+        CreatedAt int64 `json:"createdAt"`
+    }
+
+        //================================ Namespace 排行 ================================
+
+
+
+    NamespaceRankingItem {
+        Namespace string `json:"namespace"`
+        Value float64 `json:"value"`
+        Unit string `json:"unit"`
+    }
+
+        //================================ 请求和响应结构 ================================
+
+    GetNamespaceMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNamespaceMetricsResponse {
+        Data NamespaceMetrics `json:"data"`
+    }
+
+    GetNamespaceCPURequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNamespaceCPUResponse {
+        Data NamespaceCPUMetrics `json:"data"`
+    }
+
+    GetNamespaceMemoryRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNamespaceMemoryResponse {
+        Data NamespaceMemoryMetrics `json:"data"`
+    }
+
+    GetNamespaceNetworkRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNamespaceNetworkResponse {
+        Data NamespaceNetworkMetrics `json:"data"`
+    }
+
+    GetNamespaceQuotaRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+    }
+    GetNamespaceQuotaResponse {
+        Data NamespaceQuotaMetrics `json:"data"`
+    }
+
+    GetNamespaceWorkloadsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNamespaceWorkloadsResponse {
+        Data NamespaceWorkloadMetrics `json:"data"`
+    }
+
+    GetNamespacePodsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNamespacePodsResponse {
+        Data NamespacePodStatistics `json:"data"`
+    }
+
+    GetNamespaceDeploymentsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+    }
+    GetNamespaceDeploymentsResponse {
+        Data NamespaceDeploymentStatistics `json:"data"`
+    }
+
+    GetNamespaceServicesRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+    }
+    GetNamespaceServicesResponse {
+        Data NamespaceServiceStatistics `json:"data"`
+    }
+
+    GetNamespaceStorageRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+    }
+    GetNamespaceStorageResponse {
+        Data NamespaceStorageMetrics `json:"data"`
+    }
+
+    GetNamespaceConfigRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+    }
+    GetNamespaceConfigResponse {
+        Data NamespaceConfigMetrics `json:"data"`
+    }
+
+    GetNamespaceTopPodsByCPURequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Limit int `form:"limit,default=10" validate:"min=1,max=100"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNamespaceTopPodsByCPUResponse {
+        Data []ResourceRanking `json:"data"`
+    }
+
+    GetNamespaceTopPodsByMemoryRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Limit int `form:"limit,default=10" validate:"min=1,max=100"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNamespaceTopPodsByMemoryResponse {
+        Data []ResourceRanking `json:"data"`
+    }
+
+    GetNamespaceTopPodsByNetworkRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Limit int `form:"limit,default=10" validate:"min=1,max=100"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNamespaceTopPodsByNetworkResponse {
+        Data []ResourceRanking `json:"data"`
+    }
+
+    GetNamespaceTopContainersByCPURequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Limit int `form:"limit,default=10" validate:"min=1,max=100"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNamespaceTopContainersByCPUResponse {
+        Data []ContainerResourceRanking `json:"data"`
+    }
+
+    GetNamespaceTopContainersByMemoryRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Limit int `form:"limit,default=10" validate:"min=1,max=100"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNamespaceTopContainersByMemoryResponse {
+        Data []ContainerResourceRanking `json:"data"`
+    }
+
+    CompareNamespacesRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespaces []string `form:"namespaces" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    CompareNamespacesResponse {
+        Data NamespaceComparison `json:"data"`
+    }
+
+
+
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: namespacemonitor
+    prefix: /console/v1/namespace-monitor
+)
+
+service console-api {
+    @doc "获取 Namespace 综合指标"
+    @handler GetNamespaceMetricsHandler
+    get /metrics (GetNamespaceMetricsRequest) returns (GetNamespaceMetricsResponse)
+
+    @doc "获取 Namespace CPU 指标"
+    @handler GetNamespaceCPUHandler
+    get /cpu (GetNamespaceCPURequest) returns (GetNamespaceCPUResponse)
+
+    @doc "获取 Namespace 内存指标"
+    @handler GetNamespaceMemoryHandler
+    get /memory (GetNamespaceMemoryRequest) returns (GetNamespaceMemoryResponse)
+
+    @doc "获取 Namespace 网络指标"
+    @handler GetNamespaceNetworkHandler
+    get /network (GetNamespaceNetworkRequest) returns (GetNamespaceNetworkResponse)
+
+    @doc "获取 Namespace 资源配额"
+    @handler GetNamespaceQuotaHandler
+    get /quota (GetNamespaceQuotaRequest) returns (GetNamespaceQuotaResponse)
+
+    @doc "获取 Namespace 工作负载统计"
+    @handler GetNamespaceWorkloadsHandler
+    get /workloads (GetNamespaceWorkloadsRequest) returns (GetNamespaceWorkloadsResponse)
+
+    @doc "获取 Namespace Pod 统计"
+    @handler GetNamespacePodsHandler
+    get /pods (GetNamespacePodsRequest) returns (GetNamespacePodsResponse)
+
+    @doc "获取 Namespace Deployment 统计"
+    @handler GetNamespaceDeploymentsHandler
+    get /deployments (GetNamespaceDeploymentsRequest) returns (GetNamespaceDeploymentsResponse)
+
+    @doc "获取 Namespace Service 统计"
+    @handler GetNamespaceServicesHandler
+    get /services (GetNamespaceServicesRequest) returns (GetNamespaceServicesResponse)
+
+    @doc "获取 Namespace 存储指标"
+    @handler GetNamespaceStorageHandler
+    get /storage (GetNamespaceStorageRequest) returns (GetNamespaceStorageResponse)
+
+    @doc "获取 Namespace 配置指标"
+    @handler GetNamespaceConfigHandler
+    get /config (GetNamespaceConfigRequest) returns (GetNamespaceConfigResponse)
+
+    @doc "获取 Namespace Top Pods (CPU)"
+    @handler GetNamespaceTopPodsByCPUHandler
+    get /top/pods/cpu (GetNamespaceTopPodsByCPURequest) returns (GetNamespaceTopPodsByCPUResponse)
+
+    @doc "获取 Namespace Top Pods (Memory)"
+    @handler GetNamespaceTopPodsByMemoryHandler
+    get /top/pods/memory (GetNamespaceTopPodsByMemoryRequest) returns (GetNamespaceTopPodsByMemoryResponse)
+
+    @doc "获取 Namespace Top Pods (Network)"
+    @handler GetNamespaceTopPodsByNetworkHandler
+    get /top/pods/network (GetNamespaceTopPodsByNetworkRequest) returns (GetNamespaceTopPodsByNetworkResponse)
+
+    @doc "获取 Namespace Top Containers (CPU)"
+    @handler GetNamespaceTopContainersByCPUHandler
+    get /top/containers/cpu (GetNamespaceTopContainersByCPURequest) returns (GetNamespaceTopContainersByCPUResponse)
+
+    @doc "获取 Namespace Top Containers (Memory)"
+    @handler GetNamespaceTopContainersByMemoryHandler
+    get /top/containers/memory (GetNamespaceTopContainersByMemoryRequest) returns (GetNamespaceTopContainersByMemoryResponse)
+
+    @doc "对比多个 Namespace"
+    @handler CompareNamespacesHandler
+    get /compare (CompareNamespacesRequest) returns (CompareNamespacesResponse)
+}

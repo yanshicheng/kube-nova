@@ -1,0 +1,13 @@
+syntax = "v1"
+
+import "api/api.api"
+import "api/auth.api"
+import "api/dept.api"
+import "api/image.api"
+import "api/login_log.api"
+import "api/role.api"
+import "api/token.api"
+import "api/user.api"
+import "api/menu.api"
+import "api/alert.api"
+import "api/site_message.api"

@@ -1,0 +1,86 @@
+syntax = "v1"
+
+info(
+    title: "base type"
+    desc: "通用结构类型"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+type (
+    // 默认ID请求参数
+    DefaultIdRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"` // ID
+    }
+
+        // 通用分页请求参数
+    PageRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                    // 当前页码，默认 1
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"`   // 每页条数，默认 10
+        OrderField string `form:"orderField,optional" default:"id" validate:"omitempty"`            // 排序字段，默认 id
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                     // 是否升序，默认 false
+    }
+
+    TargetRefInfo {
+        ApiVersion string `json:"apiVersion"` // apps/v1
+        Kind string `json:"kind"`             // Deployment, DaemonSet
+        Name string `json:"name"`             // 资源名称
+    }
+
+        // 批量删除请求
+    BatchDeleteRequest {
+        Ids []uint64 `json:"ids" validate:"required,min=1"` // ID列表
+    }
+
+        // ==================== RBAC 公共类型（Role/ClusterRole/RoleBinding/ClusterRoleBinding 共用）====================
+
+        // 策略规则信息（Role 和 ClusterRole 共用）
+    PolicyRuleInfo {
+        APIGroups []string `json:"apiGroups"`                       // "", apps, batch 等
+        Resources []string `json:"resources"`                       // pods, deployments 等
+        Verbs []string `json:"verbs"`                               // get, list, watch, create, update, delete, patch
+        ResourceNames []string `json:"resourceNames,optional"`      // 资源名称（可选）
+        NonResourceURLs []string `json:"nonResourceURLs,optional"`  // 非资源 URL（可选）
+    }
+
+        // 主体信息（RoleBinding 和 ClusterRoleBinding 共用）
+    SubjectInfo {
+        Kind string `json:"kind"`                     // User, Group, ServiceAccount
+        Name string `json:"name"`
+        Namespace string `json:"namespace,optional"`  // 仅对 ServiceAccount 有效
+        APIGroup string `json:"apiGroup,optional"`
+    }
+
+        // 角色引用信息（RoleBinding 和 ClusterRoleBinding 共用）
+    RoleRefInfo {
+        Kind string `json:"kind"`         // Role 或 ClusterRole
+        Name string `json:"name"`
+        APIGroup string `json:"apiGroup"` // rbac.authorization.k8s.io
+    }
+
+
+
+        // ==================== Label Selector 公共类型 ====================
+        // ==================== 通用类型 ====================
+
+    EventInfo {
+        Type string `json:"type"`
+        Reason string `json:"reason"`
+        Age string `json:"age"`
+        From string `json:"from"`
+        Message string `json:"message"`
+    }
+        // 标签选择器信息
+    LabelSelectorInfo {
+        MatchLabels map[string]string `json:"matchLabels,optional"`
+        MatchExpressions []LabelSelectorExpression `json:"matchExpressions,optional"`
+    }
+
+        // 标签选择器表达式
+    LabelSelectorExpression {
+        Key string `json:"key"`
+        Operator string `json:"operator"` // In, NotIn, Exists, DoesNotExist
+        Values []string `json:"values,optional"`
+    }
+)

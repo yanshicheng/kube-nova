@@ -1,0 +1,15 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: console-rpc
+  namespace: kube-nova
+spec:
+  type: ClusterIP
+  selector:
+    app: console-rpc
+  ports:
+    - name: rpc
+      port: 30018
+      targetPort: 30018
+

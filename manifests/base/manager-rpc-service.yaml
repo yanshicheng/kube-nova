@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: manager-rpc
+  namespace: kube-nova
+spec:
+  type: ClusterIP
+  selector:
+    app: manager-rpc
+  ports:
+    - name: rpc
+      port: 30011
+      targetPort: 30011

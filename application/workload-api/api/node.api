@@ -1,0 +1,224 @@
+syntax = "v1"
+
+info(
+    title: "Cluster Node Management API"
+    desc: "集群节点管理相关接口"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // 节点列表信息
+    ClusterNodeInfo {
+        ClusterUuid string `json:"clusterUuid"`                 // 所属集群UUID
+        NodeName string `json:"nodeName"`                       // 节点名称
+        NodeIp string `json:"nodeIp"`                           // 节点IP地址
+        NodeStatus string `json:"nodeStatus"`                   // 节点状态
+        CpuUsge float64 `json:"cpuUsge"`
+        MemoryUsge float64 `json:"memoryUsge"`
+        PodTotal int64 `json:"podTotal"`
+        PodUsge int64 `json:"podUsge"`                          // Pod使用数
+        CreatedAt int64 `json:"createdAt"`                      // 创建时间
+        NodeRole string `json:"nodeRole"`                       // 节点角色
+        Architecture string `json:"architecture"`               // 架构类型
+        Unschedulable int64 `json:"unschedulable"`              // 是否可调度
+    }
+
+        // 节点详情信息
+    ClusterNodeDetail {
+        nodeName string `json:"nodeName"`                           // 自增主键
+        ClusterUuid string `json:"clusterUuid"`                     // 所属集群ID
+        NodeUuid string `json:"nodeUuid"`                           // 节点UID，唯一标识
+        Name string `json:"name"`                                   // 节点名称
+        Hostname string `json:"hostname"`                           // 主机名
+        Roles string `json:"roles"`                                 // 节点角色列表
+        OsImage string `json:"osImage"`                             // 操作系统
+        NodeIp string `json:"nodeIp"`                               // 节点地址
+        KernelVersion string `json:"kernelVersion"`                 // 内核版本
+        OperatingSystem string `json:"operatingSystem"`             // 操作系统类型
+        Architecture string `json:"architecture"`                   // 架构类型
+        Cpu float64 `json:"cpu"`                                    // CPU核数
+        Memory int64 `json:"memory"`                                // 内存大小（K）
+        Pods int64 `json:"pods"`                                    // 最大Pod数量
+        IsGpu int64 `json:"isGpu"`                                  // 节点是否包含GPU
+        Runtime string `json:"runtime"`                             // 容器运行时
+        JoinAt int64 `json:"joinAt"`                                // 节点加入集群时间
+        Unschedulable int64 `json:"unschedulable"`                  // 节点是否不可调度（1-可调度，2-不可调度）
+        KubeletVersion string `json:"kubeletVersion"`               // Kubelet版本
+        Status string `json:"status"`                               // 节点状态
+        PodCidr string `json:"podCidr"`                             // Pod CIDR
+        PodCidrs string `json:"podCidrs"`                           // Pod CIDRs
+    }
+
+        // 搜索节点请求
+    SearchClusterNodeRequest {
+        Page uint64 `form:"page" default:"1" validate:"required,min=1"`                                          // 当前页码
+        PageSize uint64 `form:"pageSize" default:"10" validate:"required,min=1,max=200"`                         // 每页条数
+        OrderField string `form:"OrderField,optional" default:"nodeName" validate:"omitempty"`                       // 排序字段
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                                  // 是否升序
+        ClusterUuid string `form:"clusterUuid" validate:"required,uuid"`                                         // 集群UUID
+    }
+
+        // 搜索节点响应
+    SearchClusterNodeResponse {
+        Items []ClusterNodeInfo `json:"items"`  // 节点列表
+        Total uint64 `json:"total"`             // 总条数
+    }
+
+        // 节点禁用/启用调度请求
+    NodeDisableScheduleRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required,uuid"`
+        nodeName string `path:"nodeName" validate:"required,gt=0"`          // 节点ID
+        Status int64 `json:"status" validate:"required"`                    // 调度状态 true-启用 false-禁用
+    }
+
+        // 节点标签操作请求
+    NodeLabelRequest {
+
+        ClusterUuid string `form:"clusterUuid" validate:"required,uuid"`
+        nodeName string `path:"nodeName" validate:"required,gt=0"`                   // 节点ID
+        Key string `json:"key" validate:"required,max=253"`                          // 标签键
+        Value string `json:"value" validate:"omitempty,max=63"`                      // 标签值
+    }
+
+        // 节点标签删除请求
+    NodeLabelDeleteRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required,uuid"`
+        nodeName string `path:"nodeName" validate:"required,gt=0"`         // 节点ID
+        Key string `json:"key" validate:"required,max=253"`                // 标签键
+    }
+
+        // 节点标签列表
+    NodeLabelItem {
+        Key string `json:"key"`
+        Value string `json:"value"`
+        IsDelete bool `json:"isDelete"`
+    }
+
+
+        // 节点注解操作请求
+    NodeAnnotationRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required,uuid"`
+        nodeName string `path:"nodeName" validate:"required,gt=0"`            // 节点ID
+        Key string `json:"key" validate:"required,max=253"`                   // 注解键
+        Value string `json:"value" validate:"omitempty"`                      // 注解值
+    }
+
+        // 节点注解删除请求
+    NodeAnnotationDeleteRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required,uuid"`
+        nodeName string `path:"nodeName" validate:"required,gt=0"`         // 节点ID
+        Key string `json:"key" validate:"required,max=253"`                // 注解键
+    }
+
+    NodeAnnotationItem {
+        Key string `json:"key"`
+        Value string `json:"value"`
+        IsDelete bool `json:"isDelete"`
+    }
+
+        // 节点污点操作请求
+    NodeTaintRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required,uuid"`
+        nodeName string `path:"nodeName" validate:"required,gt=0"`                                                // 节点ID
+        Key string `json:"key" validate:"required,max=253"`                                                       // 污点键
+        Value string `json:"value" validate:"omitempty,max=63"`                                                   // 污点值
+        Effect string `json:"effect" validate:"required,oneof=NoSchedule PreferNoSchedule NoExecute"`             // 污点效果
+    }
+
+        // 节点污点删除请求
+    NodeTaintDeleteRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required,uuid"`
+        nodeName string `path:"nodeName" validate:"required,gt=0"`         // 节点ID
+        Key string `json:"key" validate:"required,max=253"`                // 污点键
+        Effect string `json:"effect" validate:"required,oneof=NoSchedule PreferNoSchedule NoExecute"`
+    }
+
+        // 节点污点项
+    NodeTaint {
+        Key string `json:"key"`         // 污点键
+        Value string `json:"value"`     // 污点值
+        Effect string `json:"effect"`   // 污点效果
+        Time int64 `json:"time"`        // 添加时间
+        IsDelete bool `json:"isDelete"` // 是否删除
+    }
+
+        // 节点驱逐请求
+    NodeEvictRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required,uuid"`
+        nodeName string `path:"nodeName" validate:"required,gt=0"`  // 节点ID
+    }
+    DefaultNodeNameRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required,uuid"`
+        nodeName string `path:"nodeName" validate:"required,gt=0"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: node
+    prefix: /workload/v1/node
+)
+service workload-api {
+    // 获取节点列表
+    @handler GetNodeListHandler
+    get / (SearchClusterNodeRequest) returns (SearchClusterNodeResponse)
+
+    // 获取节点详情
+    @handler GetNodeDetailHandler
+    get /:nodeName (DefaultNodeNameRequest) returns (ClusterNodeDetail)
+
+    // 启用/禁用节点调度
+    @handler UpdateNodeScheduleHandler
+    put /:nodeName/schedule (NodeDisableScheduleRequest) returns (string)
+
+    // === 标签相关操作 ===
+    // 获取节点标签列表
+    @handler GetNodeLabelsHandler
+    get /:nodeName/labels (DefaultNodeNameRequest) returns ([]NodeLabelItem)
+
+    // 添加节点标签
+    @handler AddNodeLabelHandler
+    post /:nodeName/labels (NodeLabelRequest) returns (string)
+
+    // 删除节点标签
+    @handler DeleteNodeLabelHandler
+    delete /:nodeName/labels (NodeLabelDeleteRequest) returns (string)
+
+    // === 注解相关操作 ===
+    // 获取节点注解列表
+    @handler GetNodeAnnotationsHandler
+    get /:nodeName/annotations (DefaultNodeNameRequest) returns ([]NodeAnnotationItem)
+
+    // 添加节点注解
+    @handler AddNodeAnnotationHandler
+    post /:nodeName/annotations (NodeAnnotationRequest) returns (string)
+
+    // 删除节点注解
+    @handler DeleteNodeAnnotationHandler
+    delete /:nodeName/annotations (NodeAnnotationDeleteRequest) returns (string)
+
+    // === 污点相关操作 ===
+    // 获取节点污点列表
+    @handler GetNodeTaintsHandler
+    get /:nodeName/taints (DefaultNodeNameRequest) returns ([]NodeTaint)
+
+    // 添加节点污点
+    @handler AddNodeTaintHandler
+    post /:nodeName/taints (NodeTaintRequest) returns (string)
+
+    // 删除节点污点
+    @handler DeleteNodeTaintHandler
+    delete /:nodeName/taints (NodeTaintDeleteRequest) returns (string)
+
+    // 驱逐节点
+    @handler EvictNodeHandler
+    post /:nodeName/evict (NodeEvictRequest) returns (string)
+
+    // 节点详情
+    @handler GetNodeDetailYamlHandler
+    get /:nodeName/detail (DefaultNodeNameRequest) returns (string)
+}

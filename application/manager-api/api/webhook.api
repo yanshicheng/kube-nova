@@ -1,0 +1,48 @@
+syntax = "v1"
+
+info(
+    title: "告警接收 API"
+    desc: "接收 Alertmanager Webhook"
+    version: "v1.0"
+)
+
+// Alertmanager Webhook 请求体（完全符合官方格式）
+type AlertmanagerWebhook {
+    Receiver string `json:"receiver"`
+    Status string `json:"status"`
+    Alerts []Alert `json:"alerts"`
+    GroupLabels map[string]string `json:"groupLabels"`
+    CommonLabels map[string]string `json:"commonLabels"`
+    CommonAnnotations map[string]string `json:"commonAnnotations"`
+    ExternalURL string `json:"externalURL"`
+    Version string `json:"version"`
+    GroupKey string `json:"groupKey"`
+    TruncatedAlerts int `json:"truncatedAlerts,optional"`
+}
+
+// 单个告警
+type Alert {
+    Status string `json:"status"`
+    Labels map[string]string `json:"labels"`
+    Annotations map[string]string `json:"annotations"`
+    StartsAt string `json:"startsAt"`
+    EndsAt string `json:"endsAt"`
+    GeneratorURL string `json:"generatorURL"`
+    Fingerprint string `json:"fingerprint"`
+}
+
+// 响应
+type AlertmanagerWebhookResponse {
+    Code int `json:"code"`
+    Message string `json:"message"`
+}
+
+@server(
+    group: webhook
+    prefix: /manager/v1/webhook
+)
+service  manager-api {
+    @doc "接收 Alertmanager 告警"
+    @handler ReceiveAlertmanagerWebhook
+    post /alerts (AlertmanagerWebhook) returns (string)
+}

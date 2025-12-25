@@ -1,0 +1,58 @@
+package types
+
+import (
+	networkingv1 "k8s.io/api/networking/v1"
+)
+
+// IngressClassInfo IngressClass 信息
+type IngressClassInfo struct {
+	Name              string                  `json:"name"`
+	Controller        string                  `json:"controller"`           // 控制器名称，如: k8s.io/ingress-nginx
+	IsDefault         bool                    `json:"isDefault"`            // 是否为默认 IngressClass
+	Parameters        *IngressClassParameters `json:"parameters,omitempty"` // 参数配置
+	Labels            map[string]string       `json:"labels,omitempty"`
+	Annotations       map[string]string       `json:"annotations,omitempty"`
+	Age               string                  `json:"age"`               // 如: "2d5h"
+	CreationTimestamp int64                   `json:"creationTimestamp"` // 时间戳（毫秒）
+}
+
+// IngressClassParameters IngressClass 参数
+type IngressClassParameters struct {
+	APIGroup  string `json:"apiGroup,omitempty"`
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace,omitempty"`
+	Scope     string `json:"scope,omitempty"` // Cluster, Namespace
+}
+
+// ListIngressClassResponse IngressClass 列表响应
+type ListIngressClassResponse struct {
+	Total int                `json:"total"`
+	Items []IngressClassInfo `json:"items"`
+}
+
+// IngressClassDetail IngressClass 详细信息
+type IngressClassDetail struct {
+	Name              string                  `json:"name"`
+	Controller        string                  `json:"controller"`
+	IsDefault         bool                    `json:"isDefault"`
+	Parameters        *IngressClassParameters `json:"parameters,omitempty"`
+	Labels            map[string]string       `json:"labels,omitempty"`
+	Annotations       map[string]string       `json:"annotations,omitempty"`
+	Age               string                  `json:"age"`
+	CreationTimestamp int64                   `json:"creationTimestamp"`
+}
+
+// IngressClassOperator IngressClass 操作器接口
+type IngressClassOperator interface {
+	// ========== 基础查询操作 ==========
+	Get(name string) (*networkingv1.IngressClass, error)
+	List(search string, labelSelector string) (*ListIngressClassResponse, error)
+
+	// ========== YAML 操作 ==========
+	GetYaml(name string) (string, error)
+
+	// ========== 实用方法 ==========
+	// 获取默认的 IngressClass
+	GetDefault() (*networkingv1.IngressClass, error)
+}

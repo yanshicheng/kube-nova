@@ -1,0 +1,39 @@
+# syntax=docker/dockerfile:1.4
+FROM registry.cn-hangzhou.aliyuncs.com/kube-nova/golang:1.25.5-alpine AS builder
+
+ARG TARGETARCH
+
+WORKDIR /build
+
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=$TARGETARCH \
+    GOPROXY=https://goproxy.cn,direct
+
+COPY go.mod go.sum ./
+
+RUN --mount=type=cache,target=/go/pkg/mod,id=go-mod \
+    go mod download
+
+COPY . .
+
+RUN --mount=type=cache,target=/go/pkg/mod,id=go-mod \
+    --mount=type=cache,target=/root/.cache/go-build,id=go-build \
+    go build -ldflags="-s -w" -o /app/console-api ./application/console-api/console.go
+
+FROM registry.cn-hangzhou.aliyuncs.com/kube-nova/alpine:latest
+
+WORKDIR /app
+
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories && \
+    apk --no-cache add ca-certificates tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone
+
+COPY --from=builder /app/console-api /app/console-api
+COPY --from=builder /build/application/console-api/etc/console-api.yaml /app/etc/config.yaml
+
+EXPOSE 8818
+
+CMD ["/app/console-api", "-f", "/app/etc/config.yaml"]

@@ -1,0 +1,217 @@
+syntax = "v1"
+
+info(
+    title: "站内消息服务"
+    desc: "站内消息实时推送的 API 定义"
+    author: "devops"
+    version: "v1.0"
+)
+
+// ==================== 站内消息类型定义 ====================
+type (
+    // 站内消息详情
+    SiteMessage {
+        Id             uint64 `json:"id"`
+        Uuid           string `json:"uuid"`
+        NotificationId uint64 `json:"notificationId"`
+        InstanceId     uint64 `json:"instanceId"`
+        UserId         uint64 `json:"userId"`
+        Title          string `json:"title"`
+        Content        string `json:"content"`
+        MessageType    string `json:"messageType"`    // alert/notification/system
+        Severity       string `json:"severity"`       // info/warning/critical
+        Category       string `json:"category"`
+        ExtraData      string `json:"extraData,omitempty"`
+        ActionUrl      string `json:"actionUrl,omitempty"`
+        ActionText     string `json:"actionText,omitempty"`
+        IsRead         int64  `json:"isRead"`
+        ReadAt         int64  `json:"readAt"`
+        IsStarred      int64  `json:"isStarred"`
+        ExpireAt       int64  `json:"expireAt"`
+        CreatedAt      int64  `json:"createdAt"`
+        UpdatedAt      int64  `json:"updatedAt"`
+    }
+
+        // ==================== WebSocket 连接请求 ====================
+
+        // 建立 WebSocket 连接（实时推送）
+    SiteMessageConnectReq {
+        // 通过 JWT token 获取 userId，不需要额外参数
+        // 或者通过 query 参数传递
+    }
+
+        // ==================== REST API 请求/响应 ====================
+
+        // 获取未读消息列表
+    SiteMessageUnreadListReq {
+        Page     uint64 `form:"page,optional,default=1"`
+        PageSize uint64 `form:"pageSize,optional,default=20"`
+        Severity string `form:"severity,optional"`      // 按严重级别过滤
+        Category string `form:"category,optional"`      // 按分类过滤
+    }
+
+    SiteMessageUnreadListResp {
+        Items      []SiteMessage `json:"items"`
+        Total      uint64        `json:"total"`
+        UnreadCount uint64       `json:"unreadCount"`
+    }
+
+        // 获取所有消息列表
+    SiteMessageListReq {
+        Page        uint64 `form:"page,optional,default=1"`
+        PageSize    uint64 `form:"pageSize,optional,default=20"`
+        MessageType string `form:"messageType,optional"`   // 消息类型过滤
+        Severity    string `form:"severity,optional"`      // 严重级别过滤
+        Category    string `form:"category,optional"`      // 分类过滤
+        IsRead      int64  `form:"isRead,optional,default=-1"` // -1=全部, 0=未读, 1=已读
+        IsStarred   int64  `form:"isStarred,optional,default=-1"` // -1=全部, 0=未标星, 1=已标星
+        StartTime   int64  `form:"startTime,optional"`     // 开始时间（Unix时间戳）
+        EndTime     int64  `form:"endTime,optional"`       // 结束时间（Unix时间戳）
+        Keyword     string `form:"keyword,optional"`       // 关键词搜索（标题+内容）
+    }
+
+    SiteMessageListResp {
+        Items []SiteMessage `json:"items"`
+        Total uint64        `json:"total"`
+        Page  uint64        `json:"page"`
+        PageSize uint64     `json:"pageSize"`
+    }
+
+        // 获取消息详情
+    SiteMessageDetailReq {
+        Id uint64 `path:"id"`
+    }
+
+    SiteMessageDetailResp {
+        Message SiteMessage `json:"message"`
+    }
+
+        // 标记消息已读
+    SiteMessageMarkReadReq {
+        Ids []uint64 `json:"ids"` // 支持批量标记
+    }
+
+    SiteMessageMarkReadResp {
+        Success bool   `json:"success"`
+        Count   int    `json:"count"`
+        Message string `json:"message"`
+    }
+
+        // 标记所有消息已读
+    SiteMessageMarkAllReadReq {
+        // 通过 JWT token 获取 userId
+    }
+
+    SiteMessageMarkAllReadResp {
+        Success bool   `json:"success"`
+        Count   int    `json:"count"`
+        Message string `json:"message"`
+    }
+
+        // 删除消息
+    SiteMessageDeleteReq {
+        Ids []uint64 `json:"ids"` // 支持批量删除
+    }
+
+    SiteMessageDeleteResp {
+        Success bool   `json:"success"`
+        Count   int    `json:"count"`
+        Message string `json:"message"`
+    }
+
+        // 标星/取消标星
+    SiteMessageToggleStarReq {
+        Id       uint64 `json:"id"`
+        IsStarred int64 `json:"isStarred"` // 0=取消, 1=标星
+    }
+
+    SiteMessageToggleStarResp {
+        Success   bool   `json:"success"`
+        IsStarred int64  `json:"isStarred"`
+        Message   string `json:"message"`
+    }
+
+        // 获取消息统计
+    SiteMessageStatsReq {
+        // 通过 JWT token 获取 userId
+    }
+
+    SiteMessageStatsResp {
+        Total      uint64                      `json:"total"`      // 总消息数
+        Unread     uint64                      `json:"unread"`     // 未读数
+        Read       uint64                      `json:"read"`       // 已读数
+        Starred    uint64                      `json:"starred"`    // 标星数
+        BySeverity map[string]uint64           `json:"bySeverity"` // 按严重级别统计
+        ByCategory map[string]uint64           `json:"byCategory"` // 按分类统计
+        ByType     map[string]uint64           `json:"byType"`     // 按类型统计
+        Recent     []SiteMessage               `json:"recent"`     // 最近10条未读消息
+    }
+
+        // 清空已读消息
+    SiteMessageClearReadReq {
+                                                    // 通过 JWT token 获取 userId
+        OlderThan int64 `json:"olderThan,optional"` // 清空指定时间之前的已读消息（Unix时间戳）
+    }
+
+    SiteMessageClearReadResp {
+        Success bool   `json:"success"`
+        Count   int    `json:"count"`
+        Message string `json:"message"`
+    }
+)
+
+// ==================== WebSocket 路由 ====================
+@server(
+    middleware: JWTAuthMiddleware
+    group: sitemessage
+    prefix: /ws/v1/message
+)
+service console-api {
+    @doc "站内消息实时推送（WebSocket）"
+    @handler SiteMessageConnect
+    get /connect (SiteMessageConnectReq) // WebSocket
+}
+
+// ==================== REST API 路由 ====================
+@server(
+    middleware: JWTAuthMiddleware
+    group: sitemessage
+    prefix: /console/v1/message
+)
+service console-api {
+    @doc "获取未读消息列表"
+    @handler SiteMessageUnreadList
+    get /unread (SiteMessageUnreadListReq) returns (SiteMessageUnreadListResp)
+
+    @doc "获取所有消息列表"
+    @handler SiteMessageList
+    get /list (SiteMessageListReq) returns (SiteMessageListResp)
+
+    @doc "获取消息详情"
+    @handler SiteMessageDetail
+    get /detail/:id (SiteMessageDetailReq) returns (SiteMessageDetailResp)
+
+    @doc "标记消息已读"
+    @handler SiteMessageMarkRead
+    post /mark-read (SiteMessageMarkReadReq) returns (SiteMessageMarkReadResp)
+
+    @doc "标记所有消息已读"
+    @handler SiteMessageMarkAllRead
+    post /mark-all-read (SiteMessageMarkAllReadReq) returns (SiteMessageMarkAllReadResp)
+
+    @doc "删除消息"
+    @handler SiteMessageDelete
+    post /delete (SiteMessageDeleteReq) returns (SiteMessageDeleteResp)
+
+    @doc "标星/取消标星"
+    @handler SiteMessageToggleStar
+    post /toggle-star (SiteMessageToggleStarReq) returns (SiteMessageToggleStarResp)
+
+    @doc "获取消息统计"
+    @handler SiteMessageStats
+    get /stats (SiteMessageStatsReq) returns (SiteMessageStatsResp)
+
+    @doc "清空已读消息"
+    @handler SiteMessageClearRead
+    post /clear-read (SiteMessageClearReadReq) returns (SiteMessageClearReadResp)
+}

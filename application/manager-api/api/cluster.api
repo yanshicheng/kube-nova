@@ -1,0 +1,332 @@
+syntax = "v1"
+
+info(
+    title: "Cluster Management API"
+    desc: "集群管理相关接口"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // 集群基本信息
+    Cluster {
+        Id uint64 `json:"id"`                           // 自增主键
+        Name string `json:"name"`                       // 集群名称
+        Uuid string `json:"uuid"`                       // 集群唯一标识UUID
+        Avatar string `json:"avatar"`                   // 头像URL
+        Environment string `json:"environment"`         // 环境类型
+        ClusterType string `json:"clusterType"`         // 集群类型
+        Version string `json:"version"`                 // Kubernetes版本
+        Status int64 `json:"status"`                    // 集群状态: 1-同步中 2-同步异常 3-同步正常
+        HealthStatus int64 `json:"healthStatus"`        // 健康状态: 1-健康 2-不健康 3-降级 4-未知
+        CpuUsage string `json:"cpuUsage"`
+        MemoryUsage string `json:"memoryUsage"`
+        PodUsage string `json:"podUsage"`
+        StorageUsage string `json:"storageUsage"`
+        createdAt int64 `json:"createdAt"`
+    }
+        //        // 节点总数
+        //    NodeCount int64 `json:"nodeCount"`
+        //    // pod 总数
+        //PodCount int64 `json:"podCount"`
+        //    // ns 总数
+        //NamespaceCount int64 `json:"namespaceCount"`
+        //    // service 总数
+        //ServiceCount int64 `json:"serviceCount"`
+        //    // deploy 总数
+        //DeploymentCount int64 `json:"deploymentCount"`
+        //    // sts 总数
+        //StatefulSetCount int64 `json:"statefulSetCount"`
+        // 集群详情
+    ClusterDetail {
+        Id uint64 `json:"id"`                            // 自增主键
+        Name string `json:"name"`                        // 集群名称
+        Avatar string `json:"avatar"`                    // 头像URL
+        Uuid string `json:"uuid"`                        // 集群唯一标识UUID
+        Description string `json:"description"`          // 集群描述信息
+        ClusterType string `json:"clusterType"`          // 集群类型: standard/edge/serverless
+        Environment string `json:"environment"`          // 环境类型: development/testing/staging/production
+        Region string `json:"region"`                    // 地域信息
+        Zone string `json:"zone"`                        // 可用区信息
+        Datacenter string `json:"datacenter"`            // 数据中心名称
+        Provider string `json:"provider"`                // 云提供商
+        IsManaged int64 `json:"isManaged"`               // 是否为云厂商托管集群
+        NodeLb string `json:"nodeLb"`                    // Node负载均衡IP地址 支持 ipv4 ipv6 多个逗号分隔
+        MasterLb string `json:"masterLb"`                // Master负载均衡IP地址 支持 ipv4 ipv6 多个逗号分隔
+        IngressDomain string `json:"ingressDomain"`      // 配置可用的域名前缀， 注意是域名前缀不是ip 例如 ikubeops.com 多个逗号分隔
+        Status int64 `json:"status"`                     // 集群状态
+        HealthStatus int64 `json:"healthStatus"`         // 健康状态
+        LastSyncAt int64 `json:"lastSyncAt"`             // 最后同步时间
+        Version string `json:"version"`                  // Kubernetes版本
+        GitCommit string `json:"gitCommit"`              // Kubernetes Git提交版本
+        Platform string `json:"platform"`                // 集群平台
+        VersionBuildAt int64 `json:"versionBuildAt"`     // Kubernetes版本构建时间
+        ClusterCreatedAt int64 `json:"clusterCreatedAt"` // 集群创建时间
+        CostCenter string `json:"costCenter"`            // 成本中心编码
+        BusinessUnit string `json:"businessUnit"`        // 业务单元名称
+        OwnerTeam string `json:"ownerTeam"`              // 负责团队名称
+        OwnerEmail string `json:"ownerEmail"`            // 负责人邮箱
+        Priority int64 `json:"priority"`                 // 集群优先级
+        CreatedBy string `json:"createdBy"`              // 记录创建人
+        UpdatedBy string `json:"updatedBy"`              // 记录最后更新人
+        CreatedAt int64 `json:"createdAt"`               // 记录创建时间
+        UpdatedAt int64 `json:"updatedAt"`               // 记录更新时间
+    }
+        // 连通性相关
+    TestClusterConnectivityRequest {
+        AuthType string `json:"authType" validate:"required,oneof=kubeconfig token certificate incluster"` // 认证类型
+        ApiServerHost string `json:"apiServerHost" validate:"omitempty,url"`                               // API Server地址
+        KubeFile string `json:"kubeFile,optional" validate:"omitempty"`                                    // KubeConfig文件内容
+        Token string `json:"token,optional" validate:"omitempty"`                                          // Bearer Token
+        CaCert string `json:"caCert,optional" validate:"omitempty"`                                        // CA证书内容
+        CaFile string `json:"caFile,optional" validate:"omitempty,max=500"`                                // CA证书文件路径
+        ClientCert string `json:"clientCert,optional" validate:"omitempty"`                                // 客户端证书内容
+        CertFile string `json:"certFile,optional" validate:"omitempty,max=500"`                            // 客户端证书文件路径
+        ClientKey string `json:"clientKey,optional" validate:"omitempty"`                                  // 客户端密钥内容
+        KeyFile string `json:"keyFile,optional" validate:"omitempty,max=500"`                              // 客户端密钥文件路径
+        InsecureSkipVerify int64 `json:"insecureSkipVerify,optional" validate:"omitempty,oneof=0 1"`       // 是否跳
+    }
+        // 添加集群请求 - multipart/form-data
+    AddClusterRequest {
+        Name string `form:"name"  validate:"min=1,max=100"`                                                                                                            // 集群名称，全局唯一
+        Description string `form:"description,optional"  validate:"omitempty,max=500"`                                                                                 // 集群描述信息
+        ClusterType string `form:"clusterType" validate:"oneof=standard edge serverless"`                                                                              // 集群类型
+        Environment string `form:"environment"  validate:"required"`                                                                                                   // 环境类型
+        Region string `form:"region,optional" validate:"omitempty,max=50"`                                                                                             // 地域信息
+        Zone string `form:"zone,optional"  validate:"omitempty,max=50"`                                                                                                // 可用区信息
+        Datacenter string `form:"datacenter,optional" validate:"omitempty,max=100"`                                                                                    // 数据中心名称
+        Provider string `form:"provider"  validate:"required,oneof=aws azure gcp alibaba tencent huawei self-hosted"`                                                  // 云提供商
+        IsManaged int64 `form:"isManaged,optional"  validate:"omitempty,oneof=0 1"`                                                                                    // 是否为云厂商托管集群
+        NodeLb string `form:"nodeLb,optional" validate:"omitempty"`                                                                                                    // Node负载均衡IP地址 支持 ipv4 ipv6 多个逗号分隔
+        MasterLb string `form:"masterLb,optional"  validate:"omitempty"`                                                                                               // Master负载均衡IP地址 支持 ipv4 ipv6 多个逗号分隔
+        IngressDomain string `form:"ingressDomain,optional"  validate:"omitempty"`                                                                                     // 配置可用的域名前缀， 注意是域名前缀不是ip 例如 ikubeops.com 多个逗号分隔// Master负载均衡IP地址
+        AuthType string `form:"authType" validate:"required,oneof=kubeconfig token certificate incluster"`                                                             // 认证类型
+        ApiServerHost string `form:"apiServerHost,optional"  validate:"omitempty,url"`                                                                                 // API Server地址
+        KubeFile string `form:"kubeFile,optional"  validate:"omitempty"`                                                                                               // KubeConfig文件内容
+        Token string `form:"token,optional" validate:"omitempty"`                                                                                                      // Bearer Token
+        CaCert string `form:"caCert,optional" validate:"omitempty"`                                                                                                    // CA证书内容
+        CaFile string `form:"caFile,optional" validate:"omitempty,max=500"`                                                                                            // CA证书文件路径
+        ClientCert string `form:"clientCert,optional"   validate:"omitempty"`                                                                                          // 客户端证书内容
+        CertFile string `form:"certFile,optional" validate:"omitempty,max=500"`                                                                                        // 客户端证书文件路径
+        ClientKey string `form:"clientKey,optional"  validate:"omitempty"`                                                                                             // 客户端密钥内容
+        KeyFile string `form:"keyFile,optional" validate:"omitempty,max=500"`                                                                                          // 客户端密钥文件路径
+        InsecureSkipVerify int64 `form:"insecureSkipVerify,optional"  validate:"omitempty,oneof=0 1"`                                                                  // 是否跳过TLS证书验证
+    }
+
+        // 更新集群请求 - multipart/form-data
+    UpdateClusterRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                                                                                            // 集群ID
+        Name string `json:"name" validate:"omitempty,min=1,max=100"`                                                                              // 集群名称
+        Description string `json:"description" validate:"omitempty,max=500"`                                                                      // 集群描述信息
+        ClusterType string `json:"clusterType" validate:"omitempty,oneof=standard edge serverless"`                                               // 集群类型
+        Environment string `json:"environment" validate:"omitempty`                                                                               // 环境类型
+        Region string `json:"region" validate:"omitempty,max=50"`                                                                                 // 地域信息
+        Zone string `json:"zone" validate:"omitempty,max=50"`                                                                                     // 可用区信息
+        Datacenter string `json:"datacenter" validate:"omitempty,max=100"`                                                                        // 数据中心名称
+        Provider string `json:"provider" validate:"omitempty,oneof=aws azure gcp alibaba tencent huawei self-hosted"`                             // 云提供商
+        IsManaged int64 `json:"isManaged" validate:"omitempty,oneof=0 1"`                                                                         // 是否为云厂商托管集群
+        NodeLb string `json:"nodeLb,optional" validate:"omitempty"`                                                                               // Node负载均衡IP地址 支持 ipv4 ipv6 多个逗号分隔
+        MasterLb string `json:"masterLb,optional"  validate:"omitempty"`                                                                          // Master负载均衡IP地址 支持 ipv4 ipv6 多个逗号分隔
+        IngressDomain string `json:"ingressDomain" validate:"omitempty"`                                                                          // 配置可用的域名前缀， 注意是域名前缀不是ip 例如 ikubeops.com 多个逗号分隔// Master负载均衡IP地址                                                         // Master负载均衡IP地址
+    }
+
+        // 搜索集群请求
+    SearchClusterRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                  // 当前页码
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"` // 每页条数
+        OrderStr string `form:"orderStr,optional" default:"id" validate:"omitempty"`              // 排序字段
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                   // 是否升序
+        Name string `form:"name,optional" validate:"omitempty,max=100"`                           // 集群名称
+        Uuid string `form:"uuid,optional" validate:"omitempty"`
+        Environment string `form:"environment,optional" validate:"omitempty`
+    }
+
+        // 搜索集群响应
+    SearchClusterResponse {
+        Items []Cluster `json:"items"`  // 集群列表
+        Total uint64 `json:"total"`     // 总条数
+    }
+
+
+
+
+
+        // 集群认证信息
+    ClusterAuthInfo {
+        Id uint64 `json:"id"`                                // 自增主键
+        ClusterUuid string `json:"clusterUuid"`              // 关联的集群UUID
+        AuthType string `json:"authType"`                    // 认证类型
+        ApiServerHost string `json:"apiServerHost"`          // API Server地址
+        KubeFile string `json:"kubeFile"`                    // KubeConfig文件内容
+        Token string `json:"token"`                          // Token
+        CaCert string `json:"caCert"`                        // CA证书内容
+        CaFile string `json:"caFile"`                        // CA证书文件路径
+        ClientCert string `json:"clientCert"`                // 客户端证书内容
+        CertFile string `json:"certFile"`                    // 客户端证书文件路径
+        ClientKey string `json:"clientKey"`                  // 客户端密钥内容
+        KeyFile string `json:"keyFile"`                      // 客户端密钥文件路径
+        InsecureSkipVerify int64 `json:"insecureSkipVerify"` // 是否跳过TLS证书验证
+        CreatedAt int64 `json:"createdAt"`                   // 记录创建时间
+        UpdatedAt int64 `json:"updatedAt"`                   // 记录更新时间
+    }
+
+        // 集群资源信息
+    ClusterResourceInfo {
+        Id uint64 `json:"id"`                                            // 自增主键
+        ClusterUuid string `json:"clusterUuid"`                          // 关联的集群UUID
+        CpuPhysicalCapacity float64 `json:"cpuPhysicalCapacity"`         // CPU物理总容量（核数）
+        CpuAllocatedTotal float64 `json:"cpuAllocatedTotal"`             // CPU实际分配总量（所有project_cluster表cpu_limit的总和）
+        CpuCapacityTotal float64 `json:"cpuCapacityTotal"`               // CPU超分后总容量（所有project_cluster表cpu_capacity的总和）
+        MemPhysicalCapacity float64 `json:"memPhysicalCapacity"`         // 内存物理总容量（GiB）
+        MemAllocatedTotal float64 `json:"memAllocatedTotal"`             // 内存实际分配总量（所有project_cluster表mem_limit的总和）
+        MemCapacityTotal float64 `json:"memCapacityTotal"`               // 内存超分后总容量（所有project_cluster表mem_capacity的总和）
+        StoragePhysicalCapacity float64 `json:"storagePhysicalCapacity"` // 存储物理总容量（GiB）
+        StorageAllocatedTotal float64 `json:"storageAllocatedTotal"`     // 存储分配总量（所有project_cluster表storage_limit的总和）
+        GpuPhysicalCapacity float64 `json:"gpuPhysicalCapacity"`         // GPU物理总容量（个）
+        GpuAllocatedTotal float64 `json:"gpuAllocatedTotal"`             // GPU实际分配总量（所有project_cluster表gpu_limit的总和）
+        GpuCapacityTotal float64 `json:"gpuCapacityTotal"`               // GPU超分后总容量（所有project_cluster表gpu_capacity的总和）
+        GpuUsedTotal float64 `json:"gpuUsedTotal"`                       // GPU实际使用总量（个）
+        PodsPhysicalCapacity int64 `json:"podsPhysicalCapacity"`         // Pod物理总容量（个）
+        PodsAllocatedTotal int64 `json:"podsAllocatedTotal"`             // Pod分配总量（所有project_cluster表pods_limit的总和）
+    }
+        // 修改集群头像
+    ClusterUpdateAvatarRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"` // 集群ID
+        Avatar string `form:"avatar, optional" validate:"omitempty"`
+    }
+        // 修改集群认证信息
+    UpdateClusterAuthInfoRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+        AuthType string `json:"authType" validate:"required,oneof=kubeconfig token certificate incluster"`                            // 认证类型
+        ApiServerHost string `json:"apiServerHost"  validate:"omitempty,url"`                                                         // API Server地址
+        KubeFile string `json:"kubeFile"  validate:"omitempty"`                                                                       // KubeConfig文件内容
+        Token string `json:"token" validate:"omitempty"`                                                                              // Bearer Token
+        CaCert string `json:"caCert" validate:"omitempty"`                                                                            // CA证书内容
+        CaFile string `json:"caFile" validate:"omitempty,max=500"`                                                                    // CA证书文件路径
+        ClientCert string `json:"clientCert"   validate:"omitempty"`                                                                  // 客户端证书内容
+        CertFile string `json:"certFile" validate:"omitempty,max=500"`                                                                // 客户端证书文件路径
+        ClientKey string `json:"clientKey"  validate:"omitempty"`                                                                     // 客户端密钥内容
+        KeyFile string `json:"keyFile" validate:"omitempty,max=500"`                                                                  // 客户端密钥文件路径
+        InsecureSkipVerify int64 `json:"insecureSkipVerify"  validate:"omitempty,oneof=0 1"`
+    }
+
+        //   请求某一个集群的ingress域名列表
+    GetClusterIngressDomainsRequest {
+        ClusterUuid string `path:"clusterUuid" validate:"required"`
+    }
+
+        // 修改集群资源的存储容量
+    UpdateClusterStorageCapacityRequest {
+        ResourceId uint64 `path:"resourceId"`
+        StoragePhysicalCapacity float64 `json:"storagePhysicalCapacity" validate:"required"`
+    }
+        // 集群网络配置信息
+    ClusterNetwork {
+        Id uint64 `json:"id"`                                         // 自增主键
+        ClusterUuid string `json:"clusterUuid"`                       // 关联的集群UUID
+
+                                                                      // 网络CIDR配置
+        ClusterCidr string `json:"clusterCidr"`                       // Pod网络CIDR
+        ServiceCidr string `json:"serviceCidr"`                       // Service网络CIDR
+        NodeCidrMaskSize int64 `json:"nodeCidrMaskSize"`              // 节点CIDR掩码大小
+
+                                                                      // DNS配置
+        DnsDomain string `json:"dnsDomain"`                           // DNS域名后缀
+        DnsServiceIp string `json:"dnsServiceIp"`                     // DNS服务IP地址
+        DnsProvider string `json:"dnsProvider"`                       // DNS提供者
+
+                                                                      // 网络插件配置
+        CniPlugin string `json:"cniPlugin"`                           // CNI网络插件
+        CniVersion string `json:"cniVersion"`                         // CNI插件版本
+        ProxyMode string `json:"proxyMode"`                           // 代理模式
+
+                                                                      // Ingress配置
+        IngressController string `json:"ingressController"`           // Ingress控制器
+        IngressClass string `json:"ingressClass"`                     // 默认Ingress类
+
+                                                                      // 高级网络配置
+        Ipv6Enabled int64 `json:"ipv6Enabled"`                        // 是否启用IPv6
+        DualStackEnabled int64 `json:"dualStackEnabled"`              // 是否启用双栈网络
+        MtuSize int64 `json:"mtuSize"`                                // MTU大小
+        EnableNodePort bool `json:"enableNodePort"`                   // 是否启用NodePort
+        NodePortRange string `json:"nodePortRange"`                   // NodePort端口范围
+
+                                                                      // 审计字段
+        CreatedBy string `json:"createdBy"`                           // 记录创建人
+        UpdatedBy string `json:"updatedBy"`                           // 记录更新人
+        CreatedAt int64 `json:"createdAt"`                            // 记录创建时间
+        UpdatedAt int64 `json:"updatedAt"`                            // 记录更新时间
+    }
+        // 获取集群网络配置请求
+    GetClusterNetworkRequest {
+        ClusterUuid string `path:"clusterUuid" validate:"required,uuid"` // 集群UUID
+    }
+    GetClusterNamespaceListRequest {
+        ClusterUuid string `path:"clusterUuid" validate:"required"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: cluster
+    prefix: /manager/v1/cluster
+)
+service manager-api {
+    // 修改集群认证信息
+    @handler UpdateClusterAuthInfoHandler
+    put /:id/auth (UpdateClusterAuthInfoRequest) returns (string)
+    // 修改集群头像
+    @handler UpdateClusterAvatarHandler
+    put /:id/avatar (ClusterUpdateAvatarRequest) returns (string)
+    // 添加集群 - multipart/form-data
+    @handler AddClusterHandler
+    post / (AddClusterRequest) returns (string)
+
+    // 更新集群 - multipart/form-data
+    @handler UpdateClusterHandler
+    put /:id (UpdateClusterRequest) returns (string)
+
+    // 删除集群
+    @handler DeleteClusterHandler
+    delete /:id (DefaultIdRequest) returns (string)
+
+    // 获取集群详情
+    @handler GetClusterDetailHandler
+    get /:id (DefaultIdRequest) returns (ClusterDetail)
+
+    // 搜索集群列表
+    @handler SearchClusterHandler
+    get / (SearchClusterRequest) returns (SearchClusterResponse)
+
+
+    // 获取集群认证信息
+    @handler GetClusterAuthInfoHandler
+    get /:id/auth (DefaultIdRequest) returns (ClusterAuthInfo)
+
+    // 获取集群资源信息
+    @handler GetClusterResourceInfoHandler
+    get /:id/resource (DefaultIdRequest) returns (ClusterResourceInfo)
+
+    // 测试集群连通性
+    @handler TestClusterConnectivityHandler
+    post /test (TestClusterConnectivityRequest) returns (string)
+
+    // 返回某一个集群的ingress域名列表
+    @handler GetClusterIngressDomainsHandler
+    get /:clusterUuid/ingress (GetClusterIngressDomainsRequest) returns ([]string)
+
+    // 设置集群的存储容量
+    @handler UpdateClusterStorageCapacityHandler
+    put /:resourceId/storage (UpdateClusterStorageCapacityRequest) returns (string)
+
+    // 获取集群网络配置
+    @handler GetClusterNetworkHandler
+    get /:clusterUuid/network (GetClusterNetworkRequest) returns (ClusterNetwork)
+
+    // 获取某一个集群的所有ns
+    @handler GetClusterNamespacesHandler
+    get /:clusterUuid/namespaces (GetClusterNamespaceListRequest) returns ([]string)
+}

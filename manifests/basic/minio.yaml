@@ -1,0 +1,200 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: minio-credentials
+  namespace: kube-nova
+  labels:
+    app: minio
+type: Opaque
+stringData:
+  MINIO_ROOT_USER: "kube-nova-admin"
+  MINIO_ROOT_PASSWORD: "KubeNova@2024SecretKey!"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-init-script
+  namespace: kube-nova
+data:
+  init-bucket.sh: |
+    #!/bin/sh
+    set -e
+
+    echo "=========================================="
+    echo "MinIO 桶初始化脚本"
+    echo "=========================================="
+
+    # 等待 MinIO 服务启动
+    echo "[1/4] 等待 MinIO 服务就绪..."
+    
+    # 使用 mc 命令检查 MinIO 是否就绪
+    MAX_RETRIES=60
+    RETRY_COUNT=0
+    
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+      if mc alias set myminio http://minio-service:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} 2>/dev/null; then
+        echo "MinIO 服务已就绪！"
+        break
+      fi
+      echo "MinIO 未就绪，等待中... ($((RETRY_COUNT+1))/$MAX_RETRIES)"
+      sleep 5
+      RETRY_COUNT=$((RETRY_COUNT+1))
+    done
+
+    if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+      echo "错误: MinIO 服务在 $((MAX_RETRIES*5)) 秒后仍未就绪"
+      exit 1
+    fi
+
+    # 创建桶
+    echo "[2/4] 创建桶: kube-nova"
+    mc mb myminio/kube-nova --ignore-existing
+
+    # 设置桶为公开访问
+    echo "[3/4] 设置桶为公开访问..."
+    mc anonymous set download myminio/kube-nova
+
+    # 验证配置
+    echo "[4/4] 验证配置..."
+    mc ls myminio/
+
+    echo "=========================================="
+    echo "桶初始化完成！"
+    echo "桶名称: kube-nova"
+    echo "访问权限: 公开（匿名下载）"
+    echo "=========================================="
+
+---
+# Deployment - MinIO 服务器
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: kube-nova
+  labels:
+    app: minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+        - name: minio
+          image: registry.cn-hangzhou.aliyuncs.com/kube-nova/minio:latest
+          args:
+            - server
+            - /data
+            - --console-address
+            - ":9001"
+          ports:
+            - name: api
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: MINIO_ROOT_PASSWORD
+          volumeMounts:
+            - name: minio-storage
+              mountPath: /data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: minio-storage
+          persistentVolumeClaim:
+            claimName: minio-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service
+  namespace: kube-nova
+  labels:
+    app: minio
+spec:
+  type: ClusterIP
+  ports:
+    - name: api
+      port: 9000
+      targetPort: 9000
+    - name: console
+      port: 9001
+      targetPort: 9001
+  selector:
+    app: minio
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-init-bucket
+  namespace: kube-nova
+  labels:
+    app: minio
+    component: init
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        app: minio
+        component: init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: registry.cn-hangzhou.aliyuncs.com/kube-nova/minio:latest
+          command: ["/bin/sh", "/scripts/init-bucket.sh"]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-credentials
+                  key: MINIO_ROOT_PASSWORD
+          volumeMounts:
+            - name: init-script
+              mountPath: /scripts
+      volumes:
+        - name: init-script
+          configMap:
+            name: minio-init-script
+            defaultMode: 0755

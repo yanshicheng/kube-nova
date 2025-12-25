@@ -1,0 +1,112 @@
+syntax = "v1"
+
+info(
+    title: "SysAuth Service API"
+    desc: "API 服务用于管理系统认证相关操作"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+type (
+    // Token信息
+    TokenResponse {
+        AccessToken string `json:"accessToken"`           // 访问令牌
+        AccessExpiresIn int64 `json:"accessExpiresIn"`    // 访问令牌过期时间（秒）
+        RefreshToken string `json:"refreshToken"`         // 刷新令牌
+        RefreshExpiresIn int64 `json:"refreshExpiresIn"`  // 刷新令牌过期时间（秒）
+    }
+
+        // 登录请求
+    LoginRequest {
+        Username string `json:"username" validate:"required,min=4"`   // 用户名
+        Password string `json:"password" validate:"required,min=6"`   // 密码
+    }
+
+        // 登录响应
+    LoginResponse {
+        UserId uint64 `json:"userId"`          // 用户ID
+        Username string `json:"username"`      // 用户名
+        NickName string `json:"nickName"`      // 昵称
+        Uuid string `json:"uuid"`              // 用户UUID
+        Roles []string `json:"roles"`          // 角色列表
+        Token TokenResponse `json:"token"`     // Token信息
+    }
+
+        // 刷新Token请求
+    RefreshTokenRequest {
+        RefreshToken string `json:"refreshToken" validate:"required"` // 刷新令牌
+    }
+
+        // 刷新Token响应
+    RefreshTokenResponse {
+        AccessToken string `json:"accessToken"`           // 访问令牌
+        AccessExpiresIn int64 `json:"accessExpiresIn"`    // 访问令牌过期时间（秒）
+    }
+
+        // 登出请求
+    LogoutRequest {
+        Username string `json:"username,optional"`  // 用户名
+        Uuid string `json:"uuid,optional"`          // 用户UUID
+    }
+
+        // 登出响应
+    LogoutResponse {
+        Success bool `json:"success"`   // 是否成功
+        Message string `json:"message"` // 消息
+    }
+
+        // 获取权限码响应
+
+
+        // 验证Token请求
+    VerifyTokenRequest {
+        Token string `json:"token" validate:"required"` // 令牌
+    }
+
+        // 验证Token响应
+    VerifyTokenResponse {
+        IsValid bool `json:"isValid"`              // 令牌是否有效
+        ErrorType int64 `json:"errorType"`         // 错误类型
+        ErrorMessage string `json:"errorMessage"`  // 错误信息
+        ExpireTime int64 `json:"expireTime"`       // 过期时间（Unix 时间戳）
+        UserId uint64 `json:"userId"`              // 用户ID
+        Username string `json:"username"`          // 用户名
+        Uuid string `json:"uuid"`                  // 用户UUID
+        NickName string `json:"nickName"`          // 昵称
+        Roles []string `json:"roles"`              // 角色列表
+    }
+)
+
+@server(
+    group: auth
+    prefix: /portal/v1/auth
+)
+service portal-api {
+    // 登录
+    @handler LoginHandler
+    post /login (LoginRequest) returns (LoginResponse)
+}
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: auth
+    prefix: /portal/v1/auth
+)
+service portal-api {
+    // 登出
+    @handler LogoutHandler
+    post /logout (LogoutRequest) returns (LogoutResponse)
+
+    // 刷新Token
+    @handler RefreshTokenHandler
+    post /refresh-token (RefreshTokenRequest) returns (RefreshTokenResponse)
+
+    // 验证Token
+    @handler VerifyTokenHandler
+    post /verify-token (VerifyTokenRequest) returns (VerifyTokenResponse)
+
+    // 获取权限码
+    @handler GetCodesHandler
+    get /codes returns ([]string)
+}

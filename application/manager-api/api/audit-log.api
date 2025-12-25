@@ -1,0 +1,104 @@
+syntax = "v1"
+
+info(
+    title: "Project Audit Log API"
+    desc: "项目审计日志相关接口"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // ===================== 审计日志相关 =====================
+
+    // 审计日志信息
+    ProjectAuditLog {
+        Id uint64 `json:"id"`                                 // 主键ID
+        ClusterName string `json:"clusterName"`               // 集群名称
+        ClusterUuid string `json:"clusterUuid"`               // 集群UUID
+        ProjectId uint64 `json:"projectId"`                   // 项目ID
+        ProjectName string `json:"projectName"`               // 项目名称
+        WorkspaceId uint64 `json:"workspaceId"`               // 工作空间ID，0表示项目级别操作
+        WorkspaceName string `json:"workspaceName"`           // 工作空间名称
+        ApplicationId uint64 `json:"applicationId"`           // 应用ID
+        ApplicationName string `json:"applicationName"`       // 应用名称
+        Title string `json:"title"`                           // 操作简称，如"资源副本扩容"
+        ActionDetail string `json:"actionDetail"`             // 操作详情描述
+        Status int64 `json:"status"`                          // 操作状态 1:成功 0:失败
+        OperatorId uint64 `json:"operatorId"`                 // 操作人用户ID
+        OperatorName string `json:"operatorName"`             // 操作人姓名
+        CreatedAt int64 `json:"createdAt"`                    // 记录创建时间（时间戳）
+        UpdatedAt int64 `json:"updatedAt"`                    // 记录更新时间（时间戳）
+    }
+
+
+
+        // 删除审计日志请求
+    DeleteProjectAuditLogRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`        // 审计日志ID
+    }
+
+        // 批量删除审计日志请求
+    BatchDeleteProjectAuditLogRequest {
+        Ids []uint64 `json:"ids" validate:"required,min=1,max=100,dive,gt=0"`    // 审计日志ID列表，最多100个
+    }
+
+        // 删除指定天数之前的审计日志请求
+    DeleteProjectAuditLogBeforeDaysRequest {
+        Days uint64 `json:"days" validate:"required,gte=1"`   // 删除多少天之前的数据，至少1天
+    }
+
+        // 搜索审计日志请求
+    SearchProjectAuditLogRequest {
+        Page uint64 `form:"page,optional" validate:"omitempty,gt=0"`                             // 页码，默认1
+        PageSize uint64 `form:"pageSize,optional" validate:"omitempty,gte=1,lte=100"`            // 每页数量，默认20，最大100
+        OrderField string `form:"orderField,optional" validate:"omitempty,max=50"`               // 排序字段，默认id
+        IsAsc bool `form:"isAsc,optional"`                                                       // 是否升序，默认false（降序）
+        ClusterUuid string `form:"clusterUuid,optional" validate:"omitempty,uuid"`               // 集群UUID筛选（可选）
+        WorkspaceId int64 `form:"workspaceId,optional" validate:"omitempty"`                     // 工作空间ID筛选（可选，-1表示项目级别操作）
+        ApplicationId int64 `form:"applicationId,optional" validate:"omitempty"`                 // 应用ID筛选（可选，-1表示不筛选）
+        Title string `form:"title,optional" validate:"omitempty,max=200"`                        // 操作简称模糊搜索（可选）
+        OperatorName string `form:"operatorName,optional" validate:"omitempty,max=100"`          // 操作人姓名模糊搜索（可选）
+        StartAt int64 `form:"startAt,optional" validate:"omitempty"`                             // 创建时间筛选（可选，时间戳）
+        EndAt int64 `form:"endAt,optional" validate:"omitempty"`
+        Status int64 `form:"status,optional" validate:"omitempty"`
+        ProjectId int64 `form:"projectId,optional" validate:"omitempty"`
+    }
+
+        // 搜索审计日志响应
+    SearchProjectAuditLogResponse {
+        Items []ProjectAuditLog `json:"items"`                // 审计日志列表
+        Total uint64 `json:"total"`                           // 总数
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: projectauditlog
+    prefix: /manager/v1/project/audit-log
+)
+service manager-api {
+    // ============= 项目审计日志相关接口 =============
+
+    // 删除审计日志
+    @doc "删除指定的审计日志记录"
+    @handler DeleteProjectAuditLogHandler
+    delete /:id (DeleteProjectAuditLogRequest) returns (string)
+
+    // 批量删除审计日志
+    @doc "批量删除审计日志记录，最多100条"
+    @handler BatchDeleteProjectAuditLogHandler
+    post /batch-delete (BatchDeleteProjectAuditLogRequest) returns (string)
+
+    // 删除指定天数之前的审计日志
+    @doc "删除指定天数之前的审计日志数据，用于定期清理历史数据"
+    @handler DeleteProjectAuditLogBeforeDaysHandler
+    post /delete-before-days (DeleteProjectAuditLogBeforeDaysRequest) returns (string)
+
+    // 搜索审计日志
+    @doc "搜索审计日志列表，支持分页和多条件筛选"
+    @handler SearchProjectAuditLogHandler
+    get /search (SearchProjectAuditLogRequest) returns (SearchProjectAuditLogResponse)
+}

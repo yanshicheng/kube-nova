@@ -1,0 +1,18 @@
+syntax = "v1"
+
+info (
+	title:   "type title here"
+	desc:    "type desc here"
+	author:  "type author here"
+	email:   "type email here"
+	version: "type version here"
+)
+
+import "api/pod.api"
+import "api/repository.api"
+import "api/monitor.api"
+import "api/cluster-monitor.api"
+import "api/flagger-monitor.api"
+import "api/ingress-monitor.api"
+import "api/namespace-monitor.api"
+import "api/node-monitor.api"

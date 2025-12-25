@@ -1,0 +1,3 @@
+FindOne(ctx context.Context, {{.lowerStartCamelPrimaryKey}} {{.dataType}}) (*{{.upperStartCamelObject}}, error)
+Search(ctx context.Context,  orderStr string, isAsc bool, page, pageSize uint64, queryStr string, args ...any) ([]*{{.upperStartCamelObject}}, uint64, error)
+SearchNoPage(ctx context.Context, orderStr string, isAsc bool,  queryStr string, args ...any) ([]*{{.upperStartCamelObject}}, error)

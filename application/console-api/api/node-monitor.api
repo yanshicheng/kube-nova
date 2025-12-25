@@ -1,0 +1,678 @@
+syntax = "v1"
+
+info(
+    title: "Node Monitor API"
+    desc: "Node 监控指标查询 API"
+    author: "System"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // NodeMetrics 节点综合指标
+    NodeMetrics {
+        NodeName string `json:"nodeName"`
+        Timestamp int64 `json:"timestamp"`
+        CPU NodeCPUMetrics `json:"cpu"`
+        Memory NodeMemoryMetrics `json:"memory"`
+        Disk NodeDiskMetrics `json:"disk"`
+        Network NodeNetworkMetrics `json:"network"`
+        K8sStatus NodeK8sStatus `json:"k8sStatus"`
+        System NodeSystemMetrics `json:"system"`
+    }
+
+        //================================ CPU 监控 ================================
+
+    NodeCPUMetrics {
+        Current NodeCPUSnapshot `json:"current"`
+        Trend []NodeCPUDataPoint `json:"trend"`
+        Summary NodeCPUSummary `json:"summary"`
+    }
+
+    NodeCPUSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        TotalCores int `json:"totalCores"`
+        UsagePercent float64 `json:"usagePercent"`
+        UserPercent float64 `json:"userPercent"`
+        SystemPercent float64 `json:"systemPercent"`
+        IowaitPercent float64 `json:"iowaitPercent"`
+        StealPercent float64 `json:"stealPercent"`
+        IrqPercent float64 `json:"irqPercent"`
+        SoftirqPercent float64 `json:"softirqPercent"`
+        Load1 float64 `json:"load1"`
+        Load5 float64 `json:"load5"`
+        Load15 float64 `json:"load15"`
+        ContextSwitchRate float64 `json:"contextSwitchRate"`
+    }
+
+    NodeCPUDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        UsagePercent float64 `json:"usagePercent"`
+        Load5 float64 `json:"load5"`
+    }
+
+    NodeCPUSummary {
+        AvgUsagePercent float64 `json:"avgUsagePercent"`
+        MaxUsagePercent float64 `json:"maxUsagePercent"`
+        MinUsagePercent float64 `json:"minUsagePercent"`
+        AvgLoad5 float64 `json:"avgLoad5"`
+        MaxLoad5 float64 `json:"maxLoad5"`
+    }
+
+        //================================ 内存监控 ================================
+
+    NodeMemoryMetrics {
+        Current NodeMemorySnapshot `json:"current"`
+        Trend []NodeMemoryDataPoint `json:"trend"`
+        Summary NodeMemorySummary `json:"summary"`
+    }
+
+    NodeMemorySnapshot {
+        Timestamp int64 `json:"timestamp"`
+        TotalBytes int64 `json:"totalBytes"`
+        UsedBytes int64 `json:"usedBytes"`
+        AvailableBytes int64 `json:"availableBytes"`
+        FreeBytes int64 `json:"freeBytes"`
+        BuffersBytes int64 `json:"buffersBytes"`
+        CachedBytes int64 `json:"cachedBytes"`
+        ActiveBytes int64 `json:"activeBytes"`
+        InactiveBytes int64 `json:"inactiveBytes"`
+        UsagePercent float64 `json:"usagePercent"`
+        SwapTotalBytes int64 `json:"swapTotalBytes"`
+        SwapUsedBytes int64 `json:"swapUsedBytes"`
+        SwapFreeBytes int64 `json:"swapFreeBytes"`
+        SwapUsagePercent float64 `json:"swapUsagePercent"`
+        SwapInRate float64 `json:"swapInRate"`
+        SwapOutRate float64 `json:"swapOutRate"`
+    }
+
+    NodeMemoryDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        UsedBytes int64 `json:"usedBytes"`
+        UsagePercent float64 `json:"usagePercent"`
+        AvailableBytes int64 `json:"availableBytes"`
+    }
+
+    NodeMemorySummary {
+        AvgUsagePercent float64 `json:"avgUsagePercent"`
+        MaxUsagePercent float64 `json:"maxUsagePercent"`
+        MinUsagePercent float64 `json:"minUsagePercent"`
+        AvgSwapUsage float64 `json:"avgSwapUsage"`
+        MaxSwapUsage float64 `json:"maxSwapUsage"`
+    }
+
+        //================================ 磁盘监控 ================================
+
+    NodeDiskMetrics {
+        Filesystems []NodeFilesystemMetrics `json:"filesystems"`
+        Devices []NodeDiskDeviceMetrics `json:"devices"`
+    }
+
+    NodeFilesystemMetrics {
+        Mountpoint string `json:"mountpoint"`
+        Device string `json:"device"`
+        FSType string `json:"fsType"`
+        Current NodeFilesystemSnapshot `json:"current"`
+        Trend []NodeFilesystemDataPoint `json:"trend"`
+    }
+
+    NodeFilesystemSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        TotalBytes int64 `json:"totalBytes"`
+        UsedBytes int64 `json:"usedBytes"`
+        AvailableBytes int64 `json:"availableBytes"`
+        UsagePercent float64 `json:"usagePercent"`
+        TotalInodes int64 `json:"totalInodes"`
+        UsedInodes int64 `json:"usedInodes"`
+        FreeInodes int64 `json:"freeInodes"`
+        InodePercent float64 `json:"inodePercent"`
+    }
+
+    NodeFilesystemDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        UsedBytes int64 `json:"usedBytes"`
+        UsagePercent float64 `json:"usagePercent"`
+    }
+
+    NodeDiskDeviceMetrics {
+        Device string `json:"device"`
+        Current NodeDiskDeviceSnapshot `json:"current"`
+        Trend []NodeDiskDeviceDataPoint `json:"trend"`
+        Summary NodeDiskDeviceSummary `json:"summary"`
+    }
+
+    NodeDiskDeviceSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        ReadIOPS float64 `json:"readIOPS"`
+        WriteIOPS float64 `json:"writeIOPS"`
+        ReadBytesPerSec float64 `json:"readBytesPerSec"`
+        WriteBytesPerSec float64 `json:"writeBytesPerSec"`
+        IOUtilizationPercent float64 `json:"ioUtilizationPercent"`
+        AvgAwaitMs float64 `json:"avgAwaitMs"`
+    }
+
+    NodeDiskDeviceDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        ReadBytesPerSec float64 `json:"readBytesPerSec"`
+        WriteBytesPerSec float64 `json:"writeBytesPerSec"`
+        IOUtilizationPercent float64 `json:"ioUtilizationPercent"`
+    }
+
+    NodeDiskDeviceSummary {
+        AvgReadBytesPerSec float64 `json:"avgReadBytesPerSec"`
+        MaxReadBytesPerSec float64 `json:"maxReadBytesPerSec"`
+        AvgWriteBytesPerSec float64 `json:"avgWriteBytesPerSec"`
+        MaxWriteBytesPerSec float64 `json:"maxWriteBytesPerSec"`
+        AvgIOUtilization float64 `json:"avgIOUtilization"`
+        MaxIOUtilization float64 `json:"maxIOUtilization"`
+    }
+
+        //================================ 网络监控 ================================
+
+    NodeNetworkMetrics {
+        Interfaces []NodeNetworkInterfaceMetrics `json:"interfaces"`
+        TCP NodeTCPMetrics `json:"tcp"`
+    }
+
+    NodeNetworkInterfaceMetrics {
+        InterfaceName string `json:"interfaceName"`
+        Current NodeNetworkInterfaceSnapshot `json:"current"`
+        Trend []NodeNetworkInterfaceDataPoint `json:"trend"`
+        Summary NodeNetworkInterfaceSummary `json:"summary"`
+    }
+
+    NodeNetworkInterfaceSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        ReceiveBytesPerSec float64 `json:"receiveBytesPerSec"`
+        TransmitBytesPerSec float64 `json:"transmitBytesPerSec"`
+        ReceivePacketsPerSec float64 `json:"receivePacketsPerSec"`
+        TransmitPacketsPerSec float64 `json:"transmitPacketsPerSec"`
+        ReceiveErrorsRate float64 `json:"receiveErrorsRate"`
+        TransmitErrorsRate float64 `json:"transmitErrorsRate"`
+        ReceiveDropsRate float64 `json:"receiveDropsRate"`
+        TransmitDropsRate float64 `json:"transmitDropsRate"`
+    }
+
+    NodeNetworkInterfaceDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        ReceiveBytesPerSec float64 `json:"receiveBytesPerSec"`
+        TransmitBytesPerSec float64 `json:"transmitBytesPerSec"`
+    }
+
+    NodeNetworkInterfaceSummary {
+        AvgReceiveBytesPerSec float64 `json:"avgReceiveBytesPerSec"`
+        MaxReceiveBytesPerSec float64 `json:"maxReceiveBytesPerSec"`
+        AvgTransmitBytesPerSec float64 `json:"avgTransmitBytesPerSec"`
+        MaxTransmitBytesPerSec float64 `json:"maxTransmitBytesPerSec"`
+        TotalReceiveErrors int64 `json:"totalReceiveErrors"`
+        TotalTransmitErrors int64 `json:"totalTransmitErrors"`
+        TotalReceiveDrops int64 `json:"totalReceiveDrops"`
+        TotalTransmitDrops int64 `json:"totalTransmitDrops"`
+    }
+
+    NodeTCPMetrics {
+        Current NodeTCPSnapshot `json:"current"`
+        Trend []NodeTCPDataPoint `json:"trend"`
+    }
+
+    NodeTCPSnapshot {
+        Timestamp int64 `json:"timestamp"`
+        EstablishedConnections int64 `json:"establishedConnections"`
+        TimeWaitConnections int64 `json:"timeWaitConnections"`
+        ActiveOpensRate float64 `json:"activeOpensRate"`
+        PassiveOpensRate float64 `json:"passiveOpensRate"`
+        SocketsInUse int64 `json:"socketsInUse"`
+    }
+
+    NodeTCPDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        EstablishedConnections int64 `json:"establishedConnections"`
+        TimeWaitConnections int64 `json:"timeWaitConnections"`
+    }
+
+        //================================ Kubernetes 节点状态 ================================
+
+    NodeK8sStatus {
+        Conditions []NodeCondition `json:"conditions"`
+        Capacity NodeResourceQuantity `json:"capacity"`
+        Allocatable NodeResourceQuantity `json:"allocatable"`
+        Allocated NodeResourceQuantity `json:"allocated"`
+        KubeletMetrics NodeKubeletMetrics `json:"kubeletMetrics"`
+        NodeInfo NodeInfo `json:"nodeInfo"`
+        Taints []NodeTaint `json:"taints"`
+        Labels map[string]string `json:"labels"`
+        Annotations map[string]string `json:"annotations"`
+    }
+
+    NodeCondition {
+        Type string `json:"type"`
+        Status bool `json:"status"`
+        Reason string `json:"reason,optional"`
+        Message string `json:"message,optional"`
+        LastTransitionTime int64 `json:"lastTransitionTime"`
+    }
+
+    NodeResourceQuantity {
+        CPUCores float64 `json:"cpuCores"`
+        MemoryBytes int64 `json:"memoryBytes"`
+        Pods int64 `json:"pods"`
+        EphemeralStorage int64 `json:"ephemeralStorage"`
+    }
+
+    NodeKubeletMetrics {
+        RunningPods int64 `json:"runningPods"`
+        RunningContainers int64 `json:"runningContainers"`
+        PLEGRelistDuration float64 `json:"plegRelistDuration"`
+        RuntimeOpsRate float64 `json:"runtimeOpsRate"`
+        RuntimeOpsErrorRate float64 `json:"runtimeOpsErrorRate"`
+        RuntimeOpsDuration float64 `json:"runtimeOpsDuration"`
+        Trend []NodeKubeletDataPoint `json:"trend"`
+    }
+
+    NodeKubeletDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        PLEGRelistDuration float64 `json:"plegRelistDuration"`
+        RuntimeOpsRate float64 `json:"runtimeOpsRate"`
+        RuntimeOpsErrorRate float64 `json:"runtimeOpsErrorRate"`
+    }
+
+    NodeInfo {
+        KubeletVersion string `json:"kubeletVersion"`
+        ContainerRuntimeVersion string `json:"containerRuntimeVersion"`
+        KernelVersion string `json:"kernelVersion"`
+        OSImage string `json:"osImage"`
+        Architecture string `json:"architecture"`
+        BootTime int64 `json:"bootTime"`
+        UptimeSeconds int64 `json:"uptimeSeconds"`
+    }
+
+    NodeTaint {
+        Key string `json:"key"`
+        Value string `json:"value"`
+        Effect string `json:"effect"`
+    }
+
+        //================================ 系统级指标 ================================
+
+    NodeSystemMetrics {
+        Processes NodeProcessMetrics `json:"processes"`
+        FileDescriptors NodeFileDescriptorMetrics `json:"fileDescriptors"`
+    }
+
+    NodeProcessMetrics {
+        Running int64 `json:"running"`
+        Blocked int64 `json:"blocked"`
+    }
+
+    NodeFileDescriptorMetrics {
+        Allocated int64 `json:"allocated"`
+        Maximum int64 `json:"maximum"`
+        UsagePercent float64 `json:"usagePercent"`
+        Trend []NodeFileDescriptorDataPoint `json:"trend"`
+    }
+
+    NodeFileDescriptorDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        Allocated int64 `json:"allocated"`
+        UsagePercent float64 `json:"usagePercent"`
+    }
+
+        //================================ Node 上的 Pod 信息 ================================
+
+    NodePodMetrics {
+        NodeName string `json:"nodeName"`
+        TotalPods int64 `json:"totalPods"`
+        RunningPods int64 `json:"runningPods"`
+        PendingPods int64 `json:"pendingPods"`
+        FailedPods int64 `json:"failedPods"`
+        TopPodsByCPU []PodResourceUsage `json:"topPodsByCPU"`
+        TopPodsByMem []PodResourceUsage `json:"topPodsByMem"`
+        PodList []NodePodBrief `json:"podList"`
+    }
+
+    PodResourceUsage {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Value float64 `json:"value"`
+        Unit string `json:"unit"`
+    }
+
+    NodePodBrief {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Phase string `json:"phase"`
+        CPUUsage float64 `json:"cpuUsage"`
+        MemoryUsage int64 `json:"memoryUsage"`
+        RestartCount int64 `json:"restartCount"`
+    }
+
+        //================================ Node 对比 ================================
+
+    NodeComparison {
+        Nodes []NodeComparisonItem `json:"nodes"`
+        Timestamp int64 `json:"timestamp"`
+    }
+
+    NodeComparisonItem {
+        NodeName string `json:"nodeName"`
+        CPUUsage float64 `json:"cpuUsage"`
+        MemoryUsage float64 `json:"memoryUsage"`
+        DiskUsage float64 `json:"diskUsage"`
+        Load5 float64 `json:"load5"`
+        PodCount int64 `json:"podCount"`
+        Ready bool `json:"ready"`
+    }
+
+        //================================ Node 排行 ================================
+
+    NodeRanking {
+        TopByCPU []NodeRankingItem `json:"topByCPU"`
+        TopByMemory []NodeRankingItem `json:"topByMemory"`
+        TopByDisk []NodeRankingItem `json:"topByDisk"`
+        TopByLoad []NodeRankingItem `json:"topByLoad"`
+        TopByPods []NodeRankingItem `json:"topByPods"`
+    }
+
+    NodeRankingItem {
+        NodeName string `json:"nodeName"`
+        Value float64 `json:"value"`
+        Unit string `json:"unit"`
+    }
+
+        //================================ 请求和响应结构 ================================
+
+    GetNodeMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeMetricsResponse {
+        Data NodeMetrics `json:"data"`
+    }
+
+    GetNodeCPURequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeCPUResponse {
+        Data NodeCPUMetrics `json:"data"`
+    }
+
+    GetNodeMemoryRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeMemoryResponse {
+        Data NodeMemoryMetrics `json:"data"`
+    }
+
+    GetNodeDiskRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeDiskResponse {
+        Data NodeDiskMetrics `json:"data"`
+    }
+
+    GetNodeFilesystemsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeFilesystemsResponse {
+        Data []NodeFilesystemMetrics `json:"data"`
+    }
+
+    GetNodeDiskDevicesRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeDiskDevicesResponse {
+        Data []NodeDiskDeviceMetrics `json:"data"`
+    }
+
+    GetNodeNetworkRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeNetworkResponse {
+        Data NodeNetworkMetrics `json:"data"`
+    }
+
+    GetNodeNetworkInterfacesRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeNetworkInterfacesResponse {
+        Data []NodeNetworkInterfaceMetrics `json:"data"`
+    }
+
+    GetNodeNetworkInterfaceRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        InterfaceName string `form:"interfaceName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeNetworkInterfaceResponse {
+        Data NodeNetworkInterfaceMetrics `json:"data"`
+    }
+
+    GetNodeTCPRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeTCPResponse {
+        Data NodeTCPMetrics `json:"data"`
+    }
+
+    GetNodeK8sStatusRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeK8sStatusResponse {
+        Data NodeK8sStatus `json:"data"`
+    }
+
+    GetNodeConditionsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+    }
+    GetNodeConditionsResponse {
+        Data []NodeCondition `json:"data"`
+    }
+
+    GetNodeCapacityRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+    }
+    GetNodeCapacityResponse {
+        Data NodeResourceQuantity `json:"data"`
+    }
+
+    GetNodeAllocatableRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+    }
+    GetNodeAllocatableResponse {
+        Data NodeResourceQuantity `json:"data"`
+    }
+
+    GetNodeAllocatedRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+    }
+    GetNodeAllocatedResponse {
+        Data NodeResourceQuantity `json:"data"`
+    }
+
+    GetNodeKubeletRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeKubeletResponse {
+        Data NodeKubeletMetrics `json:"data"`
+    }
+
+    GetNodeSystemRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeSystemResponse {
+        Data NodeSystemMetrics `json:"data"`
+    }
+
+    GetNodePodsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeName string `form:"nodeName" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodePodsResponse {
+        Data NodePodMetrics `json:"data"`
+    }
+
+    CompareNodesRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        NodeNames []string `form:"nodeNames" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    CompareNodesResponse {
+        Data NodeComparison `json:"data"`
+    }
+
+    GetNodeRankingRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Limit int `form:"limit,default=10" validate:"min=1,max=100"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNodeRankingResponse {
+        Data NodeRanking `json:"data"`
+    }
+
+    ListNodesMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    ListNodesMetricsResponse {
+        Data []NodeMetrics `json:"data"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: nodemonitor
+    prefix: /console/v1/node-monitor
+)
+
+service console-api {
+    @doc "获取节点综合指标"
+    @handler GetNodeMetricsHandler
+    get /metrics (GetNodeMetricsRequest) returns (GetNodeMetricsResponse)
+
+    @doc "获取节点 CPU 指标"
+    @handler GetNodeCPUHandler
+    get /cpu (GetNodeCPURequest) returns (GetNodeCPUResponse)
+
+    @doc "获取节点内存指标"
+    @handler GetNodeMemoryHandler
+    get /memory (GetNodeMemoryRequest) returns (GetNodeMemoryResponse)
+
+    @doc "获取节点磁盘指标"
+    @handler GetNodeDiskHandler
+    get /disk (GetNodeDiskRequest) returns (GetNodeDiskResponse)
+
+    @doc "获取节点文件系统列表"
+    @handler GetNodeFilesystemsHandler
+    get /filesystems (GetNodeFilesystemsRequest) returns (GetNodeFilesystemsResponse)
+
+    @doc "获取节点磁盘设备列表"
+    @handler GetNodeDiskDevicesHandler
+    get /disk/devices (GetNodeDiskDevicesRequest) returns (GetNodeDiskDevicesResponse)
+
+    @doc "获取节点网络指标"
+    @handler GetNodeNetworkHandler
+    get /network (GetNodeNetworkRequest) returns (GetNodeNetworkResponse)
+
+    @doc "获取节点网络接口列表"
+    @handler GetNodeNetworkInterfacesHandler
+    get /network/interfaces (GetNodeNetworkInterfacesRequest) returns (GetNodeNetworkInterfacesResponse)
+
+    @doc "获取节点指定网络接口指标"
+    @handler GetNodeNetworkInterfaceHandler
+    get /network/interface (GetNodeNetworkInterfaceRequest) returns (GetNodeNetworkInterfaceResponse)
+
+    @doc "获取节点 TCP 指标"
+    @handler GetNodeTCPHandler
+    get /tcp (GetNodeTCPRequest) returns (GetNodeTCPResponse)
+
+    @doc "获取节点 K8s 状态"
+    @handler GetNodeK8sStatusHandler
+    get /k8s/status (GetNodeK8sStatusRequest) returns (GetNodeK8sStatusResponse)
+
+    @doc "获取节点状况"
+    @handler GetNodeConditionsHandler
+    get /k8s/conditions (GetNodeConditionsRequest) returns (GetNodeConditionsResponse)
+
+    @doc "获取节点容量"
+    @handler GetNodeCapacityHandler
+    get /k8s/capacity (GetNodeCapacityRequest) returns (GetNodeCapacityResponse)
+
+    @doc "获取节点可分配资源"
+    @handler GetNodeAllocatableHandler
+    get /k8s/allocatable (GetNodeAllocatableRequest) returns (GetNodeAllocatableResponse)
+
+    @doc "获取节点已分配资源"
+    @handler GetNodeAllocatedHandler
+    get /k8s/allocated (GetNodeAllocatedRequest) returns (GetNodeAllocatedResponse)
+
+    @doc "获取节点 Kubelet 指标"
+    @handler GetNodeKubeletHandler
+    get /k8s/kubelet (GetNodeKubeletRequest) returns (GetNodeKubeletResponse)
+
+    @doc "获取节点系统指标"
+    @handler GetNodeSystemHandler
+    get /system (GetNodeSystemRequest) returns (GetNodeSystemResponse)
+
+    @doc "获取节点上的 Pod 信息"
+    @handler GetNodePodsHandler
+    get /pods (GetNodePodsRequest) returns (GetNodePodsResponse)
+
+    @doc "对比多个节点"
+    @handler CompareNodesHandler
+    get /compare (CompareNodesRequest) returns (CompareNodesResponse)
+
+    @doc "获取节点排行"
+    @handler GetNodeRankingHandler
+    get /ranking (GetNodeRankingRequest) returns (GetNodeRankingResponse)
+
+    @doc "列出所有节点指标"
+    @handler ListNodesMetricsHandler
+    get /list (ListNodesMetricsRequest) returns (ListNodesMetricsResponse)
+}

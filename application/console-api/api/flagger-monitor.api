@@ -1,0 +1,518 @@
+syntax = "v1"
+
+info(
+    title: "Flagger Monitor API"
+    desc: "Flagger 金丝雀发布监控指标查询 API"
+    author: "System"
+    version: "1.0"
+)
+
+type (
+    //================================ Flagger 综合指标 ================================
+
+    FlaggerMetrics {
+        Timestamp int64 `json:"timestamp"`
+        Canaries []CanaryMetrics `json:"canaries"`
+        Statistics FlaggerStatistics `json:"statistics"`
+        Controller FlaggerControllerHealth `json:"controller"`
+    }
+
+        //================================ Canary 指标 ================================
+
+    CanaryMetrics {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Target string `json:"target"`
+        Status CanaryStatus `json:"status"`
+        Progress CanaryProgress `json:"progress"`
+        Analysis CanaryAnalysis `json:"analysis"`
+        Comparison CanaryComparison `json:"comparison"`
+        Trend []CanaryDataPoint `json:"trend"`
+        Duration CanaryDuration `json:"duration"`
+        LastUpdateTime int64 `json:"lastUpdateTime"`
+    }
+
+    CanaryStatus {
+        Phase string `json:"phase"`
+        PhaseCode int `json:"phaseCode"`
+        LastTransition int64 `json:"lastTransition"`
+    }
+
+    CanaryProgress {
+        CurrentWeight float64 `json:"currentWeight"`
+        TargetWeight float64 `json:"targetWeight"`
+        Iteration int64 `json:"iteration"`
+        ProgressPercent float64 `json:"progressPercent"`
+        Trend []CanaryProgressDataPoint `json:"trend"`
+    }
+
+    CanaryProgressDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        Weight float64 `json:"weight"`
+        Iteration int64 `json:"iteration"`
+    }
+
+    CanaryAnalysis {
+        MetricChecks []MetricCheckResult `json:"metricChecks"`
+        CheckSuccessRate float64 `json:"checkSuccessRate"`
+        TotalChecks int64 `json:"totalChecks"`
+        FailedChecks int64 `json:"failedChecks"`
+        Trend []CanaryAnalysisDataPoint `json:"trend"`
+    }
+
+    MetricCheckResult {
+        MetricName string `json:"metricName"`
+        ChecksPassed int64 `json:"checksPassed"`
+        ChecksFailed int64 `json:"checksFailed"`
+        SuccessRate float64 `json:"successRate"`
+        LastCheck int64 `json:"lastCheck"`
+    }
+
+    CanaryAnalysisDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        CheckSuccessRate float64 `json:"checkSuccessRate"`
+        FailedChecks int64 `json:"failedChecks"`
+    }
+
+    CanaryComparison {
+        CanaryMetrics WorkloadMetrics `json:"canaryMetrics"`
+        PrimaryMetrics WorkloadMetrics `json:"primaryMetrics"`
+        Trend []CanaryComparisonDataPoint `json:"trend"`
+    }
+
+    WorkloadMetrics {
+        SuccessRate float64 `json:"successRate"`
+        ErrorRate float64 `json:"errorRate"`
+        P50Latency float64 `json:"p50Latency"`
+        P95Latency float64 `json:"p95Latency"`
+        P99Latency float64 `json:"p99Latency"`
+        RequestRate float64 `json:"requestRate"`
+    }
+
+    CanaryComparisonDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        CanarySuccessRate float64 `json:"canarySuccessRate"`
+        PrimarySuccessRate float64 `json:"primarySuccessRate"`
+        CanaryP95Latency float64 `json:"canaryP95Latency"`
+        PrimaryP95Latency float64 `json:"primaryP95Latency"`
+        CanaryErrorRate float64 `json:"canaryErrorRate"`
+        PrimaryErrorRate float64 `json:"primaryErrorRate"`
+    }
+
+    CanaryDuration {
+        StartTime int64 `json:"startTime"`
+        EndTime int64 `json:"endTime,optional"`
+        DurationSeconds float64 `json:"durationSeconds"`
+    }
+
+    CanaryDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        Phase string `json:"phase"`
+        PhaseCode int `json:"phaseCode"`
+        Weight float64 `json:"weight"`
+        Iteration int64 `json:"iteration"`
+    }
+
+        //================================ Flagger 统计 ================================
+
+    FlaggerStatistics {
+        TotalCanaries int64 `json:"totalCanaries"`
+        ActiveCanaries int64 `json:"activeCanaries"`
+        WaitingCanaries int64 `json:"waitingCanaries"`
+        SuccessCanaries int64 `json:"successCanaries"`
+        FailedCanaries int64 `json:"failedCanaries"`
+        SuccessRate float64 `json:"successRate"`
+        FailureRate float64 `json:"failureRate"`
+        Duration FlaggerDurationStatistics `json:"duration"`
+        WebhookStats FlaggerWebhookStatistics `json:"webhookStats"`
+        Trend []FlaggerStatisticsDataPoint `json:"trend"`
+    }
+
+    FlaggerDurationStatistics {
+        AvgDurationSeconds float64 `json:"avgDurationSeconds"`
+        MinDurationSeconds float64 `json:"minDurationSeconds"`
+        MaxDurationSeconds float64 `json:"maxDurationSeconds"`
+        P50DurationSeconds float64 `json:"p50DurationSeconds"`
+        P95DurationSeconds float64 `json:"p95DurationSeconds"`
+        P99DurationSeconds float64 `json:"p99DurationSeconds"`
+        Trend []FlaggerDurationDataPoint `json:"trend"`
+    }
+
+    FlaggerDurationDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        AvgDurationSeconds float64 `json:"avgDurationSeconds"`
+        P95DurationSeconds float64 `json:"p95DurationSeconds"`
+    }
+
+    FlaggerWebhookStatistics {
+        TotalRequests int64 `json:"totalRequests"`
+        SuccessRequests int64 `json:"successRequests"`
+        FailedRequests int64 `json:"failedRequests"`
+        SuccessRate float64 `json:"successRate"`
+        FailureRate float64 `json:"failureRate"`
+        Trend []FlaggerWebhookDataPoint `json:"trend"`
+    }
+
+    FlaggerWebhookDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        TotalRequests int64 `json:"totalRequests"`
+        SuccessRate float64 `json:"successRate"`
+    }
+
+    FlaggerStatisticsDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        TotalCanaries int64 `json:"totalCanaries"`
+        ActiveCanaries int64 `json:"activeCanaries"`
+        SuccessCanaries int64 `json:"successCanaries"`
+        FailedCanaries int64 `json:"failedCanaries"`
+        SuccessRate float64 `json:"successRate"`
+    }
+
+        //================================ Flagger Controller 健康 ================================
+
+    FlaggerControllerHealth {
+        ReconcileTotal int64 `json:"reconcileTotal"`
+        ReconcileErrors int64 `json:"reconcileErrors"`
+        ReconcileErrorRate float64 `json:"reconcileErrorRate"`
+        AvgReconcileTime float64 `json:"avgReconcileTime"`
+        P95ReconcileTime float64 `json:"p95ReconcileTime"`
+        Trend []FlaggerControllerDataPoint `json:"trend"`
+    }
+
+    FlaggerControllerDataPoint {
+        Timestamp int64 `json:"timestamp"`
+        ReconcileTotal int64 `json:"reconcileTotal"`
+        ReconcileErrorRate float64 `json:"reconcileErrorRate"`
+        AvgReconcileTime float64 `json:"avgReconcileTime"`
+    }
+
+        //================================ Canary 列表和摘要 ================================
+
+    CanaryBrief {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Target string `json:"target"`
+        Phase string `json:"phase"`
+        CurrentWeight float64 `json:"currentWeight"`
+        Iteration int64 `json:"iteration"`
+        LastUpdate int64 `json:"lastUpdate"`
+    }
+
+    CanaryListMetrics {
+        Timestamp int64 `json:"timestamp"`
+        Canaries []CanaryBrief `json:"canaries"`
+        Summary CanaryListSummary `json:"summary"`
+    }
+
+    CanaryListSummary {
+        Total int64 `json:"total"`
+        Active int64 `json:"active"`
+        Waiting int64 `json:"waiting"`
+        Succeeded int64 `json:"succeeded"`
+        Failed int64 `json:"failed"`
+        Initialized int64 `json:"initialized"`
+    }
+
+        //================================ Namespace 级别 Canary 统计 ================================
+
+    NamespaceCanaryMetrics {
+        Namespace string `json:"namespace"`
+        Timestamp int64 `json:"timestamp"`
+        Canaries []CanaryBrief `json:"canaries"`
+        Statistics NamespaceCanaryStatistics `json:"statistics"`
+    }
+
+    NamespaceCanaryStatistics {
+        Total int64 `json:"total"`
+        Active int64 `json:"active"`
+        SuccessRate float64 `json:"successRate"`
+        AvgDuration float64 `json:"avgDuration"`
+    }
+
+        //================================ Canary 排行 ================================
+
+    CanaryRanking {
+        TopByDuration []CanaryRankingItem `json:"topByDuration"`
+        TopByIterations []CanaryRankingItem `json:"topByIterations"`
+        TopByFailedChecks []CanaryRankingItem `json:"topByFailedChecks"`
+        RecentFailed []CanaryBrief `json:"recentFailed"`
+        RecentSucceeded []CanaryBrief `json:"recentSucceeded"`
+    }
+
+    CanaryRankingItem {
+        Namespace string `json:"namespace"`
+        Name string `json:"name"`
+        Value float64 `json:"value"`
+        Unit string `json:"unit"`
+    }
+
+        //================================ 历史记录 ================================
+
+    CanaryHistory {
+        Namespace string `json:"namespace"`
+        Name string `json:"name"`
+        Records []CanaryHistoryRecord `json:"records"`
+    }
+
+    CanaryHistoryRecord {
+        StartTime int64 `json:"startTime"`
+        EndTime int64 `json:"endTime"`
+        DurationSeconds float64 `json:"durationSeconds"`
+        FinalPhase string `json:"finalPhase"`
+        MaxWeight float64 `json:"maxWeight"`
+        Iterations int64 `json:"iterations"`
+        FailedChecks int64 `json:"failedChecks"`
+    }
+
+        //================================ 实时监控 ================================
+
+    CanaryRealtimeMetrics {
+        Namespace string `json:"namespace"`
+        Name string `json:"name"`
+        Timestamp int64 `json:"timestamp"`
+        CurrentStatus CanaryStatus `json:"currentStatus"`
+        CurrentWeight float64 `json:"currentWeight"`
+        Comparison CanaryComparison `json:"comparison"`
+        RecentChecks []MetricCheckResult `json:"recentChecks"`
+    }
+
+        //================================ 请求和响应结构 ================================
+
+    GetFlaggerMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetFlaggerMetricsResponse {
+        Data FlaggerMetrics `json:"data"`
+    }
+
+    GetCanaryMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Name string `form:"name" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetCanaryMetricsResponse {
+        Data CanaryMetrics `json:"data"`
+    }
+
+    GetCanaryStatusRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Name string `form:"name" validate:"required"`
+    }
+    GetCanaryStatusResponse {
+        Data CanaryStatus `json:"data"`
+    }
+
+    GetCanaryProgressRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Name string `form:"name" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetCanaryProgressResponse {
+        Data CanaryProgress `json:"data"`
+    }
+
+    GetCanaryAnalysisRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Name string `form:"name" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetCanaryAnalysisResponse {
+        Data CanaryAnalysis `json:"data"`
+    }
+
+    GetCanaryComparisonRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Name string `form:"name" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetCanaryComparisonResponse {
+        Data CanaryComparison `json:"data"`
+    }
+
+    GetCanaryDurationRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Name string `form:"name" validate:"required"`
+    }
+    GetCanaryDurationResponse {
+        Data CanaryDuration `json:"data"`
+    }
+
+    ListCanariesRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+    }
+    ListCanariesResponse {
+        Data CanaryListMetrics `json:"data"`
+    }
+
+    ListAllCanariesRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+    }
+    ListAllCanariesResponse {
+        Data CanaryListMetrics `json:"data"`
+    }
+
+    GetFlaggerStatisticsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetFlaggerStatisticsResponse {
+        Data FlaggerStatistics `json:"data"`
+    }
+
+    GetFlaggerDurationStatisticsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetFlaggerDurationStatisticsResponse {
+        Data FlaggerDurationStatistics `json:"data"`
+    }
+
+    GetFlaggerWebhookStatisticsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetFlaggerWebhookStatisticsResponse {
+        Data FlaggerWebhookStatistics `json:"data"`
+    }
+
+    GetFlaggerControllerHealthRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetFlaggerControllerHealthResponse {
+        Data FlaggerControllerHealth `json:"data"`
+    }
+
+    GetNamespaceCanaryMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetNamespaceCanaryMetricsResponse {
+        Data NamespaceCanaryMetrics `json:"data"`
+    }
+
+    GetCanaryRankingRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Limit int `form:"limit,default=10" validate:"min=1,max=100"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetCanaryRankingResponse {
+        Data CanaryRanking `json:"data"`
+    }
+
+    GetCanaryHistoryRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Name string `form:"name" validate:"required"`
+        Start string `form:"start,optional"`
+        End string `form:"end,optional"`
+    }
+    GetCanaryHistoryResponse {
+        Data CanaryHistory `json:"data"`
+    }
+
+    GetCanaryRealtimeMetricsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace string `form:"namespace" validate:"required"`
+        Name string `form:"name" validate:"required"`
+    }
+    GetCanaryRealtimeMetricsResponse {
+        Data CanaryRealtimeMetrics `json:"data"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: flaggermonitor
+    prefix: /console/v1/flagger-monitor
+)
+
+service console-api {
+    @doc "获取 Flagger 综合指标"
+    @handler GetFlaggerMetricsHandler
+    get /metrics (GetFlaggerMetricsRequest) returns (GetFlaggerMetricsResponse)
+
+    @doc "获取 Canary 指标"
+    @handler GetCanaryMetricsHandler
+    get /canary/metrics (GetCanaryMetricsRequest) returns (GetCanaryMetricsResponse)
+
+    @doc "获取 Canary 状态"
+    @handler GetCanaryStatusHandler
+    get /canary/status (GetCanaryStatusRequest) returns (GetCanaryStatusResponse)
+
+    @doc "获取 Canary 进度"
+    @handler GetCanaryProgressHandler
+    get /canary/progress (GetCanaryProgressRequest) returns (GetCanaryProgressResponse)
+
+    @doc "获取 Canary 分析结果"
+    @handler GetCanaryAnalysisHandler
+    get /canary/analysis (GetCanaryAnalysisRequest) returns (GetCanaryAnalysisResponse)
+
+    @doc "获取 Canary 对比"
+    @handler GetCanaryComparisonHandler
+    get /canary/comparison (GetCanaryComparisonRequest) returns (GetCanaryComparisonResponse)
+
+    @doc "获取 Canary 持续时间"
+    @handler GetCanaryDurationHandler
+    get /canary/duration (GetCanaryDurationRequest) returns (GetCanaryDurationResponse)
+
+    @doc "列出 Namespace 下的 Canary"
+    @handler ListCanariesHandler
+    get /canary/list (ListCanariesRequest) returns (ListCanariesResponse)
+
+    @doc "列出所有 Canary"
+    @handler ListAllCanariesHandler
+    get /canary/list-all (ListAllCanariesRequest) returns (ListAllCanariesResponse)
+
+    @doc "获取 Flagger 统计信息"
+    @handler GetFlaggerStatisticsHandler
+    get /statistics (GetFlaggerStatisticsRequest) returns (GetFlaggerStatisticsResponse)
+
+    @doc "获取 Flagger 持续时间统计"
+    @handler GetFlaggerDurationStatisticsHandler
+    get /statistics/duration (GetFlaggerDurationStatisticsRequest) returns (GetFlaggerDurationStatisticsResponse)
+
+    @doc "获取 Flagger Webhook 统计"
+    @handler GetFlaggerWebhookStatisticsHandler
+    get /statistics/webhook (GetFlaggerWebhookStatisticsRequest) returns (GetFlaggerWebhookStatisticsResponse)
+
+    @doc "获取 Flagger Controller 健康状态"
+    @handler GetFlaggerControllerHealthHandler
+    get /controller/health (GetFlaggerControllerHealthRequest) returns (GetFlaggerControllerHealthResponse)
+
+    @doc "获取 Namespace Canary 指标"
+    @handler GetNamespaceCanaryMetricsHandler
+    get /namespace/canaries (GetNamespaceCanaryMetricsRequest) returns (GetNamespaceCanaryMetricsResponse)
+
+    @doc "获取 Canary 排行"
+    @handler GetCanaryRankingHandler
+    get /ranking (GetCanaryRankingRequest) returns (GetCanaryRankingResponse)
+
+    @doc "获取 Canary 历史记录"
+    @handler GetCanaryHistoryHandler
+    get /history (GetCanaryHistoryRequest) returns (GetCanaryHistoryResponse)
+
+    @doc "获取 Canary 实时监控指标"
+    @handler GetCanaryRealtimeMetricsHandler
+    get /realtime (GetCanaryRealtimeMetricsRequest) returns (GetCanaryRealtimeMetricsResponse)
+}

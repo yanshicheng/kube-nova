@@ -1,0 +1,129 @@
+syntax = "v1"
+
+info(
+    title: "SysAPI Service API"
+    desc: "API 服务用于管理系统API权限相关操作"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // SysAPI 表示API权限信息
+    SysAPI {
+        Id uint64 `json:"id"`                    // 主键ID
+        ParentId uint64 `json:"parentId"`        // 父级API ID，0为顶级
+        Name string `json:"name"`                // API名称
+        Path string `json:"path"`                // API路径，支持RESTful风格如 /api/users/:id
+        Method string `json:"method"`            // HTTP方法: GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD
+        IsPermission int64 `json:"isPermission"` // 是否为权限(权限 or 分组) 0: 分组 1: 权限
+        CreatedBy string `json:"createdBy"`      // 创建人
+        UpdatedBy string `json:"updatedBy"`      // 更新人
+        CreatedAt int64 `json:"createdAt"`       // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`       // 更新时间
+    }
+
+        // 添加API请求
+    AddSysAPIRequest {
+        ParentId uint64 `json:"parentId,optional" default:"0" validate:"gte=0"`                           // 父级API ID，0为顶级
+        Name string `json:"name" validate:"omitempty,min=2,max=100"`                                       // API名称，必填
+        Path string `json:"path" validate:"omitempty,max=255"`                                             // API路径，必填
+        Method string `json:"method" validate:"omitempty,oneof=GET POST PUT DELETE PATCH OPTIONS HEAD *"`    // HTTP方法，必填
+        IsPermission int64 `json:"isPermission" validate:"omitempty`                            // 是否为权限，必填
+    }
+
+        // 更新API请求
+    UpdateSysAPIRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                                                    // API ID，必填
+        ParentId uint64 `json:"parentId,optional" default:"0" validate:"gte=0"`                           // 父级API ID
+        Name string `json:"name" validate:"required,min=2,max=100"`                                       // API名称，必填
+        Path string `json:"path" validate:"omitempty,max=255"`                                             // API路径，必填
+        Method string `json:"method" validate:"omitempty,oneof=GET POST PUT DELETE PATCH OPTIONS HEAD *"`    // HTTP方法，必填
+        IsPermission int64 `json:"isPermission" validate:"omitempty`                            // 是否为权限，必填
+    }
+
+        // 搜索API请求
+    SearchSysAPIRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                          // 当前页码
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"`         // 每页条数
+        OrderStr string `form:"orderStr,optional" default:"id" validate:"omitempty"`                      // 排序字段
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                           // 是否升序
+        ParentId uint64 `form:"parentId,optional" validate:"omitempty"`                                   // 父级API ID
+        Name string `form:"name,optional" validate:"omitempty,max=100"`                                   // API名称
+        Path string `form:"path,optional" validate:"omitempty,max=255"`                                   // API路径
+        Method string `form:"method,optional" validate:"omitempty,oneof=GET POST PUT DELETE PATCH OPTIONS HEAD *"` // HTTP方法
+        IsPermission int64 `form:"isPermission,optional" validate:"omitempty`                  // 是否为权限
+    }
+
+        // 搜索API响应
+    SearchSysAPIResponse {
+        items []SysAPI `json:"items"`  // API数据列表
+        Total uint64 `json:"total"`    // 总条数
+    }
+
+        // 分组树节点
+    GroupTreeNode {
+        Id uint64 `json:"id"`                      // 主键ID
+        Name string `json:"name"`                  // 分组名称
+        Pid uint64 `json:"pid"`                    // 父级ID
+        Children []GroupTreeNode `json:"children"` // 子节点
+    }
+
+        // 获取分组树请求
+    GetGroupsTreeRequest {
+        IsPermission uint64 `form:"isPermission,optional" validate:"omitempty,oneof=0 1"` // 权限类型筛选
+    }
+
+        // 获取分组树响应
+
+        // API权限树节点
+    SysAPITreeNode {
+        Id uint64 `json:"id"`                            // 主键ID
+        Name string `json:"name"`                        // API名称
+        IsPermission int64 `json:"isPermission"`         // 是否为权限
+        Children []SysAPITreeNode `json:"children"`      // 子节点
+    }
+
+        // 获取API权限树请求
+    GetSysAPITreeRequest {
+        // 可以添加过滤条件，暂时无参数
+    }
+
+        // 获取API权限树响应
+
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: api
+    prefix: /portal/v1/api
+)
+service portal-api {
+    // 添加API
+    @handler AddSysAPIHandler
+    post / (AddSysAPIRequest) returns (string)
+
+    // 更新API
+    @handler UpdateSysAPIHandler
+    put /:id (UpdateSysAPIRequest) returns (string)
+
+    // 删除API
+    @handler DelSysAPIHandler
+    delete /:id (DefaultIdRequest) returns (string)
+
+    // 根据ID获取API
+    @handler GetSysAPIByIdHandler
+    get /:id (DefaultIdRequest) returns (SysAPI)
+
+    // 搜索API
+    @handler SearchSysAPIHandler
+    get / (SearchSysAPIRequest) returns (SearchSysAPIResponse)
+
+    // 获取分组树
+    @handler GetGroupsTreeHandler
+    get /groups/tree (GetGroupsTreeRequest) returns ( []GroupTreeNode)
+    @handler GetSysAPITreeHandler
+    get /tree (GetSysAPITreeRequest) returns ([]SysAPITreeNode )
+}

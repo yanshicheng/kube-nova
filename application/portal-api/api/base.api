@@ -1,0 +1,29 @@
+syntax = "v1"
+
+info(
+    title: "base type"
+    desc: "通用结构类型"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+type (
+    // 默认ID请求参数
+    DefaultIdRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"` // ID
+    }
+
+        // 通用分页请求参数
+    PageRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                    // 当前页码，默认 1
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"`   // 每页条数，默认 10
+        OrderStr string `form:"orderStr,optional" default:"id" validate:"omitempty"`                // 排序字段，默认 id
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                     // 是否升序，默认 false
+    }
+
+        // 批量删除请求
+    BatchDeleteRequest {
+        Ids []uint64 `json:"ids" validate:"required,min=1"` // ID列表
+    }
+)

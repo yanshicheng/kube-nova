@@ -1,0 +1,245 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger-all-in-one
+  namespace: kube-nova
+  labels:
+    app: jaeger
+    component: all-in-one
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jaeger
+      component: all-in-one
+  template:
+    metadata:
+      labels:
+        app: jaeger
+        component: all-in-one
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "14269"
+    spec:
+      securityContext:
+        fsGroup: 10001
+        runAsUser: 10001
+        runAsNonRoot: true
+
+      containers:
+        - name: jaeger
+          image: registry.cn-hangzhou.aliyuncs.com/kube-nova/jaeger-all-in-one:latest
+          imagePullPolicy: IfNotPresent
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+
+          # 环境变量配置
+          env:
+            # 使用 BadgerDB 作为存储后端
+            - name: SPAN_STORAGE_TYPE
+              value: badger
+
+            # BadgerDB 数据目录
+            - name: BADGER_EPHEMERAL
+              value: "false"
+            - name: BADGER_DIRECTORY_VALUE
+              value: /badger/data
+            - name: BADGER_DIRECTORY_KEY
+              value: /badger/key
+
+            # 日志级别
+            - name: LOG_LEVEL
+              value: info
+
+            # Collector 配置
+            - name: COLLECTOR_ZIPKIN_HOST_PORT
+              value: ":9411"
+            - name: COLLECTOR_OTLP_ENABLED
+              value: "true"
+
+            # Query 配置
+            - name: QUERY_BASE_PATH
+              value: /
+
+            # 时区
+            - name: TZ
+              value: Asia/Shanghai
+
+          # 端口配置
+          ports:
+            - name: ui
+              containerPort: 16686
+              protocol: TCP
+            - name: http-collector
+              containerPort: 14268
+              protocol: TCP
+            - name: grpc-collector
+              containerPort: 14250
+              protocol: TCP
+            - name: zipkin-http
+              containerPort: 9411
+              protocol: TCP
+            - name: metrics
+              containerPort: 14269
+              protocol: TCP
+            - name: otlp-grpc
+              containerPort: 4317
+              protocol: TCP
+            - name: otlp-http
+              containerPort: 4318
+              protocol: TCP
+            - name: compact-thrift
+              containerPort: 6831
+              protocol: UDP
+            - name: binary-thrift
+              containerPort: 6832
+              protocol: UDP
+            - name: zipkin-thrift
+              containerPort: 5775
+              protocol: UDP
+            - name: configs
+              containerPort: 5778
+              protocol: TCP
+
+          # 存储卷挂载
+          volumeMounts:
+            - name: jaeger-data
+              mountPath: /badger
+
+          # 资源限制
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+
+          # 存活探针
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 14269
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          # 就绪探针
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 14269
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          # 启动探针
+          startupProbe:
+            httpGet:
+              path: /
+              port: 14269
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12
+
+      # 存储卷定义
+      volumes:
+        - name: jaeger-data
+          persistentVolumeClaim:
+            claimName: jaeger-data
+
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+
+---
+# Service - NodePort
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-ui
+  namespace: kube-nova
+  labels:
+    app: jaeger
+    component: ui
+spec:
+  type: NodePort
+  selector:
+    app: jaeger
+    component: all-in-one
+  ports:
+    - name: ui
+      port: 16686
+      targetPort: 16686
+      protocol: TCP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+
+---
+# Service - ClusterIP (集群内应用发送 traces)
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-collector
+  namespace: kube-nova
+  labels:
+    app: jaeger
+    component: collector
+spec:
+  type: ClusterIP
+  selector:
+    app: jaeger
+    component: all-in-one
+  ports:
+    - name: http-collector
+      port: 14268
+      targetPort: 14268
+      protocol: TCP
+    - name: grpc-collector
+      port: 14250
+      targetPort: 14250
+      protocol: TCP
+    - name: zipkin-http
+      port: 9411
+      targetPort: 9411
+      protocol: TCP
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+    - name: metrics
+      port: 14269
+      targetPort: 14269
+      protocol: TCP
+    - name: compact-thrift
+      port: 6831
+      targetPort: 6831
+      protocol: UDP
+    - name: binary-thrift
+      port: 6832
+      targetPort: 6832
+      protocol: UDP
+    - name: zipkin-thrift
+      port: 5775
+      targetPort: 5775
+      protocol: UDP
+    - name: configs
+      port: 5778
+      targetPort: 5778
+      protocol: TCP

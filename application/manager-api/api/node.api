@@ -1,0 +1,186 @@
+syntax = "v1"
+
+info(
+    title: "Cluster Node Management API"
+    desc: "集群节点管理相关接口"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    ClusterNodeInfo {
+        Id uint64 `json:"id"`
+        ClusterUuid string `json:"clusterUuid"`
+        NodeName string `json:"nodeName"`
+        NodeIp string `json:"nodeIp"`
+        NodeStatus string `json:"nodeStatus"`
+        CpuUsge float64 `json:"cpuUsge"`
+        MemoryUsge float64 `json:"memoryUsge"`
+        PodTotal int64 `json:"podTotal"`
+        PodUsge int64 `json:"podUsge"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+        NodeRole string `json:"nodeRole"`
+        Architecture string `json:"architecture"`
+        Unschedulable int64 `json:"unschedulable"`
+    }
+
+    ClusterNodeDetail {
+        Id uint64 `json:"id"`
+        ClusterUuid string `json:"clusterUuid"`
+        NodeUuid string `json:"nodeUuid"`
+        Name string `json:"name"`
+        Hostname string `json:"hostname"`
+        Roles string `json:"roles"`
+        OsImage string `json:"osImage"`
+        NodeIp string `json:"nodeIp"`
+        KernelVersion string `json:"kernelVersion"`
+        OperatingSystem string `json:"operatingSystem"`
+        Architecture string `json:"architecture"`
+        Cpu float64 `json:"cpu"`
+        Memory float64 `json:"memory"`
+        Pods int64 `json:"pods"`
+        IsGpu int64 `json:"isGpu"`
+        Runtime string `json:"runtime"`
+        JoinAt int64 `json:"joinAt"`
+        Unschedulable int64 `json:"unschedulable"`
+        KubeletVersion string `json:"kubeletVersion"`
+        Status string `json:"status"`
+        PodCidr string `json:"podCidr"`
+        PodCidrs string `json:"podCidrs"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    SearchClusterNodeRequest {
+        Page uint64 `form:"page" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize" default:"10" validate:"required,min=1,max=200"`
+        OrderField string `form:"orderField,optional" default:"id" validate:"omitempty"`
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`
+        ClusterUuid string `form:"clusterUuid" validate:"required,uuid"`
+    }
+
+    SearchClusterNodeResponse {
+        Items []ClusterNodeInfo `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    NodeIdRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+    }
+
+    NodeDisableScheduleRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+        Status int64 `json:"status" validate:"required,oneof=1 2"`
+    }
+
+    NodeLabelRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+        Key string `json:"key" validate:"required,max=253"`
+        Value string `json:"value" validate:"omitempty,max=63"`
+    }
+
+    NodeLabelDeleteRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+        Key string `json:"key" validate:"required,max=253"`
+    }
+
+    NodeLabelItem {
+        Key string `json:"key"`
+        Value string `json:"value"`
+        IsDelete bool `json:"isDelete"`
+    }
+
+    NodeAnnotationRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+        Key string `json:"key" validate:"required,max=253"`
+        Value string `json:"value" validate:"omitempty"`
+    }
+
+    NodeAnnotationDeleteRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+        Key string `json:"key" validate:"required,max=253"`
+    }
+
+    NodeAnnotationItem {
+        Key string `json:"key"`
+        Value string `json:"value"`
+        IsDelete bool `json:"isDelete"`
+    }
+
+    NodeTaintRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+        Key string `json:"key" validate:"required,max=253"`
+        Value string `json:"value" validate:"omitempty,max=63"`
+        Effect string `json:"effect" validate:"required,oneof=NoSchedule PreferNoSchedule NoExecute"`
+    }
+
+    NodeTaintDeleteRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+        Key string `json:"key" validate:"required,max=253"`
+        Effect string `json:"effect" validate:"required,oneof=NoSchedule PreferNoSchedule NoExecute"`
+    }
+
+    NodeTaint {
+        Key string `json:"key"`
+        Value string `json:"value"`
+        Effect string `json:"effect"`
+        Time int64 `json:"time"`
+        IsDelete bool `json:"isDelete"`
+    }
+
+    NodeEvictRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: node
+    prefix: /manager/v1/node
+)
+service manager-api {
+    @handler GetNodeListHandler
+    get / (SearchClusterNodeRequest) returns (SearchClusterNodeResponse)
+
+    @handler GetNodeDetailHandler
+    get /:id (NodeIdRequest) returns (ClusterNodeDetail)
+
+    @handler UpdateNodeScheduleHandler
+    put /:id/schedule (NodeDisableScheduleRequest) returns (string)
+
+    @handler GetNodeLabelsHandler
+    get /:id/labels (NodeIdRequest) returns ([]NodeLabelItem)
+
+    @handler AddNodeLabelHandler
+    post /:id/labels (NodeLabelRequest) returns (string)
+
+    @handler DeleteNodeLabelHandler
+    delete /:id/labels (NodeLabelDeleteRequest) returns (string)
+
+    @handler GetNodeAnnotationsHandler
+    get /:id/annotations (NodeIdRequest) returns ([]NodeAnnotationItem)
+
+    @handler AddNodeAnnotationHandler
+    post /:id/annotations (NodeAnnotationRequest) returns (string)
+
+    @handler DeleteNodeAnnotationHandler
+    delete /:id/annotations (NodeAnnotationDeleteRequest) returns (string)
+
+    @handler GetNodeTaintsHandler
+    get /:id/taints (NodeIdRequest) returns ([]NodeTaint)
+
+    @handler AddNodeTaintHandler
+    post /:id/taints (NodeTaintRequest) returns (string)
+
+    @handler DeleteNodeTaintHandler
+    delete /:id/taints (NodeTaintDeleteRequest) returns (string)
+
+    @handler EvictNodeHandler
+    post /:id/evict (NodeEvictRequest) returns (string)
+}

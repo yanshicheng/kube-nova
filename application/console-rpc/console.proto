@@ -1,0 +1,1141 @@
+syntax = "proto3";
+
+option go_package = "github.com/yanshicheng/kube-nova/application/console-rpc/pb";
+
+package pb;
+
+//================================镜像仓库基础数据结构================================
+message ContainerRegistry {
+  uint64 id = 1;
+  string name = 2;
+  string uuid = 3;
+  string type = 4;                    // harbor, docker-registry, nexus
+  string env = 5;                     // dev, test, staging, prod
+  string url = 6;
+  string username = 7;
+  string password = 8;
+  bool insecure = 9;                  // 是否跳过证书验证
+  string caCert = 10;                 // CA 证书内容
+  string config = 11;                 // JSON 格式的扩展配置
+  int32 status = 12;                  // 0-禁用, 1-启用
+  string description = 13;
+  string createdBy = 14;
+  string updatedBy = 15;
+  int64 createdAt = 16;
+  int64 updatedAt = 17;
+  int64 totalProjects = 21;
+  int64 storageTotal = 18;
+  int64 totalRepositories = 19;
+}
+
+message ContainerRegistryDetails {
+  uint64 id = 1;
+  string name = 2;
+  string uuid = 3;
+  string type = 4;
+  string env = 5;
+  string url = 6;
+  string username = 7;
+  string password = 8;
+  bool insecure = 9;
+  string caCert = 10;
+  string config = 11;
+  int32 status = 12;
+  string description = 13;
+  string createdBy = 14;
+  string updatedBy = 15;
+  int64 createdAt = 16;
+  int64 updatedAt = 17;
+  // 统计信息（仅支持的仓库类型）
+  int64 storageTotal = 18;
+  int64 storageUsed = 19;
+  int64 storageFree = 20;
+  int64 totalProjects = 21;
+  int64 publicProjects = 22;
+  int64 privateProjects = 23;
+  int64 totalRepositories = 24;
+  int64 publicRepositories = 25;
+  int64 privateRepositories = 26;
+}
+
+//================================仓库与集群关联数据结构================================
+message RegistryCluster {
+  uint64 id = 1;
+  uint64 registryId = 2;
+  string clusterUuid = 3;
+  int64 createdAt = 4;
+  int64 updatedAt = 5;
+  // 关联的仓库信息（查询时返回）
+  ContainerRegistry registry = 6;
+}
+
+//================================仓库项目与应用项目绑定数据结构================================
+message RegistryProjectBinding {
+  uint64 id = 1;
+  uint64 registryId = 2;
+  uint64 appProjectId = 3;
+  string registryProjectName = 4;   // 仓库中的项目名称
+  string registryProjectId = 5;     // 仓库中的项目ID（可选）
+  int64 createdAt = 6;
+  int64 updatedAt = 7;
+  // 关联信息（查询时返回）
+  ContainerRegistry registry = 8;
+  string clusterUuid = 9;
+}
+
+//================================镜像仓库 CRUD（管理员操作）================================
+message CreateRegistryReq {
+  string name = 1;
+  string type = 2;
+  string env = 3;
+  string url = 4;
+  string username = 5;
+  string password = 6;
+  bool insecure = 7;
+  string caCert = 8;
+  string config = 9;                // JSON 格式字符串
+  int32 status = 10;
+  string description = 11;
+  string createdBy = 12;
+}
+message CreateRegistryResp {
+  string uuid = 1;
+  string message = 2;
+}
+
+message UpdateRegistryReq {
+  uint64 id = 1;
+  string name = 2;
+  string type = 3;
+  string env = 4;
+  string url = 5;
+  string username = 6;
+  string password = 7;
+  bool insecure = 8;
+  string caCert = 9;
+  string config = 10;
+  int32 status = 11;
+  string description = 12;
+  string updatedBy = 13;
+}
+message UpdateRegistryResp {
+  string message = 1;
+}
+
+message DeleteRegistryReq {
+  uint64 id = 1;
+}
+message DeleteRegistryResp {
+  string message = 1;
+}
+
+message GetRegistryByUuidReq {
+  string uuid = 1;
+}
+message GetRegistryByUuidResp {
+  ContainerRegistry data = 1;
+}
+
+message GetRegistryDetailsReq {
+  string uuid = 1;
+}
+message GetRegistryDetailsResp {
+  ContainerRegistryDetails data = 1;
+}
+
+message TestRegistryConnectionReq {
+  string url = 1;
+  string username = 2;
+  string password = 3;
+  bool insecure = 4;
+  string caCert = 5;
+  string type = 6;                  // 仓库类型
+}
+message TestRegistryConnectionResp {
+  bool success = 1;
+  string message = 2;
+}
+
+//================================仓库查询（管理员视角 + 项目视角）================================
+// 管理员视角：查询所有仓库
+message ListRegistriesReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string orderBy = 3;
+  bool isAsc = 4;
+  string name = 5;
+  string uuid = 6;
+  string env = 7;
+  string type = 8;
+  int32 status = 9;
+}
+message ListRegistriesResp {
+  repeated ContainerRegistry data = 1;
+  uint64 total = 2;
+}
+
+// 项目视角：查询项目关联的仓库（需要传项目ID和集群UUID）
+message ListRegistriesByProjectReq {
+  uint64 appProjectId = 1;          // 必填
+  string clusterUuid = 2;           // 必填
+  uint64 page = 3;
+  uint64 pageSize = 4;
+  string orderBy = 5;
+  bool isAsc = 6;
+  string name = 7;
+  string env = 8;
+  string type = 9;
+}
+message ListRegistriesByProjectResp {
+  repeated ContainerRegistry data = 1;
+  uint64 total = 2;
+}
+
+//================================仓库与集群关联 CRUD（管理员操作）================================
+message BindRegistryToClusterReq {
+  uint64 registryId = 1;
+  string clusterUuid = 2;
+}
+message BindRegistryToClusterResp {
+  uint64 id = 1;
+  string message = 2;
+}
+
+message UnbindRegistryFromClusterReq {
+  uint64 id = 1;                    // registry_cluster 表的 ID
+}
+message UnbindRegistryFromClusterResp {
+  string message = 1;
+}
+
+message ListClusterRegistriesReq {
+  string clusterUuid = 1;
+  uint64 registryId = 2;            // 可选：筛选特定仓库
+}
+message ListClusterRegistriesResp {
+  repeated RegistryCluster data = 1;
+}
+
+message ListRegistryClustersReq {
+  uint64 registryId = 1;            // 查询某个仓库关联的所有集群
+}
+message ListRegistryClustersResp {
+  repeated RegistryCluster data = 1;
+}
+
+//================================仓库项目与应用项目绑定 CRUD（管理员操作）================================
+message BindRegistryProjectReq {
+  uint64 registryId = 1;     // registry_cluster 表的 ID
+  uint64 appProjectId = 2;
+  string registryProjectName = 3;   // 仓库中的项目名称
+  string registryProjectId = 4;     // 可选：仓库中的项目ID
+}
+message BindRegistryProjectResp {
+  uint64 id = 1;
+  string message = 2;
+}
+
+message UnbindRegistryProjectReq {
+  uint64 id = 1;                    // registry_project_binding 表的 ID
+}
+message UnbindRegistryProjectResp {
+  string message = 1;
+}
+
+message ListProjectRegistryBindingsReq {
+  uint64 registryId = 3;            // 可选：筛选特定仓库
+  string registryProjectName = 4;
+}
+
+message BindProjectIds {
+  uint64 id = 1;
+  uint64 projectId = 2;
+}
+message ListProjectRegistryBindingsResp {
+  repeated BindProjectIds data = 1;
+}
+
+//================================仓库项目操作================================
+message RegistryProject {
+  int64 projectId = 1;
+  string name = 2;
+  string ownerName = 3;
+  bool isPublic = 4;
+  int64 repoCount = 5;
+  int64 creationTime = 6;
+  int64 updateTime = 7;
+  // 新增：存储信息
+  int64 storageLimit = 8;           // 存储配额限制（字节）
+  int64 storageUsed = 9;            // 已使用存储（字节）
+  string storageLimitDisplay = 10;  // 存储配额显示（如 "10GB"）
+  string storageUsedDisplay = 11;   // 已使用存储显示（如 "5.2GB"）
+}
+
+// 管理员视角：查询仓库的所有项目
+message ListProjectsReq {
+  string registryUuid = 1;          // 必填：仓库 UUID
+  string search = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  string sortBy = 5;
+  bool sortDesc = 6;
+}
+message ListProjectsResp {
+  repeated RegistryProject items = 1;
+  int64 total = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  int64 totalPages = 5;
+}
+
+// 项目视角：查询应用项目关联的仓库项目（私有项目 + 公开项目）
+message ListProjectsByAppReq {
+  uint64 appProjectId = 1;          // 必填：应用项目 ID
+  string clusterUuid = 2;           // 必填：集群 UUID
+  string registryUuid = 3;          // 必填：仓库 UUID
+  string search = 4;
+  int64 page = 5;
+  int64 pageSize = 6;
+  string sortBy = 7;
+  bool sortDesc = 8;
+}
+message ListProjectsByAppResp {
+  repeated RegistryProject items = 1;
+  int64 total = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  int64 totalPages = 5;
+}
+
+message GetProjectReq {
+  string registryUuid = 1;
+  string projectName = 2;
+}
+message GetProjectResp {
+  RegistryProject data = 1;
+}
+
+message CreateProjectReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  bool isPublic = 3;
+  int64 storageLimit = 4;           // 🔧 改为 int64
+  string storageUnit = 7;           // 🆕 新增：支持 MB、GB、TB，默认为 GB
+  uint64 appProjectId = 5;          // 可选：创建时直接绑定到应用项目
+  string clusterUuid = 6;           // 可选：与 appProjectId 配合使用
+}
+message CreateProjectResp {
+  int64 projectId = 1;
+  string message = 2;
+}
+
+message UpdateProjectReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  bool isPublic = 3;
+  int64 storageLimit = 4;           // 🔧 改为 int64
+  string storageUnit = 6;           // 🆕 新增：支持 MB、GB、TB，默认为 GB
+}
+
+message UpdateProjectResp {
+  string message = 1;
+}
+
+message DeleteProjectReq {
+  string registryUuid = 1;
+  string projectName = 2;
+}
+message DeleteProjectResp {
+  string message = 1;
+}
+
+//================================用户管理================================
+message ProjectMember {
+  int64 id = 1;
+  int64 projectId = 2;
+  string entityName = 3;            // 用户名或用户组名
+  string entityType = 4;            // u=用户, g=用户组
+  int64 roleId = 5;                 // 角色ID: 1=管理员, 2=开发者, 3=访客, 4=维护者
+  string roleName = 6;              // 角色名称
+  int64 creationTime = 7;
+  int64 updateTime = 8;
+}
+
+// 列出项目成员
+message ListProjectMembersReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  string search = 3;                // 搜索用户名
+  int64 page = 4;
+  int64 pageSize = 5;
+}
+message ListProjectMembersResp {
+  repeated ProjectMember items = 1;
+  int64 total = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  int64 totalPages = 5;
+}
+
+// 添加项目成员
+message AddProjectMemberReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  string memberUser = 3;            // 用户名或用户组名
+  int64 roleId = 4;                 // 角色ID: 1=管理员, 2=开发者, 3=访客, 4=维护者
+}
+message AddProjectMemberResp {
+  int64 id = 1;
+  string message = 2;
+}
+
+// 更新项目成员角色
+message UpdateProjectMemberReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  int64 memberId = 3;               // 成员ID
+  int64 roleId = 4;                 // 新的角色ID
+}
+message UpdateProjectMemberResp {
+  string message = 1;
+}
+
+// 删除项目成员
+message DeleteProjectMemberReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  int64 memberId = 3;               // 成员ID
+}
+message DeleteProjectMemberResp {
+  string message = 1;
+}
+
+// 获取项目成员详情
+message GetProjectMemberReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  int64 memberId = 3;
+}
+message GetProjectMemberResp {
+  ProjectMember data = 1;
+}
+
+//================================仓库 Repository 操作================================
+message Repository {
+  int64 id = 1;
+  string name = 2;
+  int64 projectId = 3;
+  string projectName = 4;
+  string description = 5;
+  int64 artifactCount = 6;
+  int64 pullCount = 7;
+  int64 creationTime = 8;
+  int64 updateTime = 9;
+}
+
+message ListRepositoriesReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  string search = 3;
+  int64 page = 4;
+  int64 pageSize = 5;
+  string sortBy = 6;
+  bool sortDesc = 7;
+}
+message ListRepositoriesResp {
+  repeated Repository items = 1;
+  int64 total = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  int64 totalPages = 5;
+}
+
+message GetRepositoryReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  string repoName = 3;
+}
+message GetRepositoryResp {
+  Repository data = 1;
+}
+
+message DeleteRepositoryReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  string repoName = 3;
+}
+message DeleteRepositoryResp {
+  string message = 1;
+}
+
+//================================制品/标签操作================================
+message Tag {
+  int64 id = 1;
+  string name = 2;
+  int64 pushTime = 3;
+  int64 pullTime = 4;
+  bool immutable = 5;
+  bool signed = 6;
+}
+
+message Artifact {
+  int64 id = 1;
+  string type = 2;
+  string digest = 3;
+  repeated Tag tags = 4;
+  int64 pushTime = 5;
+  int64 pullTime = 6;
+  int64 size = 7;
+  string manifestMediaType = 8;
+}
+
+message ListArtifactsReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  string repoName = 3;
+  string search = 4;
+  int64 page = 5;
+  int64 pageSize = 6;
+  string sortBy = 7;
+  bool sortDesc = 8;
+}
+message ListArtifactsResp {
+  repeated Artifact items = 1;
+  int64 total = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  int64 totalPages = 5;
+}
+
+message GetArtifactReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  string repoName = 3;
+  string reference = 4;              // digest 或 tag
+}
+message GetArtifactResp {
+  Artifact data = 1;
+}
+
+message DeleteArtifactReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  string repoName = 3;
+  string reference = 4;
+}
+message DeleteArtifactResp {
+  string message = 1;
+}
+
+message DeleteTagReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  string repoName = 3;
+  string tagName = 4;
+}
+message DeleteTagResp {
+  string message = 1;
+}
+
+//================================镜像搜索（4个接口：管理员视角2个 + 项目视角2个）================================
+message ImageSearchResult {
+  string projectName = 1;
+  string repoName = 2;
+  repeated string tags = 3;
+  int64 artifactCount = 4;
+  int64 pullCount = 5;
+}
+
+message RegistryImageSearchResult {
+  string registryName = 1;
+  string registryUuid = 2;
+  string registryUrl = 3;
+  repeated ImageSearchResult images = 4;
+}
+
+// 1. 全局搜索-管理员视角：搜索所有仓库所有项目的镜像
+message SearchImagesGlobalReq {
+  string imageName = 1;             // 必填：镜像名称
+  string registryType = 2;          // 可选：筛选仓库类型
+  string env = 3;                   // 可选：筛选环境
+  int64 page = 4;
+  int64 pageSize = 5;
+}
+message SearchImagesGlobalResp {
+  repeated RegistryImageSearchResult data = 1;
+  int64 total = 2;
+}
+
+// 2. 全局搜索-项目视角：搜索项目关联的仓库和有权限的项目（私有项目+公开项目）
+message SearchImagesGlobalByProjectReq {
+  uint64 appProjectId = 1;          // 必填：应用项目 ID
+  string clusterUuid = 2;           // 必填：集群 UUID
+  string imageName = 3;             // 必填：镜像名称
+  int64 page = 4;
+  int64 pageSize = 5;
+}
+message SearchImagesGlobalByProjectResp {
+  repeated RegistryImageSearchResult data = 1;
+  int64 total = 2;
+}
+
+// 3. 仓库内搜索-管理员视角：搜索指定仓库所有项目的镜像
+message SearchImagesInRegistryReq {
+  string registryUuid = 1;          // 必填：仓库 UUID
+  string imageName = 2;             // 必填：镜像名称
+  int64 page = 3;
+  int64 pageSize = 4;
+}
+message SearchImagesInRegistryResp {
+  repeated ImageSearchResult data = 1;
+  int64 total = 2;
+}
+
+// 4. 仓库内搜索-项目视角：搜索指定仓库中项目关联的项目（私有项目+公开项目）
+message SearchImagesInRegistryByProjectReq {
+  uint64 appProjectId = 1;          // 必填：应用项目 ID
+  string clusterUuid = 2;           // 必填：集群 UUID
+  string registryUuid = 3;          // 必填：仓库 UUID
+  string imageName = 4;             // 必填：镜像名称
+  int64 page = 5;
+  int64 pageSize = 6;
+}
+message SearchImagesInRegistryByProjectResp {
+  repeated ImageSearchResult data = 1;
+  int64 total = 2;
+}
+
+//================================配额管理================================
+message ProjectQuota {
+  int64 storageLimit = 1;
+  int64 storageUsed = 2;
+  int64 countLimit = 3;
+  int64 countUsed = 4;
+}
+
+message GetProjectQuotaReq {
+  string registryUuid = 1;
+  string projectName = 2;
+}
+message GetProjectQuotaResp {
+  ProjectQuota data = 1;
+}
+
+message UpdateProjectQuotaReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  int64 storageLimit = 3;           // ✅ 已经是 int64
+  string storageUnit = 5;           // ✅ 已有：支持 MB、GB、TB，默认为 GB
+  int64 countLimit = 4;
+}
+
+message UpdateProjectQuotaResp {
+  string message = 1;
+}
+
+message HarborUser {
+  int64 userId = 1;
+  string username = 2;
+  string email = 3;
+  string realname = 4;           // 全名
+  string comment = 5;             // 注释
+  int64 creationTime = 6;
+  int64 updateTime = 7;
+  bool sysadminFlag = 8;          // 是否是系统管理员
+  bool adminRoleInAuth = 9;     // 认证中的管理员角色
+}
+
+// 创建用户
+message CreateUserReq {
+  string registryUuid = 1;        // Harbor 仓库 UUID
+  string username = 2;            // 用户名（必填）
+  string email = 3;               // 邮箱（必填）
+  string realname = 4;            // 全名（必填）
+  string password = 5;            // 密码（必填）
+  string comment = 6;             // 注释（可选）
+}
+message CreateUserResp {
+  int64 userId = 1;
+  string message = 2;
+}
+
+// 列出用户
+message ListUsersReq {
+  string registryUuid = 1;
+  string search = 2;              // 搜索关键词（用户名或邮箱）
+  int64 page = 3;
+  int64 pageSize = 4;
+}
+message ListUsersResp {
+  repeated HarborUser items = 1;
+  int64 total = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  int64 totalPages = 5;
+}
+
+// 获取用户详情
+message GetUserReq {
+  string registryUuid = 1;
+  int64 userId = 2;               // 用户 ID 或用户名
+}
+message GetUserResp {
+  HarborUser data = 1;
+}
+
+// 更新用户
+message UpdateUserReq {
+  string registryUuid = 1;
+  int64 userId = 2;
+  string email = 3;               // 可选
+  string realname = 4;            // 可选
+  string comment = 5;             // 可选
+}
+message UpdateUserResp {
+  string message = 1;
+}
+
+// 删除用户
+message DeleteUserReq {
+  string registryUuid = 1;
+  int64 userId = 2;
+}
+message DeleteUserResp {
+  string message = 1;
+}
+
+// 修改用户密码
+message ChangeUserPasswordReq {
+  string registryUuid = 1;
+  int64 userId = 2;
+  string oldPassword = 3;         // 旧密码
+  string newPassword = 4;         // 新密码
+}
+message ChangeUserPasswordResp {
+  string message = 1;
+}
+
+// 设置用户为管理员
+message SetUserAdminReq {
+  string registryUuid = 1;
+  int64 userId = 2;
+  bool sysadminFlag = 3;          // true=设为管理员, false=取消管理员
+}
+message SetUserAdminResp {
+  string message = 1;
+}
+
+
+
+//================================垃圾回收管理================================
+message GCHistory {
+  int64 id = 1;
+  string jobName = 2;
+  string jobKind = 3;
+  string jobStatus = 4;              // Pending, Running, Success, Error
+  int64 creationTime = 5;
+  int64 updateTime = 6;
+  bool deleteUntagged = 7;
+  string jobParameters = 8;
+}
+
+message GCSchedule {
+  string schedule = 1;                // cron 表达式或空字符串
+  map<string, string> parameters = 2; // {"delete_untagged": "true"}
+}
+
+// 列出 GC 历史
+message ListGCHistoryReq {
+  string registryUuid = 1;
+  int64 page = 2;
+  int64 pageSize = 3;
+}
+message ListGCHistoryResp {
+  repeated GCHistory items = 1;
+  int64 total = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  int64 totalPages = 5;
+}
+
+// 获取 GC 详情
+message GetGCReq {
+  string registryUuid = 1;
+  int64 gcId = 2;
+}
+message GetGCResp {
+  GCHistory data = 1;
+}
+
+// 获取 GC 日志
+message GetGCLogReq {
+  string registryUuid = 1;
+  int64 gcId = 2;
+}
+message GetGCLogResp {
+  string log = 1;
+}
+
+// 获取 GC 调度配置
+message GetGCScheduleReq {
+  string registryUuid = 1;
+}
+message GetGCScheduleResp {
+  GCSchedule data = 1;
+}
+
+// 更新 GC 调度配置
+message UpdateGCScheduleReq {
+  string registryUuid = 1;
+  string schedule = 2;                // cron 表达式，如 "0 0 * * *"
+  bool deleteUntagged = 3;           // 是否删除未标记的制品
+}
+message UpdateGCScheduleResp {
+  string message = 1;
+}
+
+// 手动触发 GC
+message TriggerGCReq {
+  string registryUuid = 1;
+  bool deleteUntagged = 2;           // 是否删除未标记的制品
+  int32 workers = 3;                 // 工作线程数（可选，默认1）
+}
+message TriggerGCResp {
+  int64 jobId = 1;
+  string message = 2;
+}
+
+//================================保留策略管理================================
+message RetentionRule {
+  int64 id = 1;
+  int32 priority = 2;
+  bool disabled = 3;
+  string action = 4;                 // retain
+  string template = 5;               // 模板类型: latestPushedK, latestPulledN, nDaysSinceLastPull, etc.
+  map<string, string> params = 6;    // 模板参数: {"latestPushedK": "10"}
+  string tagSelectors = 7;           // JSON 格式的标签选择器
+  string scopeSelectors = 8;         // JSON 格式的范围选择器
+}
+
+message RetentionPolicy {
+  int64 id = 1;
+  string algorithm = 2;              // or
+  repeated RetentionRule rules = 3;
+  string trigger = 4;                // JSON 格式的触发器配置
+  string scope = 5;                  // JSON 格式的作用域
+  int64 createTime = 6;
+  int64 updateTime = 7;
+}
+
+message RetentionExecution {
+  int64 id = 1;
+  int64 policyId = 2;
+  string status = 3;                 // Pending, Running, Success, Failed, Stopped
+  string trigger = 4;                // manual, scheduled
+  int64 startTime = 5;
+  int64 endTime = 6;
+  int32 dryRun = 7;
+}
+
+// 获取项目保留策略
+message GetRetentionPolicyReq {
+  string registryUuid = 1;
+  string projectName = 2;
+}
+message GetRetentionPolicyResp {
+  RetentionPolicy data = 1;
+}
+
+// 创建保留策略
+message CreateRetentionPolicyReq {
+  string registryUuid = 1;
+  string projectName = 2;
+  string algorithm = 3;
+  repeated RetentionRule rules = 4;
+  string schedule = 5;               // cron 表达式（可选）
+}
+message CreateRetentionPolicyResp {
+  int64 id = 1;
+  string message = 2;
+}
+
+// 更新保留策略
+message UpdateRetentionPolicyReq {
+  string registryUuid = 1;
+  int64 policyId = 2;
+  string algorithm = 3;
+  repeated RetentionRule rules = 4;
+  string schedule = 5;
+}
+message UpdateRetentionPolicyResp {
+  string message = 1;
+}
+
+// 执行保留策略
+message ExecuteRetentionPolicyReq {
+  string registryUuid = 1;
+  int64 policyId = 2;
+  bool dryRun = 3;                   // 是否仅模拟运行
+}
+message ExecuteRetentionPolicyResp {
+  int64 executionId = 1;
+  string message = 2;
+}
+
+// 列出保留策略执行历史
+message ListRetentionExecutionsReq {
+  string registryUuid = 1;
+  int64 policyId = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+}
+message ListRetentionExecutionsResp {
+  repeated RetentionExecution items = 1;
+  int64 total = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  int64 totalPages = 5;
+}
+
+//================================复制策略管理================================
+message ReplicationFilter {
+  string type = 1;                   // resource, name, tag, label
+  string value = 2;
+  string decoration = 3;             // matches, excludes
+}
+
+message ReplicationTrigger {
+  string type = 1;                   // manual, scheduled, event_based
+  map<string, string> triggerSettings = 2;
+}
+
+message ReplicationPolicy {
+  int64 id = 1;
+  string name = 2;
+  string description = 3;
+  int64 srcRegistry = 4;             // 源仓库 ID（0 表示本地）
+  int64 destRegistry = 5;            // 目标仓库 ID
+  string destNamespace = 6;          // 目标命名空间
+  repeated ReplicationFilter filters = 7;
+  ReplicationTrigger trigger = 8;
+  bool deletion = 9;                 // 是否同步删除
+  bool override = 10;                // 是否覆盖
+  bool enabled = 11;
+  int64 creationTime = 12;
+  int64 updateTime = 13;
+}
+
+message ReplicationExecution {
+  int64 id = 1;
+  int64 policyId = 2;
+  string status = 3;                 // Pending, Running, Success, Failed, Stopped
+  string trigger = 4;                // manual, scheduled, event_based
+  int64 startTime = 5;
+  int64 endTime = 6;
+  int64 succeed = 7;                 // 成功数量
+  int64 failed = 8;                  // 失败数量
+  int64 inProgress = 9;              // 进行中数量
+  int64 stopped = 10;                // 停止数量
+}
+
+// 列出复制策略
+message ListReplicationPoliciesReq {
+  string registryUuid = 1;
+  string name = 2;                   // 可选：按名称筛选
+  int64 page = 3;
+  int64 pageSize = 4;
+}
+message ListReplicationPoliciesResp {
+  repeated ReplicationPolicy items = 1;
+  int64 total = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  int64 totalPages = 5;
+}
+
+// 获取复制策略
+message GetReplicationPolicyReq {
+  string registryUuid = 1;
+  int64 policyId = 2;
+}
+message GetReplicationPolicyResp {
+  ReplicationPolicy data = 1;
+}
+
+// 创建复制策略
+message CreateReplicationPolicyReq {
+  string registryUuid = 1;
+  string name = 2;
+  string description = 3;
+  int64 srcRegistry = 4;
+  int64 destRegistry = 5;
+  string destNamespace = 6;
+  repeated ReplicationFilter filters = 7;
+  ReplicationTrigger trigger = 8;
+  bool deletion = 9;
+  bool override = 10;
+  bool enabled = 11;
+}
+message CreateReplicationPolicyResp {
+  int64 id = 1;
+  string message = 2;
+}
+
+// 更新复制策略
+message UpdateReplicationPolicyReq {
+  string registryUuid = 1;
+  int64 policyId = 2;
+  string name = 3;
+  string description = 4;
+  int64 srcRegistry = 5;
+  int64 destRegistry = 6;
+  string destNamespace = 7;
+  repeated ReplicationFilter filters = 8;
+  ReplicationTrigger trigger = 9;
+  bool deletion = 10;
+  bool override = 11;
+  bool enabled = 12;
+}
+message UpdateReplicationPolicyResp {
+  string message = 1;
+}
+
+// 删除复制策略
+message DeleteReplicationPolicyReq {
+  string registryUuid = 1;
+  int64 policyId = 2;
+}
+message DeleteReplicationPolicyResp {
+  string message = 1;
+}
+
+// 执行复制策略
+message ExecuteReplicationPolicyReq {
+  string registryUuid = 1;
+  int64 policyId = 2;
+}
+message ExecuteReplicationPolicyResp {
+  int64 executionId = 1;
+  string message = 2;
+}
+
+// 列出复制执行历史
+message ListReplicationExecutionsReq {
+  string registryUuid = 1;
+  int64 policyId = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+}
+message ListReplicationExecutionsResp {
+  repeated ReplicationExecution items = 1;
+  int64 total = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  int64 totalPages = 5;
+}
+
+//================================服务定义================================
+service RepositoryService {
+  // ============ 镜像仓库管理（管理员操作）============
+  rpc CreateRegistry(CreateRegistryReq) returns (CreateRegistryResp);
+  rpc UpdateRegistry(UpdateRegistryReq) returns (UpdateRegistryResp);
+  rpc DeleteRegistry(DeleteRegistryReq) returns (DeleteRegistryResp);
+  rpc GetRegistryByUuid(GetRegistryByUuidReq) returns (GetRegistryByUuidResp);
+  rpc GetRegistryDetails(GetRegistryDetailsReq) returns (GetRegistryDetailsResp);
+  rpc TestRegistryConnection(TestRegistryConnectionReq) returns (TestRegistryConnectionResp);
+
+  // ============ 仓库查询（管理员视角 + 项目视角）============
+  // 管理员视角：查询所有仓库
+  rpc ListRegistries(ListRegistriesReq) returns (ListRegistriesResp);
+  // 项目视角：查询项目关联的仓库
+  rpc ListRegistriesByProject(ListRegistriesByProjectReq) returns (ListRegistriesByProjectResp);
+
+  // ============ 仓库与集群关联（管理员操作）============
+  rpc BindRegistryToCluster(BindRegistryToClusterReq) returns (BindRegistryToClusterResp);
+  rpc UnbindRegistryFromCluster(UnbindRegistryFromClusterReq) returns (UnbindRegistryFromClusterResp);
+  rpc ListClusterRegistries(ListClusterRegistriesReq) returns (ListClusterRegistriesResp);
+  rpc ListRegistryClusters(ListRegistryClustersReq) returns (ListRegistryClustersResp);
+
+  // ============ 仓库项目与应用项目绑定（管理员操作）============
+  rpc BindRegistryProject(BindRegistryProjectReq) returns (BindRegistryProjectResp);
+  rpc UnbindRegistryProject(UnbindRegistryProjectReq) returns (UnbindRegistryProjectResp);
+  // 通过镜像ID 和 项目名字 查询 绑定的项目 ids 列表。
+  rpc ListProjectRegistryBindings(ListProjectRegistryBindingsReq) returns (ListProjectRegistryBindingsResp);
+
+  // ============ 仓库项目操作（管理员操作 + 项目视角查询）============
+  // 管理员视角：查询仓库所有项目
+  rpc ListProjects(ListProjectsReq) returns (ListProjectsResp);
+  // 项目视角：查询应用项目关联的仓库项目（私有项目+公开项目）
+  rpc ListProjectsByApp(ListProjectsByAppReq) returns (ListProjectsByAppResp);
+  rpc GetProject(GetProjectReq) returns (GetProjectResp);
+  rpc CreateProject(CreateProjectReq) returns (CreateProjectResp);
+  rpc UpdateProject(UpdateProjectReq) returns (UpdateProjectResp);
+  rpc DeleteProject(DeleteProjectReq) returns (DeleteProjectResp);
+
+  // ============ 用户管理（项目成员管理）============
+  rpc ListProjectMembers(ListProjectMembersReq) returns (ListProjectMembersResp);
+  rpc AddProjectMember(AddProjectMemberReq) returns (AddProjectMemberResp);
+  rpc UpdateProjectMember(UpdateProjectMemberReq) returns (UpdateProjectMemberResp);
+  rpc DeleteProjectMember(DeleteProjectMemberReq) returns (DeleteProjectMemberResp);
+  rpc GetProjectMember(GetProjectMemberReq) returns (GetProjectMemberResp);
+
+  // ============ Repository 操作 ============
+  rpc ListRepositories(ListRepositoriesReq) returns (ListRepositoriesResp);
+  rpc GetRepository(GetRepositoryReq) returns (GetRepositoryResp);
+  rpc DeleteRepository(DeleteRepositoryReq) returns (DeleteRepositoryResp);
+
+  // ============ 制品/标签操作 ============
+  rpc ListArtifacts(ListArtifactsReq) returns (ListArtifactsResp);
+  rpc GetArtifact(GetArtifactReq) returns (GetArtifactResp);
+  rpc DeleteArtifact(DeleteArtifactReq) returns (DeleteArtifactResp);
+  rpc DeleteTag(DeleteTagReq) returns (DeleteTagResp);
+
+  // ============ 镜像搜索（4个接口）============
+  // 1. 全局搜索-管理员视角：搜索所有仓库所有项目
+  rpc SearchImagesGlobal(SearchImagesGlobalReq) returns (SearchImagesGlobalResp);
+  // 2. 全局搜索-项目视角：搜索项目关联的仓库和有权限的项目
+  rpc SearchImagesGlobalByProject(SearchImagesGlobalByProjectReq) returns (SearchImagesGlobalByProjectResp);
+  // 3. 仓库内搜索-管理员视角：搜索指定仓库所有项目
+  rpc SearchImagesInRegistry(SearchImagesInRegistryReq) returns (SearchImagesInRegistryResp);
+  // 4. 仓库内搜索-项目视角：搜索指定仓库中项目关联的项目
+  rpc SearchImagesInRegistryByProject(SearchImagesInRegistryByProjectReq) returns (SearchImagesInRegistryByProjectResp);
+
+  // ============ 配额管理 ============
+  rpc GetProjectQuota(GetProjectQuotaReq) returns (GetProjectQuotaResp);
+  rpc UpdateProjectQuota(UpdateProjectQuotaReq) returns (UpdateProjectQuotaResp);
+
+
+  // ============ 全局用户管理 ============
+  rpc CreateUser(CreateUserReq) returns (CreateUserResp);
+  rpc ListUsers(ListUsersReq) returns (ListUsersResp);
+  rpc GetUser(GetUserReq) returns (GetUserResp);
+  rpc UpdateUser(UpdateUserReq) returns (UpdateUserResp);
+  rpc DeleteUser(DeleteUserReq) returns (DeleteUserResp);
+  rpc ChangeUserPassword(ChangeUserPasswordReq) returns (ChangeUserPasswordResp);
+  rpc SetUserAdmin(SetUserAdminReq) returns (SetUserAdminResp);
+
+
+  // ============ 垃圾回收管理 ============
+  rpc ListGCHistory(ListGCHistoryReq) returns (ListGCHistoryResp);
+  rpc GetGC(GetGCReq) returns (GetGCResp);
+  rpc GetGCLog(GetGCLogReq) returns (GetGCLogResp);
+  rpc GetGCSchedule(GetGCScheduleReq) returns (GetGCScheduleResp);
+  rpc UpdateGCSchedule(UpdateGCScheduleReq) returns (UpdateGCScheduleResp);
+  rpc TriggerGC(TriggerGCReq) returns (TriggerGCResp);
+
+  // ============ 保留策略管理 ============
+  rpc GetRetentionPolicy(GetRetentionPolicyReq) returns (GetRetentionPolicyResp);
+  rpc CreateRetentionPolicy(CreateRetentionPolicyReq) returns (CreateRetentionPolicyResp);
+  rpc UpdateRetentionPolicy(UpdateRetentionPolicyReq) returns (UpdateRetentionPolicyResp);
+  rpc ExecuteRetentionPolicy(ExecuteRetentionPolicyReq) returns (ExecuteRetentionPolicyResp);
+  rpc ListRetentionExecutions(ListRetentionExecutionsReq) returns (ListRetentionExecutionsResp);
+
+  // ============ 复制策略管理 ============
+  rpc ListReplicationPolicies(ListReplicationPoliciesReq) returns (ListReplicationPoliciesResp);
+  rpc GetReplicationPolicy(GetReplicationPolicyReq) returns (GetReplicationPolicyResp);
+  rpc CreateReplicationPolicy(CreateReplicationPolicyReq) returns (CreateReplicationPolicyResp);
+  rpc UpdateReplicationPolicy(UpdateReplicationPolicyReq) returns (UpdateReplicationPolicyResp);
+  rpc DeleteReplicationPolicy(DeleteReplicationPolicyReq) returns (DeleteReplicationPolicyResp);
+  rpc ExecuteReplicationPolicy(ExecuteReplicationPolicyReq) returns (ExecuteReplicationPolicyResp);
+  rpc ListReplicationExecutions(ListReplicationExecutionsReq) returns (ListReplicationExecutionsResp);
+}

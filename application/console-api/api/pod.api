@@ -1,0 +1,769 @@
+syntax = "v1"
+
+info(
+    title: "Pod 管理服务"
+    desc: "Pod 相关操作的 API 定义"
+    author: "devops"
+    version: "v1.0"
+)
+
+// ==================== 通用类型定义 ====================
+type (
+    ContainerStateRunning {
+        StartedAt int64 `json:"startedAt"`
+    }
+
+    ContainerStateWaiting {
+        Reason string `json:"reason,omitempty"`
+        Message string `json:"message,omitempty"`
+    }
+
+    ContainerStateTerminated {
+        ExitCode int `json:"exitCode"`
+        Reason string `json:"reason,omitempty"`
+        Message string `json:"message,omitempty"`
+        StartedAt int64 `json:"startedAt,omitempty"`
+        FinishedAt int64 `json:"finishedAt,omitempty"`
+    }
+
+    ContainerStateInfo {
+        Type string `json:"type"`
+        Running *ContainerStateRunning `json:"running,omitempty"`
+        Waiting *ContainerStateWaiting `json:"waiting,omitempty"`
+        Terminated *ContainerStateTerminated `json:"terminated,omitempty"`
+    }
+
+    ContainerStatusDetails {
+        State ContainerStateInfo `json:"state"`
+        LastState ContainerStateInfo `json:"lastState,omitempty"`
+        Ready bool `json:"ready"`
+        RestartCount int `json:"restartCount"`
+        Image string `json:"image"`
+        ImageID string `json:"imageID"`
+        ContainerID string `json:"containerID,omitempty"`
+        Started *bool `json:"started,omitempty"`
+    }
+
+    ContainerInfo {
+        Name string `json:"name"`
+        Image string `json:"image"`
+        Ready bool `json:"ready"`
+        RestartCount int `json:"restartCount"`
+        State string `json:"state"`
+        Status *ContainerStatusDetails `json:"status,omitempty"`
+    }
+
+    ContainerInfoList {
+        InitContainers []ContainerInfo `json:"initContainers"`
+        Containers []ContainerInfo `json:"containers"`
+        EphemeralContainers []ContainerInfo `json:"ephemeralContainers,omitempty"`
+    }
+
+        // ==================== Container 基础操作 ====================
+    PodGetContainersReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+    }
+
+    PodGetContainersResp {
+        Items ContainerInfoList `json:"items"`
+    }
+
+    PodGetDefaultContainerReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+    }
+
+    PodGetDefaultContainerResp {
+        ContainerName string `json:"containerName"`
+    }
+
+        // ==================== Pod 日志操作 ====================
+
+        // 一次性获取日志（不跟踪）
+    PodLogsGetReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+        Container string `form:"container,optional"`
+        Previous bool `form:"previous,optional"`
+        SinceSeconds int64 `form:"sinceSeconds,optional"`
+        SinceTime string `form:"sinceTime,optional"` // RFC3339 格式
+        Timestamps bool `form:"timestamps,optional"`
+        TailLines int64 `form:"tailLines,optional,default=1000"`
+        LimitBytes int64 `form:"limitBytes,optional"`
+    }
+
+    PodLogsGetResp {
+        Logs string `json:"logs"`
+        Container string `json:"container"`
+        TotalLines int `json:"totalLines,omitempty"`
+    }
+
+        // WebSocket 实时日志流（Follow）
+    PodLogsStreamReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+        Container string `form:"container,optional"`
+        Previous bool `form:"previous,optional"`
+        SinceSeconds int64 `form:"sinceSeconds,optional"`
+        Timestamps bool `form:"timestamps,optional"`
+        TailLines int64 `form:"tailLines,optional,default=100"`
+
+    }
+
+        // 日志下载
+    PodLogsDownloadReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+        Container string `form:"container,optional"`
+        AllContainers bool `form:"allContainers,optional"`
+        Previous bool `form:"previous,optional"`
+        Timestamps bool `form:"timestamps,optional"`
+        TailLines int64 `form:"tailLines,optional"`
+        MaxSize int64 `form:"maxSize,optional"`
+        StartTime string `form:"startTime,optional"` // RFC3339 格式
+        EndTime string `form:"endTime,optional"` // RFC3339 格式
+    }
+
+        // ==================== Pod Exec 操作 ====================
+
+        // WebSocket 交互式执行
+    PodExecReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+        Container string `form:"container,optional"`
+        Command []string `form:"command,optional"` // 默认 ["/bin/sh"]
+        Rows int `form:"rows,optional,default=24"`
+        Cols int `form:"cols,optional,default=80"`
+    }
+
+        // 终端窗口大小调整（WebSocket 消息）
+    PodExecResizeReq {
+        Rows int `json:"rows"`
+        Cols int `json:"cols"`
+    }
+
+        // 非交互式命令执行
+    PodExecCommandReq {
+        WorkloadId uint64 `json:"workloadId"`
+        PodName string `json:"podName"`
+        Container string `json:"container,optional"`
+        Command []string `json:"command"`
+        Timeout int `json:"timeout,optional,default=30"` // 秒
+        WorkingDir string `json:"workingDir,optional"`
+        Env map[string]string `json:"env,optional"`
+    }
+
+    PodExecCommandResp {
+        Stdout string `json:"stdout"`
+        Stderr string `json:"stderr"`
+        ExitCode int `json:"exitCode"`
+        Duration int64 `json:"duration"` // 毫秒
+        Error string `json:"error,omitempty"`
+    }
+
+        // Exec 会话验证（心跳）
+    PodExecPingReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+        Container string `form:"container,optional"`
+    }
+
+    PodExecPingResp {
+        Status string `json:"status"` // alive/dead
+        ContainerStatus string `json:"containerStatus"`
+    }
+        // ==================== Pod 文件操作 ====================
+
+        // 文件列表
+    PodFileListReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+        Container string `form:"container,optional"`
+        Path string `form:"path,optional,default=/"`
+        ShowHidden bool `form:"showHidden,optional"`
+        SortBy string `form:"sortBy,optional,default=name"` // name/size/time/type
+        SortDesc bool `form:"sortDesc,optional"`
+        Search string `form:"search,optional"`
+        FileTypes []string `form:"fileTypes,optional"` // 如: [".log", ".txt"]
+        Recursive bool `form:"recursive,optional"` // 递归列出
+        MaxDepth int `form:"maxDepth,optional"` // 递归深度
+        Limit int `form:"limit,optional,default=1000"`
+        Offset int `form:"offset,optional"`
+    }
+
+    PodFileListResp {
+        Files []FileInfo `json:"files"`
+        CurrentPath string `json:"currentPath"`
+        Breadcrumbs []BreadcrumbItem `json:"breadcrumbs"`
+        TotalCount int `json:"totalCount"`
+        TotalSize int64 `json:"totalSize"`
+        Container string `json:"container"`
+        HasMore bool `json:"hasMore"`
+    }
+
+        // 文件信息
+    PodFileInfoReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+        Container string `form:"container,optional"`
+        Path string `form:"path"`
+    }
+
+    PermissionBits {
+        Read bool `json:"read"`
+        Write bool `json:"write"`
+        Execute bool `json:"execute"`
+    }
+
+    FilePermission {
+        User PermissionBits `json:"user"`
+        Group PermissionBits `json:"group"`
+        Other PermissionBits `json:"other"`
+    }
+
+    BreadcrumbItem {
+        Name string `json:"name"`
+        Path string `json:"path"`
+    }
+
+    FileInfo {
+        Name string `json:"name"`
+        Path string `json:"path"`
+        IsDir bool `json:"isDir"`
+        Size int64 `json:"size"`
+        Mode string `json:"mode"` // 如: -rw-r--r--
+        ModTime string `json:"modTime"` // RFC3339 格式
+        Owner string `json:"owner"`
+        Group string `json:"group"`
+        IsLink bool `json:"isLink"`
+        LinkTarget string `json:"linkTarget,omitempty"`
+        IsReadable bool `json:"isReadable"`
+        IsWritable bool `json:"isWritable"`
+        IsExecutable bool `json:"isExecutable"`
+        MimeType string `json:"mimeType,omitempty"`
+        Children int `json:"children,omitempty"` // 目录子项数
+        Permissions FilePermission `json:"permissions"`
+    }
+
+        // 文件统计信息（新增）
+    PodFileStatsReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+        Container string `form:"container,optional"`
+        Path string `form:"path"`
+    }
+
+    PodFileStatsResp {
+        FileInfo FileInfo `json:"fileInfo"`
+        DiskUsage int64 `json:"diskUsage"` // 实际磁盘占用
+        FileCount int `json:"fileCount"` // 文件数（目录）
+        DirCount int `json:"dirCount"` // 子目录数
+        TotalSize int64 `json:"totalSize"` // 总大小（递归）
+        Checksum string `json:"checksum,omitempty"` // MD5/SHA256
+        LastAccess string `json:"lastAccess,omitempty"` // RFC3339
+    }
+
+        // 文件读取
+    PodFileReadReq {
+        WorkloadId uint64 `json:"workloadId"`
+        PodName string `json:"podName"`
+        Container string `json:"container,optional"`
+        Path string `json:"path"`
+        Offset int64 `json:"offset,optional"` // 字节偏移
+        Limit int64 `json:"limit,optional"` // 读取字节数限制
+        Encoding string `json:"encoding,optional,default=utf-8"`
+        Tail bool `json:"tail,optional"` // 从末尾读取
+        TailLines int `json:"tailLines,optional,default=100"`
+    }
+
+    PodFileReadResp {
+        Content string `json:"content,omitempty"` // 文本内容
+        FileSize int64 `json:"fileSize"`
+        BytesRead int64 `json:"bytesRead"`
+        IsText bool `json:"isText"`
+        Encoding string `json:"encoding"`
+        IsTruncated bool `json:"isTruncated"` // 是否被截断
+        LineCount int `json:"lineCount,omitempty"`
+    }
+
+        // 文件保存
+    PodFileSaveReq {
+        WorkloadId uint64 `json:"workloadId"`
+        PodName string `json:"podName"`
+        Container string `json:"container,optional"`
+        Path string `json:"path"`
+        Content string `json:"content"`
+        CreateIfNotExists bool `json:"createIfNotExists,optional"`
+        Backup bool `json:"backup,optional"` // 备份原文件
+        Encoding string `json:"encoding,optional,default=utf-8"`
+        FileMode string `json:"fileMode,optional"` // 如: 0644
+    }
+
+    PodFileSaveResp {
+        FilePath string `json:"filePath"`
+        FileSize int64 `json:"fileSize"`
+        BackupPath string `json:"backupPath,omitempty"`
+    }
+
+        // WebSocket 实时跟踪文件（类似 tail -f）- 新增
+    PodFileTailReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+        Container string `form:"container,optional"`
+        Path string `form:"path"`
+        Lines int `form:"lines,optional,default=100"` // 初始显示行数
+        Follow bool `form:"follow,optional,default=true"` // 持续跟踪
+        Retry bool `form:"retry,optional"` // 文件不存在时重试
+    }
+
+        // 文件下载
+    PodFileDownloadReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+        Container string `form:"container,optional"`
+        Path string `form:"path"`
+        Compress bool `form:"compress,optional"` // 是否压缩
+    }
+
+        // 分块下载（断点续传）- 新增
+    PodFileDownloadChunkReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+        Container string `form:"container,optional"`
+        Path string `form:"path"`
+        ChunkIndex int `form:"chunkIndex"` // 块索引（从0开始）
+        ChunkSize int64 `form:"chunkSize,optional,default=1048576"` // 1MB
+    }
+
+    PodFileDownloadChunkResp {
+        Data string `json:"data"` // Base64 编码
+        ChunkIndex int `json:"chunkIndex"`
+        ChunkSize int64 `json:"chunkSize"`
+        TotalChunks int `json:"totalChunks"`
+        FileSize int64 `json:"fileSize"`
+        IsLast bool `json:"isLast"`
+        Checksum string `json:"checksum"` // 当前块的校验和
+    }
+
+        // 文件上传
+        // 简单上传（小文件）
+    PodFileUploadReq {
+        WorkloadId uint64 `form:"workloadId"`
+        PodName string `form:"podName"`
+        Container string `form:"container,optional"`
+        Path string `form:"path"` // 目标路径（目录或文件）
+        FileName string `form:"fileName,optional"` // 文件名
+        FileMode string `form:"fileMode,optional,default=0644"`
+        Overwrite bool `form:"overwrite,optional"`
+        CreateDirs bool `form:"createDirs,optional,default=true"`
+    }
+
+    PodFileUploadResp {
+        FilePath string `json:"filePath"`
+        FileSize int64 `json:"fileSize"`
+        Checksum string `json:"checksum,omitempty"`
+    }
+
+        // 分块上传初始化
+    PodFileUploadInitReq {
+        WorkloadId uint64 `json:"workloadId"`
+        PodName string `json:"podName"`
+        Container string `json:"container,optional"`
+        Path string `json:"path"`
+        FileName string `json:"fileName"`
+        FileSize int64 `json:"fileSize"`
+        ChunkSize int64 `json:"chunkSize,optional,default=1048576"`
+        FileMode string `json:"fileMode,optional,default=0644"`
+    }
+
+    PodFileUploadInitResp {
+        SessionId string `json:"sessionId"`
+        ChunkSize int64 `json:"chunkSize"`
+        TotalChunks int `json:"totalChunks"`
+        ExpiresAt int64 `json:"expiresAt"`
+    }
+
+    PodFileUploadChunkReq {
+        SessionId string `json:"sessionId"`
+        ChunkIndex int `json:"chunkIndex"`
+        ChunkData string `json:"chunkData"`
+        Checksum string `json:"checksum,optional"`
+    }
+
+    PodFileUploadChunkResp {
+        ChunkIndex int `json:"chunkIndex"`
+        Uploaded bool `json:"uploaded"`
+        Progress float64 `json:"progress"`
+    }
+
+    PodFileUploadCompleteReq {
+        SessionId string `json:"sessionId"`
+        FinalChecksum string `json:"finalChecksum,optional"`
+    }
+
+    PodFileUploadCompleteResp {
+        FilePath string `json:"filePath"`
+        FileSize int64 `json:"fileSize"`
+        Checksum string `json:"checksum"`
+        UploadTime int64 `json:"uploadTime"`
+    }
+
+    PodFileUploadStatusReq {
+        SessionId string `form:"sessionId"`
+    }
+
+    PodFileUploadStatusResp {
+        SessionId string `json:"sessionId"`
+        FileName string `json:"fileName"`
+        FileSize int64 `json:"fileSize"`
+        TotalChunks int `json:"totalChunks"`
+        UploadedChunks []int `json:"uploadedChunks"`
+        MissingChunks []int `json:"missingChunks"`
+        Progress float64 `json:"progress"`
+        Status string `json:"status"`
+        ExpiresAt int64 `json:"expiresAt"`
+        CreatedAt int64 `json:"createdAt"`
+    }
+
+    PodFileUploadCancelReq {
+        SessionId string `json:"sessionId"`
+    }
+
+    PodFileUploadCancelResp {
+        SessionId string `json:"sessionId"`
+        Canceled bool `json:"canceled"`
+        Message string `json:"message"`
+    }
+        // 文件删除
+    PodFileDeleteReq {
+        WorkloadId uint64 `json:"workloadId"`
+        PodName string `json:"podName"`
+        Container string `json:"container,optional"`
+        Paths []string `json:"paths"` // 支持批量删除
+        Recursive bool `json:"recursive,optional"`
+        Force bool `json:"force,optional"`
+    }
+
+    PodFileDeleteResp {
+        DeletedCount int `json:"deletedCount"`
+        FailedPaths []string `json:"failedPaths,omitempty"`
+        Errors []string `json:"errors,omitempty"`
+    }
+
+        // 文件移动/重命名
+    PodFileMoveReq {
+        WorkloadId uint64 `json:"workloadId"`
+        PodName string `json:"podName"`
+        Container string `json:"container,optional"`
+        SourcePath string `json:"sourcePath"`
+        DestPath string `json:"destPath"`
+        Overwrite bool `json:"overwrite,optional"`
+    }
+
+    PodFileMoveResp {
+        SourcePath string `json:"sourcePath"`
+        DestPath string `json:"destPath"`
+        Success bool `json:"success"`
+    }
+
+        // 文件复制
+    PodFileCopyReq {
+        WorkloadId uint64 `json:"workloadId"`
+        PodName string `json:"podName"`
+        Container string `json:"container,optional"`
+        SourcePath string `json:"sourcePath"`
+        DestPath string `json:"destPath"`
+        Overwrite bool `json:"overwrite,optional"`
+        Recursive bool `json:"recursive,optional"` // 递归复制目录
+        PreserveAttrs bool `json:"preserveAttrs,optional"` // 保留属性
+    }
+
+    PodFileCopyResp {
+        SourcePath string `json:"sourcePath"`
+        DestPath string `json:"destPath"`
+        FilesCopied int `json:"filesCopied"`
+        TotalSize int64 `json:"totalSize"`
+    }
+
+        // 创建目录
+    PodFileCreateDirReq {
+        WorkloadId uint64 `json:"workloadId"`
+        PodName string `json:"podName"`
+        Container string `json:"container,optional"`
+        Path string `json:"path"`
+        Mode string `json:"mode,optional,default=0755"`
+        CreateParents bool `json:"createParents,optional,default=true"` // 类似 mkdir -p
+    }
+
+    PodFileCreateDirResp {
+        Path string `json:"path"`
+        Created bool `json:"created"`
+    }
+
+        // 文件权限检查 - 新增
+    PodFileCheckPermissionReq {
+        WorkloadId uint64 `json:"workloadId"`
+        PodName string `json:"podName"`
+        Container string `json:"container,optional"`
+        Path string `json:"path"`
+        Permission string `json:"permission"` // read/write/execute
+    }
+
+    PodFileCheckPermissionResp {
+        HasPermission bool `json:"hasPermission"`
+        CurrentMode string `json:"currentMode"`
+        Owner string `json:"owner"`
+        Group string `json:"group"`
+    }
+
+        // 修改文件权限 - 新增
+    PodFileChmodReq {
+        WorkloadId uint64 `json:"workloadId"`
+        PodName string `json:"podName"`
+        Container string `json:"container,optional"`
+        Path string `json:"path"`
+        Mode string `json:"mode"` // 如: 0755, 0644
+        Recursive bool `json:"recursive,optional"`
+    }
+
+    PodFileChmodResp {
+        Path string `json:"path"`
+        OldMode string `json:"oldMode"`
+        NewMode string `json:"newMode"`
+        Success bool `json:"success"`
+    }
+
+        // 文件压缩
+    PodFileCompressReq {
+        WorkloadId uint64 `json:"workloadId"`
+        PodName string `json:"podName"`
+        Container string `json:"container,optional"`
+        Paths []string `json:"paths"` // 要压缩的文件/目录
+        DestPath string `json:"destPath"` // 压缩包路径
+        Format string `json:"format,optional,default=tgz"` // tgz/zip/tar/gzip
+        CompressionLevel int `json:"compressionLevel,optional,default=6"` // 1-9
+    }
+
+    PodFileCompressResp {
+        ArchivePath string `json:"archivePath"`
+        FileCount int `json:"fileCount"`
+        OriginalSize int64 `json:"originalSize"`
+        CompressedSize int64 `json:"compressedSize"`
+        CompressionRatio float64 `json:"compressionRatio"` // 压缩率
+        Duration int64 `json:"duration"` // 毫秒
+    }
+
+        // 文件解压
+    PodFileExtractReq {
+        WorkloadId uint64 `json:"workloadId"`
+        PodName string `json:"podName"`
+        Container string `json:"container,optional"`
+        ArchivePath string `json:"archivePath"` // 压缩包路径
+        DestPath string `json:"destPath"` // 解压目标目录
+        Overwrite bool `json:"overwrite,optional"`
+    }
+
+    PodFileExtractResp {
+        DestPath string `json:"destPath"`
+        ExtractedFiles int `json:"extractedFiles"`
+        TotalSize int64 `json:"totalSize"`
+        Duration int64 `json:"duration"` // 毫秒
+    }
+
+        // 文件搜索 - 新增
+    PodFileSearchReq {
+        WorkloadId uint64 `json:"workloadId"`
+        PodName string `json:"podName"`
+        Container string `json:"container,optional"`
+        Path string `json:"path,optional,default=/"` // 搜索起始路径
+        Pattern string `json:"pattern"` // 搜索模式（支持通配符）
+        ContentSearch string `json:"contentSearch,optional"` // 内容搜索（grep）
+        FileTypes []string `json:"fileTypes,optional"` // 文件类型过滤
+        MinSize int64 `json:"minSize,optional"` // 最小文件大小
+        MaxSize int64 `json:"maxSize,optional"` // 最大文件大小
+        ModifiedAfter string `json:"modifiedAfter,optional"` // RFC3339
+        ModifiedBefore string `json:"modifiedBefore,optional"` // RFC3339
+        MaxDepth int `json:"maxDepth,optional"` // 搜索深度
+        MaxResults int `json:"maxResults,optional,default=100"`
+        CaseSensitive bool `json:"caseSensitive,optional"`
+    }
+
+    PodFileSearchResp {
+        Results []FileSearchResult `json:"results"`
+        TotalFound int `json:"totalFound"`
+        SearchTime int64 `json:"searchTime"` // 毫秒
+        Truncated bool `json:"truncated"` // 结果是否被截断
+    }
+
+    FileSearchResult {
+        Path string `json:"path"`
+        Name string `json:"name"`
+        Size int64 `json:"size"`
+        ModTime string `json:"modTime"`
+        IsDir bool `json:"isDir"`
+        Matches []ContentMatch `json:"matches,omitempty"` // 内容匹配
+    }
+
+    ContentMatch {
+        LineNumber int `json:"lineNumber"`
+        Line string `json:"line"` // 匹配的行内容
+        Preview string `json:"preview"` // 上下文预览
+    }
+)
+
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: pod
+    prefix: /ws/v1/pod
+)
+service console-api {
+    @doc "实时日志流（WebSocket）"
+    @handler PodLogsStream
+    get /logs/stream (PodLogsStreamReq) // WebSocket
+    @doc "交互式执行命令（WebSocket）"
+    @handler PodExec
+    get /exec/terminal (PodExecReq) // WebSocket
+    @doc "实时跟踪文件（WebSocket）"
+    @handler PodFileTail
+    get /file/tail (PodFileTailReq) // WebSocket
+    // 文件传输
+    @doc "下载文件"
+    @handler PodFileDownload
+    get /file/download (PodFileDownloadReq) // 返回文件流
+    @doc "下载 Pod 日志"
+    @handler PodLogsDownload
+    get /logs/download (PodLogsDownloadReq) // 返回文件流
+}
+@server(
+    middleware: JWTAuthMiddleware
+    group: pod
+    prefix: /console/v1/pod
+)
+service console-api {
+
+    // ==================== Container 操作 ====================
+    @doc "获取 Pod 所有容器"
+    @handler PodGetContainers
+    get /containers (PodGetContainersReq) returns (PodGetContainersResp)
+
+    @doc "获取 Pod 默认容器"
+    @handler PodGetDefaultContainer
+    get /default-container (PodGetDefaultContainerReq) returns (PodGetDefaultContainerResp)
+
+    // ==================== Pod 日志操作 ====================
+    @doc "获取 Pod 日志（一次性，不跟踪）"
+    @handler PodLogsGet
+    get /logs/get (PodLogsGetReq) returns (PodLogsGetResp)
+
+
+
+
+
+    // ==================== Pod Exec 操作 ====================
+
+
+    @doc "非交互式执行命令"
+    @handler PodExecCommand
+    post /exec/command (PodExecCommandReq) returns (PodExecCommandResp)
+
+    @doc "Exec 会话心跳检查"
+    @handler PodExecPing
+    get /exec/ping (PodExecPingReq) returns (PodExecPingResp)
+
+    // ==================== Pod 文件操作 ====================
+
+    // 文件浏览
+    @doc "列出文件和目录"
+    @handler PodFileList
+    get /file/list (PodFileListReq) returns (PodFileListResp)
+
+    @doc "获取文件详细信息"
+    @handler PodFileInfo
+    get /file/info (PodFileInfoReq) returns (FileInfo)
+
+    @doc "获取文件统计信息"
+    @handler PodFileStats
+    get /file/stats (PodFileStatsReq) returns (PodFileStatsResp)
+
+    @doc "搜索文件"
+    @handler PodFileSearch
+    post /file/search (PodFileSearchReq) returns (PodFileSearchResp)
+
+    // 文件内容
+    @doc "读取文件内容"
+    @handler PodFileRead
+    post /file/read (PodFileReadReq) returns (PodFileReadResp)
+
+    @doc "保存文件内容"
+    @handler PodFileSave
+    post /file/save (PodFileSaveReq) returns (PodFileSaveResp)
+
+
+
+
+
+    @doc "分块下载文件"
+    @handler PodFileDownloadChunk
+    get /file/download/chunk (PodFileDownloadChunkReq) returns (PodFileDownloadChunkResp)
+
+    // ==================== Pod 文件上传操作 ====================
+    @doc "上传文件（小文件，直接上传）"
+    @handler PodFileUpload
+    post /file/upload (PodFileUploadReq) returns (PodFileUploadResp) // multipart/form-data
+
+    @doc "初始化分块上传（大文件）"
+    @handler PodFileUploadInit
+    post /file/upload/init (PodFileUploadInitReq) returns (PodFileUploadInitResp)
+
+    @doc "上传文件块"
+    @handler PodFileUploadChunk
+    post /file/upload/chunk (PodFileUploadChunkReq) returns (PodFileUploadChunkResp)
+
+    @doc "完成分块上传"
+    @handler PodFileUploadComplete
+    post /file/upload/complete (PodFileUploadCompleteReq) returns (PodFileUploadCompleteResp)
+
+    @doc "查询上传状态"
+    @handler PodFileUploadStatus
+    get /file/upload/status (PodFileUploadStatusReq) returns (PodFileUploadStatusResp)
+
+    @doc "取消上传"
+    @handler PodFileUploadCancel
+    post /file/upload/cancel (PodFileUploadCancelReq) returns (PodFileUploadCancelResp)
+
+    // 文件管理
+    @doc "删除文件或目录"
+    @handler PodFileDelete
+    post /file/delete (PodFileDeleteReq) returns (PodFileDeleteResp)
+
+    @doc "移动或重命名文件"
+    @handler PodFileMove
+    post /file/move (PodFileMoveReq) returns (PodFileMoveResp)
+
+    @doc "复制文件或目录"
+    @handler PodFileCopy
+    post /file/copy (PodFileCopyReq) returns (PodFileCopyResp)
+
+    @doc "创建目录"
+    @handler PodFileCreateDir
+    post /file/mkdir (PodFileCreateDirReq) returns (PodFileCreateDirResp)
+
+    @doc "检查文件权限"
+    @handler PodFileCheckPermission
+    post /file/check-permission (PodFileCheckPermissionReq) returns (PodFileCheckPermissionResp)
+
+    @doc "修改文件权限"
+    @handler PodFileChmod
+    post /file/chmod (PodFileChmodReq) returns (PodFileChmodResp)
+
+    // 压缩解压
+    @doc "压缩文件或目录"
+    @handler PodFileCompress
+    post /file/compress (PodFileCompressReq) returns (PodFileCompressResp)
+
+    @doc "解压文件"
+    @handler PodFileExtract
+    post /file/extract (PodFileExtractReq) returns (PodFileExtractResp)
+}

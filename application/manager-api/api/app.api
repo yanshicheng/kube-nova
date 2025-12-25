@@ -1,0 +1,118 @@
+syntax = "v1"
+
+info(
+    title: "Cluster App Management API"
+    desc: "集群应用管理相关接口"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // 集群应用详情
+    ClusterAppDetail {
+        Id uint64 `json:"id"`                                       // 自增主键
+        ClusterUuid string `json:"clusterUuid"`                     // 关联的集群UUID
+        AppName string `json:"appName"`                             // 应用名称，如Prometheus-生产环境
+        AppCode string `json:"appCode"`                             // 应用标识码，如prometheus/grafana/elasticsearch
+        AppType int64 `json:"appType"`                              // 应用类型：1. monitoring(监控)/2. logging(日志)/3. tracing(链路追踪)/4. mesh(服务网格)/ 5. alert (告警)
+        IsDefault int64 `json:"isDefault"`                          // 是否默认配置
+        AppUrl string `json:"appUrl"`                               // 应用访问地址，如https://prometheus.example.com
+        Port int64 `json:"port"`                                    // 服务端口
+        Protocol string `json:"protocol"`                           // 访问协议：http/https/grpc
+        AuthEnabled int64 `json:"authEnabled"`                      // 是否需要认证
+        AuthType string `json:"authType"`                           // 认证类型：none/basic/bearer/certificate
+        Username string `json:"username"`                           // 用户名（AES加密存储）
+        Password string `json:"password"`                           // 密码（AES加密存储）
+        Token string `json:"token"`                                 // Token/API Key（AES加密存储）
+        AccessKey string `json:"accessKey"`                         // Access Key
+        AccessSecret string `json:"accessSecret"`                   // Access Secret
+        TlsEnabled int64 `json:"tlsEnabled"`                        // 是否启用TLS
+        CaFile string `json:"caFile"`                               // CA证书内容
+        CaKey string `json:"caKey"`                                 // CA Key内容
+        CaCert string `json:"caCert"`                               // CA证书内容（PEM格式）
+        ClientCert string `json:"clientCert"`                       // 客户端证书（PEM格式）
+        ClientKey string `json:"clientKey"`                         // 客户端密钥（PEM格式，AES加密存储）
+        InsecureSkipVerify int64 `json:"insecureSkipVerify"`        // 是否跳过证书验证
+        Status int64 `json:"status"`                                // 状态: 0异常，1 正常
+        CreatedBy string `json:"createdBy"`                         // 记录创建人
+        UpdatedBy string `json:"updatedBy"`                         // 记录最后更新人
+        CreatedAt int64 `json:"createdAt"`                          // 记录创建时间
+        UpdatedAt int64 `json:"updatedAt"`                          // 记录更新时间
+    }
+
+        // 添加/更新集群应用请求
+    AddClusterAppRequest {
+        ClusterUuid string `json:"clusterUuid" validate:"required,uuid"`                                       // 关联的集群UUID
+        AppName string `json:"appName" validate:"required,min=1,max=100"`                                      // 应用名称，如Prometheus-生产环境
+        AppCode string `json:"appCode" validate:"required,min=1,max=50"`                                       // 应用标识码，如prometheus/grafana/elasticsearch
+        AppType int64 `json:"appType" validate:"required,min=1,max=10"`                                        // 应用类型：1. monitoring(监控)/2. logging(日志)/3. tracing(链路追踪)/4. mesh(服务网格)/ 5. alert (告警)
+        IsDefault int64 `json:"isDefault" validate:"omitempty,oneof=0 1"`                                      // 是否默认配置 1 默认， 0 非默认
+        AppUrl string `json:"appUrl" validate:"required"`                                                      // 应用访问地址，如prometheus.example.com
+        Port int64 `json:"port" validate:"required,min=1,max=65535"`                                           // 服务端口
+        Protocol string `json:"protocol" default:"http" validate:"required,oneof=http https grpc"`             // 访问协议：http/https/grpc
+        AuthEnabled int64 `json:"authEnabled" validate:"omitempty,oneof=0 1"`                                  // 是否需要认证
+        AuthType string `json:"authType" validate:"omitempty,oneof=none basic token certificate apiKey"`       // 认证类型：none/basic/bearer/certificate
+        Username string `json:"username" validate:"omitempty,max=100"`                                         // 用户名（AES加密存储）
+        Password string `json:"password" validate:"omitempty,max=200"`                                         // 密码（AES加密存储）
+        Token string `json:"token" validate:"omitempty,max=500"`                                               // Token/API Key（AES加密存储）
+        AccessKey string `json:"accessKey" validate:"omitempty,max=100"`                                       // Access Key
+        AccessSecret string `json:"accessSecret" validate:"omitempty,max=200"`                                 // Access Secret
+        TlsEnabled int64 `json:"tlsEnabled" validate:"omitempty,oneof=0 1"`                                    // 是否启用TLS
+        CaFile string `json:"caFile" validate:"omitempty"`                                                     // CA证书内容
+        CaKey string `json:"caKey" validate:"omitempty"`                                                       // CA Key内容
+        CaCert string `json:"caCert" validate:"omitempty"`                                                     // CA证书内容（PEM格式）
+        ClientCert string `json:"clientCert" validate:"omitempty"`                                             // 客户端证书（PEM格式）
+        ClientKey string `json:"clientKey" validate:"omitempty"`                                               // 客户端密钥（PEM格式，AES加密存储）
+        InsecureSkipVerify int64 `json:"insecureSkipVerify" validate:"omitempty,oneof=0 1"`                    // 是否跳过证书验证
+        UpdatedBy string `json:"updatedBy" validate:"omitempty,max=50"`                                        // 记录最后更新人
+    }
+
+
+
+        // 查询应用详情请求
+    ClusterAppDetailRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"` // 应用ID
+    }
+
+        // 验证应用请求
+    ClusterAppValidateRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"` // 应用ID
+    }
+
+
+
+        // 获取集群应用列表请求
+    ClusterAppListRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required,uuid"` // 集群UUID
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: app
+    prefix: /manager/v1/app
+)
+service manager-api {
+    // 添加/更新集群应用
+    @doc "添加或更新集群应用配置，如果应用已存在则更新，否则创建新应用"
+    @handler AddClusterAppHandler
+    post / (AddClusterAppRequest) returns (string)
+
+    // 获取应用详情
+    @doc "根据应用ID获取应用的详细配置信息"
+    @handler GetClusterAppDetailHandler
+    get /:id (ClusterAppDetailRequest) returns (ClusterAppDetail)
+
+    // 验证应用连通性
+    @doc "测试中间件是否正常，验证应用的连通性和认证配置"
+    @handler ValidateClusterAppHandler
+    post /:id/validate (ClusterAppValidateRequest) returns (string)
+
+    // 获取集群应用列表
+    @doc "获取指定集群下的所有应用配置列表"
+    @handler GetClusterAppListHandler
+    get /list (ClusterAppListRequest) returns ([]ClusterAppDetail)
+}

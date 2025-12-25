@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workload-api
+  namespace: kube-nova
+spec:
+  type: ClusterIP
+  selector:
+    app: workload-api
+  ports:
+    - name: http
+      port: 8812
+      targetPort: 8812

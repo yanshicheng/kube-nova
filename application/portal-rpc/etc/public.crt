@@ -1,0 +1,63 @@
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 16 (0x10)
+    Signature Algorithm: sha256WithRSAEncryption
+        Issuer: C=CN, ST=BeiJing, L=Beijing, O=devops, OU=ops, CN=ca.devops.local/emailAddress=admin@ikubeops.com
+        Validity
+            Not Before: May 27 03:05:17 2025 GMT
+            Not After : May 25 03:05:17 2035 GMT
+        Subject: C=CN, ST=BeiJing, L=Beijing, O=devops, OU=ops, CN=minio-112.ikubeops.local/emailAddress=admin@ikubeops.com
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (1024 bit)
+                Modulus:
+                    00:ad:0f:7c:10:ee:12:73:0f:bd:e9:70:80:a2:3c:
+                    c5:0e:84:d4:26:a2:09:38:db:30:4f:f1:ab:4a:80:
+                    27:e2:b1:05:f7:68:ac:9b:f0:98:9f:fa:9b:fb:71:
+                    ad:1c:a4:02:ac:77:b1:09:56:75:bb:c8:25:2d:6c:
+                    c3:75:8e:98:81:2b:10:f2:99:bd:81:de:57:36:d4:
+                    a1:4b:67:2c:46:1f:23:43:7e:c4:46:3a:22:70:7d:
+                    7b:e1:08:db:e6:9c:7e:70:19:41:17:bd:dd:71:22:
+                    d9:d9:d4:f8:c4:07:c8:1a:ec:cb:5d:20:45:8c:d3:
+                    21:0e:1e:5a:05:fa:5f:f7:8f
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Subject Alternative Name: 
+                DNS:minio-112.ikubeops.local
+    Signature Algorithm: sha256WithRSAEncryption
+         0f:cd:ee:9d:59:54:68:04:69:09:11:62:40:b7:0b:3f:4f:5f:
+         ba:b5:27:a7:71:39:82:09:6f:9b:4d:54:b4:af:69:ca:d1:9f:
+         2b:3e:91:2f:ed:9e:4a:66:b5:27:cb:2b:36:56:36:fd:ac:db:
+         12:9a:8e:7d:9b:7f:ad:c0:d3:75:eb:7b:9f:c7:be:b2:15:0c:
+         83:14:a9:e7:dc:c2:72:11:c5:ee:26:2b:57:5a:be:db:95:88:
+         ff:10:39:ab:5e:86:cb:f0:13:ba:29:b2:19:17:73:15:10:79:
+         a8:97:18:1a:1d:2c:f9:c0:cc:fb:9b:62:79:6f:b6:d4:7c:89:
+         25:e0:9f:7b:9f:7b:3d:aa:4e:a9:aa:4c:1e:ed:06:38:bc:2a:
+         fc:55:0f:88:fb:d7:e7:c4:a8:34:88:f0:e2:31:c6:6c:2f:ca:
+         10:5a:66:3b:88:eb:7c:2e:cb:b6:b9:a8:73:a4:e1:aa:ea:9e:
+         07:95:54:3c:13:2b:58:22:6c:21:8b:ff:1f:e1:90:a5:36:67:
+         4b:a1:0c:5d:d6:57:ff:64:2a:d4:29:7d:2e:7d:fa:eb:6d:fb:
+         78:0e:63:0f:b9:dc:92:10:e8:f3:6a:0c:98:a9:48:0b:91:2c:
+         27:e9:2d:e9:1b:74:86:b8:10:b4:2f:68:e6:ec:98:05:f3:3d:
+         f7:4e:4c:64
+-----BEGIN CERTIFICATE-----
+MIIDQzCCAiugAwIBAgIBEDANBgkqhkiG9w0BAQsFADCBjTELMAkGA1UEBhMCQ04x
+EDAOBgNVBAgMB0JlaUppbmcxEDAOBgNVBAcMB0JlaWppbmcxDzANBgNVBAoMBmRl
+dm9wczEMMAoGA1UECwwDb3BzMRgwFgYDVQQDDA9jYS5kZXZvcHMubG9jYWwxITAf
+BgkqhkiG9w0BCQEWEmFkbWluQGlrdWJlb3BzLmNvbTAeFw0yNTA1MjcwMzA1MTda
+Fw0zNTA1MjUwMzA1MTdaMIGWMQswCQYDVQQGEwJDTjEQMA4GA1UECAwHQmVpSmlu
+ZzEQMA4GA1UEBwwHQmVpamluZzEPMA0GA1UECgwGZGV2b3BzMQwwCgYDVQQLDANv
+cHMxITAfBgNVBAMMGG1pbmlvLTExMi5pa3ViZW9wcy5sb2NhbDEhMB8GCSqGSIb3
+DQEJARYSYWRtaW5AaWt1YmVvcHMuY29tMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCB
+iQKBgQCtD3wQ7hJzD73pcICiPMUOhNQmogk42zBP8atKgCfisQX3aKyb8Jif+pv7
+ca0cpAKsd7EJVnW7yCUtbMN1jpiBKxDymb2B3lc21KFLZyxGHyNDfsRGOiJwfXvh
+CNvmnH5wGUEXvd1xItnZ1PjEB8ga7MtdIEWM0yEOHloF+l/3jwIDAQABoycwJTAj
+BgNVHREEHDAaghhtaW5pby0xMTIuaWt1YmVvcHMubG9jYWwwDQYJKoZIhvcNAQEL
+BQADggEBAA/N7p1ZVGgEaQkRYkC3Cz9PX7q1J6dxOYIJb5tNVLSvacrRnys+kS/t
+nkpmtSfLKzZWNv2s2xKajn2bf63A03Xre5/HvrIVDIMUqefcwnIRxe4mK1davtuV
+iP8QOatehsvwE7opshkXcxUQeaiXGBodLPnAzPubYnlvttR8iSXgn3ufez2qTqmq
+TB7tBji8KvxVD4j71+fEqDSI8OIxxmwvyhBaZjuI63wuy7a5qHOk4arqngeVVDwT
+K1gibCGL/x/hkKU2Z0uhDF3WV/9kKtQpfS59+utt+3gOYw+53JIQ6PNqDJipSAuR
+LCfpLekbdIa4ELQvaObsmAXzPfdOTGQ=
+-----END CERTIFICATE-----

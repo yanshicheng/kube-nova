@@ -1,0 +1,443 @@
+syntax = "v1"
+
+info(
+    title: "Alert Service API"
+    desc: "API 服务用于管理告警渠道、告警组、告警通知等相关操作"
+    author: "System"
+    email: "system@example.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    AlertChannels {
+        Id uint64 `json:"id"`                     // 主键ID
+        Uuid string `json:"uuid"`                 // 渠道唯一标识UUID
+        ChannelName string `json:"channelName"`   // 渠道名称
+        ChannelType string `json:"channelType"`   // 渠道类型(dingtalk, wechat, feishu, email, sms, voice_call, webhook, site_message)
+        Config string `json:"config"`             // 渠道配置(JSON格式)
+        Description string `json:"description"`   // 渠道描述
+        RetryTimes int64 `json:"retryTimes"`      // 重试次数
+        Timeout int64 `json:"timeout"`            // 超时时间(秒)
+        RateLimit int64 `json:"rateLimit"`        // 速率限制(每分钟最多发送数,0=无限制)
+        CreatedBy string `json:"createdBy"`       // 创建人
+        UpdatedBy string `json:"updatedBy"`       // 更新人
+        CreatedAt int64 `json:"createdAt"`        // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`        // 更新时间
+    }
+
+        // 添加告警渠道请求
+    AddAlertChannelsRequest {
+        ChannelName string `json:"channelName" validate:"required,min=1,max=100"`                                                               // 渠道名称
+        ChannelType string `json:"channelType" validate:"required,oneof=dingtalk wechat feishu email sms voice_call webhook site_message"`      // 渠道类型
+        Config string `json:"config" validate:"required"`                                                                                       // 渠道配置(JSON格式)
+        Description string `json:"description,optional" validate:"omitempty,max=500"`                                                           // 渠道描述
+        RetryTimes int64 `json:"retryTimes,optional" validate:"omitempty,min=0,max=10"`                                                         // 重试次数
+        Timeout int64 `json:"timeout,optional" validate:"omitempty,min=1,max=300"`                                                              // 超时时间(秒)
+        RateLimit int64 `json:"rateLimit,optional" validate:"omitempty,min=0"`                                                                  // 速率限制(每分钟最多发送数,0=无限制)
+    }
+
+        // 更新告警渠道请求
+    UpdateAlertChannelsRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                                                                                           // 主键ID
+        ChannelName string `json:"channelName" validate:"required,min=1,max=100"`                                                                // 渠道名称
+        ChannelType string `json:"channelType" validate:"required,oneof=dingtalk wechat feishu email sms voice_call webhook site_message"`       // 渠道类型
+        Config string `json:"config" validate:"required"`                                                                                        // 渠道配置(JSON格式)
+        Description string `json:"description,optional" validate:"omitempty,max=500"`                                                            // 渠道描述
+        RetryTimes int64 `json:"retryTimes,optional" validate:"omitempty,min=0,max=10"`                                                          // 重试次数
+        Timeout int64 `json:"timeout,optional" validate:"omitempty,min=1,max=300"`                                                               // 超时时间(秒)
+        RateLimit int64 `json:"rateLimit,optional" validate:"omitempty,min=0"`                                                                   // 速率限制(每分钟最多发送数,0=无限制)
+    }
+
+        // 搜索告警渠道请求（不分页）
+    SearchAlertChannelsRequest {
+        Uuid string `form:"uuid,optional" validate:"omitempty,max=100"`                           // 渠道唯一标识UUID
+        ChannelName string `form:"channelName,optional" validate:"omitempty,max=100"`             // 渠道名称
+        ChannelType string `form:"channelType,optional" validate:"omitempty,max=50"`              // 渠道类型
+    }
+
+        // 搜索告警渠道响应（不分页）
+    SearchAlertChannelsResponse {
+        Items []AlertChannels `json:"items"` // 告警渠道列表
+    }
+
+        // 测试连接请求
+    TestLinkRequest {
+        ChannelType string `json:"channelType" validate:"required,oneof=dingtalk wechat feishu email sms voice_call webhook site_message"`  // 渠道类型
+        Config string `json:"config" validate:"required"`                                                                                    // 渠道配置(JSON格式)
+        ToNotifys []string `json:"toNotifys,optional" validate:"omitempty,max=100"`                                                                  // 接收人
+    }
+
+        // AlertGroups 表示告警组信息
+    AlertGroups {
+        Id uint64 `json:"id"`                     // 主键ID
+        Uuid string `json:"uuid"`                 // 告警组UUID
+        GroupName string `json:"groupName"`       // 告警组名称
+        GroupType string `json:"groupType"`       // 组类型(normal=普通, duty=值班)
+        Description string `json:"description"`   // 告警组描述
+        FilterRules string `json:"filterRules"`   // 告警过滤规则(标签匹配规则)
+        DutySchedule string `json:"dutySchedule"` // 值班排班表
+        SortOrder int64 `json:"sortOrder"`        // 排序序号
+        CreatedBy string `json:"createdBy"`       // 创建人
+        UpdatedBy string `json:"updatedBy"`       // 更新人
+        CreatedAt int64 `json:"createdAt"`        // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`        // 更新时间
+    }
+
+        // 添加告警组用户
+    AddRAlertGroupUser {
+        UserId uint64 `json:"userId" validate:"required,gt=0"`                 // 用户ID
+        Role string `json:"role" validate:"required,oneof=owner admin member"` // 角色
+    }
+
+        // 添加告警组级别渠道
+    AddGroupLevelChannels {
+        Severity string `json:"severity" validate:"required,oneof=default info warning critical notification"` // 严重级别
+        ChannelId string `json:"channelId" validate:"required"`                                                // 告警渠道IDs, 逗号分隔
+    }
+
+        // 添加告警组请求
+    AddAlertGroupsRequest {
+        GroupName string `json:"groupName" validate:"required,min=1,max=100"`             // 告警组名称
+        GroupType string `json:"groupType" validate:"required,oneof=normal duty"`         // 组类型
+        Description string `json:"description,optional" validate:"omitempty,max=500"`     // 告警组描述
+        FilterRules string `json:"filterRules,optional" validate:"omitempty"`             // 告警过滤规则(标签匹配规则)
+        DutySchedule string `json:"dutySchedule,optional" validate:"omitempty"`           // 值班排班表
+        SortOrder int64 `json:"sortOrder,optional" validate:"omitempty,min=0"`            // 排序序号
+        Users []AddRAlertGroupUser `json:"users,optional"`                                // 用户列表
+        Channels []AddGroupLevelChannels `json:"channels" validate:"required,min=1"`      // 渠道列表
+    }
+
+        // 更新告警组请求
+    UpdateAlertGroupsRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                                     // 主键ID
+        GroupName string `json:"groupName" validate:"required,min=1,max=100"`              // 告警组名称
+        GroupType string `json:"groupType" validate:"required,oneof=normal duty"`          // 组类型
+        Description string `json:"description,optional" validate:"omitempty,max=500"`      // 告警组描述
+        FilterRules string `json:"filterRules,optional" validate:"omitempty"`              // 告警过滤规则(标签匹配规则)
+        DutySchedule string `json:"dutySchedule,optional" validate:"omitempty"`            // 值班排班表
+        SortOrder int64 `json:"sortOrder,optional" validate:"omitempty,min=0"`             // 排序序号
+    }
+
+        // 搜索告警组请求
+    SearchAlertGroupsRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                  // 当前页码
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"` // 每页条数
+        OrderField string `form:"orderField,optional" default:"id" validate:"omitempty"`          // 排序字段
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                   // 是否升序
+        Uuid string `form:"uuid,optional" validate:"omitempty,max=100"`                           // 告警组UUID
+        GroupName string `form:"groupName,optional" validate:"omitempty,max=100"`                 // 告警组名称
+        GroupType string `form:"groupType,optional" validate:"omitempty,oneof=normal duty"`       // 组类型
+    }
+
+        // 搜索告警组响应
+    SearchAlertGroupsResponse {
+        Items []AlertGroups `json:"items"` // 告警组列表
+        Total uint64 `json:"total"`        // 总条数
+    }
+
+        // AlertGroupMembers 表示告警组成员信息
+    AlertGroupMembers {
+        Id uint64 `json:"id"`                 // 主键ID
+        GroupId uint64 `json:"groupId"`       // 告警组ID
+        UserId uint64 `json:"userId"`         // 用户ID
+        UserName string `json:"userName"`     // 用户名
+        UserAccount string `json:"userAccount"` // 用户账号
+        Role string `json:"role"`             // 角色(owner, admin, member)
+        CreatedBy string `json:"createdBy"`   // 创建人
+        UpdatedBy string `json:"updatedBy"`   // 更新人
+        CreatedAt int64 `json:"createdAt"`    // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`    // 更新时间
+    }
+
+        // 添加告警组成员请求
+    AddAlertGroupMembersRequest {
+        GroupId uint64 `json:"groupId" validate:"required,gt=0"`                  // 告警组ID
+        UserId uint64 `json:"userId" validate:"required,gt=0"`                    // 用户ID
+        Role string `json:"role" validate:"required,oneof=owner admin member"`    // 角色
+    }
+
+        // 更新告警组成员请求
+    UpdateAlertGroupMembersRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                            // 主键ID
+        GroupId uint64 `json:"groupId" validate:"required,gt=0"`                  // 告警组ID
+        UserId uint64 `json:"userId" validate:"required,gt=0"`                    // 用户ID
+        Role string `json:"role" validate:"required,oneof=owner admin member"`    // 角色
+    }
+
+        // 搜索告警组成员请求
+    SearchAlertGroupMembersRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                  // 当前页码
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"` // 每页条数
+        OrderStr string `form:"orderStr,optional" default:"id" validate:"omitempty"`              // 排序字段
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                   // 是否升序
+        GroupId uint64 `form:"groupId,optional" validate:"omitempty,gt=0"`                        // 告警组ID
+        UserId uint64 `form:"userId,optional" validate:"omitempty,gt=0"`                          // 用户ID
+        Role string `form:"role,optional" validate:"omitempty,oneof=owner admin member"`          // 角色
+    }
+
+        // 搜索告警组成员响应
+    SearchAlertGroupMembersResponse {
+        Items []AlertGroupMembers `json:"items"` // 告警组成员列表
+        Total uint64 `json:"total"`              // 总条数
+    }
+
+        // AlertGroupLevelChannels 表示告警组级别渠道关联信息
+    AlertGroupLevelChannels {
+        Id uint64 `json:"id"`               // 主键ID
+        GroupId uint64 `json:"groupId"`     // 告警组ID
+        Severity string `json:"severity"`   // 严重级别
+        ChannelId string `json:"channelId"` // 告警渠道IDs, 逗号分隔
+        CreatedBy string `json:"createdBy"` // 创建人
+        UpdatedBy string `json:"updatedBy"` // 更新人
+        CreatedAt int64 `json:"createdAt"`  // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`  // 更新时间
+    }
+
+        // 添加告警组级别渠道请求
+    AddAlertGroupLevelChannelsRequest {
+        GroupId uint64 `json:"groupId" validate:"required,gt=0"`                                               // 告警组ID
+        Severity string `json:"severity" validate:"required,oneof=default info warning critical notification"` // 严重级别
+        ChannelId string `json:"channelId" validate:"required"`                                                // 告警渠道IDs, 逗号分隔
+    }
+
+        // 更新告警组级别渠道请求
+    UpdateAlertGroupLevelChannelsRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                                                          // 主键ID
+        GroupId uint64 `json:"groupId" validate:"required,gt=0"`                                                // 告警组ID
+        Severity string `json:"severity" validate:"required,oneof=default info warning critical notification"`  // 严重级别
+        ChannelId string `json:"channelId" validate:"required"`                                                 // 告警渠道IDs, 逗号分隔
+    }
+
+        // 搜索告警组级别渠道请求
+    SearchAlertGroupLevelChannelsRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                                         // 当前页码
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"`                        // 每页条数
+        OrderStr string `form:"orderStr,optional" default:"id" validate:"omitempty"`                                     // 排序字段
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                                          // 是否升序
+        GroupId uint64 `form:"groupId,optional" validate:"omitempty,gt=0"`                                               // 告警组ID
+        Severity string `form:"severity,optional" validate:"omitempty,oneof=default info warning critical notification"` // 严重级别
+    }
+
+        // 搜索告警组级别渠道响应
+    SearchAlertGroupLevelChannelsResponse {
+        Items []AlertGroupLevelChannels `json:"items"` // 告警组级别渠道列表
+    }
+
+        // AlertNotifications 表示告警通知记录信息
+    AlertNotifications {
+        Id uint64 `json:"id"`                   // 主键ID
+        Uuid string `json:"uuid"`               // 通知记录UUID
+        InstanceId uint64 `json:"instanceId"`   // 告警实例ID
+        GroupId uint64 `json:"groupId"`         // 告警组ID
+        Severity string `json:"severity"`       // 告警级别
+        ChannelId uint64 `json:"channelId"`     // 告警渠道ID
+        ChannelType string `json:"channelType"` // 渠道类型
+        SendFormat string `json:"sendFormat"`   // 发送格式(markdown, html, text)
+        Recipients string `json:"recipients"`   // 接收人列表(JSON格式)
+        Subject string `json:"subject"`         // 通知主题
+        Content string `json:"content"`         // 发送内容
+        Status string `json:"status"`           // 发送状态(pending, sending, success, failed, cancelled)
+        ErrorMsg string `json:"errorMsg"`       // 错误信息
+        SentAt int64 `json:"sentAt"`            // 发送时间
+        Response string `json:"response"`       // 渠道响应信息
+        CostMs uint64 `json:"costMs"`           // 发送耗时(毫秒)
+        CreatedBy string `json:"createdBy"`     // 创建人
+        UpdatedBy string `json:"updatedBy"`     // 更新人
+        CreatedAt int64 `json:"createdAt"`      // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`      // 更新时间
+    }
+
+        // 搜索告警通知记录请求
+    SearchAlertNotificationsRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                                                    // 当前页码
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"`                                   // 每页条数
+        OrderField string `form:"orderField,optional" default:"id" validate:"omitempty"`                                            // 排序字段
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                                                     // 是否升序
+        Uuid string `form:"uuid,optional" validate:"omitempty,max=100"`                                                             // 通知记录UUID
+        Severity string `form:"severity,optional" validate:"omitempty,max=50"`                                                      // 告警级别
+        ChannelId uint64 `form:"channelId,optional" validate:"omitempty,gt=0"`                                                      // 告警渠道ID
+        ChannelType string `form:"channelType,optional" validate:"omitempty,max=50"`                                                // 渠道类型
+        Subject string `form:"subject,optional" validate:"omitempty,max=200"`                                                       // 通知主题
+        Status string `form:"status,optional" validate:"omitempty,oneof=pending sending success failed cancelled"`                  // 发送状态
+    }
+
+        // 搜索告警通知记录响应
+    SearchAlertNotificationsResponse {
+        Items []AlertNotifications `json:"items"` // 告警通知记录列表
+        Total uint64 `json:"total"`               // 总条数
+    }
+
+        // 批量删除告警通知记录请求
+    BatchDelAlertNotificationsRequest {
+        Ids []uint64 `json:"ids" validate:"required,min=1"` // IDs
+    }
+
+        // ========== 告警组应用关联相关 ==========
+
+        // 告警组应用关联信息
+    AlertGroupApps {
+        Id uint64 `json:"id"`               // 主键ID
+        GroupId uint64 `json:"groupId"`     // 告警组ID
+        AppId uint64 `json:"appId"`         // 应用ID
+        AppType string `json:"appType"`     // 应用类型
+        CreatedBy string `json:"createdBy"` // 创建人
+        UpdatedBy string `json:"updatedBy"` // 更新人
+    }
+
+        // 绑定告警组应用请求
+    BindAlertGroupAppsRequest {
+        GroupId uint64 `json:"groupId" validate:"required,gt=0"`   // 告警组ID
+        AppId uint64 `json:"appId" validate:"required,gt=0"`       // 应用ID
+        AppType string `json:"appType" validate:"required,max=50"` // 应用类型
+    }
+
+        // 解绑告警组应用请求
+    UnbindAlertGroupAppsRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"` // 关联ID
+    }
+
+        // 搜索告警组应用请求
+    SearchAlertGroupAppsRequest {
+        GroupId uint64 `form:"groupId,optional" validate:"omitempty,gt=0"` // 告警组ID
+        AppType string `form:"appType,optional" validate:"omitempty,max=50"` // 应用类型
+    }
+
+        // 搜索告警组应用响应
+    SearchAlertGroupAppsResponse {
+        Items []AlertGroupApps `json:"items"` // 告警组应用列表
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: alert
+    prefix: /portal/v1/alert
+)
+
+service portal-api {
+    // ========== 告警渠道接口 ==========
+
+    // 添加告警渠道
+    @handler AddAlertChannelsHandler
+    post /channels (AddAlertChannelsRequest) returns (string)
+
+    // 更新告警渠道
+    @handler UpdateAlertChannelsHandler
+    put /channels/:id (UpdateAlertChannelsRequest) returns (string)
+
+    // 删除告警渠道
+    @handler DelAlertChannelsHandler
+    delete /channels/:id (DefaultIdRequest) returns (string)
+
+    // 根据ID获取告警渠道
+    @handler GetAlertChannelsByIdHandler
+    get /channels/:id (DefaultIdRequest) returns (AlertChannels)
+
+    // 搜索告警渠道（不分页）
+    @handler SearchAlertChannelsHandler
+    get /channels (SearchAlertChannelsRequest) returns (SearchAlertChannelsResponse)
+
+    // 测试连接
+    @handler TestLinkHandler
+    post /channels/test-link (TestLinkRequest) returns (string)
+
+    // ========== 告警组接口 ==========
+
+    // 添加告警组
+    @handler AddAlertGroupsHandler
+    post /groups (AddAlertGroupsRequest) returns (string)
+
+    // 更新告警组
+    @handler UpdateAlertGroupsHandler
+    put /groups/:id (UpdateAlertGroupsRequest) returns (string)
+
+    // 删除告警组
+    @handler DelAlertGroupsHandler
+    delete /groups/:id (DefaultIdRequest) returns (string)
+
+    // 根据ID获取告警组
+    @handler GetAlertGroupsByIdHandler
+    get /groups/:id (DefaultIdRequest) returns (AlertGroups)
+
+    // 搜索告警组
+    @handler SearchAlertGroupsHandler
+    get /groups (SearchAlertGroupsRequest) returns (SearchAlertGroupsResponse)
+
+    // ========== 告警组成员接口 ==========
+
+    // 添加告警组成员
+    @handler AddAlertGroupMembersHandler
+    post /group-members (AddAlertGroupMembersRequest) returns (string)
+
+    // 更新告警组成员
+    @handler UpdateAlertGroupMembersHandler
+    put /group-members/:id (UpdateAlertGroupMembersRequest) returns (string)
+
+    // 删除告警组成员
+    @handler DelAlertGroupMembersHandler
+    delete /group-members/:id (DefaultIdRequest) returns (string)
+
+    // 根据ID获取告警组成员
+    @handler GetAlertGroupMembersByIdHandler
+    get /group-members/:id (DefaultIdRequest) returns (AlertGroupMembers)
+
+    // 搜索告警组成员
+    @handler SearchAlertGroupMembersHandler
+    get /group-members (SearchAlertGroupMembersRequest) returns (SearchAlertGroupMembersResponse)
+
+    // ========== 告警组应用关联接口 ==========
+
+    // 绑定告警组应用
+    @handler BindAlertGroupAppsHandler
+    post /group-apps (BindAlertGroupAppsRequest) returns (string)
+
+    // 解绑告警组应用
+    @handler UnbindAlertGroupAppsHandler
+    delete /group-apps/:id (UnbindAlertGroupAppsRequest) returns (string)
+
+    // 搜索告警组应用
+    @handler SearchAlertGroupAppsHandler
+    get /group-apps (SearchAlertGroupAppsRequest) returns (SearchAlertGroupAppsResponse)
+
+    // ========== 告警组级别渠道接口 ==========
+
+    // 添加告警组级别渠道
+    @handler AddAlertGroupLevelChannelsHandler
+    post /group-level-channels (AddAlertGroupLevelChannelsRequest) returns (string)
+
+    // 更新告警组级别渠道
+    @handler UpdateAlertGroupLevelChannelsHandler
+    put /group-level-channels/:id (UpdateAlertGroupLevelChannelsRequest) returns (string)
+
+    // 删除告警组级别渠道
+    @handler DelAlertGroupLevelChannelsHandler
+    delete /group-level-channels/:id (DefaultIdRequest) returns (string)
+
+    // 根据ID获取告警组级别渠道
+    @handler GetAlertGroupLevelChannelsHandler
+    get /group-level-channels/:id (DefaultIdRequest) returns (AlertGroupLevelChannels)
+
+    // 搜索告警组级别渠道
+    @handler SearchAlertGroupLevelChannelsHandler
+    get /group-level-channels (SearchAlertGroupLevelChannelsRequest) returns (SearchAlertGroupLevelChannelsResponse)
+
+    // ========== 告警通知记录接口 ==========
+
+    // 删除告警通知记录
+    @handler DelAlertNotificationsHandler
+    delete /notifications/:id (DefaultIdRequest) returns (string)
+
+    // 根据ID获取告警通知记录
+    @handler GetAlertNotificationsByIdHandler
+    get /notifications/:id (DefaultIdRequest) returns (AlertNotifications)
+
+    // 搜索告警通知记录
+    @handler SearchAlertNotificationsHandler
+    get /notifications (SearchAlertNotificationsRequest) returns (SearchAlertNotificationsResponse)
+
+    // 批量删除告警通知记录
+    @handler BatchDelAlertNotificationsHandler
+    post /notifications/batch-delete (BatchDelAlertNotificationsRequest) returns (string)
+}

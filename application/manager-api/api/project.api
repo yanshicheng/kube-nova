@@ -1,0 +1,486 @@
+syntax = "v1"
+
+info(
+    title: "Project Management API"
+    desc: "项目管理相关接口"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // 项目信息
+    Project {
+        Id uint64 `json:"id"`                     // 主键ID
+        Name string `json:"name"`                 // 项目中文名称
+        Uuid string `json:"uuid"`                 // 项目唯一标识（英文）
+        Description string `json:"description"`   // 项目描述信息
+        IsSystem int64 `json:"isSystem"`          // 是否为系统级别项目
+        CreatedBy string `json:"createdBy"`       // 记录创建人
+        UpdatedBy string `json:"updatedBy"`       // 记录更新人
+        CreatedAt int64 `json:"createdAt"`        // 记录创建时间
+        UpdatedAt int64 `json:"updatedAt"`        // 记录更新时间
+        AdminCount int64 `json:"adminCount"`
+        ResourceCount int64 `json:"resourceCount"`
+    }
+
+        // 添加项目请求
+    AddProjectRequest {
+        Name string `json:"name" validate:"required,min=1,max=100"`           // 项目名称
+        Description string `json:"description" validate:"omitempty,max=500"`  // 项目描述
+        IsSystem int64 `json:"isSystem" validate:"omitempty,oneof=0 1"`       // 是否系统项目
+    }
+
+        // 更新项目请求
+    UpdateProjectRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                        // 项目ID
+        Name string `json:"name" validate:"required,min=1,max=100"`           // 项目名称
+        Description string `json:"description" validate:"omitempty,max=500"`  // 项目描述
+    }
+
+        // 搜索项目请求
+    SearchProjectRequest {
+        Page uint64 `form:"page" validate:"omitempty,gt=0"`                            // 页码
+        PageSize uint64 `form:"pageSize" validate:"omitempty"`                         // 每页数量
+        Name string `form:"name,optional" validate:"omitempty,max=100"`                // 项目名称（模糊搜索）
+        Uuid string `form:"uuid,optional" validate:"omitempty,max=100"`                // 项目UUID
+    }
+
+        // 搜索项目响应
+    SearchProjectResponse {
+        Items []Project `json:"items"`  // 项目列表
+        Total uint64 `json:"total"`     // 总数
+    }
+        // ===================== 项目管理员相关 =====================
+
+        // 项目管理员信息
+    ProjectAdmin {
+        Id uint64 `json:"id"`                    // 主键ID
+        ProjectId uint64 `json:"projectId"`      // 关联的项目ID
+        UserId uint64 `json:"userId"`            // 关联的用户ID
+        CreatedAt int64 `json:"createdAt"`       // 记录创建时间
+    }
+
+        // 添加项目管理员请求
+    AddProjectAdminRequest {
+        ProjectId uint64 `json:"projectId" validate:"required,gt=0"`           // 项目ID
+        UserIds []uint64 `json:"userIds" validate:"omitempty"`                 // 用户ID列表，最多100个
+    }
+
+        // 获取项目管理员请求
+    GetProjectAdminsRequest {
+        ProjectId uint64 `form:"projectId" validate:"required,gt=0"` // 项目ID
+    }
+
+
+        // ===================== 项目集群配额相关 =====================
+
+        // 项目集群配额信息
+    ProjectCluster {
+        Id uint64 `json:"id"`                                                         // 主键ID
+        ClusterUuid string `json:"clusterUuid"`                                       // 关联的集群UUID
+        ClusterName string `json:"clusterName"`                                       // 集群名称
+        ProjectId uint64 `json:"projectId"`                                           // 关联的项目ID
+        CpuLimit string `json:"cpuLimit"`                                             // 上级分配的CPU配额（核心数）
+        CpuOvercommitRatio float64 `json:"cpuOvercommitRatio"`                        // CPU超分比例
+        CpuCapacity string `json:"cpuCapacity"`                                       // CPU超分后总容量 (limit * overcommit_ratio)
+        CpuAllocated string `json:"cpuAllocated"`                                     // 已分配给工作空间的CPU总量
+        MemLimit string `json:"memLimit"`                                             // 上级分配的内存配额（单位：GiB）
+        MemOvercommitRatio float64 `json:"memOvercommitRatio"`                        // 内存超分比例
+        MemCapacity string `json:"memCapacity"`                                       // 内存超分后总容量 (limit * overcommit_ratio)
+        MemAllocated string `json:"memAllocated"`                                     // 已分配给工作空间的内存总量
+        StorageLimit string `json:"storageLimit"`                                     // 存储配额上限（单位：GiB）
+        StorageAllocated string `json:"storageAllocated"`                             // 已分配给工作空间的存储总量
+        GpuLimit string `json:"gpuLimit"`                                             // 上级分配的GPU配额（个数）
+        GpuOvercommitRatio float64 `json:"gpuOvercommitRatio"`                        // GPU超分比例
+        GpuCapacity string `json:"gpuCapacity"`                                       // GPU超分后总容量 (limit * overcommit_ratio)
+        GpuAllocated string `json:"gpuAllocated"`                                     // 已分配给工作空间的GPU总量
+        PodsLimit int64 `json:"podsLimit"`                                            // Pod配额上限
+        PodsAllocated int64 `json:"podsAllocated"`                                    // 已分配给工作空间的Pod总量
+        ConfigmapLimit int64 `json:"configmapLimit"`                                  // ConfigMap配额上限
+        ConfigmapAllocated int64 `json:"configmapAllocated"`                          // 已分配给工作空间的ConfigMap总量
+        SecretLimit int64 `json:"secretLimit"`                                        // Secret配额上限
+        SecretAllocated int64 `json:"secretAllocated"`                                // 已分配给工作空间的Secret总量
+        PvcLimit int64 `json:"pvcLimit"`                                              // PVC配额上限
+        PvcAllocated int64 `json:"pvcAllocated"`                                      // 已分配给工作空间的PVC总量
+        EphemeralStorageLimit string `json:"ephemeralStorageLimit"`                   // 临时存储配额上限（单位：GiB）
+        EphemeralStorageAllocated string `json:"ephemeralStorageAllocated"`           // 已分配给工作空间的临时存储总量
+        ServiceLimit int64 `json:"serviceLimit"`                                      // Service配额上限
+        ServiceAllocated int64 `json:"serviceAllocated"`                              // 已分配给工作空间的Service总量
+        LoadbalancersLimit int64 `json:"loadbalancersLimit"`                          // LoadBalancer配额上限
+        LoadbalancersAllocated int64 `json:"loadbalancersAllocated"`                  // 已分配给工作空间的LoadBalancer总量
+        NodeportsLimit int64 `json:"nodeportsLimit"`                                  // NodePort配额上限
+        NodeportsAllocated int64 `json:"nodeportsAllocated"`                          // 已分配给工作空间的NodePort总量
+        DeploymentsLimit int64 `json:"deploymentsLimit"`                              // Deployment配额上限
+        DeploymentsAllocated int64 `json:"deploymentsAllocated"`                      // 已分配给工作空间的Deployment总量
+        JobsLimit int64 `json:"jobsLimit"`                                            // Job配额上限
+        JobsAllocated int64 `json:"jobsAllocated"`                                    // 已分配给工作空间的Job总量
+        CronjobsLimit int64 `json:"cronjobsLimit"`                                    // CronJob配额上限
+        CronjobsAllocated int64 `json:"cronjobsAllocated"`                            // 已分配给工作空间的CronJob总量
+        DaemonsetsLimit int64 `json:"daemonsetsLimit"`                                // DaemonSet配额上限
+        DaemonsetsAllocated int64 `json:"daemonsetsAllocated"`                        // 已分配给工作空间的DaemonSet总量
+        StatefulsetsLimit int64 `json:"statefulsetsLimit"`                            // StatefulSet配额上限
+        StatefulsetsAllocated int64 `json:"statefulsetsAllocated"`                    // 已分配给工作空间的StatefulSet总量
+        IngressesLimit int64 `json:"ingressesLimit"`                                  // Ingress配额上限
+        IngressesAllocated int64 `json:"ingressesAllocated"`                          // 已分配给工作空间的Ingress总量
+        CreatedBy string `json:"createdBy"`                                           // 记录创建人
+        UpdatedBy string `json:"updatedBy"`                                           // 记录更新人
+        Status string `json:"status"`                                                 //
+        CreatedAt int64 `json:"createdAt"`                                            // 记录创建时间
+        UpdatedAt int64 `json:"updatedAt"`                                            // 记录更新时间
+    }
+
+        // 添加项目集群配额请求
+    AddProjectClusterRequest {
+        ClusterUuid string `json:"clusterUuid" validate:"required,uuid"`                                         // 关联的集群UUID
+        ProjectId uint64 `json:"projectId" validate:"required,gt=0"`                                             // 关联的项目ID
+        CpuLimit string `json:"cpuLimit" validate:"required"`                                                    // 上级分配的CPU配额（核心数）
+        CpuOvercommitRatio float64 `json:"cpuOvercommitRatio" validate:"omitempty"`                              // CPU超分比例
+        CpuCapacity string `json:"cpuCapacity" validate:"omitempty"`                                             // CPU超分后总容量
+        MemLimit string `json:"memLimit" validate:"required"`                                                    // 上级分配的内存配额（单位：GiB）
+        MemOvercommitRatio float64 `json:"memOvercommitRatio" validate:"omitempty"`                              // 内存超分比例
+        MemCapacity string `json:"memCapacity" validate:"omitempty"`                                             // 内存超分后总容量
+        StorageLimit string `json:"storageLimit" validate:"omitempty"`                                           // 存储配额上限（单位：GiB）
+        GpuLimit string `json:"gpuLimit" validate:"omitempty"`                                                   // 上级分配的GPU配额（个数）
+        GpuOvercommitRatio float64 `json:"gpuOvercommitRatio" validate:"omitempty"`                              // GPU超分比例
+        GpuCapacity string `json:"gpuCapacity" validate:"omitempty"`                                             // GPU超分后总容量
+        PodsLimit int64 `json:"podsLimit" validate:"omitempty"`                                                  // Pod配额上限
+        ConfigmapLimit int64 `json:"configmapLimit" validate:"omitempty"`                                        // ConfigMap配额上限
+        SecretLimit int64 `json:"secretLimit" validate:"omitempty"`                                              // Secret配额上限
+        PvcLimit int64 `json:"pvcLimit" validate:"omitempty"`                                                    // PVC配额上限
+        EphemeralStorageLimit string `json:"ephemeralStorageLimit" validate:"omitempty"`                         // 临时存储配额上限（单位：GiB）
+        ServiceLimit int64 `json:"serviceLimit" validate:"omitempty"`                                            // Service配额上限
+        LoadbalancersLimit int64 `json:"loadbalancersLimit" validate:"omitempty"`                                // LoadBalancer配额上限
+        NodeportsLimit int64 `json:"nodeportsLimit" validate:"omitempty"`                                        // NodePort配额上限
+        DeploymentsLimit int64 `json:"deploymentsLimit" validate:"omitempty"`                                    // Deployment配额上限
+        JobsLimit int64 `json:"jobsLimit" validate:"omitempty"`                                                  // Job配额上限
+        CronjobsLimit int64 `json:"cronjobsLimit" validate:"omitempty"`                                          // CronJob配额上限
+        DaemonsetsLimit int64 `json:"daemonsetsLimit" validate:"omitempty"`                                      // DaemonSet配额上限
+        StatefulsetsLimit int64 `json:"statefulsetsLimit" validate:"omitempty"`                                  // StatefulSet配额上限
+        IngressesLimit int64 `json:"ingressesLimit" validate:"omitempty"`                                        // Ingress配额上限
+    }
+
+        // 更新项目集群配额请求
+    UpdateProjectClusterRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                                                           // 主键ID
+        CpuLimit string `json:"cpuLimit" validate:"required"`                                                    // 上级分配的CPU配额（核心数）
+        CpuOvercommitRatio float64 `json:"cpuOvercommitRatio" validate:"omitempty"`                              // CPU超分比例
+        CpuCapacity string `json:"cpuCapacity" validate:"omitempty"`                                             // CPU超分后总容量
+        MemLimit string `json:"memLimit" validate:"required"`                                                    // 上级分配的内存配额（单位：GiB）
+        MemOvercommitRatio float64 `json:"memOvercommitRatio" validate:"omitempty"`                              // 内存超分比例
+        MemCapacity string `json:"memCapacity" validate:"omitempty"`                                             // 内存超分后总容量
+        StorageLimit string `json:"storageLimit" validate:"omitempty"`                                           // 存储配额上限（单位：GiB）
+        GpuLimit string `json:"gpuLimit" validate:"omitempty"`                                                   // 上级分配的GPU配额（个数）
+        GpuOvercommitRatio float64 `json:"gpuOvercommitRatio" validate:"omitempty"`                              // GPU超分比例
+        GpuCapacity string `json:"gpuCapacity" validate:"omitempty"`                                             // GPU超分后总容量
+        PodsLimit int64 `json:"podsLimit" validate:"omitempty"`                                                  // Pod配额上限
+        ConfigmapLimit int64 `json:"configmapLimit" validate:"omitempty"`                                        // ConfigMap配额上限
+        SecretLimit int64 `json:"secretLimit" validate:"omitempty"`                                              // Secret配额上限
+        PvcLimit int64 `json:"pvcLimit" validate:"omitempty"`                                                    // PVC配额上限
+        EphemeralStorageLimit string `json:"ephemeralStorageLimit" validate:"omitempty"`                         // 临时存储配额上限（单位：GiB）
+        ServiceLimit int64 `json:"serviceLimit" validate:"omitempty"`                                            // Service配额上限
+        LoadbalancersLimit int64 `json:"loadbalancersLimit" validate:"omitempty"`                                // LoadBalancer配额上限
+        NodeportsLimit int64 `json:"nodeportsLimit" validate:"omitempty"`                                        // NodePort配额上限
+        DeploymentsLimit int64 `json:"deploymentsLimit" validate:"omitempty"`                                    // Deployment配额上限
+        JobsLimit int64 `json:"jobsLimit" validate:"omitempty"`                                                  // Job配额上限
+        CronjobsLimit int64 `json:"cronjobsLimit" validate:"omitempty"`                                          // CronJob配额上限
+        DaemonsetsLimit int64 `json:"daemonsetsLimit" validate:"omitempty"`                                      // DaemonSet配额上限
+        StatefulsetsLimit int64 `json:"statefulsetsLimit" validate:"omitempty"`                                  // StatefulSet配额上限
+        IngressesLimit int64 `json:"ingressesLimit" validate:"omitempty"`                                        // Ingress配额上限
+    }
+
+        // 搜索项目集群配额请求
+    SearchProjectClusterRequest {
+        ProjectId uint64 `form:"projectId" validate:"required,gt=0"`                   // 项目ID（必传）
+        ClusterUuid string `form:"clusterUuid,optional" validate:"omitempty,uuid"`     // 集群UUID（可选）
+    }
+
+
+        // ===================== 项目工作空间相关 =====================
+
+        // 项目工作空间信息
+    ProjectWorkspace {
+        Id uint64 `json:"id"`                                                                                       // 主键ID
+        ProjectClusterId uint64 `json:"projectClusterId"`                                                           // 关联的项目集群ID
+        ClusterUuid string `json:"clusterUuid"`                                                                     // 集群UUID
+        ClusterName string `json:"clusterName"`                                                                     // 集群名称
+        Name string `json:"name"`                                                                                   // 工作空间中文名称
+        Namespace string `json:"namespace"`                                                                         // Kubernetes命名空间
+        Description string `json:"description"`                                                                     // 工作空间描述
+        CpuAllocated string `json:"cpuAllocated"`                                                                   // 分配的CPU核心数
+        MemAllocated string `json:"memAllocated"`                                                                   // 分配的内存（GiB）
+        StorageAllocated string `json:"storageAllocated"`                                                           // 分配的存储（GiB）
+        GpuAllocated string `json:"gpuAllocated"`                                                                   // 分配的GPU数量
+        PodsAllocated int64 `json:"podsAllocated"`                                                                  // 分配的Pod数量
+        ConfigmapAllocated int64 `json:"configmapAllocated"`                                                        // 分配的ConfigMap数量上限
+        SecretAllocated int64 `json:"secretAllocated"`                                                              // 分配的Secret数量上限
+        PvcAllocated int64 `json:"pvcAllocated"`                                                                    // 分配的PVC数量上限
+        EphemeralStorageAllocated string `json:"ephemeralStorageAllocated"`                                         // 分配的临时存储数量上限
+        ServiceAllocated int64 `json:"serviceAllocated"`                                                            // 分配的Service数量上限
+        LoadbalancersAllocated int64 `json:"loadbalancersAllocated"`                                                // 分配的LoadBalancer数量上限
+        NodeportsAllocated int64 `json:"nodeportsAllocated"`                                                        // 分配的NodePort数量上限
+        DeploymentsAllocated int64 `json:"deploymentsAllocated"`                                                    // 分配的Deployment数量上限
+        JobsAllocated int64 `json:"jobsAllocated"`                                                                  // 分配的Job数量上限
+        CronjobsAllocated int64 `json:"cronjobsAllocated"`                                                          // 分配的CronJob数量上限
+        DaemonsetsAllocated int64 `json:"daemonsetsAllocated"`                                                      // 分配的DaemonSet数量上限
+        StatefulsetsAllocated int64 `json:"statefulsetsAllocated"`                                                  // 分配的StatefulSet数量上限
+        IngressesAllocated int64 `json:"ingressesAllocated"`                                                        // 分配的Ingress数量上限
+        PodMaxCpu string `json:"podMaxCpu"`                                                                         // Pod级别最大CPU限制（单位：核）
+        PodMaxMemory string `json:"podMaxMemory"`                                                                   // Pod级别最大内存限制（单位：GiB）
+        PodMaxEphemeralStorage string `json:"podMaxEphemeralStorage"`                                               // Pod级别最大临时存储限制（单位：GiB）
+        PodMinCpu string `json:"podMinCpu"`                                                                         // Pod级别最小CPU请求（单位：核，支持毫核）
+        PodMinMemory string `json:"podMinMemory"`                                                                   // Pod级别最小内存请求（单位：MiB）
+        PodMinEphemeralStorage string `json:"podMinEphemeralStorage"`                                               // Pod级别最小临时存储请求（单位：MiB）
+        ContainerMaxCpu string `json:"containerMaxCpu"`                                                             // Container级别最大CPU限制（单位：核）
+        ContainerMaxMemory string `json:"containerMaxMemory"`                                                       // Container级别最大内存限制（单位：GiB）
+        ContainerMaxEphemeralStorage string `json:"containerMaxEphemeralStorage"`                                   // Container级别最大临时存储限制（单位：GiB）
+        ContainerMinCpu string `json:"containerMinCpu"`                                                             // Container级别最小CPU请求（单位：核，支持毫核）
+        ContainerMinMemory string `json:"containerMinMemory"`                                                       // Container级别最小内存请求（单位：MiB）
+        ContainerMinEphemeralStorage string `json:"containerMinEphemeralStorage"`                                   // Container级别最小临时存储请求（单位：MiB）
+        ContainerDefaultCpu string `json:"containerDefaultCpu"`                                                     // Container默认CPU限制（单位：核）
+        ContainerDefaultMemory string `json:"containerDefaultMemory"`                                               // Container默认内存限制（单位：MiB）
+        ContainerDefaultEphemeralStorage string `json:"containerDefaultEphemeralStorage"`                           // Container默认临时存储限制（单位：GiB）
+        ContainerDefaultRequestCpu string `json:"containerDefaultRequestCpu"`                                       // Container默认CPU请求（单位：核）
+        ContainerDefaultRequestMemory string `json:"containerDefaultRequestMemory"`                                 // Container默认内存请求（单位：MiB）
+        ContainerDefaultRequestEphemeralStorage string `json:"containerDefaultRequestEphemeralStorage"`             // Container默认临时存储请求（单位：MiB）
+        IsSystem int64 `json:"isSystem"`                                                                            // 是否为系统级别项目，如果是则不需要资源限制
+        Status int64 `json:"status"`                                                                                // namespace pod 全是正常则true 否则false 后台管理字段
+        AppCreateTime int64 `json:"appCreateTime"`                                                                  // 应用创建时间，标识该应用在业务系统中首次创建的时间
+        CreatedBy string `json:"createdBy"`                                                                         // 记录创建人
+        UpdatedBy string `json:"updatedBy"`                                                                         // 记录更新人
+        CreatedAt int64 `json:"createdAt"`                                                                          // 记录创建时间
+        UpdatedAt int64 `json:"updatedAt"`                                                                          // 记录更新时间
+    }
+
+        // 添加项目工作空间请求
+    AddProjectWorkspaceRequest {
+        ProjectClusterId uint64 `json:"projectClusterId" validate:"required,gt=0"`                                                                // 项目集群ID
+        ClusterUuid string `json:"clusterUuid" validate:"required,uuid"`                                                                          // 集群UUID
+        Name string `json:"name" validate:"required,min=1,max=100"`                                                                               // 工作空间名称
+        Namespace string `json:"namespace" validate:"required"`                                                                                   // Kubernetes命名空间
+        Description string `json:"description" validate:"omitempty,max=500"`                                                                      // 工作空间描述
+        CpuAllocated string `json:"cpuAllocated" validate:"required,gt=0"`                                                                        // CPU核心数
+        MemAllocated string `json:"memAllocated" validate:"required,gt=0"`                                                                        // 内存（GiB）
+        StorageAllocated string `json:"storageAllocated" validate:"omitempty"`                                                                    // 存储（GiB）
+        GpuAllocated string `json:"gpuAllocated" validate:"omitempty"`                                                                            // GPU数量
+        PodsAllocated int64 `json:"podsAllocated" validate:"required,gt=0"`                                                                       // Pod配额
+        ConfigmapAllocated int64 `json:"configmapAllocated" validate:"omitempty"`                                                                 // ConfigMap配额
+        SecretAllocated int64 `json:"secretAllocated" validate:"omitempty"`                                                                       // Secret配额
+        PvcAllocated int64 `json:"pvcAllocated" validate:"omitempty"`                                                                             // PVC配额
+        EphemeralStorageAllocated string `json:"ephemeralStorageAllocated" validate:"omitempty"`                                                  // 临时存储配额
+        ServiceAllocated int64 `json:"serviceAllocated" validate:"omitempty"`                                                                     // Service配额
+        LoadbalancersAllocated int64 `json:"loadbalancersAllocated" validate:"omitempty"`                                                         // LoadBalancer配额
+        NodeportsAllocated int64 `json:"nodeportsAllocated" validate:"omitempty"`                                                                 // NodePort配额
+        DeploymentsAllocated int64 `json:"deploymentsAllocated" validate:"omitempty"`                                                             // Deployment配额
+        JobsAllocated int64 `json:"jobsAllocated" validate:"omitempty"`                                                                           // Job配额
+        CronjobsAllocated int64 `json:"cronjobsAllocated" validate:"omitempty"`                                                                   // CronJob配额
+        DaemonsetsAllocated int64 `json:"daemonsetsAllocated" validate:"omitempty"`                                                               // DaemonSet配额
+        StatefulsetsAllocated int64 `json:"statefulsetsAllocated" validate:"omitempty"`                                                           // StatefulSet配额
+        IngressesAllocated int64 `json:"ingressesAllocated" validate:"omitempty"`                                                                 // Ingress配额
+        PodMaxCpu string `json:"podMaxCpu" validate:"omitempty"`                                                                                  // Pod最大CPU
+        PodMaxMemory string `json:"podMaxMemory" validate:"omitempty"`                                                                            // Pod最大内存
+        PodMaxEphemeralStorage string `json:"podMaxEphemeralStorage" validate:"omitempty"`                                                        // Pod最大临时存储
+        PodMinCpu string `json:"podMinCpu" validate:"omitempty"`                                                                                  // Pod最小CPU
+        PodMinMemory string `json:"podMinMemory" validate:"omitempty"`                                                                            // Pod最小内存
+        PodMinEphemeralStorage string `json:"podMinEphemeralStorage" validate:"omitempty"`                                                        // Pod最小临时存储
+        ContainerMaxCpu string `json:"containerMaxCpu" validate:"omitempty"`                                                                      // 容器最大CPU
+        ContainerMaxMemory string `json:"containerMaxMemory" validate:"omitempty"`                                                                // 容器最大内存
+        ContainerMaxEphemeralStorage string `json:"containerMaxEphemeralStorage" validate:"omitempty"`                                            // 容器最大临时存储
+        ContainerMinCpu string `json:"containerMinCpu" validate:"omitempty"`                                                                      // 容器最小CPU
+        ContainerMinMemory string `json:"containerMinMemory" validate:"omitempty"`                                                                // 容器最小内存
+        ContainerMinEphemeralStorage string `json:"containerMinEphemeralStorage" validate:"omitempty"`                                            // 容器最小临时存储
+        ContainerDefaultCpu string `json:"containerDefaultCpu" validate:"omitempty"`                                                              // 容器默认CPU
+        ContainerDefaultMemory string `json:"containerDefaultMemory" validate:"omitempty"`                                                        // 容器默认内存
+        ContainerDefaultEphemeralStorage string `json:"containerDefaultEphemeralStorage" validate:"omitempty"`                                    // 容器默认临时存储
+        ContainerDefaultRequestCpu string `json:"containerDefaultRequestCpu" validate:"omitempty"`                                                // 容器默认CPU请求
+        ContainerDefaultRequestMemory string `json:"containerDefaultRequestMemory" validate:"omitempty"`                                          // 容器默认内存请求
+        ContainerDefaultRequestEphemeralStorage string `json:"containerDefaultRequestEphemeralStorage" validate:"omitempty"`                      // 容器默认临时存储请求
+    }
+
+        // 更新项目工作空间请求
+    UpdateProjectWorkspaceRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                                                                                          // 主键ID
+        Name string `json:"name" validate:"required,min=1,max=100"`                                                                             // 工作空间名称
+        Description string `json:"description" validate:"omitempty,max=500"`                                                                    // 工作空间描述
+        CpuAllocated string `json:"cpuAllocated" validate:"required,gt=0"`                                                                      // CPU核心数
+        MemAllocated string `json:"memAllocated" validate:"required,gt=0"`                                                                      // 内存（GiB）
+        StorageAllocated string `json:"storageAllocated" validate:"omitempty"`                                                                  // 存储（GiB）
+        GpuAllocated string `json:"gpuAllocated" validate:"omitempty"`                                                                          // GPU数量
+        PodsAllocated int64 `json:"podsAllocated" validate:"required,gt=0"`                                                                     // Pod配额
+        ConfigmapAllocated int64 `json:"configmapAllocated" validate:"omitempty"`                                                               // ConfigMap配额
+        SecretAllocated int64 `json:"secretAllocated" validate:"omitempty"`                                                                     // Secret配额
+        PvcAllocated int64 `json:"pvcAllocated" validate:"omitempty"`                                                                           // PVC配额
+        EphemeralStorageAllocated string `json:"ephemeralStorageAllocated" validate:"omitempty"`                                                // 临时存储配额
+        ServiceAllocated int64 `json:"serviceAllocated" validate:"omitempty"`                                                                   // Service配额
+        LoadbalancersAllocated int64 `json:"loadbalancersAllocated" validate:"omitempty"`                                                       // LoadBalancer配额
+        NodeportsAllocated int64 `json:"nodeportsAllocated" validate:"omitempty"`                                                               // NodePort配额
+        DeploymentsAllocated int64 `json:"deploymentsAllocated" validate:"omitempty"`                                                           // Deployment配额
+        JobsAllocated int64 `json:"jobsAllocated" validate:"omitempty"`                                                                         // Job配额
+        CronjobsAllocated int64 `json:"cronjobsAllocated" validate:"omitempty"`                                                                 // CronJob配额
+        DaemonsetsAllocated int64 `json:"daemonsetsAllocated" validate:"omitempty"`                                                             // DaemonSet配额
+        StatefulsetsAllocated int64 `json:"statefulsetsAllocated" validate:"omitempty"`                                                         // StatefulSet配额
+        IngressesAllocated int64 `json:"ingressesAllocated" validate:"omitempty"`                                                               // Ingress配额
+        PodMaxCpu string `json:"podMaxCpu" validate:"omitempty"`                                                                                // Pod最大CPU
+        PodMaxMemory string `json:"podMaxMemory" validate:"omitempty"`                                                                          // Pod最大内存
+        PodMaxEphemeralStorage string `json:"podMaxEphemeralStorage" validate:"omitempty"`                                                      // Pod最大临时存储
+        PodMinCpu string `json:"podMinCpu" validate:"omitempty"`                                                                                // Pod最小CPU
+        PodMinMemory string `json:"podMinMemory" validate:"omitempty"`                                                                          // Pod最小内存
+        PodMinEphemeralStorage string `json:"podMinEphemeralStorage" validate:"omitempty"`                                                      // Pod最小临时存储
+        ContainerMaxCpu string `json:"containerMaxCpu" validate:"omitempty"`                                                                    // 容器最大CPU
+        ContainerMaxMemory string `json:"containerMaxMemory" validate:"omitempty"`                                                              // 容器最大内存
+        ContainerMaxEphemeralStorage string `json:"containerMaxEphemeralStorage" validate:"omitempty"`                                          // 容器最大临时存储
+        ContainerMinCpu string `json:"containerMinCpu" validate:"omitempty"`                                                                    // 容器最小CPU
+        ContainerMinMemory string `json:"containerMinMemory" validate:"omitempty"`                                                              // 容器最小内存
+        ContainerMinEphemeralStorage string `json:"containerMinEphemeralStorage" validate:"omitempty"`                                          // 容器最小临时存储
+        ContainerDefaultCpu string `json:"containerDefaultCpu" validate:"omitempty"`                                                            // 容器默认CPU
+        ContainerDefaultMemory string `json:"containerDefaultMemory" validate:"omitempty"`                                                      // 容器默认内存
+        ContainerDefaultEphemeralStorage string `json:"containerDefaultEphemeralStorage" validate:"omitempty"`                                  // 容器默认临时存储
+        ContainerDefaultRequestCpu string `json:"containerDefaultRequestCpu" validate:"omitempty"`                                              // 容器默认CPU请求
+        ContainerDefaultRequestMemory string `json:"containerDefaultRequestMemory" validate:"omitempty"`                                        // 容器默认内存请求
+        ContainerDefaultRequestEphemeralStorage string `json:"containerDefaultRequestEphemeralStorage" validate:"omitempty"`                    // 容器默认临时存储请求
+    }
+
+        // 搜索项目工作空间请求
+    SearchProjectWorkspaceRequest {
+        ProjectClusterId uint64 `form:"projectClusterId" validate:"required,gt=0"`                              // 项目集群ID（必传）
+        Name string `form:"name,optional" validate:"omitempty,max=100"`                                         // 工作空间名称（可选）
+        Namespace string `form:"namespace,optional" validate:"omitempty,max=63"`                                // 命名空间（可选）
+    }
+
+
+
+
+
+    GetProjectsByUserIdRequest {
+        Name string `form:"name,optional" validate:"omitempty,max=100"`
+    }
+
+    MigrateVersionOnProjectRequest {
+        VersionId uint64 `json:"versionId" validate:"required,gt=0"`
+        NewVersionName string `json:"newVersionName" validate:"required,max=100"`
+        NewApplicationId uint64 `json:"newApplicationId" validate:"required,gt=0"`
+    }
+    MigrateWorkspaceOnProjectRequest {
+        WorkloadId uint64 `json:"workloadId" validate:"required,gt=0"`
+        NewProjectId uint64 `json:"newProjectId" validate:"required,gt=0"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: project
+    prefix: /manager/v1/project
+)
+service manager-api {
+    // ============= 项目基础信息相关接口 =============
+
+    // 添加项目
+    @doc "创建新项目"
+    @handler AddProjectHandler
+    post / (AddProjectRequest) returns (string)
+
+    // 更新项目
+    @doc "更新项目基本信息"
+    @handler UpdateProjectHandler
+    put /:id (UpdateProjectRequest) returns (string)
+
+    // 删除项目
+    @doc "软删除项目"
+    @handler DeleteProjectHandler
+    delete /:id (DefaultIdRequest) returns (string)
+
+    // 获取项目详情
+    @doc "根据ID获取项目详细信息"
+    @handler GetProjectHandler
+    get /:id (DefaultIdRequest) returns (Project)
+
+    // 根据用户ID查询项目列表
+    @doc "根据用户ID查询项目列表"
+    @handler GetProjectsByUserIdHandler
+    get /user (GetProjectsByUserIdRequest) returns ([]Project)
+
+    // 搜索项目
+    @doc "搜索项目列表，支持分页和条件筛选"
+    @handler SearchProjectHandler
+    get /search (SearchProjectRequest) returns (SearchProjectResponse)
+
+
+    // ============= 项目管理员相关接口 =============
+
+    // 添加项目管理员
+    @doc "批量添加项目管理员，使用事务先删除所有管理员再批量添加"
+    @handler AddProjectAdminHandler
+    post /admin (AddProjectAdminRequest) returns (string)
+
+    // 获取项目管理员列表
+    @doc "根据项目ID获取所有管理员列表"
+    @handler GetProjectAdminsHandler
+    get /admin/list (GetProjectAdminsRequest) returns ([]ProjectAdmin)
+
+    // ============= 项目集群配额相关接口 =============
+
+    // 添加项目集群配额
+    @doc "为项目分配集群资源配额"
+    @handler AddProjectClusterHandler
+    post /cluster (AddProjectClusterRequest) returns (string)
+
+    // 更新项目集群配额
+    @doc "更新项目集群资源配额，不能小于已使用量"
+    @handler UpdateProjectClusterHandler
+    put /cluster/:id (UpdateProjectClusterRequest) returns (string)
+
+    // 删除项目集群配额
+    @doc "软删除项目集群配额，需确保没有工作空间在使用"
+    @handler DeleteProjectClusterHandler
+    delete /cluster/:id (DefaultIdRequest) returns (string)
+
+    // 获取项目集群配额详情
+    @doc "根据ID获取项目集群配额详细信息"
+    @handler GetProjectClusterHandler
+    get /cluster/:id (DefaultIdRequest) returns (ProjectCluster)
+
+    // 搜索项目集群配额
+    @doc "搜索项目的集群配额列表，projectId为必传参数"
+    @handler SearchProjectClusterHandler
+    get /cluster/search (SearchProjectClusterRequest) returns ([]ProjectCluster)
+
+
+    // ============= 项目工作空间相关接口 =============
+
+    // 添加项目工作空间
+    @doc "创建新的项目工作空间（Kubernetes命名空间）"
+    @handler AddProjectWorkspaceHandler
+    post /workspace (AddProjectWorkspaceRequest) returns (string)
+
+    // 更新项目工作空间
+    @doc "更新工作空间配置，资源配额不能超过项目集群限制"
+    @handler UpdateProjectWorkspaceHandler
+    put /workspace/:id (UpdateProjectWorkspaceRequest) returns (string)
+
+    // 删除项目工作空间
+    @doc "软删除工作空间，并同步更新项目集群资源使用量"
+    @handler DeleteProjectWorkspaceHandler
+    delete /workspace/:id (DefaultIdRequest) returns (string)
+
+    // 获取工作空间详情
+    @doc "根据ID获取工作空间详细信息"
+    @handler GetProjectWorkspaceHandler
+    get /workspace/:id (DefaultIdRequest) returns (ProjectWorkspace)
+
+    // 搜索工作空间
+    @doc "搜索项目的工作空间列表，projectClusterId为必传参数"
+    @handler SearchProjectWorkspaceHandler
+    get /workspace/search (SearchProjectWorkspaceRequest) returns ([]ProjectWorkspace)
+
+    // 迁移版本
+    @doc "同集群迁移版本"
+    @handler MigrateVersionOnProjectHandler
+    post /migrate/version (MigrateVersionOnProjectRequest) returns (string)
+
+    // 同集群迁移工作空间
+    @doc "同集群迁移工作空间"
+    @handler MigrateWorkspaceOnProjectHandler
+    post /migrate/workspace (MigrateWorkspaceOnProjectRequest) returns (string)
+}

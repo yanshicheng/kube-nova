@@ -1,0 +1,304 @@
+syntax = "proto3";
+
+option go_package = "github.com/yanshicheng/kube-nova/application/manager-rpc/pb";
+
+package pb;
+//--------------------------------仓库表，记录仓库信息--------------------------------
+message OnecClusterRepository {
+  uint64 id = 1; //主键，自增 ID
+  string name = 2; //仓库名称
+  string uuid = 3; //仓库唯一标识符
+  string env = 4; //环境名称
+  string type = 5; //仓库类型,harbor,
+  string url = 6; //仓库地址
+  string username = 7; //仓库用户名
+  string password = 8; //仓库密码
+  string ca = 9; //仓库证书
+  int64 status = 10; //仓库状态, 1:正常, 0:异常
+  string description = 11; //仓库描述信息
+  string createdBy = 12; //记录创建人
+  string updatedBy = 13; //记录最后更新人
+  int64 createdAt = 14; //记录创建时间
+  int64 updatedAt = 15; //记录更新时间
+  int64  insecure = 16;
+}
+
+message OnecClusterRepositoryDetails {
+  uint64 id = 1; //主键，自增 ID
+  string name = 2; //仓库名称
+  string uuid = 3; //仓库唯一标识符
+  string env = 4; //环境名称
+  string type = 5; //仓库类型,harbor,
+  string url = 6; //仓库地址
+  string username = 7; //仓库用户名
+  string password = 8; //仓库密码
+  string ca = 9; //仓库证书
+  int64 status = 10; //仓库状态, 1:正常, 0:异常
+  string description = 11; //仓库描述信息
+  string createdBy = 12; //记录创建人
+  string updatedBy = 13; //记录最后更新人
+  int64 createdAt = 14; //记录创建时间
+  int64 updatedAt = 15; //记录更新时间
+  int64  insecure = 16;
+  int64 StorageTotal = 17;
+  int64 StorageUsed = 18;
+  int64 StorageFree = 19;
+
+  // 项目统计
+  int64 TotalProjects = 20;
+  int64 PublicProjects = 21;
+  int64 PrivateProjects = 22;
+
+  // 仓库统计
+  int64 TotalRepositories = 23;
+  int64 PublicRepositories = 24;
+  int64 PrivateRepositories = 25;
+}
+
+message AddOnecClusterRepositoryReq {
+  string name = 1; //仓库名称
+  int64 insecure = 2; // 仓库是否忽略证书
+  string env = 3; //环境名称
+  string type = 4; //仓库类型,harbor,
+  string url = 5; //仓库地址
+  string username = 6; //仓库用户名
+  string password = 7; //仓库密码
+  string ca = 8; //仓库证书
+  int64 status = 9; //仓库状态, 1:正常, 0:异常
+  string description = 10; //仓库描述信息
+  string createdBy = 11; //记录创建人
+  string updatedBy = 12; //记录最后更新人
+}
+
+message AddOnecClusterRepositoryResp {
+}
+
+message UpdateOnecClusterRepositoryReq {
+  uint64 id = 1; //主键，自增 ID
+  string name = 2; //仓库名称
+  int64 insecure = 3; // 仓库是否忽略证书
+  string env = 4; //环境名称
+  string type = 5; //仓库类型,harbor,
+  string url = 6; //仓库地址
+  string username = 7; //仓库用户名
+  string password = 8; //仓库密码
+  string ca = 9; //仓库证书
+  int64 status = 10; //仓库状态, 1:正常, 0:异常
+  string description = 11; //仓库描述信息
+  string createdBy = 12; //记录创建人
+  string updatedBy = 13; //记录最后更新人
+}
+
+message UpdateOnecClusterRepositoryResp {
+}
+
+message DelOnecClusterRepositoryReq {
+  uint64 id = 1; //id
+}
+
+message DelOnecClusterRepositoryResp {
+}
+
+message GetOnecClusterRepositoryByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetOnecClusterRepositoryByIdResp {
+  OnecClusterRepository data = 1; //onecClusterRepository
+}
+
+message SearchOnecClusterRepositoryReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderStr = 3; //orderStr
+  bool isAsc = 4; //isAsc
+  string name = 5; //仓库名称
+  string uuid = 6; //仓库唯一标识符
+  string env = 7; //环境名称
+  string type = 8; //仓库类型,harbor,
+}
+
+message SearchOnecClusterRepositoryResp {
+  repeated OnecClusterRepository data = 1; //onecClusterRepository
+  uint64 total = 2; //total
+}
+
+message AddOnecClusterRepositoryRelationReq {
+  uint64 repositoryId = 1; //仓库 ID
+  repeated uint64 clusterId = 2;  // 数组
+  int64 isDeleted = 3; //是否已删除，软删除标记
+}
+
+message AddOnecClusterRepositoryRelationResp {
+}
+
+message GetRepositoryRelationClusterReq {
+  uint64 repositoryId = 1; //仓库 ID
+}
+message GetRepositoryRelationClusterResp {
+  repeated uint64 data = 1;
+}
+
+// 测试仓库连通性
+message TestRepositoryConnectReq {
+  string url = 1; //仓库地址
+  string username = 2; //仓库用户名
+  string password = 3; //仓库密码
+  int64 insecure = 4; //是否忽略证书
+  string ca = 5; //仓库证书
+}
+
+message TestRepositoryConnectResp {
+  int64 status = 1; //连接状态: 1:成功, 0:失败
+  string message = 2; //提示信息
+}
+
+// 镜像搜索结果
+message RepositorySearchResult {
+  string projectName = 1; //项目名称
+  string repoName = 2; //仓库名称（完整路径）
+  repeated string tags = 3; //标签列表
+}
+
+// 单个仓库搜索镜像
+message SearchImagesInRepositoryReq {
+  string uuid = 1; //仓库 UUID
+  string imageName = 2; //镜像名称（模糊搜索）
+}
+message SearchImagesInRepositoryResp {
+  repeated RepositorySearchResult data = 1; //搜索结果
+}
+
+// Harbor 项目列表
+message ListHarborProjectsReq {
+  string uuid = 1; //仓库 UUID
+  string search = 2; //搜索关键词（可选）
+  int64 page = 3; //页码
+  int64 pageSize = 4; //每页数量
+  string sortBy = 5; //排序字段: name/creationTime/repoCount
+  bool sortDesc = 6; //是否降序
+}
+
+message HarborProject {
+  int64 projectId = 1;
+  string name = 2;
+  string ownerName = 3;
+  bool isPublic = 4;
+  int64 repoCount = 5;
+  int64 creationTime = 6;
+  int64 updateTime = 7;
+}
+
+message ListHarborProjectsResp {
+  repeated HarborProject items = 1;
+  int64 total = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  int64 totalPages = 5;
+}
+// Harbor 仓库列表（某个项目下）
+message ListHarborRepositoriesReq {
+  string uuid = 1; //仓库 UUID
+  string projectName = 2; //项目名称
+  string search = 3; //搜索关键词（可选）
+  int64 page = 4; //页码
+  int64 pageSize = 5; //每页数量
+  string sortBy = 6; //排序字段: name/pullCount/artifactCount
+  bool sortDesc = 7; //是否降序
+}
+
+message HarborRepository {
+  int64 id = 1;
+  string name = 2;
+  int64 projectId = 3;
+  string description = 4;
+  int64 artifactCount = 5;
+  int64 pullCount = 6;
+  int64 creationTime = 7;
+  int64 updateTime = 8;
+}
+
+message ListHarborRepositoriesResp {
+  repeated HarborRepository items = 1;
+  int64 total = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  int64 totalPages = 5;
+}
+
+// Harbor 制品/标签列表
+message ListHarborArtifactsReq {
+  string uuid = 1; //仓库 UUID
+  string projectName = 2; //项目名称
+  string repoName = 3; //仓库名称
+  string search = 4; //搜索关键词（可选）
+  int64 page = 5; //页码
+  int64 pageSize = 6; //每页数量
+  string sortBy = 7; //排序字段: pushTime/pullTime/size
+  bool sortDesc = 8; //是否降序
+}
+
+message HarborTag {
+  int64 id = 1;
+  string name = 2;
+  int64 pushTime = 3;
+  int64 pullTime = 4;
+  bool immutable = 5;
+  bool signed = 6;
+}
+
+message HarborArtifact {
+  int64 id = 1;
+  string type = 2;
+  string digest = 3;
+  repeated HarborTag tags = 4;
+  int64 pushTime = 5;
+  int64 pullTime = 6;
+  int64 size = 7;
+  string manifestMediaType = 8;
+}
+
+message ListHarborArtifactsResp {
+  repeated HarborArtifact items = 1;
+  int64 total = 2;
+  int64 page = 3;
+  int64 pageSize = 4;
+  int64 totalPages = 5;
+}
+
+// 删除 Harbor 镜像标签
+message DeleteHarborTagReq {
+  string uuid = 1; //仓库 UUID
+  string projectName = 2; //项目名称
+  string repoName = 3; //仓库名称
+  string tagName = 4; //标签名称
+}
+
+message DeleteHarborTagResp {
+}
+
+// 删除 Harbor 制品
+message DeleteHarborArtifactReq {
+  string uuid = 1; //仓库 UUID
+  string projectName = 2; //项目名称
+  string repoName = 3; //仓库名称
+  string reference = 4; //制品引用（digest 或 tag）
+}
+
+message DeleteHarborArtifactResp {
+}
+
+service OnecClusterRepositoryService {
+  //-----------------------仓库表，记录仓库信息-----------------------
+  rpc RepositoryAdd(AddOnecClusterRepositoryReq) returns (AddOnecClusterRepositoryResp);
+  rpc RepositoryUpdate(UpdateOnecClusterRepositoryReq) returns (UpdateOnecClusterRepositoryResp);
+  rpc RepositoryDel(DelOnecClusterRepositoryReq) returns (DelOnecClusterRepositoryResp);
+  rpc RepositoryGetById(GetOnecClusterRepositoryByIdReq) returns (GetOnecClusterRepositoryByIdResp);
+  rpc RepositorySearch(SearchOnecClusterRepositoryReq) returns (SearchOnecClusterRepositoryResp);
+  // 仓库关联集群
+  rpc RepositoryRelationClusterAdd(AddOnecClusterRepositoryRelationReq) returns (AddOnecClusterRepositoryRelationResp);
+  // 查询某一个仓库关联的集群
+  rpc RepositoryRelationClusterSearch(GetRepositoryRelationClusterReq) returns (GetRepositoryRelationClusterResp);
+  // 镜像仓库相关操作
+  // 镜像相关操作
+}

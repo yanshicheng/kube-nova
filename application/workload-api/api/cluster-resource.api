@@ -1,0 +1,767 @@
+syntax = "v1"
+
+info(
+    title: "Cluster Resource API"
+    desc: "集群级资源管理：StorageClass、PersistentVolume、ClusterRole、ClusterRoleBinding、IngressClass"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+// ==================== 通用请求 ====================
+type (
+    // 集群级资源列表请求（无 namespace）
+    ClusterResourceListRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Search string `form:"search,optional"`               // 搜索关键字
+        LabelSelector string `form:"labelSelector,optional"` // 标签选择器
+    }
+
+        // 集群级资源名称请求
+    ClusterResourceNameRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Name string `form:"name" validate:"required"`
+    }
+
+        // 集群级资源 YAML 创建/更新请求
+    ClusterResourceYamlRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        YamlStr string `json:"yamlStr" validate:"required"`
+    }
+)
+
+// ==================== StorageClass 相关 ====================
+type (
+    // StorageClass 列表项
+    StorageClassListItem {
+        Name string `json:"name"`
+        Provisioner string `json:"provisioner"`                 // 供应商
+        ReclaimPolicy string `json:"reclaimPolicy"`             // Delete, Retain, Recycle
+        VolumeBindingMode string `json:"volumeBindingMode"`     // Immediate, WaitForFirstConsumer
+        AllowVolumeExpansion bool `json:"allowVolumeExpansion"` // 是否允许扩容
+        IsDefault bool `json:"isDefault"`                       // 是否为默认
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+    }
+
+        // StorageClass 列表响应
+    StorageClassListResponse {
+        Total int `json:"total"`
+        Items []StorageClassListItem `json:"items"`
+    }
+
+        // StorageClass 详情
+    StorageClassDetail {
+        Name string `json:"name"`
+        Provisioner string `json:"provisioner"`
+        ReclaimPolicy string `json:"reclaimPolicy"`
+        VolumeBindingMode string `json:"volumeBindingMode"`
+        AllowVolumeExpansion bool `json:"allowVolumeExpansion"`
+        IsDefault bool `json:"isDefault"`
+        Parameters map[string]string `json:"parameters,optional"`
+        MountOptions []string `json:"mountOptions,optional"`
+        AllowedTopologies []TopologyInfo `json:"allowedTopologies,optional"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+        // 拓扑信息
+    TopologyInfo {
+        Key string `json:"key"`
+        Values []string `json:"values"`
+    }
+
+        // StorageClass 关联的 PV 信息
+    StorageClassPVItem {
+        Name string `json:"name"`
+        Capacity string `json:"capacity"`
+        AccessModes string `json:"accessModes"`
+        Status string `json:"status"`
+        Claim string `json:"claim"` // namespace/pvcName
+        Age string `json:"age"`
+    }
+
+        // StorageClass 关联 PV 响应
+    StorageClassPVResponse {
+        StorageClassName string `json:"storageClassName"`
+        PVCount int `json:"pvCount"`
+        BoundPVCount int `json:"boundPVCount"`
+        AvailablePVCount int `json:"availablePVCount"`
+        TotalCapacity string `json:"totalCapacity"`
+        PVs []StorageClassPVItem `json:"pvs"`
+    }
+
+        // 设置默认 StorageClass 请求
+    SetDefaultStorageClassRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Name string `json:"name" validate:"required"`
+    }
+)
+
+// ==================== PersistentVolume 相关 ====================
+type (
+    // PV 列表请求
+    PVListRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Search string `form:"search,optional"`
+        LabelSelector string `form:"labelSelector,optional"`
+        Status string `form:"status,optional"`             // Available, Bound, Released, Failed
+        StorageClass string `form:"storageClass,optional"` // 按 StorageClass 过滤
+    }
+
+        // PV 列表项
+    PVListItem {
+        Name string `json:"name"`
+        Capacity string `json:"capacity"`                   // 5Gi
+        AccessModes string `json:"accessModes"`             // RWO, ROX, RWX, RWOP
+        ReclaimPolicy string `json:"reclaimPolicy"`         // Delete, Retain, Recycle
+        Status string `json:"status"`                       // Available, Bound, Released, Failed
+        Claim string `json:"claim"`                         // namespace/pvc-name
+        StorageClass string `json:"storageClass"`
+        VolumeAttributesClass string `json:"volumeAttributesClass"`
+        Reason string `json:"reason,optional"`
+        VolumeMode string `json:"volumeMode"`               // Filesystem, Block
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+        Labels map[string]string `json:"labels,optional"`
+    }
+
+        // PV 列表响应
+    PVListResponse {
+        Total int `json:"total"`
+        Items []PVListItem `json:"items"`
+    }
+
+        // PV 详情
+    PVDetail {
+        Name string `json:"name"`
+        Capacity string `json:"capacity"`
+        AccessModes []string `json:"accessModes"`
+        ReclaimPolicy string `json:"reclaimPolicy"`
+        Status string `json:"status"`
+        Claim string `json:"claim,optional"`
+        StorageClass string `json:"storageClass"`
+        VolumeAttributesClass string `json:"volumeAttributesClass,optional"`
+        VolumeMode string `json:"volumeMode"`
+        Reason string `json:"reason,optional"`
+        Message string `json:"message,optional"`
+        Finalizers []string `json:"finalizers,optional"`
+        Source PVSourceInfo `json:"source"`
+        NodeAffinity string `json:"nodeAffinity,optional"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+        // PV 存储源信息
+    PVSourceInfo {
+        Type string `json:"type"` // NFS, HostPath, CSI, Local, ISCSI, FC, RBD 等
+        Details map[string]string `json:"details,optional"`
+    }
+
+        // PV 使用情况响应
+    PVUsageResponse {
+        PVName string `json:"pvName"`
+        Status string `json:"status"`
+        ClaimInfo PVClaimInfo `json:"claimInfo,optional"`
+        UsedByPods []PodRefInfo `json:"usedByPods"`
+        CanDelete bool `json:"canDelete"`
+        DeleteReason string `json:"deleteReason,optional"`
+    }
+
+        // PV 绑定的 PVC 信息
+    PVClaimInfo {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Status string `json:"status"`
+        Capacity string `json:"capacity"`
+        AccessModes string `json:"accessModes"`
+        StorageClass string `json:"storageClass"`
+        Labels map[string]string `json:"labels,optional"`
+        Age string `json:"age"`
+    }
+
+        // Pod 引用信息
+    PodRefInfo {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        NodeName string `json:"nodeName"`
+        Status string `json:"status"`
+        VolumeName string `json:"volumeName"`
+    }
+)
+
+// ==================== ClusterRole 相关 ====================
+type (
+    // ClusterRole 列表项
+    ClusterRoleListItem {
+        Name string `json:"name"`
+        RuleCount int `json:"ruleCount"`                                // 规则数量
+        AggregationLabels []string `json:"aggregationLabels,optional"`  // 聚合标签
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+    }
+
+        // ClusterRole 列表响应
+    ClusterRoleListResponse {
+        Total int `json:"total"`
+        Items []ClusterRoleListItem `json:"items"`
+    }
+
+        // ClusterRole 详情
+    ClusterRoleDetail {
+        Name string `json:"name"`
+        Rules []PolicyRuleInfo `json:"rules"`
+        AggregationRule AggregationRuleInfo `json:"aggregationRule,optional"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+
+        // 聚合规则信息
+    AggregationRuleInfo {
+        ClusterRoleSelectors []LabelSelectorInfo `json:"clusterRoleSelectors"`
+    }
+
+
+
+
+
+        // ClusterRole 使用情况响应
+    ClusterRoleUsageResponse {
+        ClusterRoleName string `json:"clusterRoleName"`
+        BindingCount int `json:"bindingCount"`              // ClusterRoleBinding 数量
+        RoleBindingCount int `json:"roleBindingCount"`      // RoleBinding 数量
+        ClusterRoleBindings []ClusterRoleBindingRef `json:"clusterRoleBindings"`
+        RoleBindings []RoleBindingRef `json:"roleBindings"`
+        TotalSubjects int `json:"totalSubjects"`
+        ServiceAccountCount int `json:"serviceAccountCount"`
+        UserCount int `json:"userCount"`
+        GroupCount int `json:"groupCount"`
+        CanDelete bool `json:"canDelete"`
+        DeleteWarning string `json:"deleteWarning,optional"`
+    }
+
+        // ClusterRoleBinding 引用
+    ClusterRoleBindingRef {
+        Name string `json:"name"`
+        Subjects []SubjectInfo `json:"subjects"`
+        Age string `json:"age"`
+    }
+
+        // RoleBinding 引用
+    RoleBindingRef {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Subjects []SubjectInfo `json:"subjects"`
+        Age string `json:"age"`
+    }
+
+
+
+        // ClusterRole 权限摘要
+    ClusterRolePermissionSummary {
+        ClusterRoleName string `json:"clusterRoleName"`
+        HasAllVerbs bool `json:"hasAllVerbs"`                        // 是否有 * 权限
+        HasAllResources bool `json:"hasAllResources"`                // 是否有所有资源权限
+        VerbSummary map[string][]string `json:"verbSummary"`         // 按动作分组的资源
+        ResourceSummary map[string][]string `json:"resourceSummary"` // 按资源分组的动作
+        IsSuperAdmin bool `json:"isSuperAdmin"`                      // 是否是超级管理员角色
+        RiskLevel string `json:"riskLevel"`                          // low, medium, high, critical
+    }
+
+        // 添加规则请求
+    AddClusterRoleRuleRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Name string `json:"name" validate:"required"`
+        Rule PolicyRuleInfo `json:"rule" validate:"required"`
+    }
+
+        // 移除规则请求
+    RemoveClusterRoleRuleRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Name string `json:"name" validate:"required"`
+        RuleIndex int `json:"ruleIndex" validate:"min=0"`
+    }
+)
+
+// ==================== ClusterRoleBinding 相关 ====================
+type (
+    // ClusterRoleBinding 列表项
+    ClusterRoleBindingListItem {
+        Name string `json:"name"`
+        Role string `json:"role"`                         // ClusterRole/xxx
+        Users string `json:"users"`                       // 用户列表
+        Groups string `json:"groups"`                     // 组列表
+        ServiceAccounts string `json:"serviceAccounts"`   // namespace/sa
+        SubjectCount int `json:"subjectCount"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+    }
+
+        // ClusterRoleBinding 列表响应
+    ClusterRoleBindingListResponse {
+        Total int `json:"total"`
+        Items []ClusterRoleBindingListItem `json:"items"`
+    }
+
+        // ClusterRoleBinding 详情
+    ClusterRoleBindingDetail {
+        Name string `json:"name"`
+        RoleRef RoleRefInfo `json:"roleRef"`
+        Subjects []SubjectInfo `json:"subjects"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+
+
+        // 根据 ClusterRole 查询请求
+    GetByClusterRoleRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        ClusterRoleName string `form:"clusterRoleName" validate:"required"`
+    }
+
+        // 根据主体查询请求
+    GetBySubjectRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        SubjectKind string `form:"subjectKind" validate:"required,oneof=User Group ServiceAccount"`
+        SubjectName string `form:"subjectName" validate:"required"`
+        SubjectNamespace string `form:"subjectNamespace,optional"` // 仅 ServiceAccount 需要
+    }
+
+        // 主体绑定响应
+    SubjectBindingsResponse {
+        SubjectKind string `json:"subjectKind"`
+        SubjectName string `json:"subjectName"`
+        SubjectNamespace string `json:"subjectNamespace,optional"`
+        ClusterRoleBindings []ClusterRoleBindingListItem `json:"clusterRoleBindings"`
+        RoleBindings []RoleBindingInfo `json:"roleBindings"`
+        EffectiveClusterRoles []string `json:"effectiveClusterRoles"`
+        EffectiveRoles []NamespacedRoleInfo `json:"effectiveRoles"`
+        TotalBindings int `json:"totalBindings"`
+    }
+
+        // RoleBinding 信息
+    RoleBindingInfo {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        RoleName string `json:"roleName"`
+        RoleKind string `json:"roleKind"` // Role 或 ClusterRole
+        Age string `json:"age"`
+    }
+
+        // 命名空间角色信息
+    NamespacedRoleInfo {
+        RoleName string `json:"roleName"`
+        RoleKind string `json:"roleKind"`
+        Namespace string `json:"namespace"`
+    }
+
+        // ClusterRoleBinding 实际权限响应
+    ClusterRoleBindingPermissionsResponse {
+        BindingName string `json:"bindingName"`
+        RoleName string `json:"roleName"`
+        RoleExists bool `json:"roleExists"`
+        Subjects []SubjectInfo `json:"subjects"`
+        Rules []PolicyRuleInfo `json:"rules,optional"`
+        EffectiveScopes []string `json:"effectiveScopes"`
+        IsSuperAdmin bool `json:"isSuperAdmin"`
+        RiskLevel string `json:"riskLevel"`
+    }
+
+        // 添加主体请求
+    AddSubjectRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Name string `json:"name" validate:"required"`
+        Subject SubjectInfo `json:"subject" validate:"required"`
+    }
+
+        // 移除主体请求
+    RemoveSubjectRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Name string `json:"name" validate:"required"`
+        SubjectKind string `json:"subjectKind" validate:"required"`
+        SubjectName string `json:"subjectName" validate:"required"`
+        SubjectNamespace string `json:"subjectNamespace,optional"`
+    }
+
+        // 验证角色引用响应
+    ValidateRoleRefResponse {
+        Valid bool `json:"valid"`
+        Message string `json:"message"`
+    }
+)
+
+// ==================== IngressClass 相关 ====================
+type (
+    // IngressClass 列表请求
+    IngressClassListRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Search string `form:"search,optional"`
+        LabelSelector string `form:"labelSelector,optional"`
+    }
+
+        // IngressClass 列表项
+    IngressClassListItem {
+        Name string `json:"name"`
+        Controller string `json:"controller"`
+        Parameters string `json:"parameters"` // <none> 或 Kind/Name
+        IsDefault bool `json:"isDefault"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+    }
+
+        // IngressClass 列表响应
+    IngressClassListResponse {
+        Total int `json:"total"`
+        Items []IngressClassListItem `json:"items"`
+    }
+
+        // IngressClass 详情
+    IngressClassDetail {
+        Name string `json:"name"`
+        Controller string `json:"controller"`
+        IsDefault bool `json:"isDefault"`
+        Parameters IngressClassParameters `json:"parameters,optional"`
+        Labels map[string]string `json:"labels,optional"`
+        Annotations map[string]string `json:"annotations,optional"`
+        Age string `json:"age"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
+    }
+
+        // IngressClass 参数
+    IngressClassParameters {
+        APIGroup string `json:"apiGroup,optional"`
+        Kind string `json:"kind"`
+        Name string `json:"name"`
+        Namespace string `json:"namespace,optional"`
+        Scope string `json:"scope,optional"` // Cluster 或 Namespace
+    }
+
+        // IngressClass 名称请求
+    IngressClassNameRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Name string `form:"name" validate:"required"`
+    }
+
+        // IngressClass 使用情况响应
+    IngressClassUsageResponse {
+        IngressClassName string `json:"ingressClassName"`
+        IsDefault bool `json:"isDefault"`
+        IngressCount int `json:"ingressCount"`
+        NamespaceCount int `json:"namespaceCount"`
+        Ingresses []IngressRefInfo `json:"ingresses"`
+        NamespaceStats map[string]int `json:"namespaceStats"` // 每个命名空间的 Ingress 数量
+        CanDelete bool `json:"canDelete"`
+        DeleteWarning string `json:"deleteWarning,optional"`
+    }
+
+        // Ingress 引用信息
+    IngressRefInfo {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Hosts []string `json:"hosts"`
+        Address string `json:"address"`
+        TLSEnabled bool `json:"tlsEnabled"`
+        RulesCount int `json:"rulesCount"`
+        BackendCount int `json:"backendCount"`
+        Age string `json:"age"`
+    }
+
+        // 设置默认 IngressClass 请求
+    SetDefaultIngressClassRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Name string `json:"name" validate:"required"`
+    }
+
+        // IngressClass 控制器状态
+    IngressClassControllerStatus {
+        IngressClassName string `json:"ingressClassName"`
+        ControllerName string `json:"controllerName"`
+        ControllerPods []string `json:"controllerPods,optional"`
+        ControllerReady bool `json:"controllerReady"`
+        ControllerReplicas int `json:"controllerReplicas,optional"`
+        Namespace string `json:"namespace,optional"`
+    }
+)
+
+// ==================== 通用删除检查响应 ====================
+type (
+    CanDeleteResponse {
+        CanDelete bool `json:"canDelete"`
+        Warning string `json:"warning,optional"`
+    }
+)
+
+// ==================== 路由定义 ====================
+@server(
+    middleware: JWTAuthMiddleware
+    group: cluster
+    prefix: /workload/v1/cluster
+)
+
+service workload-api {
+    // ==================== StorageClass 接口 ====================
+
+    @doc "获取 StorageClass 列表"
+    @handler StorageClassListHandler
+    get /storageclass (ClusterResourceListRequest) returns (StorageClassListResponse)
+
+    @doc "获取 StorageClass 详情"
+    @handler StorageClassGetHandler
+    get /storageclass/detail (ClusterResourceNameRequest) returns (StorageClassDetail)
+
+    @doc "获取 StorageClass YAML"
+    @handler StorageClassGetYamlHandler
+    get /storageclass/yaml (ClusterResourceNameRequest) returns (string)
+
+    @doc "获取 StorageClass Describe"
+    @handler StorageClassDescribeHandler
+    get /storageclass/describe (ClusterResourceNameRequest) returns (string)
+
+    @doc "创建 StorageClass"
+    @handler StorageClassCreateHandler
+    post /storageclass (ClusterResourceYamlRequest) returns (string)
+
+    @doc "更新 StorageClass"
+    @handler StorageClassUpdateHandler
+    put /storageclass (ClusterResourceYamlRequest) returns (string)
+
+    @doc "删除 StorageClass"
+    @handler StorageClassDeleteHandler
+    delete /storageclass (ClusterResourceNameRequest) returns (string)
+
+    @doc "获取 StorageClass 关联的 PV"
+    @handler StorageClassGetPVsHandler
+    get /storageclass/pvs (ClusterResourceNameRequest) returns (StorageClassPVResponse)
+
+    @doc "检查 StorageClass 是否可删除"
+    @handler StorageClassCanDeleteHandler
+    get /storageclass/can-delete (ClusterResourceNameRequest) returns (CanDeleteResponse)
+
+    @doc "设置默认 StorageClass"
+    @handler StorageClassSetDefaultHandler
+    post /storageclass/set-default (SetDefaultStorageClassRequest) returns (string)
+
+    @doc "取消默认 StorageClass"
+    @handler StorageClassUnsetDefaultHandler
+    post /storageclass/unset-default (ClusterResourceNameRequest) returns (string)
+
+    // ==================== PersistentVolume 接口 ====================
+
+    @doc "获取 PV 列表"
+    @handler PVListHandler
+    get /pv (PVListRequest) returns (PVListResponse)
+
+    @doc "获取 PV 详情"
+    @handler PVGetHandler
+    get /pv/detail (ClusterResourceNameRequest) returns (PVDetail)
+
+    @doc "获取 PV YAML"
+    @handler PVGetYamlHandler
+    get /pv/yaml (ClusterResourceNameRequest) returns (string)
+
+    @doc "获取 PV Describe"
+    @handler PVDescribeHandler
+    get /pv/describe (ClusterResourceNameRequest) returns (string)
+
+    @doc "创建 PV"
+    @handler PVCreateHandler
+    post /pv (ClusterResourceYamlRequest) returns (string)
+
+    @doc "更新 PV"
+    @handler PVUpdateHandler
+    put /pv (ClusterResourceYamlRequest) returns (string)
+
+    @doc "删除 PV"
+    @handler PVDeleteHandler
+    delete /pv (ClusterResourceNameRequest) returns (string)
+
+    @doc "获取 PV 使用情况"
+    @handler PVGetUsageHandler
+    get /pv/usage (ClusterResourceNameRequest) returns (PVUsageResponse)
+
+    @doc "检查 PV 是否可删除"
+    @handler PVCanDeleteHandler
+    get /pv/can-delete (ClusterResourceNameRequest) returns (CanDeleteResponse)
+
+    // ==================== ClusterRole 接口 ====================
+
+    @doc "获取 ClusterRole 列表"
+    @handler ClusterRoleListHandler
+    get /clusterrole (ClusterResourceListRequest) returns (ClusterRoleListResponse)
+
+    @doc "获取 ClusterRole 详情"
+    @handler ClusterRoleGetHandler
+    get /clusterrole/detail (ClusterResourceNameRequest) returns (ClusterRoleDetail)
+
+    @doc "获取 ClusterRole YAML"
+    @handler ClusterRoleGetYamlHandler
+    get /clusterrole/yaml (ClusterResourceNameRequest) returns (string)
+
+    @doc "获取 ClusterRole Describe"
+    @handler ClusterRoleDescribeHandler
+    get /clusterrole/describe (ClusterResourceNameRequest) returns (string)
+
+    @doc "创建 ClusterRole"
+    @handler ClusterRoleCreateHandler
+    post /clusterrole (ClusterResourceYamlRequest) returns (string)
+
+    @doc "更新 ClusterRole"
+    @handler ClusterRoleUpdateHandler
+    put /clusterrole (ClusterResourceYamlRequest) returns (string)
+
+    @doc "删除 ClusterRole"
+    @handler ClusterRoleDeleteHandler
+    delete /clusterrole (ClusterResourceNameRequest) returns (string)
+
+    @doc "获取 ClusterRole 使用情况（被哪些绑定引用）"
+    @handler ClusterRoleGetUsageHandler
+    get /clusterrole/usage (ClusterResourceNameRequest) returns (ClusterRoleUsageResponse)
+
+    @doc "获取 ClusterRole 权限摘要"
+    @handler ClusterRoleGetPermissionSummaryHandler
+    get /clusterrole/permission-summary (ClusterResourceNameRequest) returns (ClusterRolePermissionSummary)
+
+    @doc "检查 ClusterRole 是否可删除"
+    @handler ClusterRoleCanDeleteHandler
+    get /clusterrole/can-delete (ClusterResourceNameRequest) returns (CanDeleteResponse)
+
+    @doc "添加 ClusterRole 规则"
+    @handler ClusterRoleAddRuleHandler
+    post /clusterrole/add-rule (AddClusterRoleRuleRequest) returns (string)
+
+    @doc "移除 ClusterRole 规则"
+    @handler ClusterRoleRemoveRuleHandler
+    post /clusterrole/remove-rule (RemoveClusterRoleRuleRequest) returns (string)
+
+    // ==================== ClusterRoleBinding 接口 ====================
+
+    @doc "获取 ClusterRoleBinding 列表"
+    @handler ClusterRoleBindingListHandler
+    get /clusterrolebinding (ClusterResourceListRequest) returns (ClusterRoleBindingListResponse)
+
+    @doc "获取 ClusterRoleBinding 详情"
+    @handler ClusterRoleBindingGetHandler
+    get /clusterrolebinding/detail (ClusterResourceNameRequest) returns (ClusterRoleBindingDetail)
+
+    @doc "获取 ClusterRoleBinding YAML"
+    @handler ClusterRoleBindingGetYamlHandler
+    get /clusterrolebinding/yaml (ClusterResourceNameRequest) returns (string)
+
+    @doc "获取 ClusterRoleBinding Describe"
+    @handler ClusterRoleBindingDescribeHandler
+    get /clusterrolebinding/describe (ClusterResourceNameRequest) returns (string)
+
+    @doc "创建 ClusterRoleBinding"
+    @handler ClusterRoleBindingCreateHandler
+    post /clusterrolebinding (ClusterResourceYamlRequest) returns (string)
+
+    @doc "更新 ClusterRoleBinding"
+    @handler ClusterRoleBindingUpdateHandler
+    put /clusterrolebinding (ClusterResourceYamlRequest) returns (string)
+
+    @doc "删除 ClusterRoleBinding"
+    @handler ClusterRoleBindingDeleteHandler
+    delete /clusterrolebinding (ClusterResourceNameRequest) returns (string)
+
+    @doc "获取 ClusterRoleBinding 实际权限"
+    @handler ClusterRoleBindingGetPermissionsHandler
+    get /clusterrolebinding/permissions (ClusterResourceNameRequest) returns (ClusterRoleBindingPermissionsResponse)
+
+    @doc "根据 ClusterRole 获取绑定列表"
+    @handler ClusterRoleBindingGetByRoleHandler
+    get /clusterrolebinding/by-role (GetByClusterRoleRequest) returns (ClusterRoleBindingListResponse)
+
+    @doc "根据主体获取绑定列表"
+    @handler ClusterRoleBindingGetBySubjectHandler
+    get /clusterrolebinding/by-subject (GetBySubjectRequest) returns (SubjectBindingsResponse)
+
+    @doc "检查 ClusterRoleBinding 是否可删除"
+    @handler ClusterRoleBindingCanDeleteHandler
+    get /clusterrolebinding/can-delete (ClusterResourceNameRequest) returns (CanDeleteResponse)
+
+    @doc "验证角色引用是否有效"
+    @handler ClusterRoleBindingValidateRoleRefHandler
+    get /clusterrolebinding/validate-roleref (ClusterResourceNameRequest) returns (ValidateRoleRefResponse)
+
+    @doc "添加主体"
+    @handler ClusterRoleBindingAddSubjectHandler
+    post /clusterrolebinding/add-subject (AddSubjectRequest) returns (string)
+
+    @doc "移除主体"
+    @handler ClusterRoleBindingRemoveSubjectHandler
+    post /clusterrolebinding/remove-subject (RemoveSubjectRequest) returns (string)
+
+    // ==================== IngressClass 接口 ====================
+
+    @doc "获取 IngressClass 列表"
+    @handler IngressClassListHandler
+    get /ingressclass (IngressClassListRequest) returns (IngressClassListResponse)
+
+    @doc "获取 IngressClass 详情"
+    @handler IngressClassGetHandler
+    get /ingressclass/detail (IngressClassNameRequest) returns (IngressClassDetail)
+
+    @doc "获取 IngressClass YAML"
+    @handler IngressClassGetYamlHandler
+    get /ingressclass/yaml (IngressClassNameRequest) returns (string)
+
+    @doc "获取 IngressClass Describe"
+    @handler IngressClassDescribeHandler
+    get /ingressclass/describe (IngressClassNameRequest) returns (string)
+
+    @doc "创建 IngressClass"
+    @handler IngressClassCreateHandler
+    post /ingressclass (ClusterResourceYamlRequest) returns (string)
+
+    @doc "更新 IngressClass"
+    @handler IngressClassUpdateHandler
+    put /ingressclass (ClusterResourceYamlRequest) returns (string)
+
+    @doc "删除 IngressClass"
+    @handler IngressClassDeleteHandler
+    delete /ingressclass (IngressClassNameRequest) returns (string)
+
+    @doc "获取 IngressClass 使用情况（哪些 Ingress 使用）"
+    @handler IngressClassGetUsageHandler
+    get /ingressclass/usage (IngressClassNameRequest) returns (IngressClassUsageResponse)
+
+    @doc "检查 IngressClass 是否可删除"
+    @handler IngressClassCanDeleteHandler
+    get /ingressclass/can-delete (IngressClassNameRequest) returns (CanDeleteResponse)
+
+    @doc "设置默认 IngressClass"
+    @handler IngressClassSetDefaultHandler
+    post /ingressclass/set-default (SetDefaultIngressClassRequest) returns (string)
+
+    @doc "取消默认 IngressClass"
+    @handler IngressClassUnsetDefaultHandler
+    post /ingressclass/unset-default (IngressClassNameRequest) returns (string)
+
+    @doc "获取 IngressClass 控制器状态"
+    @handler IngressClassGetControllerStatusHandler
+    get /ingressclass/controller-status (IngressClassNameRequest) returns (IngressClassControllerStatus)
+
+    @doc "获取默认 IngressClass"
+    @handler IngressClassGetDefaultHandler
+    get /ingressclass/default (ClusterResourceListRequest) returns (IngressClassDetail)
+}

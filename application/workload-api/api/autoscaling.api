@@ -1,0 +1,285 @@
+syntax = "v1"
+
+info(
+    title: "Autoscaling Resource API"
+    desc: "HPA & VPA 自动扩缩容资源管理"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // ==================== 通用请求 ====================
+
+    // 版本ID请求
+    VersionIdRequest {
+        VersionId uint64 `form:"versionId" validate:"required,min=1"`
+    }
+
+
+
+        // ==================== HPA 类型定义 ====================
+
+        // HPA 指标目标
+    HPAMetricTarget {
+        Type string `json:"type"` // Utilization, AverageValue, Value
+        AverageUtilization int32 `json:"averageUtilization,optional"` // 百分比
+        AverageValue string `json:"averageValue,optional"` // 如: "100m", "1Gi"
+        Value string `json:"value,optional"`
+    }
+
+        // HPA 资源指标
+    HPAResourceMetric {
+        Name string `json:"name"` // cpu, memory
+        Target HPAMetricTarget `json:"target"`
+    }
+
+        // HPA 指标定义（用于 Pods/Object/External）
+    HPAMetricDef {
+        Name string `json:"name"`
+        Selector map[string]string `json:"selector,optional"`
+    }
+
+        // HPA 描述对象（用于 Object 指标）
+    HPADescribedObject {
+        ApiVersion string `json:"apiVersion"`
+        Kind string `json:"kind"`
+        Name string `json:"name"`
+    }
+
+        // HPA Pods 指标
+    HPAPodsMetric {
+        Metric HPAMetricDef `json:"metric"`
+        Target HPAMetricTarget `json:"target"`
+    }
+
+        // HPA Object 指标
+    HPAObjectMetric {
+        Metric HPAMetricDef `json:"metric"`
+        DescribedObject HPADescribedObject `json:"describedObject"`
+        Target HPAMetricTarget `json:"target"`
+    }
+
+        // HPA External 指标
+    HPAExternalMetric {
+        Metric HPAMetricDef `json:"metric"`
+        Target HPAMetricTarget `json:"target"`
+    }
+
+        // HPA Container 资源指标
+    HPAContainerResourceMetric {
+        Name string `json:"name"` // cpu, memory
+        Container string `json:"container"` // 容器名称
+        Target HPAMetricTarget `json:"target"`
+    }
+
+        // HPA 指标配置
+    HPAMetric {
+        Type string `json:"type"` // Resource, Pods, Object, External, ContainerResource
+        Resource HPAResourceMetric `json:"resource,optional"`
+        Pods HPAPodsMetric `json:"pods,optional"`
+        Object HPAObjectMetric `json:"object,optional"`
+        External HPAExternalMetric `json:"external,optional"`
+        ContainerResource HPAContainerResourceMetric `json:"containerResource,optional"`
+    }
+
+        // HPA 扩缩容策略
+    HPAScalingPolicy {
+        Type string `json:"type"` // Pods, Percent
+        Value int32 `json:"value"`
+        PeriodSeconds int32 `json:"periodSeconds"`
+    }
+
+        // HPA 扩缩容规则
+    HPAScalingRules {
+        StabilizationWindowSeconds int32 `json:"stabilizationWindowSeconds,optional"` // 稳定窗口时间（秒）
+        SelectPolicy string `json:"selectPolicy,optional"` // Max, Min, Disabled
+        Policies []HPAScalingPolicy `json:"policies,optional"`
+    }
+
+        // HPA 行为配置
+    HPABehavior {
+        ScaleUp HPAScalingRules `json:"scaleUp,optional"` // 扩容规则
+        ScaleDown HPAScalingRules `json:"scaleDown,optional"` // 缩容规则
+    }
+
+        // HPA 当前指标值详情
+    HPACurrentMetricValue {
+        AverageUtilization int32 `json:"averageUtilization,optional"`
+        AverageValue string `json:"averageValue,optional"`
+        Value string `json:"value,optional"`
+    }
+
+        // HPA 当前指标
+    HPACurrentMetric {
+        Type string `json:"type"` // Resource, Pods, Object, External, ContainerResource
+        Current HPACurrentMetricValue `json:"current"`
+    }
+
+        // HPA 状态条件
+    HPACondition {
+        Type string `json:"type"` // ScalingActive, AbleToScale, ScalingLimited
+        Status string `json:"status"` // True, False, Unknown
+        Reason string `json:"reason"`
+        Message string `json:"message"`
+        LastTransitionTime int64 `json:"lastTransitionTime"`
+    }
+
+        // HPA 详情响应
+    HPADetail {
+        Name string `json:"name"` // HPA 名称
+        Namespace string `json:"namespace"` // 命名空间
+        TargetRef TargetRefInfo `json:"targetRef"` // 目标资源引用
+        MinReplicas int32 `json:"minReplicas"` // 最小副本数
+        MaxReplicas int32 `json:"maxReplicas"` // 最大副本数
+        Metrics []HPAMetric `json:"metrics"` // 指标列表
+        Behavior HPABehavior `json:"behavior,optional"` // 行为配置
+        CurrentReplicas int32 `json:"currentReplicas"` // 当前副本数
+        DesiredReplicas int32 `json:"desiredReplicas"` // 期望副本数
+        CurrentMetrics []HPACurrentMetric `json:"currentMetrics,optional"` // 当前指标值
+        Conditions []HPACondition `json:"conditions,optional"` // 状态条件
+        Labels map[string]string `json:"labels,optional"` // 标签
+        Annotations map[string]string `json:"annotations,optional"` // 注解
+        Age string `json:"age"` // 年龄
+        CreationTimestamp int64 `json:"creationTimestamp"` // 创建时间戳
+    }
+
+        // HPA 创建/更新请求
+    HPARequest {
+        VersionId uint64 `json:"versionId" validate:"required,min=1"` // 版本ID
+        HpaYamlStr string `json:"hpaYamlStr" validate:"required"` // HPA YAML 字符串
+    }
+
+        // ==================== VPA 类型定义 ====================
+
+        // VPA 更新策略
+    VPAUpdatePolicy {
+        UpdateMode string `json:"updateMode,optional"` // Off, Initial, Recreate, Auto
+        MinReplicas int32 `json:"minReplicas,optional"` // 最小副本数（用于限制更新）
+    }
+
+        // VPA 资源约束
+    VPAResourceConstraints {
+        Cpu string `json:"cpu,optional"`
+        Memory string `json:"memory,optional"`
+    }
+
+        // VPA 容器资源策略
+    VPAResourcePolicy {
+        ContainerName string `json:"containerName"` // 容器名称
+        Mode string `json:"mode,optional"` // Auto, Off
+        MinAllowed VPAResourceConstraints `json:"minAllowed,optional"` // 最小允许值
+        MaxAllowed VPAResourceConstraints `json:"maxAllowed,optional"` // 最大允许值
+        ControlledResources []string `json:"controlledResources,optional"` // 控制的资源: cpu, memory
+        ControlledValues string `json:"controlledValues,optional"` // RequestsAndLimits, RequestsOnly
+    }
+
+        // VPA 资源策略配置
+    VPAResourcePolicyConfig {
+        ContainerPolicies []VPAResourcePolicy `json:"containerPolicies,optional"` // 容器策略列表
+    }
+
+        // VPA 资源推荐
+    VPAResourceRecommendation {
+        Cpu string `json:"cpu,optional"`
+        Memory string `json:"memory,optional"`
+    }
+
+        // VPA 容器推荐
+    VPARecommendation {
+        ContainerName string `json:"containerName"` // 容器名称
+        Target VPAResourceRecommendation `json:"target,optional"` // 目标推荐值
+        LowerBound VPAResourceRecommendation `json:"lowerBound,optional"` // 下界
+        UpperBound VPAResourceRecommendation `json:"upperBound,optional"` // 上界
+        UncappedTarget VPAResourceRecommendation `json:"uncappedTarget,optional"` // 无上限目标值
+    }
+
+        // VPA 推荐配置
+    VPARecommendationConfig {
+        ContainerRecommendations []VPARecommendation `json:"containerRecommendations,optional"` // 容器推荐列表
+    }
+
+        // VPA 状态条件
+    VPACondition {
+        Type string `json:"type"` // RecommendationProvided, LowConfidence, NoPodsMatched, FetchingHistory
+        Status string `json:"status"` // True, False, Unknown
+        Reason string `json:"reason,optional"`
+        Message string `json:"message,optional"`
+        LastTransitionTime int64 `json:"lastTransitionTime"`
+    }
+
+        // VPA 详情响应
+    VPADetail {
+        Name string `json:"name"` // VPA 名称
+        Namespace string `json:"namespace"` // 命名空间
+        TargetRef TargetRefInfo `json:"targetRef"` // 目标资源引用
+        UpdatePolicy VPAUpdatePolicy `json:"updatePolicy,optional"` // 更新策略
+        ResourcePolicy VPAResourcePolicyConfig `json:"resourcePolicy,optional"` // 资源策略
+        Recommendation VPARecommendationConfig `json:"recommendation,optional"` // 推荐配置
+        Conditions []VPACondition `json:"conditions,optional"` // 状态条件
+        Labels map[string]string `json:"labels,optional"` // 标签
+        Annotations map[string]string `json:"annotations,optional"` // 注解
+        Age string `json:"age"` // 年龄
+        CreationTimestamp int64 `json:"creationTimestamp"` // 创建时间戳
+    }
+
+        // VPA 创建/更新请求
+    VPARequest {
+        VersionId uint64 `json:"versionId" validate:"required,min=1"` // 版本ID
+        VpaYamlStr string `json:"vpaYamlStr" validate:"required"` // VPA YAML 字符串
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: autoscaling
+    prefix: /workload/v1/autoscaling
+)
+
+service workload-api {
+    // ==================== HPA API ====================
+
+    @doc "获取 HPA 详情"
+    @handler HPAGetDetailHandler
+    get /hpa (VersionIdRequest) returns (HPADetail)
+
+    @doc "获取 HPA YAML"
+    @handler HPAGetYamlHandler
+    get /hpa/yaml (VersionIdRequest) returns (string)
+
+    @doc "创建 HPA 资源"
+    @handler HPACreateHandler
+    post /hpa (HPARequest) returns (string)
+
+    @doc "更新 HPA 资源"
+    @handler HPAUpdateHandler
+    put /hpa (HPARequest) returns (string)
+
+    @doc "删除 HPA 资源"
+    @handler HPADeleteHandler
+    delete /hpa (VersionIdRequest) returns (string)
+
+    // ==================== VPA API ====================
+
+    @doc "获取 VPA 详情"
+    @handler VPAGetDetailHandler
+    get /vpa (VersionIdRequest) returns (VPADetail)
+
+    @doc "获取 VPA YAML"
+    @handler VPAGetYamlHandler
+    get /vpa/yaml (VersionIdRequest) returns (string)
+
+    @doc "创建 VPA 资源"
+    @handler VPACreateHandler
+    post /vpa (VPARequest) returns (string)
+
+    @doc "更新 VPA 资源"
+    @handler VPAUpdateHandler
+    put /vpa (VPARequest) returns (string)
+
+    @doc "删除 VPA 资源"
+    @handler VPADeleteHandler
+    delete /vpa (VersionIdRequest) returns (string)
+}

@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1.4
+FROM registry.cn-hangzhou.aliyuncs.com/kube-nova/golang:1.25.5-alpine AS builder
+
+ARG TARGETARCH
+WORKDIR /build
+
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=$TARGETARCH \
+    GOPROXY=https://goproxy.cn,direct
+
+COPY go.mod go.sum ./
+
+RUN --mount=type=cache,target=/go/pkg/mod,id=go-mod \
+    go mod download
+
+COPY . .
+
+RUN --mount=type=cache,target=/go/pkg/mod,id=go-mod \
+    --mount=type=cache,target=/root/.cache/go-build,id=go-build \
+    go build -ldflags="-s -w" -o /app/portal-rpc ./application/portal-rpc/portal.go
+
+FROM registry.cn-hangzhou.aliyuncs.com/kube-nova/alpine:latest
+
+WORKDIR /app
+
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories && \
+    apk --no-cache add ca-certificates tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone
+
+COPY --from=builder /app/portal-rpc /app/portal-rpc
+COPY --from=builder /build/application/portal-rpc/etc/portal.yaml /app/etc/config.yaml
+COPY --from=builder /build/application/portal-rpc/etc/private.key /app/etc/private.key
+COPY --from=builder /build/application/portal-rpc/etc/public.crt /app/etc/public.crt
+
+EXPOSE 30010
+
+CMD ["/app/portal-rpc", "-f", "/app/etc/config.yaml"]

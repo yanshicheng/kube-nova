@@ -1,0 +1,71 @@
+syntax = "v1"
+
+info(
+    title: "Common Monitor Types"
+    desc: "监控 API 通用类型定义"
+    author: "System"
+    version: "1.0"
+)
+
+type (
+    // 通用的 Pod 资源使用/排行类型
+    PodResourceRanking {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        Value float64 `json:"value"`
+        Unit string `json:"unit"`
+    }
+
+        // 资源配额详情
+    ResourceQuotaDetail {
+        Resource string `json:"resource"`
+        Used string `json:"used"`
+        Hard string `json:"hard"`
+        Percent float64 `json:"percent"`
+    }
+
+        // 资源配额指标
+    ResourceQuotaMetrics {
+        Namespace string `json:"namespace"`
+        QuotaName string `json:"quotaName,optional"`
+        CPUUsed float64 `json:"cpuUsed"`
+        CPUHard float64 `json:"cpuHard"`
+        CPUPercent float64 `json:"cpuPercent"`
+        MemoryUsed int64 `json:"memoryUsed"`
+        MemoryHard int64 `json:"memoryHard"`
+        MemoryPercent float64 `json:"memoryPercent"`
+        PodsUsed int64 `json:"podsUsed"`
+        PodsHard int64 `json:"podsHard"`
+        PodsPercent float64 `json:"podsPercent"`
+        Resources []ResourceQuotaDetail `json:"resources,optional"`
+    }
+
+        // 状态码分布（Cluster、Ingress 共用）
+    StatusCodeDistribution {
+        Status2xx map[string]float64 `json:"status2xx"`
+        Status3xx map[string]float64 `json:"status3xx"`
+        Status4xx map[string]float64 `json:"status4xx"`
+        Status5xx map[string]float64 `json:"status5xx"`
+    }
+
+        // Service 类型统计（Cluster、Namespace 共用）
+    ServiceTypeCount {
+        Type string `json:"type"`
+        Count int64 `json:"count"`
+    }
+
+        // 存储类使用情况（Cluster、Namespace 共用）
+    StorageClassUsage {
+        StorageClass string `json:"storageClass"`
+        PVCCount int64 `json:"pvcCount"`
+        TotalBytes int64 `json:"totalBytes"`
+    }
+
+        // Pod 重启信息（Cluster、Namespace 共用）
+    PodRestartInfo {
+        Namespace string `json:"namespace"`
+        PodName string `json:"podName"`
+        RestartCount int64 `json:"restartCount"`
+        RestartRate float64 `json:"restartRate"`
+    }
+)

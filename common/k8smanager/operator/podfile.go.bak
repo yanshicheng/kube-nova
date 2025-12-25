@@ -1,0 +1,2491 @@
+package operator
+
+import (
+	"archive/tar"
+	"bufio"
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/yanshicheng/kube-onec/common/k8smanager/types"
+	"github.com/zeromicro/go-zero/core/logx"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/remotecommand"
+)
+
+// 文件操作常量
+const (
+	MaxFileSize        = 100 * 1024 * 1024 * 1024 // 100MB
+	MaxUploadChunkSize = 10 * 1024 * 1024         // 10MB
+	DefaultFileMode    = "0644"
+	DefaultDirMode     = "0755"
+
+	// 命令探测缓存时间
+	capabilityCacheDuration = 5 * time.Minute
+)
+
+// ========== 命令能力检测系统 ==========
+
+// commandCapabilities 存储容器命令能力信息
+type commandCapabilities struct {
+	// 基础命令可用性
+	hasFind    bool
+	hasLs      bool
+	hasStat    bool
+	hasGrep    bool
+	hasFile    bool
+	hasDu      bool
+	hasMd5sum  bool
+	hasTar     bool
+	hasGzip    bool
+	hasTest    bool
+	hasMkdir   bool
+	hasRm      bool
+	hasMv      bool
+	hasCp      bool
+	hasCat     bool
+	hasChmod   bool
+	hasTail    bool
+	hasDd      bool
+	hasCommand bool
+	hasWhich   bool
+
+	// find 命令能力
+	findSupportsPrintf bool
+	findSupportsType   bool
+
+	// ls 命令能力
+	lsSupportsTimeStyle bool
+	lsSupportsFullTime  bool
+	lsSupportsLongList  bool
+
+	// stat 命令能力
+	statSupportsFormat bool
+	statSupportsC      bool
+
+	// grep 命令能力
+	grepSupportsContext bool
+
+	// 环境类型检测
+	isBusyBox bool
+	isGNU     bool
+	shellType string
+
+	// 检测时间戳和容器标识
+	detectedAt   time.Time
+	containerKey string
+}
+
+// capabilityCache 全局命令能力缓存
+var (
+	capabilityCache      = make(map[string]*commandCapabilities)
+	capabilityCacheMutex sync.RWMutex
+)
+
+// getContainerKey 生成容器唯一键
+func getContainerKey(namespace, podName, container string) string {
+	return fmt.Sprintf("%s/%s/%s", namespace, podName, container)
+}
+
+// detectCommandCapabilities 探测容器命令能力（带缓存）
+func (p *podOperator) detectCommandCapabilities(ctx context.Context, namespace, podName, container string) (*commandCapabilities, error) {
+	logger := logx.WithContext(ctx)
+	containerKey := getContainerKey(namespace, podName, container)
+
+	// 检查缓存
+	capabilityCacheMutex.RLock()
+	if cached, ok := capabilityCache[containerKey]; ok {
+		if time.Since(cached.detectedAt) < capabilityCacheDuration {
+			capabilityCacheMutex.RUnlock()
+			logger.Debugf("使用缓存的命令能力信息: %s", containerKey)
+			return cached, nil
+		}
+	}
+	capabilityCacheMutex.RUnlock()
+
+	logger.Infof("开始探测容器命令能力: %s", containerKey)
+
+	caps := &commandCapabilities{
+		detectedAt:   time.Now(),
+		containerKey: containerKey,
+	}
+
+	// 1. 探测基础命令可用性
+	caps.hasCommand = p.testCommandQuiet(namespace, podName, container, "command -v sh") == nil
+	caps.hasWhich = p.testCommandQuiet(namespace, podName, container, "which sh") == nil
+
+	// 确定命令检测方法
+	cmdCheckMethod := "command -v"
+	if !caps.hasCommand {
+		if caps.hasWhich {
+			cmdCheckMethod = "which"
+		} else {
+			cmdCheckMethod = "direct"
+		}
+	}
+
+	// 批量检测基础命令
+	basicCommands := map[string]*bool{
+		"find":   &caps.hasFind,
+		"ls":     &caps.hasLs,
+		"stat":   &caps.hasStat,
+		"grep":   &caps.hasGrep,
+		"file":   &caps.hasFile,
+		"du":     &caps.hasDu,
+		"md5sum": &caps.hasMd5sum,
+		"tar":    &caps.hasTar,
+		"gzip":   &caps.hasGzip,
+		"test":   &caps.hasTest,
+		"mkdir":  &caps.hasMkdir,
+		"rm":     &caps.hasRm,
+		"mv":     &caps.hasMv,
+		"cp":     &caps.hasCp,
+		"cat":    &caps.hasCat,
+		"chmod":  &caps.hasChmod,
+		"tail":   &caps.hasTail,
+		"dd":     &caps.hasDd,
+	}
+
+	for cmd, hasPtr := range basicCommands {
+		*hasPtr = p.checkCommandExistsMethod(namespace, podName, container, cmd, cmdCheckMethod)
+	}
+
+	// 2. 检测环境类型
+	caps.isBusyBox = p.detectBusyBox(namespace, podName, container)
+	caps.isGNU = !caps.isBusyBox
+
+	// 3. 检测 shell 类型
+	caps.shellType = p.detectShellType(namespace, podName, container)
+
+	// 4. 探测命令选项支持
+	if caps.hasFind {
+		caps.findSupportsPrintf = p.testFindPrintf(namespace, podName, container)
+		caps.findSupportsType = p.testCommandQuiet(namespace, podName, container, "find / -maxdepth 0 -type d") == nil
+	}
+
+	if caps.hasLs {
+		caps.lsSupportsTimeStyle = p.testCommandQuiet(namespace, podName, container, "ls --time-style=+%s /") == nil
+		caps.lsSupportsFullTime = p.testCommandQuiet(namespace, podName, container, "ls --full-time /") == nil
+		caps.lsSupportsLongList = p.testCommandQuiet(namespace, podName, container, "ls -la /") == nil
+	}
+
+	if caps.hasStat {
+		caps.statSupportsFormat = p.testCommandQuiet(namespace, podName, container, "stat --format=%n /") == nil
+		caps.statSupportsC = p.testCommandQuiet(namespace, podName, container, "stat -c %n /") == nil
+	}
+
+	if caps.hasGrep {
+		testCmd := "echo test > /tmp/.grep_test_$$ && grep -B 1 -A 1 test /tmp/.grep_test_$$ 2>/dev/null && rm -f /tmp/.grep_test_$$"
+		caps.grepSupportsContext = p.testCommandQuiet(namespace, podName, container, testCmd) == nil
+	}
+
+	// 5. 缓存结果
+	capabilityCacheMutex.Lock()
+	capabilityCache[containerKey] = caps
+	capabilityCacheMutex.Unlock()
+
+	logger.Infof("命令能力探测完成: BusyBox=%v, find-printf=%v, ls-timestyle=%v",
+		caps.isBusyBox, caps.findSupportsPrintf, caps.lsSupportsTimeStyle)
+
+	return caps, nil
+}
+
+// checkCommandExistsMethod 检查命令是否存在
+func (p *podOperator) checkCommandExistsMethod(namespace, podName, container, cmd, method string) bool {
+	var testCmd []string
+
+	switch method {
+	case "command -v":
+		testCmd = []string{"sh", "-c", fmt.Sprintf("command -v %s >/dev/null 2>&1", cmd)}
+	case "which":
+		testCmd = []string{"sh", "-c", fmt.Sprintf("which %s >/dev/null 2>&1", cmd)}
+	case "direct":
+		testCmd = []string{"sh", "-c", fmt.Sprintf("%s --version >/dev/null 2>&1 || %s --help >/dev/null 2>&1", cmd, cmd)}
+	default:
+		testCmd = []string{"sh", "-c", fmt.Sprintf("command -v %s >/dev/null 2>&1", cmd)}
+	}
+
+	_, _, err := p.ExecCommand(namespace, podName, container, testCmd)
+	return err == nil
+}
+
+// testCommandQuiet 测试命令是否能成功执行（不输出日志）
+func (p *podOperator) testCommandQuiet(namespace, podName, container, cmdStr string) error {
+	cmd := []string{"sh", "-c", cmdStr + " 2>/dev/null"}
+	_, _, err := p.ExecCommand(namespace, podName, container, cmd)
+	return err
+}
+
+// testFindPrintf 测试 find 是否支持 -printf
+func (p *podOperator) testFindPrintf(namespace, podName, container string) bool {
+	cmd := []string{"sh", "-c", "find / -maxdepth 0 -printf '%p' 2>/dev/null"}
+	stdout, _, err := p.ExecCommand(namespace, podName, container, cmd)
+	return err == nil && stdout != ""
+}
+
+// detectBusyBox 检测是否为 BusyBox 环境
+func (p *podOperator) detectBusyBox(namespace, podName, container string) bool {
+	// 检查 ls 版本信息
+	cmd := []string{"sh", "-c", "ls --version 2>&1 | head -1"}
+	stdout, _, err := p.ExecCommand(namespace, podName, container, cmd)
+	if err == nil && strings.Contains(stdout, "BusyBox") {
+		return true
+	}
+
+	// 测试 ls --time-style（BusyBox 不支持）
+	cmd = []string{"ls", "--time-style=+%s", "/"}
+	_, stderr, err := p.ExecCommand(namespace, podName, container, cmd)
+	return err != nil && strings.Contains(stderr, "unrecognized")
+}
+
+// detectShellType 检测 shell 类型
+func (p *podOperator) detectShellType(namespace, podName, container string) string {
+	shells := []string{"bash", "sh", "ash", "dash"}
+	for _, shell := range shells {
+		cmd := []string{"sh", "-c", fmt.Sprintf("command -v %s 2>/dev/null", shell)}
+		stdout, _, err := p.ExecCommand(namespace, podName, container, cmd)
+		if err == nil && strings.Contains(stdout, shell) {
+			return shell
+		}
+	}
+	return "sh"
+}
+
+// ========== 智能文件列表（多层降级）==========
+
+// ListFiles 列出Pod中的文件和目录（智能降级版本）
+func (p *podOperator) ListFiles(ctx context.Context, namespace, podName, container, dirPath string, opts *types.FileListOptions) (*types.FileListResult, error) {
+	logger := logx.WithContext(ctx)
+	logger.Infof("开始列出Pod文件: namespace=%s, pod=%s, container=%s, path=%s",
+		namespace, podName, container, dirPath)
+
+	if namespace == "" || podName == "" {
+		logger.Error("列出文件失败：命名空间和Pod名称不能为空")
+		return nil, fmt.Errorf("命名空间和Pod名称不能为空")
+	}
+
+	// 确保有有效的容器名称
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return nil, err
+	}
+
+	if dirPath == "" {
+		dirPath = "/"
+	}
+
+	if opts == nil {
+		opts = &types.FileListOptions{
+			ShowHidden: false,
+			SortBy:     types.SortByName,
+			SortDesc:   false,
+		}
+	}
+
+	// 探测命令能力
+	caps, err := p.detectCommandCapabilities(ctx, namespace, podName, container)
+	if err != nil {
+		logger.Errorf("探测命令能力失败，使用默认方法: %v", err)
+		// 降级到最基本的 ls
+		return p.listFilesWithBusyBoxLs(ctx, namespace, podName, container, dirPath, opts)
+	}
+
+	// 智能选择列表方法（多层降级）
+	var result *types.FileListResult
+
+	// 策略1: GNU find with -printf (最优)
+	if caps.hasFind && caps.findSupportsPrintf {
+		logger.Debug("策略1: 使用 GNU find -printf")
+		result, err = p.listFilesWithGNUFind(ctx, namespace, podName, container, dirPath, opts)
+		if err == nil {
+			return result, nil
+		}
+		logger.Errorf("GNU find 失败: %v, 尝试降级", err)
+	}
+
+	// 策略2: BusyBox find
+	if caps.hasFind {
+		logger.Debug("策略2: 使用 BusyBox find")
+		result, err = p.listFilesWithBusyBoxFind(ctx, namespace, podName, container, dirPath, opts)
+		if err == nil {
+			return result, nil
+		}
+		logger.Errorf("BusyBox find 失败: %v, 尝试降级", err)
+	}
+
+	// 策略3: GNU ls with --time-style
+	if caps.hasLs && caps.lsSupportsTimeStyle {
+		logger.Debug("策略3: 使用 GNU ls --time-style")
+		result, err = p.listFilesWithGNULs(ctx, namespace, podName, container, dirPath, opts)
+		if err == nil {
+			return result, nil
+		}
+		logger.Errorf("GNU ls 失败: %v, 尝试降级", err)
+	}
+
+	// 策略4: ls --full-time
+	if caps.hasLs && caps.lsSupportsFullTime {
+		logger.Debug("策略4: 使用 ls --full-time")
+		result, err = p.listFilesWithFullTimeLs(ctx, namespace, podName, container, dirPath, opts)
+		if err == nil {
+			return result, nil
+		}
+		logger.Errorf("ls --full-time 失败: %v, 尝试降级", err)
+	}
+
+	// 策略5: BusyBox ls (最后的降级)
+	if caps.hasLs && caps.lsSupportsLongList {
+		logger.Debug("策略5: 使用 BusyBox ls -la")
+		result, err = p.listFilesWithBusyBoxLs(ctx, namespace, podName, container, dirPath, opts)
+		if err == nil {
+			return result, nil
+		}
+		logger.Errorf("BusyBox ls 失败: %v", err)
+	}
+
+	// 所有方法都失败
+	logger.Error("所有文件列表策略都失败")
+	return nil, fmt.Errorf("无法列出文件: 容器中缺少必要的命令 (find/ls)")
+}
+
+// listFilesWithGNUFind 使用 GNU find -printf 列出文件
+func (p *podOperator) listFilesWithGNUFind(ctx context.Context, namespace, podName, container, dirPath string, opts *types.FileListOptions) (*types.FileListResult, error) {
+	logger := logx.WithContext(ctx)
+
+	maxdepth := "1"
+	if opts.Recursive && opts.MaxDepth > 0 {
+		maxdepth = strconv.Itoa(opts.MaxDepth)
+	}
+
+	findCmd := []string{
+		"find", dirPath,
+		"-maxdepth", maxdepth,
+		"-printf", "%p|%s|%T@|%u|%g|%m|%y\n",
+	}
+
+	stdout, stderr, err := p.ExecCommand(namespace, podName, container, findCmd)
+	if err != nil {
+		logger.Errorf("find 命令失败: %v, stderr=%s", err, stderr)
+		return nil, err
+	}
+
+	files, err := p.parseFindOutput(stdout, dirPath, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return p.buildFileListResult(files, dirPath, container), nil
+}
+
+// listFilesWithBusyBoxFind 使用 BusyBox find 列出文件
+func (p *podOperator) listFilesWithBusyBoxFind(ctx context.Context, namespace, podName, container, dirPath string, opts *types.FileListOptions) (*types.FileListResult, error) {
+	logger := logx.WithContext(ctx)
+
+	maxdepth := "1"
+	if opts.Recursive && opts.MaxDepth > 0 {
+		maxdepth = strconv.Itoa(opts.MaxDepth)
+	}
+
+	// BusyBox find 不支持 -printf，使用 -exec ls -ld
+	findCmd := []string{
+		"sh", "-c",
+		fmt.Sprintf("find %s -maxdepth %s -exec ls -ld {} \\; 2>/dev/null", dirPath, maxdepth),
+	}
+
+	stdout, stderr, err := p.ExecCommand(namespace, podName, container, findCmd)
+	if err != nil {
+		logger.Errorf("find+ls 失败: %v, stderr=%s", err, stderr)
+		return nil, err
+	}
+
+	files, err := p.parseListOutput(stdout, dirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	files = p.filterAndSortFiles(files, opts)
+	return p.buildFileListResult(files, dirPath, container), nil
+}
+
+// listFilesWithGNULs 使用 GNU ls --time-style 列出文件
+func (p *podOperator) listFilesWithGNULs(ctx context.Context, namespace, podName, container, dirPath string, opts *types.FileListOptions) (*types.FileListResult, error) {
+	lsCmd := []string{"ls", "-la", "--time-style=+%s", dirPath}
+	stdout, stderr, err := p.ExecCommand(namespace, podName, container, lsCmd)
+	if err != nil {
+		return nil, fmt.Errorf("ls 失败: %v, stderr=%s", err, stderr)
+	}
+
+	files, err := p.parseLsWithTimestamp(stdout, dirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	files = p.filterAndSortFiles(files, opts)
+	return p.buildFileListResult(files, dirPath, container), nil
+}
+
+// listFilesWithFullTimeLs 使用 ls --full-time 列出文件
+func (p *podOperator) listFilesWithFullTimeLs(ctx context.Context, namespace, podName, container, dirPath string, opts *types.FileListOptions) (*types.FileListResult, error) {
+	lsCmd := []string{"ls", "-la", "--full-time", dirPath}
+	stdout, stderr, err := p.ExecCommand(namespace, podName, container, lsCmd)
+	if err != nil {
+		return nil, fmt.Errorf("ls --full-time 失败: %v, stderr=%s", err, stderr)
+	}
+
+	files, err := p.parseLsFullTime(stdout, dirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	files = p.filterAndSortFiles(files, opts)
+	return p.buildFileListResult(files, dirPath, container), nil
+}
+
+// listFilesWithBusyBoxLs 使用 BusyBox ls 列出文件
+func (p *podOperator) listFilesWithBusyBoxLs(ctx context.Context, namespace, podName, container, dirPath string, opts *types.FileListOptions) (*types.FileListResult, error) {
+	lsCmd := []string{"ls", "-la", dirPath}
+	stdout, stderr, err := p.ExecCommand(namespace, podName, container, lsCmd)
+	if err != nil {
+		return nil, fmt.Errorf("BusyBox ls 失败: %v, stderr=%s", err, stderr)
+	}
+
+	files, err := p.parseBusyBoxLs(stdout, dirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	files = p.filterAndSortFiles(files, opts)
+	return p.buildFileListResult(files, dirPath, container), nil
+}
+
+// ========== 解析方法 ==========
+
+// parseFindOutput 解析 GNU find -printf 输出
+func (p *podOperator) parseFindOutput(output, basePath string, opts *types.FileListOptions) ([]types.FileInfo, error) {
+	files := []types.FileInfo{}
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		fields := strings.Split(line, "|")
+		if len(fields) < 7 {
+			continue
+		}
+
+		path := fields[0]
+		if path == basePath {
+			continue
+		}
+
+		name := filepath.Base(path)
+		if name == "." || name == ".." {
+			continue
+		}
+
+		if !opts.ShowHidden && strings.HasPrefix(name, ".") {
+			continue
+		}
+
+		if opts.Search != "" && !strings.Contains(strings.ToLower(name), strings.ToLower(opts.Search)) {
+			continue
+		}
+
+		size, _ := strconv.ParseInt(fields[1], 10, 64)
+		timestamp, _ := strconv.ParseFloat(fields[2], 64)
+		mode, _ := strconv.ParseInt(fields[5], 8, 32)
+
+		fileType := fields[6]
+		isDir := fileType == "d"
+		isLink := fileType == "l"
+
+		fileInfo := types.FileInfo{
+			Name:   name,
+			Path:   path,
+			Size:   size,
+			Mode:   fmt.Sprintf("%o", mode),
+			IsDir:  isDir,
+			IsLink: isLink,
+			Owner:  fields[3],
+			Group:  fields[4],
+		}
+
+		if timestamp > 0 {
+			fileInfo.ModTime = time.Unix(int64(timestamp), 0)
+		}
+
+		fileInfo.Permissions = p.parsePermissions(mode)
+		fileInfo.IsReadable = (mode & 0400) != 0
+		fileInfo.IsWritable = (mode & 0200) != 0
+		fileInfo.IsExecutable = (mode & 0100) != 0
+		fileInfo.MimeType = p.guessMimeType(name, isDir)
+
+		files = append(files, fileInfo)
+	}
+
+	if len(opts.FileTypes) > 0 {
+		files = p.filterByFileTypes(files, opts.FileTypes)
+	}
+
+	p.sortFiles(files, opts)
+
+	if opts.Limit > 0 {
+		files = p.applyPagination(files, opts.Offset, opts.Limit)
+	}
+
+	return files, nil
+}
+
+// parseLsWithTimestamp 解析带时间戳的 ls 输出
+func (p *podOperator) parseLsWithTimestamp(output string, basePath string) ([]types.FileInfo, error) {
+	files := []types.FileInfo{}
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		if line == "" || strings.HasPrefix(line, "total") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) < 9 {
+			continue
+		}
+
+		name := strings.Join(fields[8:], " ")
+		if name == "." || name == ".." {
+			continue
+		}
+
+		fileInfo := p.parseBasicLsLine(fields, name, basePath)
+		files = append(files, fileInfo)
+	}
+
+	return files, nil
+}
+
+// parseLsFullTime 解析 ls --full-time 输出
+func (p *podOperator) parseLsFullTime(output string, basePath string) ([]types.FileInfo, error) {
+	files := []types.FileInfo{}
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		if line == "" || strings.HasPrefix(line, "total") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) < 9 {
+			continue
+		}
+
+		name := strings.Join(fields[8:], " ")
+		if name == "." || name == ".." {
+			continue
+		}
+
+		fileInfo := types.FileInfo{
+			Name:   name,
+			Path:   filepath.Join(basePath, name),
+			Mode:   fields[0],
+			IsDir:  strings.HasPrefix(fields[0], "d"),
+			IsLink: strings.HasPrefix(fields[0], "l"),
+			Owner:  fields[2],
+			Group:  fields[3],
+		}
+
+		size, _ := strconv.ParseInt(fields[4], 10, 64)
+		fileInfo.Size = size
+
+		timeStr := fmt.Sprintf("%s %s", fields[5], fields[6])
+		if modTime, err := time.Parse("2006-01-02 15:04:05.999999999", timeStr); err == nil {
+			fileInfo.ModTime = modTime
+		}
+
+		fileInfo.Permissions = p.parsePermissionsFromString(fields[0])
+		fileInfo.IsReadable = len(fields[0]) > 1 && fields[0][1] == 'r'
+		fileInfo.IsWritable = len(fields[0]) > 2 && fields[0][2] == 'w'
+		fileInfo.IsExecutable = len(fields[0]) > 3 && fields[0][3] == 'x'
+
+		if fileInfo.IsLink && strings.Contains(line, " -> ") {
+			parts := strings.Split(line, " -> ")
+			if len(parts) == 2 {
+				fileInfo.LinkTarget = strings.TrimSpace(parts[1])
+			}
+		}
+
+		fileInfo.MimeType = p.guessMimeType(name, fileInfo.IsDir)
+		files = append(files, fileInfo)
+	}
+
+	return files, nil
+}
+
+// parseBusyBoxLs 解析 BusyBox ls 输出
+func (p *podOperator) parseBusyBoxLs(output string, basePath string) ([]types.FileInfo, error) {
+	files := []types.FileInfo{}
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		if line == "" || strings.HasPrefix(line, "total") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) < 9 {
+			continue
+		}
+
+		name := strings.Join(fields[8:], " ")
+		if name == "." || name == ".." {
+			continue
+		}
+
+		fileInfo := types.FileInfo{
+			Name:   name,
+			Path:   filepath.Join(basePath, name),
+			Mode:   fields[0],
+			IsDir:  strings.HasPrefix(fields[0], "d"),
+			IsLink: strings.HasPrefix(fields[0], "l"),
+			Owner:  fields[2],
+			Group:  fields[3],
+		}
+
+		size, _ := strconv.ParseInt(fields[4], 10, 64)
+		fileInfo.Size = size
+
+		timeStr := fmt.Sprintf("%s %s %s", fields[5], fields[6], fields[7])
+		fileInfo.ModTime = p.parseBusyBoxTime(timeStr)
+
+		fileInfo.Permissions = p.parsePermissionsFromString(fields[0])
+		fileInfo.IsReadable = len(fields[0]) > 1 && fields[0][1] == 'r'
+		fileInfo.IsWritable = len(fields[0]) > 2 && fields[0][2] == 'w'
+		fileInfo.IsExecutable = len(fields[0]) > 3 && fields[0][3] == 'x'
+
+		if fileInfo.IsLink && strings.Contains(line, " -> ") {
+			parts := strings.Split(line, " -> ")
+			if len(parts) == 2 {
+				fileInfo.LinkTarget = strings.TrimSpace(parts[1])
+			}
+		}
+
+		fileInfo.MimeType = p.guessMimeType(name, fileInfo.IsDir)
+		files = append(files, fileInfo)
+	}
+
+	return files, nil
+}
+
+// parseListOutput 解析通用 ls 输出
+func (p *podOperator) parseListOutput(output string, basePath string) ([]types.FileInfo, error) {
+	files := []types.FileInfo{}
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		if line == "" || strings.HasPrefix(line, "total") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) < 9 {
+			continue
+		}
+
+		name := strings.Join(fields[8:], " ")
+		if name == "." || name == ".." {
+			continue
+		}
+
+		fileInfo := p.parseBasicLsLine(fields, name, basePath)
+		files = append(files, fileInfo)
+	}
+
+	return files, nil
+}
+
+// parseBasicLsLine 解析基本的 ls 行
+func (p *podOperator) parseBasicLsLine(fields []string, name, basePath string) types.FileInfo {
+	fileInfo := types.FileInfo{
+		Name:   name,
+		Path:   filepath.Join(basePath, name),
+		Mode:   fields[0],
+		IsDir:  strings.HasPrefix(fields[0], "d"),
+		IsLink: strings.HasPrefix(fields[0], "l"),
+		Owner:  fields[2],
+		Group:  fields[3],
+	}
+
+	size, _ := strconv.ParseInt(fields[4], 10, 64)
+	fileInfo.Size = size
+
+	if timestamp, err := strconv.ParseInt(fields[5], 10, 64); err == nil && timestamp > 0 {
+		fileInfo.ModTime = time.Unix(timestamp, 0)
+	} else {
+		timeStr := fmt.Sprintf("%s %s %s", fields[5], fields[6], fields[7])
+		fileInfo.ModTime = p.parseBusyBoxTime(timeStr)
+	}
+
+	fileInfo.Permissions = p.parsePermissionsFromString(fields[0])
+	fileInfo.IsReadable = len(fields[0]) > 1 && fields[0][1] == 'r'
+	fileInfo.IsWritable = len(fields[0]) > 2 && fields[0][2] == 'w'
+	fileInfo.IsExecutable = len(fields[0]) > 3 && fields[0][3] == 'x'
+	fileInfo.MimeType = p.guessMimeType(name, fileInfo.IsDir)
+
+	return fileInfo
+}
+
+// parseBusyBoxTime 解析 BusyBox 时间格式
+func (p *podOperator) parseBusyBoxTime(timeStr string) time.Time {
+	formats := []string{
+		"Jan 2 15:04",
+		"Jan 2 2006",
+		"2006-01-02 15:04",
+		"Jan _2 15:04",
+		"Jan _2 2006",
+	}
+
+	for _, format := range formats {
+		if t, err := time.Parse(format, timeStr); err == nil {
+			if !strings.Contains(format, "2006") {
+				now := time.Now()
+				t = time.Date(now.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), 0, 0, time.Local)
+				if t.After(now) {
+					t = t.AddDate(-1, 0, 0)
+				}
+			}
+			return t
+		}
+	}
+	return time.Now()
+}
+
+// parsePermissions 从八进制模式解析权限
+func (p *podOperator) parsePermissions(mode int64) types.FilePermission {
+	return types.FilePermission{
+		User: types.PermissionBits{
+			Read:    (mode & 0400) != 0,
+			Write:   (mode & 0200) != 0,
+			Execute: (mode & 0100) != 0,
+		},
+		Group: types.PermissionBits{
+			Read:    (mode & 0040) != 0,
+			Write:   (mode & 0020) != 0,
+			Execute: (mode & 0010) != 0,
+		},
+		Other: types.PermissionBits{
+			Read:    (mode & 0004) != 0,
+			Write:   (mode & 0002) != 0,
+			Execute: (mode & 0001) != 0,
+		},
+	}
+}
+
+// parsePermissionsFromString 从权限字符串解析权限
+func (p *podOperator) parsePermissionsFromString(permStr string) types.FilePermission {
+	if len(permStr) < 10 {
+		return types.FilePermission{}
+	}
+
+	return types.FilePermission{
+		User: types.PermissionBits{
+			Read:    permStr[1] == 'r',
+			Write:   permStr[2] == 'w',
+			Execute: permStr[3] == 'x' || permStr[3] == 's' || permStr[3] == 'S',
+		},
+		Group: types.PermissionBits{
+			Read:    permStr[4] == 'r',
+			Write:   permStr[5] == 'w',
+			Execute: permStr[6] == 'x' || permStr[6] == 's' || permStr[6] == 'S',
+		},
+		Other: types.PermissionBits{
+			Read:    permStr[7] == 'r',
+			Write:   permStr[8] == 'w',
+			Execute: permStr[9] == 'x' || permStr[9] == 't' || permStr[9] == 'T',
+		},
+	}
+}
+
+// ========== 智能 GetFileInfo（多层降级）==========
+
+// GetFileInfo 获取单个文件或目录的详细信息（智能降级）
+func (p *podOperator) GetFileInfo(ctx context.Context, namespace, podName, container, filePath string) (*types.FileInfo, error) {
+	logger := logx.WithContext(ctx)
+	logger.Infof("获取文件信息: namespace=%s, pod=%s, container=%s, file=%s",
+		namespace, podName, container, filePath)
+
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return nil, err
+	}
+
+	// 探测命令能力
+	caps, err := p.detectCommandCapabilities(ctx, namespace, podName, container)
+	if err != nil {
+		logger.Errorf("探测命令能力失败，使用ls: %v", err)
+		return p.getFileInfoWithLs(namespace, podName, container, filePath)
+	}
+
+	var fileInfo *types.FileInfo
+
+	// 策略1: GNU stat --format
+	if caps.hasStat && caps.statSupportsFormat {
+		fileInfo, err = p.getFileInfoWithGNUStat(namespace, podName, container, filePath)
+		if err == nil {
+			return p.enrichFileInfo(ctx, namespace, podName, container, fileInfo, caps)
+		}
+		logger.Debugf("GNU stat 失败: %v, 尝试降级", err)
+	}
+
+	// 策略2: BusyBox stat -c
+	if caps.hasStat && caps.statSupportsC {
+		fileInfo, err = p.getFileInfoWithBusyBoxStat(namespace, podName, container, filePath)
+		if err == nil {
+			return p.enrichFileInfo(ctx, namespace, podName, container, fileInfo, caps)
+		}
+		logger.Debugf("BusyBox stat 失败: %v, 尝试降级", err)
+	}
+
+	// 策略3: 使用 ls -ld 解析
+	if caps.hasLs {
+		fileInfo, err = p.getFileInfoWithLs(namespace, podName, container, filePath)
+		if err == nil {
+			return p.enrichFileInfo(ctx, namespace, podName, container, fileInfo, caps)
+		}
+	}
+
+	return nil, fmt.Errorf("无法获取文件信息: %v", err)
+}
+
+// getFileInfoWithGNUStat 使用 GNU stat 获取文件信息
+func (p *podOperator) getFileInfoWithGNUStat(namespace, podName, container, filePath string) (*types.FileInfo, error) {
+	statCmd := []string{"stat", "--format", "%n|%F|%s|%Y|%U|%G|%a|%h", filePath}
+	stdout, stderr, err := p.ExecCommand(namespace, podName, container, statCmd)
+	if err != nil {
+		return nil, fmt.Errorf("stat 失败: %v, stderr: %s", err, stderr)
+	}
+	return p.parseStatOutput(stdout, filePath)
+}
+
+// getFileInfoWithBusyBoxStat 使用 BusyBox stat 获取文件信息
+func (p *podOperator) getFileInfoWithBusyBoxStat(namespace, podName, container, filePath string) (*types.FileInfo, error) {
+	statCmd := []string{"stat", "-c", "%n|%F|%s|%Y|%U|%G|%a|%h", filePath}
+	stdout, stderr, err := p.ExecCommand(namespace, podName, container, statCmd)
+	if err != nil {
+		return nil, fmt.Errorf("stat 失败: %v, stderr: %s", err, stderr)
+	}
+	return p.parseStatOutput(stdout, filePath)
+}
+
+// getFileInfoWithLs 使用 ls -ld 获取文件信息
+func (p *podOperator) getFileInfoWithLs(namespace, podName, container, filePath string) (*types.FileInfo, error) {
+	lsCmd := []string{"ls", "-ld", filePath}
+	stdout, stderr, err := p.ExecCommand(namespace, podName, container, lsCmd)
+	if err != nil {
+		return nil, fmt.Errorf("ls 失败: %v, stderr: %s", err, stderr)
+	}
+
+	fields := strings.Fields(stdout)
+	if len(fields) < 9 {
+		return nil, fmt.Errorf("ls 输出格式异常")
+	}
+
+	name := filepath.Base(filePath)
+	fileInfo := &types.FileInfo{
+		Name:   name,
+		Path:   filePath,
+		Mode:   fields[0],
+		IsDir:  strings.HasPrefix(fields[0], "d"),
+		IsLink: strings.HasPrefix(fields[0], "l"),
+		Owner:  fields[2],
+		Group:  fields[3],
+	}
+
+	size, _ := strconv.ParseInt(fields[4], 10, 64)
+	fileInfo.Size = size
+
+	fileInfo.Permissions = p.parsePermissionsFromString(fields[0])
+	fileInfo.IsReadable = len(fields[0]) > 1 && fields[0][1] == 'r'
+	fileInfo.IsWritable = len(fields[0]) > 2 && fields[0][2] == 'w'
+	fileInfo.IsExecutable = len(fields[0]) > 3 && fields[0][3] == 'x'
+
+	timeStr := fmt.Sprintf("%s %s %s", fields[5], fields[6], fields[7])
+	fileInfo.ModTime = p.parseBusyBoxTime(timeStr)
+
+	return fileInfo, nil
+}
+
+// enrichFileInfo 丰富文件信息（添加 MIME 类型等）
+func (p *podOperator) enrichFileInfo(ctx context.Context, namespace, podName, container string, fileInfo *types.FileInfo, caps *commandCapabilities) (*types.FileInfo, error) {
+	if !fileInfo.IsDir && caps.hasFile {
+		mimeCmd := []string{"file", "-b", "--mime-type", fileInfo.Path}
+		mimeOut, _, err := p.ExecCommand(namespace, podName, container, mimeCmd)
+		if err == nil && mimeOut != "" {
+			fileInfo.MimeType = strings.TrimSpace(mimeOut)
+		} else {
+			fileInfo.MimeType = p.guessMimeType(fileInfo.Name, false)
+		}
+	} else if fileInfo.IsDir {
+		fileInfo.MimeType = "inode/directory"
+	} else {
+		fileInfo.MimeType = p.guessMimeType(fileInfo.Name, false)
+	}
+
+	return fileInfo, nil
+}
+
+// parseStatOutput 解析 stat 命令输出
+func (p *podOperator) parseStatOutput(output string, filePath string) (*types.FileInfo, error) {
+	fields := strings.Split(strings.TrimSpace(output), "|")
+	if len(fields) < 8 {
+		return nil, fmt.Errorf("无效的stat输出")
+	}
+
+	fileInfo := &types.FileInfo{
+		Name:  filepath.Base(fields[0]),
+		Path:  filePath,
+		Owner: fields[4],
+		Group: fields[5],
+	}
+
+	fileType := fields[1]
+	fileInfo.IsDir = strings.Contains(fileType, "directory")
+	fileInfo.IsLink = strings.Contains(fileType, "symbolic link")
+
+	size, _ := strconv.ParseInt(fields[2], 10, 64)
+	fileInfo.Size = size
+
+	timestamp, _ := strconv.ParseInt(fields[3], 10, 64)
+	if timestamp > 0 {
+		fileInfo.ModTime = time.Unix(timestamp, 0)
+	}
+
+	if mode, err := strconv.ParseInt(fields[6], 8, 32); err == nil {
+		fileInfo.Mode = fmt.Sprintf("%o", mode)
+		fileInfo.Permissions = p.parsePermissions(mode)
+		fileInfo.IsReadable = (mode & 0400) != 0
+		fileInfo.IsWritable = (mode & 0200) != 0
+		fileInfo.IsExecutable = (mode & 0100) != 0
+	}
+
+	return fileInfo, nil
+}
+
+// ========== 辅助方法 ==========
+
+// filterByFileTypes 按文件类型过滤
+func (p *podOperator) filterByFileTypes(files []types.FileInfo, fileTypes []string) []types.FileInfo {
+	filtered := []types.FileInfo{}
+	for _, file := range files {
+		if file.IsDir {
+			filtered = append(filtered, file)
+			continue
+		}
+		ext := strings.TrimPrefix(filepath.Ext(file.Name), ".")
+		for _, fileType := range fileTypes {
+			if strings.EqualFold(ext, fileType) {
+				filtered = append(filtered, file)
+				break
+			}
+		}
+	}
+	return filtered
+}
+
+// applyPagination 应用分页
+func (p *podOperator) applyPagination(files []types.FileInfo, offset, limit int) []types.FileInfo {
+	start := offset
+	end := start + limit
+	if start < len(files) {
+		if end > len(files) {
+			end = len(files)
+		}
+		return files[start:end]
+	}
+	return files
+}
+
+// buildFileListResult 构建文件列表结果
+func (p *podOperator) buildFileListResult(files []types.FileInfo, dirPath, container string) *types.FileListResult {
+	totalSize := int64(0)
+	for _, file := range files {
+		totalSize += file.Size
+	}
+
+	return &types.FileListResult{
+		Files:       files,
+		CurrentPath: dirPath,
+		Breadcrumbs: p.buildBreadcrumbs(dirPath),
+		TotalCount:  len(files),
+		TotalSize:   totalSize,
+		Container:   container,
+		HasMore:     false,
+	}
+}
+
+// filterAndSortFiles 过滤和排序文件列表
+func (p *podOperator) filterAndSortFiles(files []types.FileInfo, opts *types.FileListOptions) []types.FileInfo {
+	if !opts.ShowHidden {
+		filtered := []types.FileInfo{}
+		for _, file := range files {
+			if !strings.HasPrefix(file.Name, ".") {
+				filtered = append(filtered, file)
+			}
+		}
+		files = filtered
+	}
+
+	if opts.Search != "" {
+		filtered := []types.FileInfo{}
+		search := strings.ToLower(opts.Search)
+		for _, file := range files {
+			if strings.Contains(strings.ToLower(file.Name), search) {
+				filtered = append(filtered, file)
+			}
+		}
+		files = filtered
+	}
+
+	if len(opts.FileTypes) > 0 {
+		files = p.filterByFileTypes(files, opts.FileTypes)
+	}
+
+	p.sortFiles(files, opts)
+	return files
+}
+
+// sortFiles 排序文件列表
+func (p *podOperator) sortFiles(files []types.FileInfo, opts *types.FileListOptions) {
+	sort.Slice(files, func(i, j int) bool {
+		var result bool
+		switch opts.SortBy {
+		case types.SortBySize:
+			result = files[i].Size < files[j].Size
+		case types.SortByTime:
+			result = files[i].ModTime.Before(files[j].ModTime)
+		case types.SortByType:
+			if files[i].IsDir != files[j].IsDir {
+				result = files[i].IsDir
+			} else {
+				result = files[i].Name < files[j].Name
+			}
+		default:
+			result = files[i].Name < files[j].Name
+		}
+
+		if opts.SortDesc {
+			return !result
+		}
+		return result
+	})
+}
+
+// buildBreadcrumbs 构建面包屑导航
+func (p *podOperator) buildBreadcrumbs(currentPath string) []types.BreadcrumbItem {
+	breadcrumbs := []types.BreadcrumbItem{
+		{Name: "Root", Path: "/"},
+	}
+
+	if currentPath == "/" || currentPath == "" {
+		return breadcrumbs
+	}
+
+	parts := strings.Split(strings.TrimPrefix(currentPath, "/"), "/")
+	path := "/"
+
+	for _, part := range parts {
+		if part == "" {
+			continue
+		}
+		path = filepath.Join(path, part)
+		breadcrumbs = append(breadcrumbs, types.BreadcrumbItem{
+			Name: part,
+			Path: path,
+		})
+	}
+
+	return breadcrumbs
+}
+
+// guessMimeType 猜测文件 MIME 类型
+func (p *podOperator) guessMimeType(filename string, isDir bool) string {
+	if isDir {
+		return "inode/directory"
+	}
+
+	ext := strings.ToLower(filepath.Ext(filename))
+	mimeTypes := map[string]string{
+		".txt":  "text/plain",
+		".log":  "text/plain",
+		".md":   "text/markdown",
+		".json": "application/json",
+		".yaml": "application/yaml",
+		".yml":  "application/yaml",
+		".xml":  "application/xml",
+		".html": "text/html",
+		".css":  "text/css",
+		".js":   "application/javascript",
+		".ts":   "application/typescript",
+		".sh":   "application/x-sh",
+		".py":   "text/x-python",
+		".go":   "text/x-go",
+		".java": "text/x-java",
+		".png":  "image/png",
+		".jpg":  "image/jpeg",
+		".jpeg": "image/jpeg",
+		".pdf":  "application/pdf",
+		".zip":  "application/zip",
+		".tar":  "application/x-tar",
+		".gz":   "application/gzip",
+	}
+
+	if mimeType, ok := mimeTypes[ext]; ok {
+		return mimeType
+	}
+	return "application/octet-stream"
+}
+
+// ========== GetFileStats（添加能力检测）==========
+
+// GetFileStats 获取文件或目录的统计信息
+func (p *podOperator) GetFileStats(ctx context.Context, namespace, podName, container, path string) (*types.FileStats, error) {
+	logger := logx.WithContext(ctx)
+	logger.Infof("获取文件统计信息: namespace=%s, pod=%s, container=%s, path=%s",
+		namespace, podName, container, path)
+
+	fileInfo, err := p.GetFileInfo(ctx, namespace, podName, container, path)
+	if err != nil {
+		return nil, err
+	}
+
+	stats := &types.FileStats{
+		FileInfo: *fileInfo,
+	}
+
+	// 探测命令能力
+	caps, err := p.detectCommandCapabilities(ctx, namespace, podName, container)
+	if err != nil {
+		logger.Errorf("无法探测命令能力: %v", err)
+		return stats, nil
+	}
+
+	if fileInfo.IsDir && caps.hasDu {
+		logger.Debug("目录统计：获取磁盘使用量")
+		duCmd := []string{"du", "-sb", path}
+		duOut, _, err := p.ExecCommand(namespace, podName, container, duCmd)
+		if err == nil {
+			fields := strings.Fields(duOut)
+			if len(fields) > 0 {
+				stats.DiskUsage, _ = strconv.ParseInt(fields[0], 10, 64)
+			}
+		}
+
+		if caps.hasFind {
+			logger.Debug("统计文件和目录数量")
+			findCmd := []string{"sh", "-c", fmt.Sprintf("find %s -maxdepth 1 -type f 2>/dev/null | wc -l", path)}
+			fileCountOut, _, _ := p.ExecCommand(namespace, podName, container, findCmd)
+			stats.FileCount, _ = strconv.Atoi(strings.TrimSpace(fileCountOut))
+
+			findCmd = []string{"sh", "-c", fmt.Sprintf("find %s -maxdepth 1 -type d 2>/dev/null | wc -l", path)}
+			dirCountOut, _, _ := p.ExecCommand(namespace, podName, container, findCmd)
+			stats.DirCount, _ = strconv.Atoi(strings.TrimSpace(dirCountOut))
+			if stats.DirCount > 0 {
+				stats.DirCount--
+			}
+		}
+	} else if !fileInfo.IsDir && caps.hasMd5sum {
+		logger.Debug("计算文件MD5校验和")
+		md5Cmd := []string{"md5sum", path}
+		md5Out, _, err := p.ExecCommand(namespace, podName, container, md5Cmd)
+		if err == nil {
+			fields := strings.Fields(md5Out)
+			if len(fields) > 0 {
+				stats.Checksum = fields[0]
+			}
+		}
+	}
+
+	return stats, nil
+}
+
+// ========== 文件下载操作实现 ==========
+
+// DownloadFile 下载文件
+func (p *podOperator) DownloadFile(ctx context.Context, namespace, podName, container, filePath string, opts *types.DownloadOptions) (io.ReadCloser, error) {
+	logger := logx.WithContext(ctx)
+	logger.Infof("开始下载文件: namespace=%s, pod=%s, container=%s, file=%s",
+		namespace, podName, container, filePath)
+
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return nil, err
+	}
+
+	if opts == nil {
+		opts = &types.DownloadOptions{}
+	}
+
+	// 检查文件是否存在
+	testCmd := []string{"test", "-f", filePath}
+	_, _, err = p.ExecCommand(namespace, podName, container, testCmd)
+	if err != nil {
+		return nil, fmt.Errorf("文件不存在: %s", filePath)
+	}
+
+	var cmd []string
+	if opts.Compress {
+		cmd = []string{"sh", "-c", fmt.Sprintf("cat %s | gzip", filePath)}
+	} else {
+		cmd = []string{"cat", filePath}
+	}
+
+	// 支持范围下载
+	if opts.RangeStart > 0 || opts.RangeEnd > 0 {
+		ddCmd := fmt.Sprintf("dd if=%s bs=1 skip=%d", filePath, opts.RangeStart)
+		if opts.RangeEnd > opts.RangeStart {
+			count := opts.RangeEnd - opts.RangeStart + 1
+			ddCmd += fmt.Sprintf(" count=%d", count)
+		}
+		ddCmd += " 2>/dev/null"
+		if opts.Compress {
+			ddCmd += " | gzip"
+		}
+		cmd = []string{"sh", "-c", ddCmd}
+	}
+
+	pr, pw := io.Pipe()
+
+	executor, err := p.Exec(namespace, podName, container, cmd, types.ExecOptions{
+		Stdin:  false,
+		Stdout: true,
+		Stderr: false,
+		TTY:    false,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("创建下载执行器失败: %v", err)
+	}
+
+	go func() {
+		defer pw.Close()
+		err := executor.Stream(remotecommand.StreamOptions{
+			Stdin:  nil,
+			Stdout: pw,
+			Stderr: nil,
+			Tty:    false,
+		})
+		if err != nil {
+			logger.Errorf("下载文件失败: %v", err)
+		}
+	}()
+
+	return pr, nil
+}
+
+// DownloadFileChunk 下载文件分块
+func (p *podOperator) DownloadFileChunk(ctx context.Context, namespace, podName, container, filePath string, chunkIndex int, chunkSize int64) ([]byte, error) {
+	logger := logx.WithContext(ctx)
+	logger.Infof("下载文件分块: file=%s, chunk=%d, size=%d", filePath, chunkIndex, chunkSize)
+
+	cmd := []string{"sh", "-c",
+		fmt.Sprintf("dd if=%s bs=%d skip=%d count=1 2>/dev/null", filePath, chunkSize, chunkIndex)}
+
+	stdout, _, err := p.ExecCommand(namespace, podName, container, cmd)
+	if err != nil {
+		return nil, fmt.Errorf("下载文件分块失败: %v", err)
+	}
+
+	return []byte(stdout), nil
+}
+
+// ========== 文件上传操作实现 ==========
+
+// UploadFile 上传文件
+func (p *podOperator) UploadFile(ctx context.Context, namespace, podName, container, destPath string, reader io.Reader, opts *types.UploadOptions) error {
+	logger := logx.WithContext(ctx)
+	logger.Infof("开始上传文件: namespace=%s, pod=%s, container=%s, dest=%s",
+		namespace, podName, container, destPath)
+
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return err
+	}
+
+	if opts == nil {
+		opts = &types.UploadOptions{
+			Overwrite: false,
+		}
+	}
+
+	// 检查文件是否已存在
+	if !opts.Overwrite {
+		testCmd := []string{"test", "-e", destPath}
+		_, _, err := p.ExecCommand(namespace, podName, container, testCmd)
+		if err == nil {
+			return fmt.Errorf("文件已存在: %s", destPath)
+		}
+	}
+
+	// 自动创建目录
+	if opts.CreateDirs {
+		dirPath := filepath.Dir(destPath)
+		mkdirCmd := []string{"mkdir", "-p", dirPath}
+		_, _, _ = p.ExecCommand(namespace, podName, container, mkdirCmd)
+	}
+
+	// 读取内容
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return fmt.Errorf("读取源文件失败: %v", err)
+	}
+
+	maxFileSize := opts.MaxFileSize
+	if maxFileSize == 0 {
+		maxFileSize = 10 * 1024 * 1024 * 1024
+	}
+
+	if int64(len(content)) > maxFileSize {
+		return fmt.Errorf("文件大小超过限制 %d MB", maxFileSize/(1024*1024))
+	}
+
+	// 使用 tar 方式上传
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+
+	fileName := filepath.Base(destPath)
+	if opts.FileName != "" {
+		fileName = opts.FileName
+	}
+
+	mode := int64(0644)
+	if opts.FileMode != "" {
+		if parsed, err := strconv.ParseInt(opts.FileMode, 8, 64); err == nil {
+			mode = parsed
+		}
+	}
+
+	hdr := &tar.Header{
+		Name:    fileName,
+		Mode:    mode,
+		Size:    int64(len(content)),
+		ModTime: time.Now(),
+	}
+
+	if err := tw.WriteHeader(hdr); err != nil {
+		return fmt.Errorf("写入tar header失败: %v", err)
+	}
+
+	if _, err := tw.Write(content); err != nil {
+		return fmt.Errorf("写入tar内容失败: %v", err)
+	}
+
+	if err := tw.Close(); err != nil {
+		return fmt.Errorf("关闭tar writer失败: %v", err)
+	}
+
+	// 通过 tar 解压到目标位置
+	destDir := filepath.Dir(destPath)
+	cmd := []string{"tar", "-xf", "-", "-C", destDir}
+
+	var stderrBuf bytes.Buffer
+	streams := types.IOStreams{
+		In:     &buf,
+		Out:    io.Discard,
+		ErrOut: &stderrBuf,
+	}
+
+	err = p.ExecWithStreams(namespace, podName, container, cmd, streams)
+	if err != nil {
+		return fmt.Errorf("上传文件失败: %v, stderr=%s", err, stderrBuf.String())
+	}
+
+	// 验证文件
+	if opts.Checksum != "" {
+		md5Cmd := []string{"md5sum", destPath}
+		md5Out, _, err := p.ExecCommand(namespace, podName, container, md5Cmd)
+		if err == nil {
+			fields := strings.Fields(md5Out)
+			if len(fields) > 0 && fields[0] != opts.Checksum {
+				p.ExecCommand(namespace, podName, container, []string{"rm", "-f", destPath})
+				return fmt.Errorf("文件校验和不匹配")
+			}
+		}
+	}
+
+	return nil
+}
+
+// ========== 文件管理操作实现 ==========
+
+// CreateDirectory 创建目录
+func (p *podOperator) CreateDirectory(ctx context.Context, namespace, podName, container, dirPath string, opts *types.CreateDirOptions) error {
+	logger := logx.WithContext(ctx)
+	logger.Infof("创建目录: namespace=%s, pod=%s, container=%s, dir=%s",
+		namespace, podName, container, dirPath)
+
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return err
+	}
+
+	if opts == nil {
+		opts = &types.CreateDirOptions{
+			Mode:          DefaultDirMode,
+			CreateParents: true,
+		}
+	}
+
+	cmd := []string{"mkdir"}
+	if opts.CreateParents {
+		cmd = append(cmd, "-p")
+	}
+	if opts.Mode != "" {
+		cmd = append(cmd, "-m", opts.Mode)
+	}
+	cmd = append(cmd, dirPath)
+
+	_, stderr, err := p.ExecCommand(namespace, podName, container, cmd)
+	if err != nil {
+		return fmt.Errorf("创建目录失败: %v, stderr=%s", err, stderr)
+	}
+
+	return nil
+}
+
+// DeleteFiles 删除文件或目录
+func (p *podOperator) DeleteFiles(ctx context.Context, namespace, podName, container string, paths []string, opts *types.DeleteOptions) (*types.DeleteResult, error) {
+	logger := logx.WithContext(ctx)
+	logger.Infof("删除文件: namespace=%s, pod=%s, container=%s, 数量=%d",
+		namespace, podName, container, len(paths))
+
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return nil, err
+	}
+
+	if opts == nil {
+		opts = &types.DeleteOptions{
+			Recursive: false,
+			Force:     false,
+		}
+	}
+
+	result := &types.DeleteResult{
+		DeletedCount: 0,
+		FailedPaths:  []string{},
+		Errors:       []error{},
+	}
+
+	for _, filePath := range paths {
+		cmd := []string{"rm"}
+		if opts.Recursive {
+			cmd = append(cmd, "-r")
+		}
+		if opts.Force {
+			cmd = append(cmd, "-f")
+		}
+		cmd = append(cmd, filePath)
+
+		_, stderr, err := p.ExecCommand(namespace, podName, container, cmd)
+		if err != nil {
+			logger.Errorf("删除失败: path=%s, err=%v, stderr=%s", filePath, err, stderr)
+			result.FailedPaths = append(result.FailedPaths, filePath)
+			result.Errors = append(result.Errors, fmt.Errorf("删除 %s 失败: %v", filePath, err))
+		} else {
+			result.DeletedCount++
+		}
+	}
+
+	return result, nil
+}
+
+// MoveFile 移动或重命名文件
+func (p *podOperator) MoveFile(ctx context.Context, namespace, podName, container, sourcePath, destPath string, overwrite bool) error {
+	logger := logx.WithContext(ctx)
+	logger.Infof("移动文件: %s -> %s", sourcePath, destPath)
+
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return err
+	}
+
+	// 检查源文件
+	testCmd := []string{"test", "-e", sourcePath}
+	_, _, err = p.ExecCommand(namespace, podName, container, testCmd)
+	if err != nil {
+		return fmt.Errorf("源文件不存在: %s", sourcePath)
+	}
+
+	// 检查目标文件
+	if !overwrite {
+		testCmd = []string{"test", "-e", destPath}
+		_, _, err = p.ExecCommand(namespace, podName, container, testCmd)
+		if err == nil {
+			return fmt.Errorf("目标文件已存在: %s", destPath)
+		}
+	}
+
+	cmd := []string{"mv"}
+	if overwrite {
+		cmd = append(cmd, "-f")
+	}
+	cmd = append(cmd, sourcePath, destPath)
+
+	_, stderr, err := p.ExecCommand(namespace, podName, container, cmd)
+	if err != nil {
+		return fmt.Errorf("移动文件失败: %v, stderr=%s", err, stderr)
+	}
+
+	return nil
+}
+
+// CopyFile 复制文件或目录
+func (p *podOperator) CopyFile(ctx context.Context, namespace, podName, container, sourcePath, destPath string, opts *types.CopyOptions) error {
+	logger := logx.WithContext(ctx)
+	logger.Infof("复制文件: %s -> %s", sourcePath, destPath)
+
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return err
+	}
+
+	if opts == nil {
+		opts = &types.CopyOptions{
+			Overwrite:     false,
+			Recursive:     false,
+			PreserveAttrs: true,
+		}
+	}
+
+	// 检查源文件
+	testCmd := []string{"test", "-e", sourcePath}
+	_, _, err = p.ExecCommand(namespace, podName, container, testCmd)
+	if err != nil {
+		return fmt.Errorf("源文件不存在: %s", sourcePath)
+	}
+
+	// 检查目标文件
+	if !opts.Overwrite {
+		testCmd = []string{"test", "-e", destPath}
+		_, _, err = p.ExecCommand(namespace, podName, container, testCmd)
+		if err == nil {
+			return fmt.Errorf("目标文件已存在: %s", destPath)
+		}
+	}
+
+	cmd := []string{"cp"}
+	if opts.Recursive {
+		cmd = append(cmd, "-r")
+	}
+	if opts.PreserveAttrs {
+		cmd = append(cmd, "-p")
+	}
+	if opts.Overwrite {
+		cmd = append(cmd, "-f")
+	}
+	cmd = append(cmd, sourcePath, destPath)
+
+	_, stderr, err := p.ExecCommand(namespace, podName, container, cmd)
+	if err != nil {
+		return fmt.Errorf("复制文件失败: %v, stderr=%s", err, stderr)
+	}
+
+	return nil
+}
+
+// ========== 文件内容操作实现 ==========
+
+// ReadFile 读取文件内容
+func (p *podOperator) ReadFile(ctx context.Context, namespace, podName, container, filePath string, opts *types.ReadOptions) (*types.FileContent, error) {
+	logger := logx.WithContext(ctx)
+	logger.Infof("读取文件内容: file=%s", filePath)
+
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return nil, err
+	}
+
+	if opts == nil {
+		opts = &types.ReadOptions{
+			Limit:    10 * 1024 * 1024,
+			Encoding: "UTF-8",
+		}
+	}
+
+	// 获取文件大小
+	statCmd := []string{"stat", "-c", "%s", filePath}
+	sizeOut, _, err := p.ExecCommand(namespace, podName, container, statCmd)
+	if err != nil {
+		// 尝试 GNU stat
+		statCmd = []string{"stat", "--format", "%s", filePath}
+		sizeOut, _, err = p.ExecCommand(namespace, podName, container, statCmd)
+		if err != nil {
+			return nil, fmt.Errorf("获取文件大小失败: %v", err)
+		}
+	}
+	fileSize, _ := strconv.ParseInt(strings.TrimSpace(sizeOut), 10, 64)
+
+	var cmd []string
+	if opts.Tail && opts.TailLines > 0 {
+		cmd = []string{"tail", "-n", strconv.Itoa(opts.TailLines), filePath}
+	} else if opts.Offset > 0 || opts.Limit > 0 {
+		ddCmd := fmt.Sprintf("dd if=%s bs=1", filePath)
+		if opts.Offset > 0 {
+			ddCmd += fmt.Sprintf(" skip=%d", opts.Offset)
+		}
+		if opts.Limit > 0 {
+			ddCmd += fmt.Sprintf(" count=%d", opts.Limit)
+		}
+		ddCmd += " 2>/dev/null"
+		cmd = []string{"sh", "-c", ddCmd}
+	} else {
+		cmd = []string{"cat", filePath}
+	}
+
+	stdout, _, err := p.ExecCommand(namespace, podName, container, cmd)
+	if err != nil {
+		return nil, fmt.Errorf("读取文件内容失败: %v", err)
+	}
+
+	// 检测是否为文本文件
+	isText := true
+	mimeCmd := []string{"file", "-b", "--mime-type", filePath}
+	mimeOut, _, _ := p.ExecCommand(namespace, podName, container, mimeCmd)
+	if mimeOut != "" {
+		mimeType := strings.TrimSpace(mimeOut)
+		isText = strings.HasPrefix(mimeType, "text/") ||
+			mimeType == "application/json" ||
+			mimeType == "application/xml" ||
+			mimeType == "application/yaml"
+	}
+
+	lineCount := 0
+	if isText {
+		lineCount = strings.Count(stdout, "\n")
+		if len(stdout) > 0 && !strings.HasSuffix(stdout, "\n") {
+			lineCount++
+		}
+	}
+
+	content := &types.FileContent{
+		Content:     stdout,
+		BinaryData:  []byte(stdout),
+		FileSize:    fileSize,
+		BytesRead:   int64(len(stdout)),
+		IsText:      isText,
+		Encoding:    opts.Encoding,
+		IsTruncated: opts.Limit > 0 && fileSize > opts.Limit,
+		LineCount:   lineCount,
+	}
+
+	return content, nil
+}
+
+// SaveFile 保存文件内容
+func (p *podOperator) SaveFile(ctx context.Context, namespace, podName, container, filePath string, content []byte, opts *types.SaveOptions) error {
+	logger := logx.WithContext(ctx)
+	logger.Infof("保存文件内容: file=%s, size=%d bytes", filePath, len(content))
+
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return err
+	}
+
+	if opts == nil {
+		opts = &types.SaveOptions{
+			Encoding: "UTF-8",
+			FileMode: DefaultFileMode,
+		}
+	}
+
+	if len(content) > MaxFileSize {
+		return fmt.Errorf("文件大小超过限制 %d MB", MaxFileSize/(1024*1024))
+	}
+
+	// 检查文件是否存在
+	testCmd := []string{"test", "-f", filePath}
+	_, _, fileExists := p.ExecCommand(namespace, podName, container, testCmd)
+
+	if fileExists != nil && !opts.CreateIfNotExists {
+		return fmt.Errorf("文件不存在: %s", filePath)
+	}
+
+	// 备份文件
+	if opts.Backup && fileExists == nil {
+		backupPath := fmt.Sprintf("%s.bak.%d", filePath, time.Now().Unix())
+		cpCmd := []string{"cp", "-p", filePath, backupPath}
+		p.ExecCommand(namespace, podName, container, cpCmd)
+	}
+
+	// 确保目录存在
+	dirPath := filepath.Dir(filePath)
+	if dirPath != "/" && dirPath != "." {
+		mkdirCmd := []string{"mkdir", "-p", dirPath}
+		p.ExecCommand(namespace, podName, container, mkdirCmd)
+	}
+
+	// 使用 tar 方式上传
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+
+	fileName := filepath.Base(filePath)
+	mode := int64(0644)
+	if opts.FileMode != "" {
+		if parsed, err := strconv.ParseInt(opts.FileMode, 8, 64); err == nil {
+			mode = parsed
+		}
+	}
+
+	hdr := &tar.Header{
+		Name:    fileName,
+		Mode:    mode,
+		Size:    int64(len(content)),
+		ModTime: time.Now(),
+	}
+
+	tw.WriteHeader(hdr)
+	tw.Write(content)
+	tw.Close()
+
+	cmd := []string{"tar", "-xf", "-", "-C", dirPath}
+	var stderrBuf bytes.Buffer
+	streams := types.IOStreams{
+		In:     &buf,
+		Out:    io.Discard,
+		ErrOut: &stderrBuf,
+	}
+
+	err = p.ExecWithStreams(namespace, podName, container, cmd, streams)
+	if err != nil {
+		return fmt.Errorf("保存文件失败: %v, stderr=%s", err, stderrBuf.String())
+	}
+
+	// 设置权限
+	if opts.FileMode != "" {
+		chmodCmd := []string{"chmod", opts.FileMode, filePath}
+		p.ExecCommand(namespace, podName, container, chmodCmd)
+	}
+
+	return nil
+}
+
+// TailFile 实时跟踪文件内容
+func (p *podOperator) TailFile(ctx context.Context, namespace, podName, container, filePath string, opts *types.TailOptions) (chan string, chan error, error) {
+	logger := logx.WithContext(ctx)
+	logger.Infof("开始跟踪文件: file=%s", filePath)
+
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if opts == nil {
+		opts = &types.TailOptions{
+			Lines:     10,
+			Follow:    true,
+			MaxBuffer: 100,
+		}
+	}
+
+	lineChan := make(chan string, opts.MaxBuffer)
+	errChan := make(chan error, 1)
+
+	cmd := []string{"tail"}
+	if opts.Lines > 0 {
+		cmd = append(cmd, "-n", strconv.Itoa(opts.Lines))
+	}
+	if opts.Follow {
+		cmd = append(cmd, "-f")
+	}
+	if opts.Retry {
+		cmd = append(cmd, "--retry")
+	}
+	cmd = append(cmd, filePath)
+
+	executor, err := p.Exec(namespace, podName, container, cmd, types.ExecOptions{
+		Stdin:  false,
+		Stdout: true,
+		Stderr: true,
+		TTY:    false,
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("创建执行器失败: %v", err)
+	}
+
+	go func() {
+		defer close(lineChan)
+		defer close(errChan)
+
+		pr, pw := io.Pipe()
+		defer pr.Close()
+		defer pw.Close()
+
+		go func() {
+			err := executor.Stream(remotecommand.StreamOptions{
+				Stdin:  nil,
+				Stdout: pw,
+				Stderr: pw,
+				Tty:    false,
+			})
+			if err != nil {
+				errChan <- err
+			}
+			pw.Close()
+		}()
+
+		scanner := bufio.NewScanner(pr)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				if scanner.Scan() {
+					select {
+					case lineChan <- scanner.Text():
+					case <-ctx.Done():
+						return
+					}
+				} else {
+					if err := scanner.Err(); err != nil {
+						errChan <- err
+					}
+					return
+				}
+			}
+		}
+	}()
+
+	return lineChan, errChan, nil
+}
+
+// ========== 辅助功能实现 ==========
+
+// CheckFilePermission 检查文件权限
+func (p *podOperator) CheckFilePermission(ctx context.Context, namespace, podName, container, path string, permission types.FilePermission) (bool, error) {
+	fileInfo, err := p.GetFileInfo(ctx, namespace, podName, container, path)
+	if err != nil {
+		return false, err
+	}
+
+	if permission.User.Read && !fileInfo.Permissions.User.Read {
+		return false, nil
+	}
+	if permission.User.Write && !fileInfo.Permissions.User.Write {
+		return false, nil
+	}
+	if permission.User.Execute && !fileInfo.Permissions.User.Execute {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// CompressFiles 压缩文件或目录
+func (p *podOperator) CompressFiles(ctx context.Context, namespace, podName, container string, paths []string, destPath string, format types.CompressionFormat) error {
+	logger := logx.WithContext(ctx)
+	logger.Infof("压缩文件: format=%s, 文件数=%d", format, len(paths))
+
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return err
+	}
+
+	var cmd []string
+	switch format {
+	case types.CompressionGzip:
+		if len(paths) == 1 {
+			cmd = []string{"sh", "-c", fmt.Sprintf("gzip -c %s > %s", paths[0], destPath)}
+		} else {
+			fileList := strings.Join(paths, " ")
+			cmd = []string{"sh", "-c", fmt.Sprintf("tar -czf %s %s", destPath, fileList)}
+		}
+	case types.CompressionZip:
+		cmd = append([]string{"zip", "-r", destPath}, paths...)
+	case types.CompressionTar:
+		cmd = append([]string{"tar", "-cf", destPath}, paths...)
+	case types.CompressionTgz:
+		cmd = append([]string{"tar", "-czf", destPath}, paths...)
+	default:
+		return fmt.Errorf("不支持的压缩格式: %s", format)
+	}
+
+	_, stderr, err := p.ExecCommand(namespace, podName, container, cmd)
+	if err != nil {
+		return fmt.Errorf("压缩文件失败: %v, stderr=%s", err, stderr)
+	}
+
+	return nil
+}
+
+// ExtractArchive 解压文件
+func (p *podOperator) ExtractArchive(ctx context.Context, namespace, podName, container, archivePath, destPath string) error {
+	logger := logx.WithContext(ctx)
+	logger.Infof("解压文件: archive=%s -> dest=%s", archivePath, destPath)
+
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return err
+	}
+
+	// 检查归档文件
+	testCmd := []string{"test", "-f", archivePath}
+	_, _, err = p.ExecCommand(namespace, podName, container, testCmd)
+	if err != nil {
+		return fmt.Errorf("归档文件不存在: %s", archivePath)
+	}
+
+	// 创建目标目录
+	mkdirCmd := []string{"mkdir", "-p", destPath}
+	p.ExecCommand(namespace, podName, container, mkdirCmd)
+
+	var cmd []string
+	switch {
+	case strings.HasSuffix(archivePath, ".tar.gz") || strings.HasSuffix(archivePath, ".tgz"):
+		cmd = []string{"tar", "-xzf", archivePath, "-C", destPath}
+	case strings.HasSuffix(archivePath, ".tar"):
+		cmd = []string{"tar", "-xf", archivePath, "-C", destPath}
+	case strings.HasSuffix(archivePath, ".gz"):
+		outputFile := filepath.Join(destPath, strings.TrimSuffix(filepath.Base(archivePath), ".gz"))
+		cmd = []string{"sh", "-c", fmt.Sprintf("gunzip -c %s > %s", archivePath, outputFile)}
+	case strings.HasSuffix(archivePath, ".zip"):
+		cmd = []string{"unzip", "-o", archivePath, "-d", destPath}
+	default:
+		return fmt.Errorf("不支持的归档格式: %s", archivePath)
+	}
+
+	_, stderr, err := p.ExecCommand(namespace, podName, container, cmd)
+	if err != nil {
+		return fmt.Errorf("解压文件失败: %v, stderr=%s", err, stderr)
+	}
+
+	return nil
+}
+
+// ========== 文件搜索操作 ==========
+
+// SearchFiles 搜索文件（带降级方案）
+func (p *podOperator) SearchFiles(ctx context.Context, namespace, podName, container, searchPath string, opts *types.FileSearchOptions) (*types.FileSearchResponse, error) {
+	logger := logx.WithContext(ctx)
+	logger.Infof("开始搜索文件: path=%s, pattern=%s", searchPath, opts.Pattern)
+
+	var err error
+	container, err = p.ensureContainer(namespace, podName, container)
+	if err != nil {
+		return nil, err
+	}
+
+	if searchPath == "" {
+		searchPath = "/"
+	}
+
+	if opts == nil {
+		opts = &types.FileSearchOptions{
+			MaxResults: 100,
+			MaxDepth:   10,
+		}
+	}
+
+	if opts.MaxResults == 0 {
+		opts.MaxResults = 100
+	}
+	if opts.MaxDepth == 0 {
+		opts.MaxDepth = 10
+	}
+
+	startTime := time.Now()
+
+	// 探测命令能力
+	caps, err := p.detectCommandCapabilities(ctx, namespace, podName, container)
+	if err != nil {
+		logger.Errorf("无法探测命令能力: %v", err)
+	}
+
+	var results []types.FileSearchResult
+
+	// 使用 find 或降级到 ls
+	if caps != nil && caps.hasFind {
+		logger.Debug("使用 find 命令搜索")
+		results, err = p.searchWithFind(ctx, namespace, podName, container, searchPath, opts)
+	} else if caps != nil && caps.hasLs {
+		logger.Debug("find 不可用，降级使用 ls")
+		results, err = p.searchWithLs(ctx, namespace, podName, container, searchPath, opts)
+	} else {
+		return nil, fmt.Errorf("容器中缺少必要的文件搜索命令")
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("搜索文件失败: %v", err)
+	}
+
+	// 如果需要内容搜索
+	if opts.ContentSearch != "" && caps != nil && caps.hasGrep {
+		logger.Infof("执行内容搜索: keyword=%s", opts.ContentSearch)
+		results = p.performContentSearch(ctx, namespace, podName, container, results, opts)
+	}
+
+	// 限制结果数量
+	truncated := false
+	if len(results) > opts.MaxResults {
+		results = results[:opts.MaxResults]
+		truncated = true
+	}
+
+	searchTime := time.Since(startTime).Milliseconds()
+
+	response := &types.FileSearchResponse{
+		Results:    results,
+		TotalFound: len(results),
+		SearchTime: searchTime,
+		Truncated:  truncated,
+	}
+
+	return response, nil
+}
+
+// searchWithFind 使用 find 命令搜索
+func (p *podOperator) searchWithFind(ctx context.Context, namespace, podName, container, searchPath string, opts *types.FileSearchOptions) ([]types.FileSearchResult, error) {
+	findCmd := p.buildSearchCommand(searchPath, opts)
+	stdout, stderr, err := p.ExecCommand(namespace, podName, container, findCmd)
+	if err != nil {
+		return nil, fmt.Errorf("find 失败: %v, stderr=%s", err, stderr)
+	}
+
+	return p.parseSearchResults(stdout, opts)
+}
+
+// searchWithLs 使用 ls 递归搜索
+func (p *podOperator) searchWithLs(ctx context.Context, namespace, podName, container, searchPath string, opts *types.FileSearchOptions) ([]types.FileSearchResult, error) {
+	results := []types.FileSearchResult{}
+	visited := make(map[string]bool)
+
+	err := p.recursiveSearchWithLs(ctx, namespace, podName, container, searchPath, searchPath, 0, opts, &results, visited)
+	if err != nil {
+		return nil, err
+	}
+
+	// 过滤
+	if opts.Pattern != "" {
+		results = p.filterByPattern(results, opts.Pattern, opts.CaseSensitive)
+	}
+	results = p.filterBySize(results, opts.MinSize, opts.MaxSize)
+	results = p.filterByTime(results, opts.ModifiedAfter, opts.ModifiedBefore)
+	if len(opts.FileTypes) > 0 {
+		results = p.filterBySearchFileTypes(results, opts.FileTypes)
+	}
+
+	return results, nil
+}
+
+// buildSearchCommand 构建搜索命令
+func (p *podOperator) buildSearchCommand(searchPath string, opts *types.FileSearchOptions) []string {
+	findExpr := fmt.Sprintf("find %s", searchPath)
+
+	if opts.MaxDepth > 0 {
+		findExpr += fmt.Sprintf(" -maxdepth %d", opts.MaxDepth)
+	}
+
+	if opts.Pattern != "" {
+		if opts.CaseSensitive {
+			findExpr += fmt.Sprintf(" -name '%s'", opts.Pattern)
+		} else {
+			findExpr += fmt.Sprintf(" -iname '%s'", opts.Pattern)
+		}
+	}
+
+	if len(opts.FileTypes) > 0 {
+		findExpr += " \\("
+		for i, ext := range opts.FileTypes {
+			if i > 0 {
+				findExpr += " -o"
+			}
+			if opts.CaseSensitive {
+				findExpr += fmt.Sprintf(" -name '*.%s'", ext)
+			} else {
+				findExpr += fmt.Sprintf(" -iname '*.%s'", ext)
+			}
+		}
+		findExpr += " \\)"
+	}
+
+	if opts.MinSize > 0 {
+		findExpr += fmt.Sprintf(" -size +%dc", opts.MinSize)
+	}
+	if opts.MaxSize > 0 {
+		findExpr += fmt.Sprintf(" -size -%dc", opts.MaxSize)
+	}
+
+	if opts.ModifiedAfter != nil {
+		days := int(time.Since(*opts.ModifiedAfter).Hours() / 24)
+		if days >= 0 {
+			findExpr += fmt.Sprintf(" -mtime -%d", days+1)
+		}
+	}
+	if opts.ModifiedBefore != nil {
+		days := int(time.Since(*opts.ModifiedBefore).Hours() / 24)
+		if days >= 0 {
+			findExpr += fmt.Sprintf(" -mtime +%d", days-1)
+		}
+	}
+
+	if !opts.FollowLinks {
+		findExpr += " ! -type l"
+	}
+
+	findExpr += " -printf '%p|%s|%T@|%y\\n'"
+
+	if opts.MaxResults > 0 {
+		findExpr += fmt.Sprintf(" 2>/dev/null | head -n %d", opts.MaxResults)
+	} else {
+		findExpr += " 2>/dev/null"
+	}
+
+	return []string{"sh", "-c", findExpr}
+}
+
+// parseSearchResults 解析搜索结果
+func (p *podOperator) parseSearchResults(output string, opts *types.FileSearchOptions) ([]types.FileSearchResult, error) {
+	results := []types.FileSearchResult{}
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		fields := strings.Split(line, "|")
+		if len(fields) < 4 {
+			continue
+		}
+
+		path := fields[0]
+		name := filepath.Base(path)
+
+		size, _ := strconv.ParseInt(fields[1], 10, 64)
+		timestamp, _ := strconv.ParseFloat(fields[2], 64)
+		fileType := fields[3]
+
+		isDir := fileType == "d"
+
+		var modTime time.Time
+		if timestamp > 0 {
+			modTime = time.Unix(int64(timestamp), 0)
+		}
+
+		result := types.FileSearchResult{
+			Path:    path,
+			Name:    name,
+			Size:    size,
+			ModTime: modTime,
+			IsDir:   isDir,
+			Matches: []types.ContentMatch{},
+		}
+
+		results = append(results, result)
+	}
+
+	return results, nil
+}
+
+// recursiveSearchWithLs 使用 ls 递归搜索
+func (p *podOperator) recursiveSearchWithLs(ctx context.Context, namespace, podName, container, currentPath, basePath string, depth int, opts *types.FileSearchOptions, results *[]types.FileSearchResult, visited map[string]bool) error {
+	if opts.MaxDepth > 0 && depth > opts.MaxDepth {
+		return nil
+	}
+
+	if len(*results) >= opts.MaxResults {
+		return nil
+	}
+
+	if visited[currentPath] {
+		return nil
+	}
+	visited[currentPath] = true
+
+	lsCmd := []string{"ls", "-la", currentPath}
+	stdout, _, err := p.ExecCommand(namespace, podName, container, lsCmd)
+	if err != nil {
+		return nil
+	}
+
+	lines := strings.Split(stdout, "\n")
+	for _, line := range lines {
+		if line == "" || strings.HasPrefix(line, "total") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) < 9 {
+			continue
+		}
+
+		name := strings.Join(fields[8:], " ")
+		if name == "." || name == ".." {
+			continue
+		}
+
+		fullPath := filepath.Join(currentPath, name)
+		isDir := strings.HasPrefix(fields[0], "d")
+		isLink := strings.HasPrefix(fields[0], "l")
+
+		if isLink && !opts.FollowLinks {
+			continue
+		}
+
+		size, _ := strconv.ParseInt(fields[4], 10, 64)
+		timeStr := fmt.Sprintf("%s %s %s", fields[5], fields[6], fields[7])
+		modTime := p.parseBusyBoxTime(timeStr)
+
+		result := types.FileSearchResult{
+			Path:    fullPath,
+			Name:    name,
+			Size:    size,
+			ModTime: modTime,
+			IsDir:   isDir,
+			Matches: []types.ContentMatch{},
+		}
+
+		*results = append(*results, result)
+
+		if isDir && depth < opts.MaxDepth {
+			p.recursiveSearchWithLs(ctx, namespace, podName, container, fullPath, basePath, depth+1, opts, results, visited)
+		}
+
+		if len(*results) >= opts.MaxResults {
+			return nil
+		}
+	}
+
+	return nil
+}
+
+// 搜索过滤方法
+func (p *podOperator) filterByPattern(results []types.FileSearchResult, pattern string, caseSensitive bool) []types.FileSearchResult {
+	filtered := []types.FileSearchResult{}
+	for _, result := range results {
+		matched := false
+		if caseSensitive {
+			matched, _ = filepath.Match(pattern, result.Name)
+		} else {
+			matched, _ = filepath.Match(strings.ToLower(pattern), strings.ToLower(result.Name))
+		}
+		if matched {
+			filtered = append(filtered, result)
+		}
+	}
+	return filtered
+}
+
+func (p *podOperator) filterBySize(results []types.FileSearchResult, minSize, maxSize int64) []types.FileSearchResult {
+	if minSize == 0 && maxSize == 0 {
+		return results
+	}
+	filtered := []types.FileSearchResult{}
+	for _, result := range results {
+		if result.IsDir {
+			filtered = append(filtered, result)
+			continue
+		}
+		if minSize > 0 && result.Size < minSize {
+			continue
+		}
+		if maxSize > 0 && result.Size > maxSize {
+			continue
+		}
+		filtered = append(filtered, result)
+	}
+	return filtered
+}
+
+func (p *podOperator) filterByTime(results []types.FileSearchResult, after, before *time.Time) []types.FileSearchResult {
+	if after == nil && before == nil {
+		return results
+	}
+	filtered := []types.FileSearchResult{}
+	for _, result := range results {
+		if after != nil && result.ModTime.Before(*after) {
+			continue
+		}
+		if before != nil && result.ModTime.After(*before) {
+			continue
+		}
+		filtered = append(filtered, result)
+	}
+	return filtered
+}
+
+func (p *podOperator) filterBySearchFileTypes(results []types.FileSearchResult, fileTypes []string) []types.FileSearchResult {
+	if len(fileTypes) == 0 {
+		return results
+	}
+	filtered := []types.FileSearchResult{}
+	for _, result := range results {
+		if result.IsDir {
+			filtered = append(filtered, result)
+			continue
+		}
+		ext := strings.TrimPrefix(filepath.Ext(result.Name), ".")
+		for _, fileType := range fileTypes {
+			if strings.EqualFold(ext, fileType) {
+				filtered = append(filtered, result)
+				break
+			}
+		}
+	}
+	return filtered
+}
+
+// performContentSearch 执行内容搜索
+func (p *podOperator) performContentSearch(ctx context.Context, namespace, podName, container string, results []types.FileSearchResult, opts *types.FileSearchOptions) []types.FileSearchResult {
+	logger := logx.WithContext(ctx)
+	filtered := []types.FileSearchResult{}
+
+	maxFiles := 50
+	if len(results) > maxFiles {
+		results = results[:maxFiles]
+	}
+
+	for _, result := range results {
+		if result.IsDir {
+			continue
+		}
+		if result.Size > 10*1024*1024 {
+			continue
+		}
+		if p.isBinaryFile(result.Path) {
+			continue
+		}
+
+		grepCmd := []string{"grep"}
+		if !opts.CaseSensitive {
+			grepCmd = append(grepCmd, "-i")
+		}
+		grepCmd = append(grepCmd, "-n", opts.ContentSearch, result.Path)
+
+		stdout, _, err := p.ExecCommand(namespace, podName, container, grepCmd)
+		if err != nil {
+			continue
+		}
+
+		matches := p.parseGrepOutput(stdout)
+		if len(matches) > 0 {
+			result.Matches = matches
+			filtered = append(filtered, result)
+			logger.Debugf("文件 %s 找到 %d 个匹配", result.Path, len(matches))
+		}
+	}
+
+	return filtered
+}
+
+// parseGrepOutput 解析 grep 输出
+func (p *podOperator) parseGrepOutput(output string) []types.ContentMatch {
+	matches := []types.ContentMatch{}
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		idx := strings.Index(line, ":")
+		if idx <= 0 {
+			continue
+		}
+
+		lineNum, err := strconv.Atoi(line[:idx])
+		if err != nil {
+			continue
+		}
+
+		content := line[idx+1:]
+		match := types.ContentMatch{
+			LineNumber: lineNum,
+			Line:       content,
+			Preview:    content,
+		}
+
+		if len(match.Preview) > 200 {
+			match.Preview = match.Preview[:200] + "..."
+		}
+
+		matches = append(matches, match)
+	}
+
+	return matches
+}
+
+// isBinaryFile 检查是否为二进制文件
+func (p *podOperator) isBinaryFile(path string) bool {
+	binaryExts := []string{
+		".exe", ".dll", ".so", ".bin", ".o", ".a",
+		".jpg", ".jpeg", ".png", ".gif", ".pdf",
+		".zip", ".tar", ".gz", ".mp3", ".mp4",
+		".class", ".jar",
+	}
+
+	ext := strings.ToLower(filepath.Ext(path))
+	for _, binExt := range binaryExts {
+		if ext == binExt {
+			return true
+		}
+	}
+	return false
+}
+
+// ensureContainerWithCache 确保容器名称有效
+func (p *podOperator) ensureContainerWithCache(namespace, podName, container string) (string, error) {
+	if container != "" {
+		var pod *corev1.Pod
+		var err error
+
+		if p.useInformer && p.podLister != nil {
+			pod, err = p.podLister.Pods(namespace).Get(podName)
+		} else {
+			pod, err = p.client.CoreV1().Pods(namespace).Get(p.ctx, podName, metav1.GetOptions{})
+		}
+
+		if err != nil {
+			return "", fmt.Errorf("获取Pod失败: %v", err)
+		}
+
+		for _, c := range pod.Spec.Containers {
+			if c.Name == container {
+				return container, nil
+			}
+		}
+		for _, c := range pod.Spec.InitContainers {
+			if c.Name == container {
+				return container, nil
+			}
+		}
+		for _, c := range pod.Spec.EphemeralContainers {
+			if c.Name == container {
+				return container, nil
+			}
+		}
+
+		return "", fmt.Errorf("容器 %s 不存在", container)
+	}
+
+	return p.GetDefaultContainer(namespace, podName)
+}

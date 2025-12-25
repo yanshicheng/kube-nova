@@ -1,0 +1,103 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: console-rpc
+  namespace: kube-nova
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: console-rpc
+  template:
+    metadata:
+      labels:
+        app: console-rpc
+        component: rpc
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9999"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: kube-nova-sa
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values: [console-rpc]
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: console-rpc
+          image: registry.cn-hangzhou.aliyuncs.com/kube-nova/console-rpc:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 30018
+            - name: metrics
+              containerPort: 9999
+          envFrom:
+            - secretRef:
+                name: kube-nova-secret
+          env:
+            - name: TZ
+              value: "Asia/Shanghai"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 9999
+            initialDelaySeconds: 0
+            periodSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9999
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9999
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: config
+              mountPath: /app/etc
+              readOnly: true
+            - name: cache
+              mountPath: /app/cache
+          securityContext:
+            runAsNonRoot: false
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+      volumes:
+        - name: config
+          configMap:
+            name: console-rpc-config
+        - name: cache
+          emptyDir:
+            sizeLimit: 1Gi

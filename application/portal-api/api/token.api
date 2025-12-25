@@ -1,0 +1,100 @@
+syntax = "v1"
+
+info(
+    title: "SysToken Service API"
+    desc: "API 服务用于管理系统Token相关操作"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // SysToken 表示Token信息
+    SysToken {
+        Id uint64 `json:"id"`                  // 自增主键
+        OwnerType int64 `json:"ownerType"`     // 所有者类型: 1-用户, 2-角色
+        OwnerId uint64 `json:"ownerId"`        // 所有者ID（用户ID或角色ID）
+        Token string `json:"token"`            // Token值
+        Name string `json:"name"`              // Token名称
+        Type int64 `json:"type"`               // 类型: 1-临时, 2-长期, 3-永久
+        ExpireTime int64 `json:"expireTime"`   // 过期时间
+        Status int64 `json:"status"`           // 状态: 0-禁用, 1-启用
+        CreatedBy string `json:"createdBy"`    // 记录创建人
+        UpdatedBy string `json:"updatedBy"`    // 记录更新人
+        CreatedAt int64 `json:"createdAt"`     // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`     // 更新时间
+    }
+
+        // 添加Token请求
+    AddSysTokenRequest {
+        OwnerType int64 `json:"ownerType" validate:"required,oneof=1 2"`        // 所有者类型
+        OwnerId uint64 `json:"ownerId" validate:"required,gt=0"`                // 所有者ID
+        Name string `json:"name" validate:"required,min=2,max=100"`             // Token名称
+        Type int64 `json:"type" validate:"required,oneof=1 2 3"`                // 类型
+        ExpireTime int64 `json:"expireTime,optional" validate:"omitempty"`      // 过期时间
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`  // 状态
+    }
+
+        // 添加Token响应
+    AddSysTokenResponse {
+        Token string `json:"token"` // 生成的Token值
+    }
+
+        // 搜索Token请求
+    SearchSysTokenRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                          // 当前页码
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"`         // 每页条数
+        OrderStr string `form:"orderStr,optional" default:"id" validate:"omitempty"`                      // 排序字段
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                           // 是否升序
+        OwnerType int64 `form:"ownerType,optional" validate:"omitempty,oneof=1 2"`                        // 所有者类型
+        OwnerId uint64 `form:"ownerId,optional" validate:"omitempty"`                                     // 所有者ID
+        Token string `form:"token,optional" validate:"omitempty,max=255"`                                 // Token值
+        Name string `form:"name,optional" validate:"omitempty,max=100"`                                   // Token名称
+        Type int64 `form:"type,optional" validate:"omitempty,oneof=1 2 3"`                                // 类型
+    }
+
+        // 搜索Token响应
+    SearchSysTokenResponse {
+        Items []SysToken `json:"items"` // Token列表
+        Total uint64 `json:"total"`     // 总条数
+    }
+
+        // 获取用户Token请求
+    GetSysTokenByUserIdRequest {
+        UserId uint64 `path:"userId" validate:"required,gt=0"` // 用户ID
+    }
+
+        // 获取用户Token响应
+    GetSysTokenByUserIdResponse {
+        Token string `json:"token"` // Token值
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: token
+    prefix: /portal/v1/token
+)
+service portal-api {
+    // 添加Token
+    @handler AddSysTokenHandler
+    post / (AddSysTokenRequest) returns (AddSysTokenResponse)
+
+    // 删除Token
+    @handler DelSysTokenHandler
+    delete /:id (DefaultIdRequest) returns (string)
+
+    // 根据ID获取Token
+    @handler GetSysTokenByIdHandler
+    get /:id (DefaultIdRequest) returns (SysToken)
+
+    // 搜索Token
+    @handler SearchSysTokenHandler
+    get / (SearchSysTokenRequest) returns (SearchSysTokenResponse)
+
+    // 根据用户ID获取Token
+    @handler GetSysTokenByUserIdHandler
+    get /user/:userId (GetSysTokenByUserIdRequest) returns (GetSysTokenByUserIdResponse)
+}

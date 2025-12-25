@@ -1,0 +1,1288 @@
+syntax = "v1"
+
+info(
+    title: "Container Registry API"
+    desc: "容器镜像仓库管理 API"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+
+type (
+    //================================镜像仓库基础数据结构================================
+    ContainerRegistry {
+        Id uint64 `json:"id"`
+        Name string `json:"name"`
+        Uuid string `json:"uuid"`
+        Type string `json:"type"`
+        Env string `json:"env"`
+        Url string `json:"url"`
+        Username string `json:"username"`
+        Password string `json:"password,optional"`
+        Insecure bool `json:"insecure"`
+        CaCert string `json:"caCert,optional"`
+        Config string `json:"config,optional"`
+        Status int32 `json:"status"`
+        Description string `json:"description,optional"`
+        CreatedBy string `json:"createdBy,optional"`
+        UpdatedBy string `json:"updatedBy,optional"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+        StorageTotal int64 `json:"storageTotal,optional"`
+        TotalProjects int64 `json:"totalProjects,optional"`
+        TotalRepositories int64 `json:"totalRepositories,optional"`
+    }
+
+    ContainerRegistryDetails {
+        Id uint64 `json:"id"`
+        Name string `json:"name"`
+        Uuid string `json:"uuid"`
+        Type string `json:"type"`
+        Env string `json:"env"`
+        Url string `json:"url"`
+        Username string `json:"username"`
+        Password string `json:"password,optional"`
+        Insecure bool `json:"insecure"`
+        CaCert string `json:"caCert,optional"`
+        Config string `json:"config,optional"`
+        Status int32 `json:"status"`
+        Description string `json:"description,optional"`
+        CreatedBy string `json:"createdBy,optional"`
+        UpdatedBy string `json:"updatedBy,optional"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+        StorageTotal int64 `json:"storageTotal,optional"`
+        StorageUsed int64 `json:"storageUsed,optional"`
+        StorageFree int64 `json:"storageFree,optional"`
+        TotalProjects int64 `json:"totalProjects,optional"`
+        PublicProjects int64 `json:"publicProjects,optional"`
+        PrivateProjects int64 `json:"privateProjects,optional"`
+        TotalRepositories int64 `json:"totalRepositories,optional"`
+        PublicRepositories int64 `json:"publicRepositories,optional"`
+        PrivateRepositories int64 `json:"privateRepositories,optional"`
+    }
+
+        //================================仓库与集群关联数据结构================================
+    RegistryCluster {
+        Id uint64 `json:"id"`
+        RegistryId uint64 `json:"registryId"`
+        ClusterUuid string `json:"clusterUuid"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+        Registry *ContainerRegistry `json:"registry,optional"`
+    }
+
+        //================================仓库项目与应用项目绑定数据结构================================
+    RegistryProjectBinding {
+        Id uint64 `json:"id"`
+        RegistryId uint64 `json:"registryId"`
+        AppProjectId uint64 `json:"appProjectId"`
+        RegistryProjectName string `json:"registryProjectName"`
+        RegistryProjectId string `json:"registryProjectId,optional"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+        Registry *ContainerRegistry `json:"registry,optional"`
+        ClusterUuid string `json:"clusterUuid,optional"`
+    }
+
+        //================================镜像仓库 CRUD================================
+    CreateRegistryRequest {
+        Name string `json:"name" validate:"required,min=1,max=64"`
+        Type string `json:"type" validate:"required,oneof=harbor docker-registry nexus"`
+        Env string `json:"env" validate:"required,oneof=dev test staging prod"`
+        Url string `json:"url" validate:"required,url"`
+        Username string `json:"username" validate:"required"`
+        Password string `json:"password" validate:"required"`
+        Insecure bool `json:"insecure"`
+        CaCert string `json:"caCert,optional"`
+        Config string `json:"config,optional"`
+        Status int32 `json:"status" validate:"required,oneof=0 1"`
+        Description string `json:"description,optional" validate:"max=500"`
+        CreatedBy string `json:"createdBy" validate:"required"`
+    }
+    CreateRegistryResponse {
+        Uuid string `json:"uuid"`
+        Message string `json:"message"`
+    }
+
+    UpdateRegistryRequest {
+        Id uint64 `path:"id" validate:"required,min=1"`
+        Name string `json:"name" validate:"required,min=1,max=64"`
+        Type string `json:"type" validate:"required,oneof=harbor docker-registry nexus"`
+        Env string `json:"env" validate:"required,oneof=dev test staging prod"`
+        Url string `json:"url" validate:"required,url"`
+        Username string `json:"username" validate:"required"`
+        Password string `json:"password" validate:"required"`
+        Insecure bool `json:"insecure"`
+        CaCert string `json:"caCert,optional"`
+        Config string `json:"config,optional"`
+        Status int32 `json:"status" validate:"required,oneof=0 1"`
+        Description string `json:"description,optional" validate:"max=500"`
+        UpdatedBy string `json:"updatedBy" validate:"required"`
+    }
+    UpdateRegistryResponse {
+        Message string `json:"message"`
+    }
+
+    DeleteRegistryRequest {
+        Id uint64 `path:"id" validate:"required,min=1"`
+    }
+    DeleteRegistryResponse {
+        Message string `json:"message"`
+    }
+
+    GetRegistryByUuidRequest {
+        Uuid string `path:"uuid" validate:"required"`
+    }
+    GetRegistryByUuidResponse {
+        Data ContainerRegistry `json:"data"`
+    }
+
+    GetRegistryDetailsRequest {
+        Uuid string `path:"uuid" validate:"required"`
+    }
+    GetRegistryDetailsResponse {
+        Data ContainerRegistryDetails `json:"data"`
+    }
+
+    TestRegistryConnectionRequest {
+        Url string `json:"url" validate:"required,url"`
+        Username string `json:"username" validate:"required"`
+        Password string `json:"password" validate:"required"`
+        Insecure bool `json:"insecure"`
+        CaCert string `json:"caCert,optional"`
+        Type string `json:"type" validate:"required,oneof=harbor docker-registry nexus"`
+    }
+    TestRegistryConnectionResponse {
+        Success bool `json:"success"`
+        Message string `json:"message"`
+    }
+
+        //================================仓库查询================================
+    ListRegistriesRequest {
+        Page uint64 `form:"page,default=1" validate:"min=1"`
+        PageSize uint64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+        OrderBy string `form:"orderBy,optional"`
+        IsAsc bool `form:"isAsc,default=true"`
+        Name string `form:"name,optional"`
+        Uuid string `form:"uuid,optional"`
+        Env string `form:"env,optional" validate:"omitempty,oneof=dev test staging prod"`
+        Type string `form:"type,optional" validate:"omitempty,oneof=harbor docker-registry nexus"`
+        Status int32 `form:"status,optional" validate:"omitempty,oneof=0 1"`
+    }
+    ListRegistriesResponse {
+        Data []ContainerRegistry `json:"data"`
+        Total uint64 `json:"total"`
+    }
+
+    ListRegistriesByProjectRequest {
+        AppProjectId uint64 `form:"appProjectId" validate:"required,min=1"`
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Page uint64 `form:"page,default=1" validate:"min=1"`
+        PageSize uint64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+        OrderBy string `form:"orderBy,optional"`
+        IsAsc bool `form:"isAsc,default=true"`
+        Name string `form:"name,optional"`
+        Env string `form:"env,optional" validate:"omitempty,oneof=dev test staging prod"`
+        Type string `form:"type,optional" validate:"omitempty,oneof=harbor docker-registry nexus"`
+    }
+    ListRegistriesByProjectResponse {
+        Data []ContainerRegistry `json:"data"`
+        Total uint64 `json:"total"`
+    }
+
+        //================================仓库与集群关联================================
+    BindRegistryToClusterRequest {
+        RegistryId uint64 `json:"registryId" validate:"required,min=1"`
+        ClusterUuid string `json:"clusterUuid" validate:"required"`
+    }
+    BindRegistryToClusterResponse {
+        Id uint64 `json:"id"`
+        Message string `json:"message"`
+    }
+
+    UnbindRegistryFromClusterRequest {
+        Id uint64 `path:"id" validate:"required,min=1"`
+    }
+    UnbindRegistryFromClusterResponse {
+        Message string `json:"message"`
+    }
+
+    ListClusterRegistriesRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        RegistryId uint64 `form:"registryId,optional"`
+    }
+    ListClusterRegistriesResponse {
+        Data []RegistryCluster `json:"data"`
+    }
+
+    ListRegistryClustersRequest {
+        RegistryId uint64 `form:"registryId" validate:"required,min=1"`
+    }
+    ListRegistryClustersResponse {
+        Data []RegistryCluster `json:"data"`
+    }
+
+        //================================仓库项目与应用项目绑定================================
+    BindRegistryProjectRequest {
+        RegistryId uint64 `json:"registryId" validate:"required,min=1"`
+        AppProjectId uint64 `json:"appProjectId" validate:"required,min=1"`
+        RegistryProjectName string `json:"registryProjectName" validate:"required"`
+        RegistryProjectId string `json:"registryProjectId,optional"`
+    }
+    BindRegistryProjectResponse {
+        Id uint64 `json:"id"`
+        Message string `json:"message"`
+    }
+
+    UnbindRegistryProjectRequest {
+        Id uint64 `path:"id" validate:"required,min=1"`
+    }
+    UnbindRegistryProjectResponse {
+        Message string `json:"message"`
+    }
+
+    ListProjectRegistryBindingsRequest {
+        RegistryId uint64 `form:"registryId,optional" validate:"required,min=1"`
+        RegistryProjectName string `form:"registryProjectName,optional" validate:"required"`
+    }
+    BindProjectIds {
+        Id uint64 `json:"id"`              // 绑定记录ID
+        ProjectId uint64 `json:"projectId"` // 业务项目ID
+    }
+    ListProjectRegistryBindingsResponse {
+        Data []BindProjectIds `json:"data"` 
+    }
+
+        //================================仓库项目操作================================
+    RegistryProject {
+        ProjectId int64 `json:"projectId"`
+        Name string `json:"name"`
+        OwnerName string `json:"ownerName,optional"`
+        IsPublic bool `json:"isPublic"`
+        RepoCount int64 `json:"repoCount"`
+        StorageLimit        int64  `json:"storageLimit"`         // 字节数
+        StorageUsed         int64  `json:"storageUsed"`          // 字节数
+        StorageLimitDisplay string `json:"storageLimitDisplay"` // 如 "10.00GB"
+        StorageUsedDisplay  string `json:"storageUsedDisplay"`  // 如 "5.00GB"
+        CreationTime int64 `json:"creationTime"`
+        UpdateTime int64 `json:"updateTime"`
+    }
+
+    ListProjectsRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        Search string `form:"search,optional"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+        SortBy string `form:"sortBy,optional"`
+        SortDesc bool `form:"sortDesc,default=false"`
+    }
+    ListProjectsResponse {
+        Items []RegistryProject `json:"items"`
+        Total int64 `json:"total"`
+        Page int64 `json:"page"`
+        PageSize int64 `json:"pageSize"`
+        TotalPages int64 `json:"totalPages"`
+    }
+
+    ListProjectsByAppRequest {
+        AppProjectId uint64 `form:"appProjectId" validate:"required,min=1"`
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        Search string `form:"search,optional"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+        SortBy string `form:"sortBy,optional"`
+        SortDesc bool `form:"sortDesc,default=false"`
+    }
+    ListProjectsByAppResponse {
+        Items []RegistryProject `json:"items"`
+        Total int64 `json:"total"`
+        Page int64 `json:"page"`
+        PageSize int64 `json:"pageSize"`
+        TotalPages int64 `json:"totalPages"`
+    }
+
+    GetProjectRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `path:"projectName" validate:"required"`
+    }
+    GetProjectResponse {
+        Data RegistryProject `json:"data"`
+    }
+
+    CreateProjectRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        ProjectName string `json:"projectName" validate:"required,min=2,max=255"`
+        IsPublic bool `json:"isPublic"`
+        StorageLimit int64 `json:"storageLimit,optional" validate:"min=-1"`
+        StorageUnit string `json:"storageUnit,optional,default=GB" validate:"omitempty,oneof=B KB MB GB TB"` // 🆕 新增
+        AppProjectId uint64 `json:"appProjectId,optional"`
+        ClusterUuid string `json:"clusterUuid,optional"`
+    }
+    CreateProjectResponse {
+    }
+
+    UpdateProjectRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        ProjectName string `path:"projectName" validate:"required"`
+        IsPublic bool `json:"isPublic"`
+        StorageLimit int64 `json:"storageLimit,optional" validate:"min=-1"`
+        StorageUnit string `json:"storageUnit,optional,default=GB" validate:"omitempty,oneof=B KB MB GB TB"` // 🆕 新增
+    }
+    UpdateProjectResponse {
+    }
+
+    DeleteProjectRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `path:"projectName" validate:"required"`
+    }
+    DeleteProjectResponse {
+        Message string `json:"message"`
+    }
+
+        //================================Repository 操作================================
+    Repository {
+        Id int64 `json:"id"`
+        Name string `json:"name"`
+        ProjectId int64 `json:"projectId"`
+        ProjectName string `json:"projectName"`
+        Description string `json:"description,optional"`
+        ArtifactCount int64 `json:"artifactCount"`
+        PullCount int64 `json:"pullCount"`
+        CreationTime int64 `json:"creationTime"`
+        UpdateTime int64 `json:"updateTime"`
+    }
+
+    ListRepositoriesRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `form:"projectName" validate:"required"`
+        Search string `form:"search,optional"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+        SortBy string `form:"sortBy,optional"`
+        SortDesc bool `form:"sortDesc,default=false"`
+    }
+    ListRepositoriesResponse {
+        Items []Repository `json:"items"`
+        Total int64 `json:"total"`
+        Page int64 `json:"page"`
+        PageSize int64 `json:"pageSize"`
+        TotalPages int64 `json:"totalPages"`
+    }
+
+    GetRepositoryRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `form:"projectName" validate:"required"`
+        RepoName string `path:"repoName" validate:"required"`
+    }
+    GetRepositoryResponse {
+        Data Repository `json:"data"`
+    }
+
+    DeleteRepositoryRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `form:"projectName" validate:"required"`
+        RepoName string `path:"repoName" validate:"required"`
+    }
+    DeleteRepositoryResponse {
+        Message string `json:"message"`
+    }
+
+        //================================制品/标签操作================================
+    Tag {
+        Id int64 `json:"id"`
+        Name string `json:"name"`
+        PushTime int64 `json:"pushTime"`
+        PullTime int64 `json:"pullTime"`
+        Immutable bool `json:"immutable"`
+        Signed bool `json:"signed"`
+    }
+
+    Artifact {
+        Id int64 `json:"id"`
+        Type string `json:"type"`
+        Digest string `json:"digest"`
+        Tags []Tag `json:"tags"`
+        PushTime int64 `json:"pushTime"`
+        PullTime int64 `json:"pullTime"`
+        Size int64 `json:"size"`
+        ManifestMediaType string `json:"manifestMediaType"`
+    }
+
+    ListArtifactsRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `form:"projectName" validate:"required"`
+        RepoName string `form:"repoName" validate:"required"`
+        Search string `form:"search,optional"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+        SortBy string `form:"sortBy,optional"`
+        SortDesc bool `form:"sortDesc,default=false"`
+    }
+    ListArtifactsResponse {
+        Items []Artifact `json:"items"`
+        Total int64 `json:"total"`
+        Page int64 `json:"page"`
+        PageSize int64 `json:"pageSize"`
+        TotalPages int64 `json:"totalPages"`
+    }
+
+    GetArtifactRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `form:"projectName" validate:"required"`
+        RepoName string `form:"repoName" validate:"required"`
+        Reference string `path:"reference" validate:"required"`
+    }
+    GetArtifactResponse {
+        Data Artifact `json:"data"`
+    }
+
+    DeleteArtifactRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `form:"projectName" validate:"required"`
+        RepoName string `form:"repoName" validate:"required"`
+        Reference string `path:"reference" validate:"required"`
+    }
+    DeleteArtifactResponse {
+        Message string `json:"message"`
+    }
+
+    DeleteTagRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `form:"projectName" validate:"required"`
+        RepoName string `form:"repoName" validate:"required"`
+        TagName string `path:"tagName" validate:"required"`
+    }
+    DeleteTagResponse {
+        Message string `json:"message"`
+    }
+
+        //================================镜像搜索================================
+    ImageSearchResult {
+        ProjectName string `json:"projectName"`
+        RepoName string `json:"repoName"`
+        Tags []string `json:"tags"`
+        ArtifactCount int64 `json:"artifactCount"`
+        PullCount int64 `json:"pullCount"`
+    }
+
+    RegistryImageSearchResult {
+        RegistryName string `json:"registryName"`
+        RegistryUuid string `json:"registryUuid"`
+        RegistryUrl string `json:"registryUrl"`
+        Images []ImageSearchResult `json:"images"`
+    }
+
+    SearchImagesGlobalRequest {
+        ImageName string `form:"imageName" validate:"required,min=1"`
+        RegistryType string `form:"registryType,optional" validate:"omitempty,oneof=harbor docker-registry nexus"`
+        Env string `form:"env,optional" validate:"omitempty,oneof=dev test staging prod"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+    }
+    SearchImagesGlobalResponse {
+        Data []RegistryImageSearchResult `json:"data"`
+        Total int64 `json:"total"`
+    }
+
+    SearchImagesGlobalByProjectRequest {
+        AppProjectId uint64 `form:"appProjectId" validate:"required,min=1"`
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        ImageName string `form:"imageName" validate:"required,min=1"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+    }
+    SearchImagesGlobalByProjectResponse {
+        Data []RegistryImageSearchResult `json:"data"`
+        Total int64 `json:"total"`
+    }
+
+    SearchImagesInRegistryRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ImageName string `form:"imageName" validate:"required,min=1"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+    }
+    SearchImagesInRegistryResponse {
+        Data []ImageSearchResult `json:"data"`
+        Total int64 `json:"total"`
+    }
+
+    SearchImagesInRegistryByProjectRequest {
+        AppProjectId uint64 `form:"appProjectId" validate:"required,min=1"`
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ImageName string `form:"imageName" validate:"required,min=1"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+    }
+    SearchImagesInRegistryByProjectResponse {
+        Data []ImageSearchResult `json:"data"`
+        Total int64 `json:"total"`
+    }
+
+        //================================配额管理================================
+    ProjectQuota {
+        StorageLimit int64 `json:"storageLimit"`
+        StorageUsed int64 `json:"storageUsed, optional"`
+        CountLimit int64 `json:"countLimit, optional"`
+        CountUsed int64 `json:"countUsed, optional"`
+    }
+
+    GetProjectQuotaRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `path:"projectName" validate:"required"`
+    }
+    GetProjectQuotaResponse {
+        Data ProjectQuota `json:"data"`
+    }
+
+    UpdateProjectQuotaRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        ProjectName string `path:"projectName" validate:"required"`
+        StorageLimit int64 `json:"storageLimit" validate:"min=-1"`
+        StorageUnit string `json:"storageUnit,optional,default=GB" validate:"omitempty,oneof=B KB MB GB TB"` // 🆕 新增
+        CountLimit int64 `json:"countLimit, optional" validate:"min=-1"`
+    }
+    UpdateProjectQuotaResponse {
+    }
+
+
+        //================================项目成员管理================================
+    ProjectMember {
+        Id int64 `json:"id"`
+        ProjectId int64 `json:"projectId"`
+        EntityName string `json:"entityName"`
+        EntityType string `json:"entityType"`
+        RoleId int64 `json:"roleId"`
+        RoleName string `json:"roleName"`
+        CreationTime int64 `json:"creationTime"`
+        UpdateTime int64 `json:"updateTime"`
+    }
+
+    ListProjectMembersRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `form:"projectName" validate:"required"`
+        Search string `form:"search,optional"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+    }
+    ListProjectMembersResponse {
+        Items []ProjectMember `json:"items"`
+        Total int64 `json:"total"`
+        Page int64 `json:"page"`
+        PageSize int64 `json:"pageSize"`
+        TotalPages int64 `json:"totalPages"`
+    }
+
+    GetProjectMemberRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `form:"projectName" validate:"required"`
+        MemberId int64 `path:"memberId" validate:"required"`
+    }
+    GetProjectMemberResponse {
+        Data ProjectMember `json:"data"`
+    }
+
+    AddProjectMemberRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        ProjectName string `json:"projectName" validate:"required"`
+        MemberUser string `json:"memberUser" validate:"required"`
+        RoleId int64 `json:"roleId" validate:"required,min=1,max=4"`
+    }
+    AddProjectMemberResponse {
+        Id int64 `json:"id"`
+        Message string `json:"message"`
+    }
+
+    UpdateProjectMemberRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        ProjectName string `json:"projectName" validate:"required"`
+        MemberId int64 `path:"memberId" validate:"required"`
+        RoleId int64 `json:"roleId" validate:"required,min=1,max=4"`
+    }
+    UpdateProjectMemberResponse {
+        Message string `json:"message"`
+    }
+
+    DeleteProjectMemberRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `form:"projectName" validate:"required"`
+        MemberId int64 `path:"memberId" validate:"required"`
+    }
+    DeleteProjectMemberResponse {
+        Message string `json:"message"`
+    }
+
+        //================================全局用户管理================================
+    HarborUser {
+        UserId int64 `json:"userId"`
+        Username string `json:"username"`
+        Email string `json:"email"`
+        Realname string `json:"realname"`
+        Comment string `json:"comment"`
+        CreationTime int64 `json:"creationTime"`
+        UpdateTime int64 `json:"updateTime"`
+        SysadminFlag bool `json:"sysadminFlag"`
+        AdminRoleInAuth bool `json:"adminRoleInAuth"`
+    }
+
+    CreateUserRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        Username string `json:"username" validate:"required,min=2,max=255"`
+        Email string `json:"email" validate:"required,email"`
+        Realname string `json:"realname" validate:"required"`
+        Password string `json:"password" validate:"required,min=8"`
+        Comment string `json:"comment,optional"`
+    }
+    CreateUserResponse {
+        UserId int64 `json:"userId"`
+        Message string `json:"message"`
+    }
+
+    ListUsersRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        Search string `form:"search,optional"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+    }
+    ListUsersResponse {
+        Items []HarborUser `json:"items"`
+        Total int64 `json:"total"`
+        Page int64 `json:"page"`
+        PageSize int64 `json:"pageSize"`
+        TotalPages int64 `json:"totalPages"`
+    }
+
+    GetUserRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        UserId int64 `path:"userId" validate:"required"`
+    }
+    GetUserResponse {
+        Data HarborUser `json:"data"`
+    }
+
+    UpdateUserRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        UserId int64 `path:"userId" validate:"required"`
+        Email string `json:"email,optional" validate:"omitempty,email"`
+        Realname string `json:"realname,optional"`
+        Comment string `json:"comment,optional"`
+    }
+    UpdateUserResponse {
+        Message string `json:"message"`
+    }
+
+    DeleteUserRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        UserId int64 `path:"userId" validate:"required"`
+    }
+    DeleteUserResponse {
+        Message string `json:"message"`
+    }
+
+    ChangeUserPasswordRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        UserId int64 `path:"userId" validate:"required"`
+        OldPassword string `json:"oldPassword" validate:"required"`
+        NewPassword string `json:"newPassword" validate:"required,min=8"`
+    }
+    ChangeUserPasswordResponse {
+        Message string `json:"message"`
+    }
+
+    SetUserAdminRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        UserId int64 `path:"userId" validate:"required"`
+        SysadminFlag bool `json:"sysadminFlag"`
+    }
+    SetUserAdminResponse {
+        Message string `json:"message"`
+    }
+)
+
+
+//================================垃圾回收管理================================
+type (
+    GCHistory {
+        Id int64 `json:"id"`
+        JobName string `json:"jobName"`
+        JobKind string `json:"jobKind"`
+        JobStatus string `json:"jobStatus"`
+        CreationTime int64 `json:"creationTime"`
+        UpdateTime int64 `json:"updateTime"`
+        DeleteUntagged bool `json:"deleteUntagged"`
+        JobParameters string `json:"jobParameters,optional"`
+    }
+
+    GCSchedule {
+        Schedule string `json:"schedule"`
+        Parameters map[string]string `json:"parameters"`
+    }
+
+    ListGCHistoryRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+    }
+    ListGCHistoryResponse {
+        Items []GCHistory `json:"items"`
+        Total int64 `json:"total"`
+        Page int64 `json:"page"`
+        PageSize int64 `json:"pageSize"`
+        TotalPages int64 `json:"totalPages"`
+    }
+
+    GetGCRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        GcId int64 `path:"gcId" validate:"required"`
+    }
+    GetGCResponse {
+        Data GCHistory `json:"data"`
+    }
+
+    GetGCLogRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        GcId int64 `path:"gcId" validate:"required"`
+    }
+    GetGCLogResponse {
+        Log string `json:"log"`
+    }
+
+    GetGCScheduleRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+    }
+    GetGCScheduleResponse {
+        Data GCSchedule `json:"data"`
+    }
+
+    UpdateGCScheduleRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        Schedule string `json:"schedule"`
+        DeleteUntagged bool `json:"deleteUntagged"`
+    }
+    UpdateGCScheduleResponse {
+        Message string `json:"message"`
+    }
+
+    TriggerGCRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        DeleteUntagged bool `json:"deleteUntagged"`
+        Workers int32 `json:"workers,optional"`
+    }
+    TriggerGCResponse {
+        JobId int64 `json:"jobId"`
+        Message string `json:"message"`
+    }
+)
+
+//================================保留策略管理================================
+type (
+    RetentionRule {
+        Id int64 `json:"id,optional"`
+        Priority int32 `json:"priority"`
+        Disabled bool `json:"disabled"`
+        Action string `json:"action"`
+        Template string `json:"template"`
+        Params map[string]string `json:"params"`
+        TagSelectors string `json:"tagSelectors"`
+        ScopeSelectors string `json:"scopeSelectors"`
+    }
+
+    RetentionPolicy {
+        Id int64 `json:"id"`
+        Algorithm string `json:"algorithm"`
+        Rules []RetentionRule `json:"rules"`
+        Trigger string `json:"trigger"`
+        Scope string `json:"scope"`
+        CreateTime int64 `json:"createTime"`
+        UpdateTime int64 `json:"updateTime"`
+    }
+
+    RetentionExecution {
+        Id int64 `json:"id"`
+        PolicyId int64 `json:"policyId"`
+        Status string `json:"status"`
+        Trigger string `json:"trigger"`
+        StartTime int64 `json:"startTime"`
+        EndTime int64 `json:"endTime"`
+        DryRun int32 `json:"dryRun"`
+    }
+
+    GetRetentionPolicyRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        ProjectName string `form:"projectName" validate:"required"`
+    }
+    GetRetentionPolicyResponse {
+        Data RetentionPolicy `json:"data"`
+    }
+
+    CreateRetentionPolicyRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        ProjectName string `json:"projectName" validate:"required"`
+        Algorithm string `json:"algorithm" validate:"required"`
+        Rules []RetentionRule `json:"rules" validate:"required"`
+        Schedule string `json:"schedule,optional"`
+    }
+    CreateRetentionPolicyResponse {
+        Id int64 `json:"id"`
+        Message string `json:"message"`
+    }
+
+    UpdateRetentionPolicyRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        PolicyId int64 `json:"policyId" validate:"required"`
+        Algorithm string `json:"algorithm" validate:"required"`
+        Rules []RetentionRule `json:"rules" validate:"required"`
+        Schedule string `json:"schedule,optional"`
+    }
+    UpdateRetentionPolicyResponse {
+        Message string `json:"message"`
+    }
+
+    ExecuteRetentionPolicyRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        PolicyId int64 `json:"policyId" validate:"required"`
+        DryRun bool `json:"dryRun"`
+    }
+    ExecuteRetentionPolicyResponse {
+        ExecutionId int64 `json:"executionId"`
+        Message string `json:"message"`
+    }
+
+    ListRetentionExecutionsRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        PolicyId int64 `form:"policyId" validate:"required"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+    }
+    ListRetentionExecutionsResponse {
+        Items []RetentionExecution `json:"items"`
+        Total int64 `json:"total"`
+        Page int64 `json:"page"`
+        PageSize int64 `json:"pageSize"`
+        TotalPages int64 `json:"totalPages"`
+    }
+)
+
+//================================复制策略管理================================
+type (
+    ReplicationFilter {
+        Type string `json:"type"`
+        Value string `json:"value"`
+        Decoration string `json:"decoration,optional"`
+    }
+
+    ReplicationTrigger {
+        Type string `json:"type"`
+        TriggerSettings map[string]string `json:"triggerSettings,optional"`
+    }
+
+    ReplicationPolicy {
+        Id int64 `json:"id"`
+        Name string `json:"name"`
+        Description string `json:"description,optional"`
+        SrcRegistry int64 `json:"srcRegistry"`
+        DestRegistry int64 `json:"destRegistry"`
+        DestNamespace string `json:"destNamespace,optional"`
+        Filters []ReplicationFilter `json:"filters,optional"`
+        Trigger ReplicationTrigger `json:"trigger"`
+        Deletion bool `json:"deletion"`
+        Override bool `json:"override"`
+        Enabled bool `json:"enabled"`
+        CreationTime int64 `json:"creationTime"`
+        UpdateTime int64 `json:"updateTime"`
+    }
+
+    ReplicationExecution {
+        Id int64 `json:"id"`
+        PolicyId int64 `json:"policyId"`
+        Status string `json:"status"`
+        Trigger string `json:"trigger"`
+        StartTime int64 `json:"startTime"`
+        EndTime int64 `json:"endTime"`
+        Succeed int64 `json:"succeed"`
+        Failed int64 `json:"failed"`
+        InProgress int64 `json:"inProgress"`
+        Stopped int64 `json:"stopped"`
+    }
+
+    ListReplicationPoliciesRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        Name string `form:"name,optional"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+    }
+    ListReplicationPoliciesResponse {
+        Items []ReplicationPolicy `json:"items"`
+        Total int64 `json:"total"`
+        Page int64 `json:"page"`
+        PageSize int64 `json:"pageSize"`
+        TotalPages int64 `json:"totalPages"`
+    }
+
+    GetReplicationPolicyRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        PolicyId int64 `path:"policyId" validate:"required"`
+    }
+    GetReplicationPolicyResponse {
+        Data ReplicationPolicy `json:"data"`
+    }
+
+    CreateReplicationPolicyRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        Name string `json:"name" validate:"required"`
+        Description string `json:"description,optional"`
+        SrcRegistry int64 `json:"srcRegistry" validate:"required"`
+        DestRegistry int64 `json:"destRegistry" validate:"required"`
+        DestNamespace string `json:"destNamespace,optional"`
+        Filters []ReplicationFilter `json:"filters,optional"`
+        Trigger ReplicationTrigger `json:"trigger" validate:"required"`
+        Deletion bool `json:"deletion"`
+        Override bool `json:"override"`
+        Enabled bool `json:"enabled"`
+    }
+    CreateReplicationPolicyResponse {
+        Id int64 `json:"id"`
+        Message string `json:"message"`
+    }
+
+    UpdateReplicationPolicyRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        PolicyId int64 `path:"policyId" validate:"required"`
+        Name string `json:"name" validate:"required"`
+        Description string `json:"description,optional"`
+        SrcRegistry int64 `json:"srcRegistry" validate:"required"`
+        DestRegistry int64 `json:"destRegistry" validate:"required"`
+        DestNamespace string `json:"destNamespace,optional"`
+        Filters []ReplicationFilter `json:"filters,optional"`
+        Trigger ReplicationTrigger `json:"trigger" validate:"required"`
+        Deletion bool `json:"deletion"`
+        Override bool `json:"override"`
+        Enabled bool `json:"enabled"`
+    }
+    UpdateReplicationPolicyResponse {
+        Message string `json:"message"`
+    }
+
+    DeleteReplicationPolicyRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        PolicyId int64 `path:"policyId" validate:"required"`
+    }
+    DeleteReplicationPolicyResponse {
+        Message string `json:"message"`
+    }
+
+    ExecuteReplicationPolicyRequest {
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        PolicyId int64 `json:"policyId" validate:"required"`
+    }
+    ExecuteReplicationPolicyResponse {
+        ExecutionId int64 `json:"executionId"`
+        Message string `json:"message"`
+    }
+
+    ListReplicationExecutionsRequest {
+        RegistryUuid string `form:"registryUuid" validate:"required"`
+        PolicyId int64 `form:"policyId" validate:"required"`
+        Page int64 `form:"page,default=1" validate:"min=1"`
+        PageSize int64 `form:"pageSize,default=20" validate:"min=1,max=100"`
+    }
+    ListReplicationExecutionsResponse {
+        Items []ReplicationExecution `json:"items"`
+        Total int64 `json:"total"`
+        Page int64 `json:"page"`
+        PageSize int64 `json:"pageSize"`
+        TotalPages int64 `json:"totalPages"`
+    }
+)
+
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: registry
+    prefix: /console/v1/registry
+)
+
+service console-api {
+    // ============ 镜像仓库管理（管理员操作）============
+    @doc "创建镜像仓库"
+    @handler CreateRegistryHandler
+    post /registries (CreateRegistryRequest) returns (string)
+
+    @doc "更新镜像仓库"
+    @handler UpdateRegistryHandler
+    put /registries/:id (UpdateRegistryRequest) returns (string)
+
+    @doc "删除镜像仓库"
+    @handler DeleteRegistryHandler
+    delete /registries/:id (DeleteRegistryRequest) returns (string)
+
+    @doc "根据UUID查询仓库"
+    @handler GetRegistryByUuidHandler
+    get /registries/uuid/:uuid (GetRegistryByUuidRequest) returns (GetRegistryByUuidResponse)
+
+    @doc "获取仓库详情"
+    @handler GetRegistryDetailsHandler
+    get /registries/:uuid/details (GetRegistryDetailsRequest) returns (GetRegistryDetailsResponse)
+
+    @doc "测试仓库连接"
+    @handler TestRegistryConnectionHandler
+    post /registries/test-connection (TestRegistryConnectionRequest) returns (string)
+
+    // ============ 仓库查询（管理员视角 + 项目视角）============
+
+    @doc "查询所有仓库（管理员）"
+    @handler ListRegistriesHandler
+    get /registries (ListRegistriesRequest) returns (ListRegistriesResponse)
+
+    @doc "查询项目关联的仓库（项目视角）"
+    @handler ListRegistriesByProjectHandler
+    get /registries/by-project (ListRegistriesByProjectRequest) returns (ListRegistriesByProjectResponse)
+
+    // ============ 仓库与集群关联（管理员操作）============
+
+    @doc "绑定仓库到集群"
+    @handler BindRegistryToClusterHandler
+    post /registry-clusters (BindRegistryToClusterRequest) returns (string)
+
+    @doc "解绑仓库与集群"
+    @handler UnbindRegistryFromClusterHandler
+    delete /registry-clusters/:id (UnbindRegistryFromClusterRequest) returns (string)
+
+    @doc "查询集群的仓库列表"
+    @handler ListClusterRegistriesHandler
+    get /registry-clusters/by-cluster (ListClusterRegistriesRequest) returns (ListClusterRegistriesResponse)
+
+    @doc "查询仓库的集群列表"
+    @handler ListRegistryClustersHandler
+    get /registry-clusters/by-registry (ListRegistryClustersRequest) returns (ListRegistryClustersResponse)
+
+    // ============ 仓库项目与应用项目绑定（管理员操作）============
+
+    @doc "绑定仓库项目到应用项目"
+    @handler BindRegistryProjectHandler
+    post /project-bindings (BindRegistryProjectRequest) returns (string)
+
+    @doc "解绑仓库项目"
+    @handler UnbindRegistryProjectHandler
+    delete /project-bindings/:id (UnbindRegistryProjectRequest) returns (string)
+
+    @doc "查询应用项目的仓库项目绑定"
+    @handler ListProjectRegistryBindingsHandler
+    get /project-bindings (ListProjectRegistryBindingsRequest) returns (ListProjectRegistryBindingsResponse)
+
+    // ============ 仓库项目操作============
+
+    @doc "查询仓库所有项目（管理员）"
+    @handler ListProjectsHandler
+    get /projects (ListProjectsRequest) returns (ListProjectsResponse)
+
+    @doc "查询应用项目关联的仓库项目（项目视角）"
+    @handler ListProjectsByAppHandler
+    get /projects/by-app (ListProjectsByAppRequest) returns (ListProjectsByAppResponse)
+
+    @doc "获取项目详情"
+    @handler GetProjectHandler
+    get /projects/:projectName (GetProjectRequest) returns (GetProjectResponse)
+
+    @doc "创建仓库项目"
+    @handler CreateProjectHandler
+    post /projects (CreateProjectRequest) returns (string)
+
+    @doc "更新仓库项目"
+    @handler UpdateProjectHandler
+    put /projects/:projectName (UpdateProjectRequest) returns (string)
+
+    @doc "删除仓库项目"
+    @handler DeleteProjectHandler
+    delete /projects/:projectName (DeleteProjectRequest) returns (string)
+
+    // ============ Repository 操作 ============
+
+    @doc "查询仓库列表"
+    @handler ListRepositoriesHandler
+    get /repositories (ListRepositoriesRequest) returns (ListRepositoriesResponse)
+
+    @doc "获取仓库详情"
+    @handler GetRepositoryHandler
+    get /repositories/:repoName (GetRepositoryRequest) returns (GetRepositoryResponse)
+
+    @doc "删除仓库"
+    @handler DeleteRepositoryHandler
+    delete /repositories/:repoName (DeleteRepositoryRequest) returns (string)
+
+    // ============ 制品/标签操作 ============
+
+    @doc "查询制品列表"
+    @handler ListArtifactsHandler
+    get /artifacts (ListArtifactsRequest) returns (ListArtifactsResponse)
+
+    @doc "获取制品详情"
+    @handler GetArtifactHandler
+    get /artifacts/:reference (GetArtifactRequest) returns (GetArtifactResponse)
+
+    @doc "删除制品"
+    @handler DeleteArtifactHandler
+    delete /artifacts/:reference (DeleteArtifactRequest) returns (string)
+
+    @doc "删除标签"
+    @handler DeleteTagHandler
+    delete /tags/:tagName (DeleteTagRequest) returns (string)
+
+    // ============ 镜像搜索 ============
+
+    @doc "全局搜索镜像（管理员）"
+    @handler SearchImagesGlobalHandler
+    get /images/search/global (SearchImagesGlobalRequest) returns (SearchImagesGlobalResponse)
+
+    @doc "全局搜索镜像（项目视角）"
+    @handler SearchImagesGlobalByProjectHandler
+    get /images/search/global-by-project (SearchImagesGlobalByProjectRequest) returns (SearchImagesGlobalByProjectResponse)
+
+    @doc "仓库内搜索镜像（管理员）"
+    @handler SearchImagesInRegistryHandler
+    get /images/search/in-registry (SearchImagesInRegistryRequest) returns (SearchImagesInRegistryResponse)
+
+    @doc "仓库内搜索镜像（项目视角）"
+    @handler SearchImagesInRegistryByProjectHandler
+    get /images/search/in-registry-by-project (SearchImagesInRegistryByProjectRequest) returns (SearchImagesInRegistryByProjectResponse)
+
+    // ============ 配额管理 ============
+
+    @doc "获取项目配额"
+    @handler GetProjectQuotaHandler
+    get /quota/:projectName (GetProjectQuotaRequest) returns (GetProjectQuotaResponse)
+
+    @doc "更新项目配额"
+    @handler UpdateProjectQuotaHandler
+    put /quota/:projectName (UpdateProjectQuotaRequest) returns (string)
+
+    // ============ 项目成员管理 ============
+    @doc "列出项目成员"
+    @handler ListProjectMembersHandler
+    get /project-members (ListProjectMembersRequest) returns (ListProjectMembersResponse)
+
+    @doc "获取项目成员详情"
+    @handler GetProjectMemberHandler
+    get /project-members/:memberId (GetProjectMemberRequest) returns (GetProjectMemberResponse)
+
+    @doc "添加项目成员"
+    @handler AddProjectMemberHandler
+    post /project-members (AddProjectMemberRequest) returns (string)
+
+    @doc "更新项目成员角色"
+    @handler UpdateProjectMemberHandler
+    put /project-members/:memberId (UpdateProjectMemberRequest) returns (string)
+
+    @doc "删除项目成员"
+    @handler DeleteProjectMemberHandler
+    delete /project-members/:memberId (DeleteProjectMemberRequest) returns (string)
+
+    // ============ 全局用户管理 ============
+    @doc "创建Harbor用户"
+    @handler CreateUserHandler
+    post /users (CreateUserRequest) returns (string)
+
+    @doc "列出Harbor用户"
+    @handler ListUsersHandler
+    get /users (ListUsersRequest) returns (ListUsersResponse)
+
+    @doc "获取Harbor用户详情"
+    @handler GetUserHandler
+    get /users/:userId (GetUserRequest) returns (GetUserResponse)
+
+    @doc "更新Harbor用户"
+    @handler UpdateUserHandler
+    put /users/:userId (UpdateUserRequest) returns (string)
+
+    @doc "删除Harbor用户"
+    @handler DeleteUserHandler
+    delete /users/:userId (DeleteUserRequest) returns (string)
+
+    @doc "修改用户密码"
+    @handler ChangeUserPasswordHandler
+    put /users/:userId/password (ChangeUserPasswordRequest) returns (string)
+
+    @doc "设置用户管理员权限"
+    @handler SetUserAdminHandler
+    put /users/:userId/admin (SetUserAdminRequest) returns (string)
+
+
+    // ============ 垃圾回收管理 ============
+    @doc "列出GC历史"
+    @handler ListGCHistoryHandler
+    get /gc/history (ListGCHistoryRequest) returns (ListGCHistoryResponse)
+
+    @doc "获取GC详情"
+    @handler GetGCHandler
+    get /gc/:gcId (GetGCRequest) returns (GetGCResponse)
+
+    @doc "获取GC日志"
+    @handler GetGCLogHandler
+    get /gc/:gcId/log (GetGCLogRequest) returns (GetGCLogResponse)
+
+    @doc "获取GC调度配置"
+    @handler GetGCScheduleHandler
+    get /gc/schedule (GetGCScheduleRequest) returns (GetGCScheduleResponse)
+
+    @doc "更新GC调度配置"
+    @handler UpdateGCScheduleHandler
+    put /gc/schedule (UpdateGCScheduleRequest) returns (string)
+
+    @doc "手动触发GC"
+    @handler TriggerGCHandler
+    post /gc/trigger (TriggerGCRequest) returns (string)
+
+    // ============ 保留策略管理 ============
+    @doc "获取项目保留策略"
+    @handler GetRetentionPolicyHandler
+    get /retention/policy (GetRetentionPolicyRequest) returns (GetRetentionPolicyResponse)
+
+    @doc "创建保留策略"
+    @handler CreateRetentionPolicyHandler
+    post /retention/policy (CreateRetentionPolicyRequest) returns (string)
+
+    @doc "更新保留策略"
+    @handler UpdateRetentionPolicyHandler
+    put /retention/policy (UpdateRetentionPolicyRequest) returns (string)
+
+    @doc "执行保留策略"
+    @handler ExecuteRetentionPolicyHandler
+    post /retention/policy/execute (ExecuteRetentionPolicyRequest) returns (string)
+
+    @doc "列出保留策略执行历史"
+    @handler ListRetentionExecutionsHandler
+    get /retention/executions (ListRetentionExecutionsRequest) returns (ListRetentionExecutionsResponse)
+
+    // ============ 复制策略管理 ============
+    @doc "列出复制策略"
+    @handler ListReplicationPoliciesHandler
+    get /replication/policies (ListReplicationPoliciesRequest) returns (ListReplicationPoliciesResponse)
+
+    @doc "获取复制策略"
+    @handler GetReplicationPolicyHandler
+    get /replication/policies/:policyId (GetReplicationPolicyRequest) returns (GetReplicationPolicyResponse)
+
+    @doc "创建复制策略"
+    @handler CreateReplicationPolicyHandler
+    post /replication/policies (CreateReplicationPolicyRequest) returns (string)
+
+    @doc "更新复制策略"
+    @handler UpdateReplicationPolicyHandler
+    put /replication/policies/:policyId (UpdateReplicationPolicyRequest) returns (string)
+
+    @doc "删除复制策略"
+    @handler DeleteReplicationPolicyHandler
+    delete /replication/policies/:policyId (DeleteReplicationPolicyRequest) returns (string)
+
+    @doc "执行复制策略"
+    @handler ExecuteReplicationPolicyHandler
+    post /replication/policies/execute (ExecuteReplicationPolicyRequest) returns (string)
+
+    @doc "列出复制执行历史"
+    @handler ListReplicationExecutionsHandler
+    get /replication/executions (ListReplicationExecutionsRequest) returns (ListReplicationExecutionsResponse)
+}

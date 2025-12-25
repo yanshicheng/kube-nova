@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: manager-api
+  namespace: kube-nova
+spec:
+  type: ClusterIP
+  selector:
+    app: manager-api
+  ports:
+    - name: http
+      port: 8811
+      targetPort: 8811

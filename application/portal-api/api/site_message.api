@@ -1,0 +1,162 @@
+syntax = "v1"
+
+info(
+    title: "Site Message Service API"
+    desc: "站内消息服务 API"
+    author: "System"
+    email: "system@example.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // SiteMessages 站内消息信息
+    SiteMessages {
+        Id uint64 `json:"id"`                         // 主键ID
+        Uuid string `json:"uuid"`                     // 消息UUID
+        NotificationId uint64 `json:"notificationId"` // 关联的通知记录ID(0=平台消息无关联)
+        InstanceId uint64 `json:"instanceId"`         // 关联的告警实例ID(0=无关联)
+        UserId uint64 `json:"userId"`                 // 接收用户ID
+        Title string `json:"title"`                   // 消息标题
+        Content string `json:"content"`               // 消息内容(支持Markdown)
+        MessageType string `json:"messageType"`       // 消息类型(alert=告警, notification=通知, system=系统消息)
+        Severity string `json:"severity"`             // 严重级别(info, warning, critical)
+        Category string `json:"category"`             // 消息分类(便于筛选)
+        ExtraData string `json:"extraData"`           // 扩展数据(JSON格式)
+        ActionUrl string `json:"actionUrl"`           // 操作链接
+        ActionText string `json:"actionText"`         // 操作按钮文本
+        IsRead int64 `json:"isRead"`                  // 是否已读
+        ReadAt int64 `json:"readAt"`                  // 阅读时间
+        IsStarred int64 `json:"isStarred"`            // 是否标星
+        ExpireAt int64 `json:"expireAt"`              // 过期时间
+        CreatedAt int64 `json:"createdAt"`            // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`            // 更新时间
+    }
+
+        // 删除站内消息请求
+    DelSiteMessagesRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"` // 消息ID
+    }
+
+        // 根据ID获取站内消息请求
+    GetSiteMessagesByIdRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"` // 消息ID
+    }
+
+        // 根据ID获取站内消息响应
+    GetSiteMessagesByIdResponse {
+        Data SiteMessages `json:"data"` // 消息详情
+    }
+
+        // 搜索站内消息请求
+    SearchSiteMessagesRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                  // 当前页码
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"` // 每页条数
+        OrderStr string `form:"orderStr,optional" default:"id" validate:"omitempty"`              // 排序字段
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                   // 是否升序
+        Uuid string `form:"uuid,optional" validate:"omitempty,max=100"`                           // 消息UUID
+        Title string `form:"title,optional" validate:"omitempty,max=200"`                         // 消息标题(模糊查询)
+        Severity string `form:"severity,optional" validate:"omitempty,max=50"`                    // 严重级别
+        Category string `form:"category,optional" validate:"omitempty,max=50"`                    // 消息分类
+        IsRead int64 `form:"isRead,optional" validate:"omitempty,oneof=1 0 3"`                   // 是否已读(-1=全部,0=未读,1=已读)
+    }
+
+        // 搜索站内消息响应
+    SearchSiteMessagesResponse {
+        Items []SiteMessages `json:"items"` // 消息列表
+        Total uint64 `json:"total"`         // 总条数
+    }
+
+        // 设置全部已读请求
+    SetAllReadRequest {
+    }
+
+        // 批量删除站内消息请求
+    BatchDelSiteMessagesRequest {
+        Ids []uint64 `json:"ids" validate:"required,min=1"` // 消息ID列表
+    }
+
+        // 批量已读站内消息请求
+    BatchReadSiteMessagesRequest {
+        Ids []uint64 `json:"ids" validate:"required,min=1"` // 消息ID列表
+    }
+
+        // 获取未读消息数量请求
+    GetUnreadCountRequest {
+    }
+
+        // 获取未读消息数量响应
+    GetUnreadCountResponse {
+        Count uint64 `json:"count"` // 未读消息数量
+    }
+
+        // ==================== WebSocket 相关类型 ====================
+
+        // WebSocket 连接请求（通过 JWT token 获取 userId）
+    SiteMessageWSConnectRequest {
+    }
+
+        // 消息统计信息
+    MessageStatsResponse {
+        Total uint64 `json:"total"`   // 总消息数
+        Unread uint64 `json:"unread"` // 未读数
+        Read uint64 `json:"read"`     // 已读数
+    }
+
+        // 获取消息统计
+    GetMessageStatsRequest {
+    }
+)
+
+// ==================== REST API 路由 ====================
+@server(
+    middleware: JWTAuthMiddleware
+    group: sitemessage
+    prefix: /portal/v1/site-messages
+)
+service portal-api {
+    // 删除站内消息
+    @handler DelSiteMessagesHandler
+    delete /:id (DelSiteMessagesRequest) returns (string)
+
+    // 根据ID获取站内消息
+    @handler GetSiteMessagesByIdHandler
+    get /:id (GetSiteMessagesByIdRequest) returns (GetSiteMessagesByIdResponse)
+
+    // 搜索站内消息 返回的是某一个用户的 userid 从 ctx 中获取
+    @handler SearchSiteMessagesHandler
+    get / (SearchSiteMessagesRequest) returns (SearchSiteMessagesResponse)
+
+    // 设置全部已读
+    @handler SetAllReadHandler
+    post /set-all-read (SetAllReadRequest) returns (string)
+
+    // 批量删除站内消息
+    @handler BatchDelSiteMessagesHandler
+    post /batch-delete (BatchDelSiteMessagesRequest) returns (string)
+
+    // 批量已读站内消息
+    @handler BatchReadSiteMessagesHandler
+    post /batch-read (BatchReadSiteMessagesRequest) returns (string)
+
+    // 获取未读消息数量
+    @handler GetUnreadCountHandler
+    get /unread-count (GetUnreadCountRequest) returns (GetUnreadCountResponse)
+
+    // 获取消息统计
+    @handler GetMessageStatsHandler
+    get /stats (GetMessageStatsRequest) returns (MessageStatsResponse)
+}
+
+// ==================== WebSocket 路由 ====================
+@server(
+    middleware: JWTAuthMiddleware
+    group: sitemessage
+    prefix: /ws/v1/site-messages
+)
+service portal-api {
+    @doc "站内消息实时推送（WebSocket）"
+    @handler SiteMessageWSConnectHandler
+    get /connect (SiteMessageWSConnectRequest) // WebSocket 连接
+}

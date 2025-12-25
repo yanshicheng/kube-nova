@@ -1,0 +1,522 @@
+syntax = "v1"
+
+info(
+    title: "Alert Rule Management API"
+    desc: "告警规则管理相关接口"
+    author: "System"
+    email: "admin@example.com"
+    version: "2.0"
+)
+
+import "./base.api"
+
+type (
+    // ===================== 告警规则文件相关 =====================
+
+    // 告警规则文件信息
+    AlertRuleFile {
+        Id uint64 `json:"id"`                       // 主键ID
+        FileCode string `json:"fileCode"`           // 文件代码
+        FileName string `json:"fileName"`           // 文件名称
+        Description string `json:"description"`     // 文件描述
+        Namespace string `json:"namespace"`         // 命名空间
+        Labels string `json:"labels"`               // 标签(JSON格式)
+        IsEnabled bool `json:"isEnabled"`           // 是否启用
+        SortOrder int64 `json:"sortOrder"`          // 排序序号
+        GroupCount int64 `json:"groupCount"`        // 关联的分组数量
+        RuleCount int64 `json:"ruleCount"`          // 关联的规则数量
+        CreatedBy string `json:"createdBy"`         // 创建人
+        UpdatedBy string `json:"updatedBy"`         // 更新人
+        CreatedAt int64 `json:"createdAt"`          // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`          // 更新时间
+    }
+
+        // 添加告警规则文件请求
+    AddAlertRuleFileRequest {
+        FileCode string `json:"fileCode" validate:"required,max=50"`                // 文件代码
+        FileName string `json:"fileName" validate:"required,min=1,max=100"`         // 文件名称
+        Description string `json:"description" validate:"omitempty,max=500"`        // 文件描述
+        Namespace string `json:"namespace" validate:"required,max=63"`              // 命名空间
+        Labels string `json:"labels" validate:"omitempty"`                          // 标签
+        IsEnabled bool `json:"isEnabled"`                                           // 是否启用
+        SortOrder int64 `json:"sortOrder" validate:"omitempty"`                     // 排序序号
+    }
+
+        // 更新告警规则文件请求
+    UpdateAlertRuleFileRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                              // 主键ID
+        FileCode string `json:"fileCode" validate:"required,max=50"`                // 文件代码
+        FileName string `json:"fileName" validate:"required,min=1,max=100"`         // 文件名称
+        Description string `json:"description" validate:"omitempty,max=500"`        // 文件描述
+        Namespace string `json:"namespace" validate:"required,max=63"`              // 命名空间
+        Labels string `json:"labels" validate:"omitempty"`                          // 标签
+        IsEnabled bool `json:"isEnabled"`                                           // 是否启用
+        SortOrder int64 `json:"sortOrder" validate:"omitempty"`                     // 排序序号
+    }
+
+        // 删除告警规则文件请求
+    DeleteAlertRuleFileRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                              // 主键ID
+        Cascade bool `form:"cascade,optional"`                                      // 是否级联删除
+    }
+
+        // 搜索告警规则文件请求
+    SearchAlertRuleFileRequest {
+        Page uint64 `form:"page" validate:"omitempty,gt=0"`                         // 页码
+        PageSize uint64 `form:"pageSize" validate:"omitempty"`                      // 每页数量
+        OrderField string `form:"orderField,optional" validate:"omitempty,max=50"`  // 排序字段
+        IsAsc bool `form:"isAsc,optional"`                                          // 是否升序
+        FileCode string `form:"fileCode,optional" validate:"omitempty,max=50"`      // 文件代码
+        FileName string `form:"fileName,optional" validate:"omitempty,max=100"`     // 文件名称
+        Namespace string `form:"namespace,optional" validate:"omitempty,max=63"`    // 命名空间
+    }
+
+        // 搜索告警规则文件响应
+    SearchAlertRuleFileResponse {
+        Items []AlertRuleFile `json:"items"`        // 告警规则文件列表
+        Total uint64 `json:"total"`                 // 总数
+    }
+
+        // 列表查询告警规则文件请求(无分页)
+    ListAlertRuleFileRequest {
+        Namespace string `form:"namespace,optional" validate:"omitempty,max=63"`    // 命名空间
+    }
+
+        // ===================== 告警规则分组相关 =====================
+
+        // 告警规则分组信息
+    AlertRuleGroup {
+        Id uint64 `json:"id"`                       // 主键ID
+        FileId uint64 `json:"fileId"`               // 文件ID
+        GroupCode string `json:"groupCode"`         // 分组代码
+        GroupName string `json:"groupName"`         // 分组名称
+        Description string `json:"description"`     // 分组描述
+        Interval string `json:"interval"`           // 告警间隔
+        IsEnabled bool `json:"isEnabled"`           // 是否启用
+        SortOrder int64 `json:"sortOrder"`          // 排序序号
+        RuleCount int64 `json:"ruleCount"`          // 关联的规则数量
+        FileCode string `json:"fileCode"`           // 所属文件代码
+        FileName string `json:"fileName"`           // 所属文件名称
+        CreatedBy string `json:"createdBy"`         // 创建人
+        UpdatedBy string `json:"updatedBy"`         // 更新人
+        CreatedAt int64 `json:"createdAt"`          // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`          // 更新时间
+    }
+
+        // 添加告警规则分组请求
+    AddAlertRuleGroupRequest {
+        FileId uint64 `json:"fileId" validate:"required,gt=0"`                      // 文件ID
+        GroupCode string `json:"groupCode" validate:"required,max=50"`              // 分组代码
+        GroupName string `json:"groupName" validate:"required,min=1,max=100"`       // 分组名称
+        Description string `json:"description" validate:"omitempty,max=500"`        // 分组描述
+        Interval string `json:"interval" validate:"required"`                       // 告警间隔
+        IsEnabled bool `json:"isEnabled"`                                           // 是否启用
+        SortOrder int64 `json:"sortOrder" validate:"omitempty"`                     // 排序序号
+    }
+
+        // 更新告警规则分组请求
+    UpdateAlertRuleGroupRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                              // 主键ID
+        GroupCode string `json:"groupCode" validate:"required,max=50"`              // 分组代码
+        GroupName string `json:"groupName" validate:"required,min=1,max=100"`       // 分组名称
+        Description string `json:"description" validate:"omitempty,max=500"`        // 分组描述
+        Interval string `json:"interval" validate:"required"`                       // 告警间隔
+        IsEnabled bool `json:"isEnabled"`                                           // 是否启用
+        SortOrder int64 `json:"sortOrder" validate:"omitempty"`                     // 排序序号
+    }
+
+        // 删除告警规则分组请求
+    DeleteAlertRuleGroupRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                              // 主键ID
+        Cascade bool `form:"cascade,optional"`                                      // 是否级联删除
+    }
+
+        // 搜索告警规则分组请求
+    SearchAlertRuleGroupRequest {
+        Page uint64 `form:"page" validate:"omitempty,gt=0"`                         // 页码
+        PageSize uint64 `form:"pageSize" validate:"omitempty"`                      // 每页数量
+        OrderField string `form:"orderField,optional" validate:"omitempty,max=50"`  // 排序字段
+        IsAsc bool `form:"isAsc,optional"`                                          // 是否升序
+        FileId uint64 `form:"fileId,optional" validate:"omitempty,gt=0"`            // 文件ID
+        GroupCode string `form:"groupCode,optional" validate:"omitempty,max=50"`    // 分组代码
+        GroupName string `form:"groupName,optional" validate:"omitempty,max=100"`   // 分组名称
+    }
+
+        // 搜索告警规则分组响应
+    SearchAlertRuleGroupResponse {
+        Items []AlertRuleGroup `json:"items"`       // 告警规则分组列表
+        Total uint64 `json:"total"`                 // 总数
+    }
+
+        // 列表查询告警规则分组请求(无分页)
+    ListAlertRuleGroupRequest {
+        FileId uint64 `form:"fileId,optional" validate:"omitempty,gt=0"`            // 文件ID
+    }
+
+        // ===================== 告警规则相关 =====================
+
+        // 告警规则信息
+    AlertRule {
+        Id uint64 `json:"id"`                       // 主键ID
+        GroupId uint64 `json:"groupId"`             // 分组ID
+        AlertName string `json:"alertName"`         // 告警名称(英文)
+        RuleNameCn string `json:"ruleNameCn"`       // 规则中文名
+        Expr string `json:"expr"`                   // PromQL表达式
+        ForDuration string `json:"forDuration"`     // 持续时间
+        Severity string `json:"severity"`           // 告警级别
+        Summary string `json:"summary"`             // 告警摘要
+        Description string `json:"description"`     // 告警详细描述
+        Labels string `json:"labels"`               // 额外标签(JSON格式)
+        Annotations string `json:"annotations"`     // 额外注解(JSON格式)
+        IsEnabled bool `json:"isEnabled"`           // 是否启用
+        SortOrder int64 `json:"sortOrder"`          // 排序序号
+        GroupCode string `json:"groupCode"`         // 所属分组代码
+        GroupName string `json:"groupName"`         // 所属分组名称
+        FileId uint64 `json:"fileId"`               // 所属文件ID
+        FileCode string `json:"fileCode"`           // 所属文件代码
+        CreatedBy string `json:"createdBy"`         // 创建人
+        UpdatedBy string `json:"updatedBy"`         // 更新人
+        CreatedAt int64 `json:"createdAt"`          // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`          // 更新时间
+    }
+
+        // 添加告警规则请求
+    AddAlertRuleRequest {
+        GroupId uint64 `json:"groupId" validate:"required,gt=0"`                    // 分组ID
+        AlertName string `json:"alertName" validate:"required,min=1,max=100"`       // 告警名称
+        RuleNameCn string `json:"ruleNameCn" validate:"required,min=1,max=100"`     // 规则中文名
+        Expr string `json:"expr" validate:"required"`                               // PromQL表达式
+        ForDuration string `json:"forDuration" validate:"required"`                 // 持续时间
+        Severity string `json:"severity" validate:"required,oneof=critical warning info"` // 告警级别
+        Summary string `json:"summary" validate:"required,max=500"`                 // 告警摘要
+        Description string `json:"description" validate:"omitempty,max=1000"`       // 告警详细描述
+        Labels string `json:"labels" validate:"omitempty"`                          // 额外标签
+        Annotations string `json:"annotations" validate:"omitempty"`                // 额外注解
+        IsEnabled bool `json:"isEnabled"`                                           // 是否启用
+        SortOrder int64 `json:"sortOrder" validate:"omitempty"`                     // 排序序号
+    }
+
+        // 更新告警规则请求
+    UpdateAlertRuleRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                              // 主键ID
+        AlertName string `json:"alertName" validate:"required,min=1,max=100"`       // 告警名称
+        RuleNameCn string `json:"ruleNameCn" validate:"required,min=1,max=100"`     // 规则中文名
+        Expr string `json:"expr" validate:"required"`                               // PromQL表达式
+        ForDuration string `json:"forDuration" validate:"required"`                 // 持续时间
+        Severity string `json:"severity" validate:"required,oneof=critical warning info"` // 告警级别
+        Summary string `json:"summary" validate:"required,max=500"`                 // 告警摘要
+        Description string `json:"description" validate:"omitempty,max=1000"`       // 告警详细描述
+        Labels string `json:"labels" validate:"omitempty"`                          // 额外标签
+        Annotations string `json:"annotations" validate:"omitempty"`                // 额外注解
+        IsEnabled bool `json:"isEnabled"`                                           // 是否启用
+        SortOrder int64 `json:"sortOrder" validate:"omitempty"`                     // 排序序号
+    }
+
+        // 搜索告警规则请求
+    SearchAlertRuleRequest {
+        Page uint64 `form:"page" validate:"omitempty,gt=0"`                         // 页码
+        PageSize uint64 `form:"pageSize" validate:"omitempty"`                      // 每页数量
+        OrderField string `form:"orderField,optional" validate:"omitempty,max=50"`  // 排序字段
+        IsAsc bool `form:"isAsc,optional"`                                          // 是否升序
+        FileId uint64 `form:"fileId,optional" validate:"omitempty,gt=0"`            // 文件ID
+        GroupId uint64 `form:"groupId,optional" validate:"omitempty,gt=0"`          // 分组ID
+        AlertName string `form:"alertName,optional" validate:"omitempty,max=100"`   // 告警名称
+        RuleNameCn string `form:"ruleNameCn,optional" validate:"omitempty,max=100"` // 规则中文名
+        Severity string `form:"severity,optional" validate:"omitempty,oneof=critical warning info"` // 告警级别
+    }
+
+        // 搜索告警规则响应
+    SearchAlertRuleResponse {
+        Items []AlertRule `json:"items"`            // 告警规则列表
+        Total uint64 `json:"total"`                 // 总数
+    }
+
+        // 批量删除告警规则请求
+    BatchDeleteAlertRuleRequest {
+        Ids []uint64 `json:"ids" validate:"required,min=1,dive,gt=0"`               // 要删除的ID列表
+    }
+
+        // 批量导入告警规则请求
+    BatchImportAlertRulesRequest {
+        YamlStr string `json:"yamlStr" validate:"required"`                         // YAML字符串
+        Overwrite bool `json:"overwrite"`                                           // 是否覆盖已存在的file
+    }
+
+        // 批量导入告警规则响应
+    BatchImportAlertRulesResponse {
+        FileId uint64 `json:"fileId"`               // 文件ID
+        GroupCount int64 `json:"groupCount"`        // 导入的分组数量
+        RuleCount int64 `json:"ruleCount"`          // 导入的规则数量
+    }
+
+        // 批量导出告警规则请求
+    BatchExportAlertRulesRequest {
+        FileId uint64 `form:"fileId" validate:"required,gt=0"`                      // 文件ID
+        GroupIds []uint64 `form:"groupIds,optional"`                                // 分组ID列表(可选)
+    }
+
+        // 批量导出告警规则响应
+    BatchExportAlertRulesResponse {
+        YamlStr string `json:"yamlStr"`             // YAML字符串
+    }
+
+        // 部署告警规则到集群请求
+    DeployAlertRulesRequest {
+        FileId uint64 `json:"fileId" validate:"required,gt=0"`                      // 文件ID
+        ClusterUuid string `json:"clusterUuid" validate:"required,uuid"`            // 集群UUID
+        Namespace string `json:"namespace" validate:"required,max=63"`              // 命名空间
+        GroupIds []uint64 `json:"groupIds" validate:"omitempty"`                    // 分组ID列表
+        RuleIds []uint64 `json:"ruleIds" validate:"omitempty"`                      // 规则ID列表
+    }
+
+        // 部署告警规则响应
+    DeployAlertRulesResponse {
+        YamlStr string `json:"yamlStr"`             // 生成的YAML字符串
+    }
+
+        // 预览告警规则YAML请求
+    PreviewAlertRulesYamlRequest {
+        FileId uint64 `form:"fileId" validate:"required,gt=0"`                      // 文件ID
+        Namespace string `form:"namespace" validate:"required,max=63"`              // 命名空间
+        GroupIds []uint64 `form:"groupIds,optional"`                                // 分组ID列表
+        RuleIds []uint64 `form:"ruleIds,optional"`                                  // 规则ID列表
+    }
+
+        // 预览告警规则YAML响应
+    PreviewAlertRulesYamlResponse {
+        YamlStr string `json:"yamlStr"`             // YAML字符串
+    }
+
+        // 获取告警规则树形结构请求
+    GetAlertRuleTreeRequest {
+        FileId uint64 `form:"fileId,optional" validate:"omitempty,gt=0"`            // 文件ID(可选)
+    }
+
+        // 告警规则树节点
+    AlertRuleTreeNode {
+        Id uint64 `json:"id"`                       // 节点ID
+        Code string `json:"code"`                   // 节点代码
+        Name string `json:"name"`                   // 节点名称
+        Type string `json:"type"`                   // 节点类型(file/group/rule)
+        IsEnabled bool `json:"isEnabled"`           // 是否启用
+        Severity string `json:"severity"`           // 告警级别(仅rule类型)
+        Children []AlertRuleTreeNode `json:"children"` // 子节点
+    }
+
+        // 获取告警规则树形结构响应
+    GetAlertRuleTreeResponse {
+        Data []AlertRuleTreeNode `json:"data"`      // 树形结构数据
+    }
+
+        // ===================== 告警实例相关(保持不变) =====================
+
+        // 告警实例信息
+    AlertInstance {
+        Id uint64 `json:"id"`                           // 主键ID
+        Instance string `json:"instance"`               // 告警实例
+        Fingerprint string `json:"fingerprint"`         // 告警指纹
+        ClusterUuid string `json:"clusterUuid"`         // 集群UUID
+        ClusterName string `json:"clusterName"`         // 集群名称
+        ProjectId uint64 `json:"projectId"`             // 项目ID
+        ProjectName string `json:"projectName"`         // 项目名称
+        WorkspaceId uint64 `json:"workspaceId"`         // 工作空间ID
+        WorkspaceName string `json:"workspaceName"`     // 工作空间名称
+        AlertName string `json:"alertName"`             // 告警名称
+        Severity string `json:"severity"`               // 严重级别
+        Status string `json:"status"`                   // 告警状态
+        Labels string `json:"labels"`                   // 告警标签
+        Annotations string `json:"annotations"`         // 告警注解
+        GeneratorUrl string `json:"generatorUrl"`       // 生成器URL
+        StartsAt int64 `json:"startsAt"`                // 告警开始时间
+        EndsAt int64 `json:"endsAt"`                    // 告警结束时间
+        ResolvedAt int64 `json:"resolvedAt"`            // 告警恢复时间
+        Duration int64 `json:"duration"`                // 持续时长
+        RepeatCount int64 `json:"repeatCount"`          // 告警重复次数
+        NotifiedGroups string `json:"notifiedGroups"`   // 已通知的告警组ID列表
+        NotificationCount int64 `json:"notificationCount"` // 通知次数
+        LastNotifiedAt int64 `json:"lastNotifiedAt"`    // 最后通知时间
+        CreatedBy string `json:"createdBy"`             // 创建人
+        UpdatedBy string `json:"updatedBy"`             // 更新人
+        CreatedAt int64 `json:"createdAt"`              // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`              // 更新时间
+    }
+
+        // 搜索告警实例请求
+    SearchAlertInstanceRequest {
+        Page uint64 `form:"page" validate:"omitempty,gt=0"`
+        PageSize uint64 `form:"pageSize" validate:"omitempty"`
+        OrderField string `form:"orderField,optional" validate:"omitempty,max=50"`
+        IsAsc bool `form:"isAsc,optional"`
+        Instance string `form:"instance,optional" validate:"omitempty,max=200"`
+        Fingerprint string `form:"fingerprint,optional" validate:"omitempty,max=100"`
+        ClusterUuid string `form:"clusterUuid,optional" validate:"omitempty,uuid"`
+        ClusterName string `form:"clusterName,optional" validate:"omitempty,max=100"`
+        ProjectId uint64 `form:"projectId,optional" validate:"omitempty,gt=0"`
+        ProjectName string `form:"projectName,optional" validate:"omitempty,max=100"`
+        WorkspaceId uint64 `form:"workspaceId,optional" validate:"omitempty,gt=0"`
+        WorkspaceName string `form:"workspaceName,optional" validate:"omitempty,max=100"`
+        AlertName string `form:"alertName,optional" validate:"omitempty,max=100"`
+        Severity string `form:"severity,optional" validate:"omitempty,oneof=info warning critical"`
+        Status string `form:"status,optional" validate:"omitempty,oneof=firing resolved"`
+        RepeatCount int64 `form:"repeatCount,optional" validate:"omitempty,gte=0"`
+    }
+
+        // 搜索告警实例响应
+    SearchAlertInstanceResponse {
+        Items []AlertInstance `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+        // 批量删除告警实例请求
+    BatchDeleteAlertInstanceRequest {
+        Ids []uint64 `json:"ids" validate:"required,min=1,dive,gt=0"`
+    }
+        // 导出全部告警规则请求 - 无需参数
+    ExportAllAlertRulesRequest {
+    }
+
+        // 部署全部告警规则请求
+    DeployAllAlertRulesRequest {
+        ClusterUuid string `json:"clusterUuid" validate:"required,uuid"`  // 集群UUID
+        Namespace   string `json:"namespace" validate:"required,max=63"`  // 命名空间
+    }
+
+        // 部署全部告警规则响应
+    DeployAllAlertRulesResponse {
+        FileCount  int64 `json:"fileCount"`  // 部署的文件数量
+        GroupCount int64 `json:"groupCount"` // 部署的分组数量
+        RuleCount  int64 `json:"ruleCount"`  // 部署的规则数量
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: alert
+    prefix: /manager/v1/alert
+)
+service manager-api {
+    // ============= 告警实例相关接口 =============
+
+    @doc "删除告警实例"
+    @handler DeleteAlertInstanceHandler
+    delete /instance/:id (DefaultIdRequest) returns (string)
+
+    @doc "根据ID获取告警实例详细信息"
+    @handler GetAlertInstanceHandler
+    get /instance/:id (DefaultIdRequest) returns (AlertInstance)
+
+    @doc "搜索告警实例列表"
+    @handler SearchAlertInstanceHandler
+    get /instance/search (SearchAlertInstanceRequest) returns (SearchAlertInstanceResponse)
+
+    @doc "批量删除告警实例"
+    @handler BatchDeleteAlertInstanceHandler
+    post /instance/batch/delete (BatchDeleteAlertInstanceRequest) returns (string)
+
+    // ============= 告警规则文件相关接口 =============
+
+    @doc "创建新的告警规则文件"
+    @handler AddAlertRuleFileHandler
+    post /file (AddAlertRuleFileRequest) returns (string)
+
+    @doc "更新告警规则文件信息"
+    @handler UpdateAlertRuleFileHandler
+    put /file/:id (UpdateAlertRuleFileRequest) returns (string)
+
+    @doc "删除告警规则文件"
+    @handler DeleteAlertRuleFileHandler
+    delete /file/:id (DeleteAlertRuleFileRequest) returns (string)
+
+    @doc "根据ID获取告警规则文件详细信息"
+    @handler GetAlertRuleFileHandler
+    get /file/:id (DefaultIdRequest) returns (AlertRuleFile)
+
+    @doc "搜索告警规则文件列表"
+    @handler SearchAlertRuleFileHandler
+    get /file/search (SearchAlertRuleFileRequest) returns (SearchAlertRuleFileResponse)
+
+    @doc "列表查询告警规则文件(无分页)"
+    @handler ListAlertRuleFileHandler
+    get /file/list (ListAlertRuleFileRequest) returns ([]AlertRuleFile)
+
+    // ============= 告警规则分组相关接口 =============
+
+    @doc "创建新的告警规则分组"
+    @handler AddAlertRuleGroupHandler
+    post /group (AddAlertRuleGroupRequest) returns (string)
+
+    @doc "更新告警规则分组信息"
+    @handler UpdateAlertRuleGroupHandler
+    put /group/:id (UpdateAlertRuleGroupRequest) returns (string)
+
+    @doc "删除告警规则分组"
+    @handler DeleteAlertRuleGroupHandler
+    delete /group/:id (DeleteAlertRuleGroupRequest) returns (string)
+
+    @doc "根据ID获取告警规则分组详细信息"
+    @handler GetAlertRuleGroupHandler
+    get /group/:id (DefaultIdRequest) returns (AlertRuleGroup)
+
+    @doc "搜索告警规则分组列表"
+    @handler SearchAlertRuleGroupHandler
+    get /group/search (SearchAlertRuleGroupRequest) returns (SearchAlertRuleGroupResponse)
+
+    @doc "列表查询告警规则分组(无分页)"
+    @handler ListAlertRuleGroupHandler
+    get /group/list (ListAlertRuleGroupRequest) returns ([]AlertRuleGroup)
+
+    // ============= 告警规则相关接口 =============
+
+    @doc "创建新的告警规则"
+    @handler AddAlertRuleHandler
+    post /rule (AddAlertRuleRequest) returns (string)
+
+    @doc "更新告警规则信息"
+    @handler UpdateAlertRuleHandler
+    put /rule/:id (UpdateAlertRuleRequest) returns (string)
+
+    @doc "删除告警规则"
+    @handler DeleteAlertRuleHandler
+    delete /rule/:id (DefaultIdRequest) returns (string)
+
+    @doc "根据ID获取告警规则详细信息"
+    @handler GetAlertRuleHandler
+    get /rule/:id (DefaultIdRequest) returns (AlertRule)
+
+    @doc "搜索告警规则列表"
+    @handler SearchAlertRuleHandler
+    get /rule/search (SearchAlertRuleRequest) returns (SearchAlertRuleResponse)
+
+    @doc "批量删除告警规则"
+    @handler BatchDeleteAlertRuleHandler
+    post /rule/batch/delete (BatchDeleteAlertRuleRequest) returns (string)
+
+    @doc "从YAML批量导入告警规则"
+    @handler BatchImportAlertRulesHandler
+    post /rule/batch/import (BatchImportAlertRulesRequest) returns (BatchImportAlertRulesResponse)
+
+    @doc "导出告警规则为YAML"
+    @handler BatchExportAlertRulesHandler
+    get /rule/batch/export (BatchExportAlertRulesRequest) returns (BatchExportAlertRulesResponse)
+
+    @doc "将告警规则部署到指定集群"
+    @handler DeployAlertRulesHandler
+    post /rule/deploy (DeployAlertRulesRequest) returns (DeployAlertRulesResponse)
+
+    @doc "预览生成的告警规则YAML"
+    @handler PreviewAlertRulesYamlHandler
+    get /rule/preview (PreviewAlertRulesYamlRequest) returns (PreviewAlertRulesYamlResponse)
+
+    @doc "获取告警规则树形结构"
+    @handler GetAlertRuleTreeHandler
+    get /rule/tree (GetAlertRuleTreeRequest) returns (GetAlertRuleTreeResponse)
+
+
+    @doc "导出全部告警规则为ZIP压缩包"
+    @handler ExportAllAlertRulesHandler
+    get /rule/export/all returns (ExportAllAlertRulesRequest)
+
+    @doc "部署全部告警规则到指定集群"
+    @handler DeployAllAlertRulesHandler
+    post /rule/deploy/all (DeployAllAlertRulesRequest) returns (DeployAllAlertRulesResponse)
+}
