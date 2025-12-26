@@ -1,4 +1,4 @@
-<p align="center">   <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">   <img src="https://img.shields.io/badge/Go-1.25.5-00ADD8?logo=go&logoColor=white" alt="Go">   <img src="https://img.shields.io/badge/Gozero-v1.9.4-1E88E5" alt="Gozero">   <img src="https://img.shields.io/badge/Vue-3.x-4FC08D?logo=vue.js&logoColor=white" alt="Vue">   <img src="https://img.shields.io/badge/Kubernetes-1.21+-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes">   <br/>   <img src="https://img.shields.io/badge/MySQL-8.0+-4479A1?logo=mysql&logoColor=white" alt="MySQL">   <img src="https://img.shields.io/badge/Redis-7.0+-DC382D?logo=redis&logoColor=white" alt="Redis">   <a target="_blank" href="https://github.com/yanshicheng/kube-nova">     <img src="https://img.shields.io/github/stars/yanshicheng/kube-nova?style=social" alt="GitHub Stars">   </a> </p> <p align="center">   <b>企业级 Kubernetes 多集群管理平台</b> </p> <p align="center">   <a href="https://www.ikubeops.com:8888"><b>🌐 在线演示</b></a> |   <a href="https://www.cnblogs.com/yanshicheng/articles/19363328"><b>📖 部署文档</b></a> |   <a href="https://wiki-images.yanshicheng.com/common/kube-nova-wechat.png"><b>💬 加入我们</b></a> </p>
+<p align="center">   <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">   <img src="https://img.shields.io/badge/Go-1.25.5-00ADD8?logo=go&logoColor=white" alt="Go">   <img src="https://img.shields.io/badge/Gozero-v1.9.4-1E88E5" alt="Gozero">   <img src="https://img.shields.io/badge/Vue-3.x-4FC08D?logo=vue.js&logoColor=white" alt="Vue">   <img src="https://img.shields.io/badge/Kubernetes-1.21+-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes">   <br/>   <img src="https://img.shields.io/badge/MySQL-8.0+-4479A1?logo=mysql&logoColor=white" alt="MySQL">   <img src="https://img.shields.io/badge/Redis-7.0+-DC382D?logo=redis&logoColor=white" alt="Redis">   <a target="_blank" href="https://github.com/yanshicheng/kube-nova">     <img src="https://img.shields.io/github/stars/yanshicheng/kube-nova?style=social" alt="GitHub Stars">   </a> </p> <p align="center">   <b>企业级 Kubernetes 多集群管理平台</b> </p> <p align="center">   <a href="https://www.ikubeops.com"><b>🌐 在线演示</b></a> |   <a href="https://www.cnblogs.com/yanshicheng/articles/19363328"><b>📖 部署文档</b></a> |   <a href="https://wiki-images.yanshicheng.com/common/kube-nova-wechat.png"><b>💬 加入我们</b></a> </p>
 
 ------
 
@@ -271,7 +271,7 @@ kube-nova/
 
 ## 🔗 相关链接
 
-- 🌐 [在线演示](https://www.ikubeops.com:8888/)
+- 🌐 [在线演示](https://www.ikubeops.com/)
 - 📖 [Gozero 框架](https://go-zero.dev/)
 - 🎨 [Art Design Pro](https://www.artd.pro/docs/zh/)
 
