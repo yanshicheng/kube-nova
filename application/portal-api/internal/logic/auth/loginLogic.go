@@ -38,8 +38,6 @@ func (l *LoginLogic) Login(r *http.Request, req *types.LoginRequest) (resp *type
 	// 打印调试信息（可选）
 	l.Infof("客户端信息 - IP: %s, UserAgent: %s", clientIP, userAgent)
 
-	// ===== 通过 gRPC metadata 传递客户端信息到 RPC 层 =====
-	// 注意：不要使用 "user-agent"，这是 gRPC 保留的 key，会被覆盖
 	md := metadata.New(map[string]string{
 		"x-real-ip":    clientIP,
 		"x-user-agent": userAgent, // 使用自定义 key
