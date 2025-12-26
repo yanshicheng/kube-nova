@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# 获取当前分支名
+branch=$(git symbolic-ref --short HEAD)
+
+# 禁止直接在 main/master 分支提交
+if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
+  echo "❌ 禁止直接在 $branch 分支提交代码！"
+  echo "请切换到其他分支开发："
+  echo "  git checkout -b feature/xxx"
+  exit 1
+fi
