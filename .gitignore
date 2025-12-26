@@ -10,7 +10,6 @@
 vendor
 .idea
 .vscode
-.husky
 dist
 logs
 # Test binary, built with `go test -c`
