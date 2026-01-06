@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
@@ -12,7 +13,7 @@ import (
 	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
-// 定义白名单
+// 定义白名单，这些路径不需要权限验证
 var whiteList = []string{
 	"/portal/v1/user/info",
 	"/portal/v1/user/logout",
@@ -26,62 +27,73 @@ const (
 	SuperAdminRole = "SUPER_ADMIN"
 )
 
-// CasbinRBACManager 基于Casbin的RBAC权限管理器
+// CasbinRBACManager 基于 Casbin 的 RBAC 权限管理器
 type CasbinRBACManager struct {
-	enforcer *casbin.SyncedEnforcer
-	adapter  *CasbinAdapter
-	watcher  *RedisWatcher
-	sysRole  model2.SysRoleModel
-	sysApi   model2.SysApiModel
+	enforcer    *casbin.SyncedEnforcer // Casbin 同步执行器，线程安全
+	adapter     *CasbinAdapter         // 自定义适配器，从数据库加载策略
+	watcher     *RedisWatcher          // Redis 监听器，用于分布式同步
+	sysRole     model2.SysRoleModel    // 角色数据模型
+	sysApi      model2.SysApiModel     // API 数据模型
+	reloadMutex sync.Mutex             // 策略重载互斥锁，防止并发重载
 }
 
-// NewCasbinRBACManager 创建RBAC管理器
+// NewCasbinRBACManager 创建 RBAC 管理器
 func NewCasbinRBACManager(
 	redisConf redis.RedisConf,
 	sysRole model2.SysRoleModel,
 	sysApi model2.SysApiModel,
 	sysRoleApi model2.SysRoleApiModel,
 ) (*CasbinRBACManager, error) {
-	// 1. 创建Casbin Model
-	// RBAC模型定义：
-	// - r: 请求定义 (subject=角色, object=路径, action=方法)
-	// - p: 策略定义 (subject=角色, object=路径, action=方法)
-	// - e: 效果定义 (有任一允许则通过)
-	// - m: 匹配器 (支持通配符和RESTful路径)
+	// 创建 Casbin 模型
+	// RBAC 模型定义说明:
+	//   - r: 请求定义，包含主体、对象、动作
+	//   - p: 策略定义，包含主体、对象、动作
+	//   - e: 效果定义，有任一允许则通过
+	//   - m: 匹配器，支持通配符和 RESTful 路径匹配
 	m := model.NewModel()
 	m.AddDef("r", "r", "sub, obj, act")
 	m.AddDef("p", "p", "sub, obj, act")
 	m.AddDef("e", "e", "some(where (p.eft == allow))")
 
-	// 匹配器说明：
-	// keyMatch2: 支持 RESTful 路径匹配，如 /portal/v1/user/* 可以匹配 /portal/v1/user/123
-	// r.act == p.act || p.act == "*": 支持方法通配符，* 可以匹配所有方法
+	// 匹配器说明:
+	//   - keyMatch2: 支持 RESTful 路径匹配，如 /portal/v1/user/* 可以匹配 /portal/v1/user/123
+	//   - r.act == p.act || p.act == "*": 支持方法通配符，* 可以匹配所有方法
 	m.AddDef("m", "m", "r.sub == p.sub && keyMatch2(r.obj, p.obj) && (r.act == p.act || p.act == \"*\")")
 
-	// 2. 创建Adapter（从现有表加载）
+	// 创建适配器，从现有数据库表加载策略
 	adapter := NewCasbinAdapter(sysRole, sysApi, sysRoleApi)
 
-	// 3. 创建SyncedEnforcer（支持并发安全）
+	// 创建 SyncedEnforcer，支持并发安全的权限检查
 	enforcer, err := casbin.NewSyncedEnforcer(m, adapter)
 	if err != nil {
-		return nil, fmt.Errorf("创建Enforcer失败: %w", err)
+		return nil, fmt.Errorf("创建 Enforcer 失败: %w", err)
 	}
 
-	// 4. 创建Redis Watcher（K8s分布式同步）
+	// 创建 Redis Watcher，用于分布式策略同步
 	watcher, err := NewRedisWatcher(redisConf)
 	if err != nil {
-		return nil, fmt.Errorf("创建Watcher失败: %w", err)
+		return nil, fmt.Errorf("创建 Watcher 失败: %w", err)
 	}
 
-	// 5. 设置Watcher到Enforcer
+	// 设置 Watcher 到 Enforcer
 	if err := enforcer.SetWatcher(watcher); err != nil {
-		return nil, fmt.Errorf("设置Watcher失败: %w", err)
+		return nil, fmt.Errorf("设置 Watcher 失败: %w", err)
 	}
 
-	// 6. 设置更新回调：收到Redis通知后重新加载策略
+	// 创建管理器实例
+	manager := &CasbinRBACManager{
+		enforcer: enforcer,
+		adapter:  adapter,
+		watcher:  watcher,
+		sysRole:  sysRole,
+		sysApi:   sysApi,
+	}
+
+	// 设置更新回调：收到 Redis 通知后重新加载策略
 	if err := watcher.SetUpdateCallback(func(msg string) {
-		logx.Infof("[RBAC] 收到策略更新通知: %s，重新加载策略", msg)
-		if err := enforcer.LoadPolicy(); err != nil {
+		logx.Infof("[RBAC] 收到策略更新通知: %s，准备重新加载策略", msg)
+		// 使用内部方法重载，避免重复发送通知
+		if err := manager.reloadPolicyInternal(); err != nil {
 			logx.Errorf("[RBAC] 重新加载策略失败: %v", err)
 		} else {
 			logx.Info("[RBAC] 策略重新加载成功")
@@ -90,55 +102,36 @@ func NewCasbinRBACManager(
 		return nil, fmt.Errorf("设置更新回调失败: %w", err)
 	}
 
-	// 7. 启动Watcher
+	// 启动 Watcher，开始监听 Redis 频道
 	if err := watcher.Start(); err != nil {
-		return nil, fmt.Errorf("启动Watcher失败: %w", err)
+		return nil, fmt.Errorf("启动 Watcher 失败: %w", err)
 	}
 
-	// 8. 首次加载策略
+	// 首次加载策略
 	if err := enforcer.LoadPolicy(); err != nil {
 		return nil, fmt.Errorf("加载策略失败: %w", err)
 	}
 
-	logx.Info("[RBAC] Casbin RBAC管理器初始化成功（K8s分布式模式）")
+	logx.Info("[RBAC] Casbin RBAC 管理器初始化成功，支持分布式模式")
 
-	return &CasbinRBACManager{
-		enforcer: enforcer,
-		adapter:  adapter,
-		watcher:  watcher,
-		sysRole:  sysRole,
-		sysApi:   sysApi,
-	}, nil
+	return manager, nil
 }
 
-// CheckPermission 检查权限（核心方法）
-//
-// @param ctx 上下文
-// @param userRoles 用户角色列表，如 []string{"ADMIN", "USER"}
-// @param path 请求路径，如 "/portal/v1/user/123"
-// @param method HTTP方法，如 "GET", "POST", "PUT", "DELETE"
-// @return bool 是否有权限
-// @return error 错误信息
-//
-// 匹配规则：
-// 1. 如果角色包含 SUPER_ADMIN，直接返回 true
-// 2. 遍历所有角色，只要有一个角色有权限就返回 true
-// 3. 支持路径通配符：/portal/v1/user/* 可以匹配 /portal/v1/user/123
-// 4. 支持方法通配符：方法为 * 可以匹配所有HTTP方法
-
+// CheckPermission 检查权限
 func (m *CasbinRBACManager) CheckPermission(ctx context.Context, userRoles []string, path string, method string) (bool, error) {
-	// 处理白名单
+	// 检查白名单
 	if m.isInWhiteList(path, method) {
 		logx.WithContext(ctx).Infof("[RBAC] 请求在白名单中，允许访问: %s %s", method, path)
 		return true, nil
 	}
-	// 1. 没有角色，直接拒绝
+
+	// 没有角色，直接拒绝
 	if len(userRoles) == 0 {
 		logx.WithContext(ctx).Infof("[RBAC] 用户没有任何角色，拒绝访问: %s %s", method, path)
 		return false, nil
 	}
 
-	// 2. 检查是否包含超级管理员
+	// 检查是否包含超级管理员
 	for _, role := range userRoles {
 		if strings.EqualFold(strings.ToUpper(role), SuperAdminRole) {
 			logx.WithContext(ctx).Infof("[RBAC] 用户是超级管理员(%s)，允许访问: %s %s",
@@ -147,12 +140,12 @@ func (m *CasbinRBACManager) CheckPermission(ctx context.Context, userRoles []str
 		}
 	}
 
-	// 3. 使用Casbin检查权限
+	// 使用 Casbin 检查权限
 	// 遍历所有角色，只要有一个角色有权限就通过
 	for _, role := range userRoles {
 		allowed, err := m.enforcer.Enforce(role, path, method)
 		if err != nil {
-			logx.WithContext(ctx).Errorf("[RBAC] Casbin检查权限失败: role=%s, path=%s, method=%s, error=%v",
+			logx.WithContext(ctx).Errorf("[RBAC] Casbin 检查权限失败: role=%s, path=%s, method=%s, error=%v",
 				role, path, method, err)
 			continue
 		}
@@ -163,32 +156,36 @@ func (m *CasbinRBACManager) CheckPermission(ctx context.Context, userRoles []str
 		}
 	}
 
-	// 4. 所有角色都没有权限
+	// 所有角色都没有权限
 	logx.WithContext(ctx).Infof("[RBAC] 角色 %v 无权限访问: %s %s", userRoles, method, path)
 	return false, nil
 }
 
-// ReloadPolicy 重新加载策略（权限变更后调用）
-//
-// 使用场景：
-// 1. 角色权限变更（sys_role_api表增删改）
-// 2. 角色新增或删除（sys_role表增删改）
-// 3. API变更（sys_api表增删改）
-//
-// 调用此方法会：
-// 1. 本地实例重新加载策略
-// 2. 通过Redis通知其他K8s实例重新加载
+// reloadPolicyInternal 内部策略重载方法
+// 只重载本地策略，不发送 Redis 通知，用于响应其他实例的通知
+func (m *CasbinRBACManager) reloadPolicyInternal() error {
+	m.reloadMutex.Lock()
+	defer m.reloadMutex.Unlock()
+
+	return m.enforcer.LoadPolicy()
+}
+
+// ReloadPolicy 重新加载策略，权限变更后调用
 func (m *CasbinRBACManager) ReloadPolicy(ctx context.Context) error {
 	logx.WithContext(ctx).Info("[RBAC] 开始重新加载策略...")
 
-	// 1. 本地重新加载
+	// 使用互斥锁防止并发重载
+	m.reloadMutex.Lock()
+	defer m.reloadMutex.Unlock()
+
+	// 本地重新加载策略
 	if err := m.enforcer.LoadPolicy(); err != nil {
 		return fmt.Errorf("重新加载策略失败: %w", err)
 	}
 
-	// 2. 通知其他实例（通过Redis Pub/Sub）
+	// 通知其他实例，通过 Redis 发布订阅
 	if err := m.watcher.Update(); err != nil {
-		// 通知失败不影响本地重载
+		// 通知失败不影响本地重载，只记录日志
 		logx.WithContext(ctx).Errorf("[RBAC] 通知其他实例失败: %v", err)
 	}
 
@@ -196,7 +193,7 @@ func (m *CasbinRBACManager) ReloadPolicy(ctx context.Context) error {
 	return nil
 }
 
-// GetAllPolicies 获取所有策略（调试用）
+// GetAllPolicies 获取所有策略，用于调试
 func (m *CasbinRBACManager) GetAllPolicies() ([][]string, error) {
 	return m.enforcer.GetPolicy()
 }
@@ -206,22 +203,17 @@ func (m *CasbinRBACManager) GetRolePolicies(roleCode string) ([][]string, error)
 	return m.enforcer.GetFilteredPolicy(0, roleCode)
 }
 
-// GetUserPermissions 获取用户的所有权限（用于前端菜单渲染）
-//
-// @param ctx 上下文
-// @param userRoles 用户角色列表
-// @return []Permission 权限列表
-// @return error 错误信息
+// GetUserPermissions 获取用户的所有权限，用于前端菜单渲染
 func (m *CasbinRBACManager) GetUserPermissions(ctx context.Context, userRoles []string) ([]Permission, error) {
-	// 1. 检查是否包含超级管理员
+	// 检查是否包含超级管理员
 	for _, role := range userRoles {
 		if strings.EqualFold(role, SuperAdminRole) {
-			// 返回所有权限
+			// 超级管理员返回所有权限
 			return m.getAllPermissions(ctx)
 		}
 	}
 
-	// 2. 合并所有角色的权限（去重）
+	// 合并所有角色的权限，使用 map 去重
 	permMap := make(map[string]Permission)
 
 	for _, role := range userRoles {
@@ -247,7 +239,7 @@ func (m *CasbinRBACManager) GetUserPermissions(ctx context.Context, userRoles []
 		}
 	}
 
-	// 3. 转换为列表
+	// 转换为列表
 	result := make([]Permission, 0, len(permMap))
 	for _, perm := range permMap {
 		result = append(result, perm)
@@ -257,12 +249,12 @@ func (m *CasbinRBACManager) GetUserPermissions(ctx context.Context, userRoles []
 	return result, nil
 }
 
-// getAllPermissions 获取所有权限（超级管理员用）
+// getAllPermissions 获取所有权限，超级管理员专用
 func (m *CasbinRBACManager) getAllPermissions(ctx context.Context) ([]Permission, error) {
-	// 查询所有API权限
+	// 查询所有权限类型的 API
 	apis, err := m.sysApi.SearchNoPage(ctx, "", true, "is_permission = ?", 1)
 	if err != nil {
-		return nil, fmt.Errorf("查询所有API失败: %w", err)
+		return nil, fmt.Errorf("查询所有 API 失败: %w", err)
 	}
 
 	result := make([]Permission, 0, len(apis))
@@ -276,7 +268,7 @@ func (m *CasbinRBACManager) getAllPermissions(ctx context.Context) ([]Permission
 	return result, nil
 }
 
-// BatchCheckPermission 批量检查权限（用于前端按钮权限）
+// BatchCheckPermission 批量检查权限，用于前端按钮权限
 func (m *CasbinRBACManager) BatchCheckPermission(
 	ctx context.Context,
 	userRoles []string,
@@ -298,20 +290,21 @@ func (m *CasbinRBACManager) BatchCheckPermission(
 	return result, nil
 }
 
-// Close 关闭管理器
+// Close 关闭管理器，释放资源
 func (m *CasbinRBACManager) Close() {
 	if m.watcher != nil {
 		m.watcher.Close()
 	}
-	logx.Info("[RBAC] RBAC管理器已关闭")
+	logx.Info("[RBAC] RBAC 管理器已关闭")
 }
 
 // Permission 权限结构
 type Permission struct {
-	Path   string `json:"path"`   // API路径
-	Method string `json:"method"` // HTTP方法
+	Path   string `json:"path"`   // API 路径
+	Method string `json:"method"` // HTTP 方法
 }
 
+// isInWhiteList 检查请求是否在白名单中
 func (m *CasbinRBACManager) isInWhiteList(path string, method string) bool {
 	for _, whitePath := range whiteList {
 		if strings.HasPrefix(path, whitePath) {
