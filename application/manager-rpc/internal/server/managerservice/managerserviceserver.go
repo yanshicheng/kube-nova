@@ -310,6 +310,12 @@ func (s *ManagerServiceServer) NodeDetail(ctx context.Context, in *pb.ClusterNod
 	return l.NodeDetail(in)
 }
 
+// 获取 node  yaml describe
+func (s *ManagerServiceServer) NodeYamlDescribe(ctx context.Context, in *pb.ClusterNodeYamlDescribeReq) (*pb.ClusterNodeYamlDescribeResp, error) {
+	l := managerservicelogic.NewNodeYamlDescribeLogic(ctx, s.svcCtx)
+	return l.NodeYamlDescribe(in)
+}
+
 // labels 相关
 func (s *ManagerServiceServer) NodeLabelsList(ctx context.Context, in *pb.ClusterNodeLabelsListReq) (*pb.ClusterNodeLabelsListResp, error) {
 	l := managerservicelogic.NewNodeLabelsListLogic(ctx, s.svcCtx)
@@ -603,4 +609,165 @@ func (s *ManagerServiceServer) ProjectAuditLogDelBeforeDays(ctx context.Context,
 func (s *ManagerServiceServer) MigrateWorkspace(ctx context.Context, in *pb.MigrateWorkspaceReq) (*pb.MigrateWorkspaceResp, error) {
 	l := managerservicelogic.NewMigrateWorkspaceLogic(ctx, s.svcCtx)
 	return l.MigrateWorkspace(in)
+}
+
+// 告警仪表盘
+func (s *ManagerServiceServer) AlertDashboardOverview(ctx context.Context, in *pb.GetAlertOverviewReq) (*pb.GetAlertOverviewResp, error) {
+	l := managerservicelogic.NewAlertDashboardOverviewLogic(ctx, s.svcCtx)
+	return l.AlertDashboardOverview(in)
+}
+
+// 获取告警级别统计
+func (s *ManagerServiceServer) AlertDashboardSeverityStats(ctx context.Context, in *pb.GetAlertSeverityStatsReq) (*pb.GetAlertSeverityStatsResp, error) {
+	l := managerservicelogic.NewAlertDashboardSeverityStatsLogic(ctx, s.svcCtx)
+	return l.AlertDashboardSeverityStats(in)
+}
+
+// 获取告警趋势分析
+func (s *ManagerServiceServer) AlertDashboardTrend(ctx context.Context, in *pb.GetAlertTrendReq) (*pb.GetAlertTrendResp, error) {
+	l := managerservicelogic.NewAlertDashboardTrendLogic(ctx, s.svcCtx)
+	return l.AlertDashboardTrend(in)
+}
+
+// 获取告警维度统计
+func (s *ManagerServiceServer) AlertDashboardDimensionStats(ctx context.Context, in *pb.GetAlertDimensionStatsReq) (*pb.GetAlertDimensionStatsResp, error) {
+	l := managerservicelogic.NewAlertDashboardDimensionStatsLogic(ctx, s.svcCtx)
+	return l.AlertDashboardDimensionStats(in)
+}
+
+// 获取告警排行榜
+func (s *ManagerServiceServer) AlertDashboardTopRanking(ctx context.Context, in *pb.GetAlertTopRankingReq) (*pb.GetAlertTopRankingResp, error) {
+	l := managerservicelogic.NewAlertDashboardTopRankingLogic(ctx, s.svcCtx)
+	return l.AlertDashboardTopRanking(in)
+}
+
+// 获取告警实时状态
+func (s *ManagerServiceServer) AlertDashboardRealtimeStatus(ctx context.Context, in *pb.GetAlertRealtimeStatusReq) (*pb.GetAlertRealtimeStatusResp, error) {
+	l := managerservicelogic.NewAlertDashboardRealtimeStatusLogic(ctx, s.svcCtx)
+	return l.AlertDashboardRealtimeStatus(in)
+}
+
+// 获取告警汇总报告
+func (s *ManagerServiceServer) AlertDashboardSummaryReport(ctx context.Context, in *pb.GetAlertSummaryReportReq) (*pb.GetAlertSummaryReportResp, error) {
+	l := managerservicelogic.NewAlertDashboardSummaryReportLogic(ctx, s.svcCtx)
+	return l.AlertDashboardSummaryReport(in)
+}
+
+// 集群资源仪表盘
+func (s *ManagerServiceServer) GetResourceDashboardSummary(ctx context.Context, in *pb.ResourceDashboardSummaryReq) (*pb.ResourceDashboardSummaryResp, error) {
+	l := managerservicelogic.NewGetResourceDashboardSummaryLogic(ctx, s.svcCtx)
+	return l.GetResourceDashboardSummary(in)
+}
+
+// 获取集群资源排行
+func (s *ManagerServiceServer) GetClusterResourceRanking(ctx context.Context, in *pb.ClusterResourceRankingReq) (*pb.ClusterResourceRankingResp, error) {
+	l := managerservicelogic.NewGetClusterResourceRankingLogic(ctx, s.svcCtx)
+	return l.GetClusterResourceRanking(in)
+}
+
+// 获取项目资源排行
+func (s *ManagerServiceServer) GetProjectResourceRanking(ctx context.Context, in *pb.ProjectResourceRankingReq) (*pb.ProjectResourceRankingResp, error) {
+	l := managerservicelogic.NewGetProjectResourceRankingLogic(ctx, s.svcCtx)
+	return l.GetProjectResourceRanking(in)
+}
+
+// 获取工作空间资源排行
+func (s *ManagerServiceServer) GetWorkspaceResourceRanking(ctx context.Context, in *pb.WorkspaceResourceRankingReq) (*pb.WorkspaceResourceRankingResp, error) {
+	l := managerservicelogic.NewGetWorkspaceResourceRankingLogic(ctx, s.svcCtx)
+	return l.GetWorkspaceResourceRanking(in)
+}
+
+// -----------------------收费配置表-----------------------
+func (s *ManagerServiceServer) OnecBillingPriceConfigAdd(ctx context.Context, in *pb.OnecBillingPriceConfigAddReq) (*pb.OnecBillingPriceConfigAddResp, error) {
+	l := managerservicelogic.NewOnecBillingPriceConfigAddLogic(ctx, s.svcCtx)
+	return l.OnecBillingPriceConfigAdd(in)
+}
+
+func (s *ManagerServiceServer) OnecBillingPriceConfigUpdate(ctx context.Context, in *pb.OnecBillingPriceConfigUpdateReq) (*pb.OnecBillingPriceConfigUpdateResp, error) {
+	l := managerservicelogic.NewOnecBillingPriceConfigUpdateLogic(ctx, s.svcCtx)
+	return l.OnecBillingPriceConfigUpdate(in)
+}
+
+func (s *ManagerServiceServer) OnecBillingPriceConfigDel(ctx context.Context, in *pb.OnecBillingPriceConfigDelReq) (*pb.OnecBillingPriceConfigDelResp, error) {
+	l := managerservicelogic.NewOnecBillingPriceConfigDelLogic(ctx, s.svcCtx)
+	return l.OnecBillingPriceConfigDel(in)
+}
+
+func (s *ManagerServiceServer) OnecBillingPriceConfigGetById(ctx context.Context, in *pb.OnecBillingPriceConfigGetByIdReq) (*pb.OnecBillingPriceConfigGetByIdResp, error) {
+	l := managerservicelogic.NewOnecBillingPriceConfigGetByIdLogic(ctx, s.svcCtx)
+	return l.OnecBillingPriceConfigGetById(in)
+}
+
+func (s *ManagerServiceServer) OnecBillingPriceConfigSearch(ctx context.Context, in *pb.OnecBillingPriceConfigSearchReq) (*pb.OnecBillingPriceConfigSearchResp, error) {
+	l := managerservicelogic.NewOnecBillingPriceConfigSearchLogic(ctx, s.svcCtx)
+	return l.OnecBillingPriceConfigSearch(in)
+}
+
+// -----------------------计费配置绑定表-----------------------
+func (s *ManagerServiceServer) OnecBillingConfigBindingAdd(ctx context.Context, in *pb.OnecBillingConfigBindingAddReq) (*pb.OnecBillingConfigBindingAddResp, error) {
+	l := managerservicelogic.NewOnecBillingConfigBindingAddLogic(ctx, s.svcCtx)
+	return l.OnecBillingConfigBindingAdd(in)
+}
+
+func (s *ManagerServiceServer) OnecBillingConfigBindingUpdate(ctx context.Context, in *pb.OnecBillingConfigBindingUpdateReq) (*pb.OnecBillingConfigBindingUpdateResp, error) {
+	l := managerservicelogic.NewOnecBillingConfigBindingUpdateLogic(ctx, s.svcCtx)
+	return l.OnecBillingConfigBindingUpdate(in)
+}
+
+func (s *ManagerServiceServer) OnecBillingConfigBindingDel(ctx context.Context, in *pb.OnecBillingConfigBindingDelReq) (*pb.OnecBillingConfigBindingDelResp, error) {
+	l := managerservicelogic.NewOnecBillingConfigBindingDelLogic(ctx, s.svcCtx)
+	return l.OnecBillingConfigBindingDel(in)
+}
+
+func (s *ManagerServiceServer) OnecBillingConfigBindingGet(ctx context.Context, in *pb.OnecBillingConfigBindingGetReq) (*pb.OnecBillingConfigBindingGetResp, error) {
+	l := managerservicelogic.NewOnecBillingConfigBindingGetLogic(ctx, s.svcCtx)
+	return l.OnecBillingConfigBindingGet(in)
+}
+
+// -----------------------账单仪表盘-----------------------
+func (s *ManagerServiceServer) OnecBillingDashboardStats(ctx context.Context, in *pb.OnecBillingDashboardStatsReq) (*pb.OnecBillingDashboardStatsResp, error) {
+	l := managerservicelogic.NewOnecBillingDashboardStatsLogic(ctx, s.svcCtx)
+	return l.OnecBillingDashboardStats(in)
+}
+
+func (s *ManagerServiceServer) OnecBillingCostComposition(ctx context.Context, in *pb.OnecBillingCostCompositionReq) (*pb.OnecBillingCostCompositionResp, error) {
+	l := managerservicelogic.NewOnecBillingCostCompositionLogic(ctx, s.svcCtx)
+	return l.OnecBillingCostComposition(in)
+}
+
+func (s *ManagerServiceServer) OnecBillingCostTrend(ctx context.Context, in *pb.OnecBillingCostTrendReq) (*pb.OnecBillingCostTrendResp, error) {
+	l := managerservicelogic.NewOnecBillingCostTrendLogic(ctx, s.svcCtx)
+	return l.OnecBillingCostTrend(in)
+}
+
+func (s *ManagerServiceServer) OnecBillingProjectTop(ctx context.Context, in *pb.OnecBillingProjectTopReq) (*pb.OnecBillingProjectTopResp, error) {
+	l := managerservicelogic.NewOnecBillingProjectTopLogic(ctx, s.svcCtx)
+	return l.OnecBillingProjectTop(in)
+}
+
+func (s *ManagerServiceServer) OnecBillingClusterTop(ctx context.Context, in *pb.OnecBillingClusterTopReq) (*pb.OnecBillingClusterTopResp, error) {
+	l := managerservicelogic.NewOnecBillingClusterTopLogic(ctx, s.svcCtx)
+	return l.OnecBillingClusterTop(in)
+}
+
+// -----------------------账单中心-----------------------
+func (s *ManagerServiceServer) OnecBillingStatementSearch(ctx context.Context, in *pb.OnecBillingStatementSearchReq) (*pb.OnecBillingStatementSearchResp, error) {
+	l := managerservicelogic.NewOnecBillingStatementSearchLogic(ctx, s.svcCtx)
+	return l.OnecBillingStatementSearch(in)
+}
+
+func (s *ManagerServiceServer) OnecBillingStatementDel(ctx context.Context, in *pb.OnecBillingStatementDelReq) (*pb.OnecBillingStatementDelResp, error) {
+	l := managerservicelogic.NewOnecBillingStatementDelLogic(ctx, s.svcCtx)
+	return l.OnecBillingStatementDel(in)
+}
+
+func (s *ManagerServiceServer) OnecBillingStatementBatchDel(ctx context.Context, in *pb.OnecBillingStatementBatchDelReq) (*pb.OnecBillingStatementBatchDelResp, error) {
+	l := managerservicelogic.NewOnecBillingStatementBatchDelLogic(ctx, s.svcCtx)
+	return l.OnecBillingStatementBatchDel(in)
+}
+
+// 立即生成账单
+func (s *ManagerServiceServer) OnecBillingStatementGenerate(ctx context.Context, in *pb.OnecBillingStatementGenerateReq) (*pb.OnecBillingStatementGenerateResp, error) {
+	l := managerservicelogic.NewOnecBillingStatementGenerateLogic(ctx, s.svcCtx)
+	return l.OnecBillingStatementGenerate(in)
 }

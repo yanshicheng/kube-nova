@@ -4,37 +4,61 @@ option go_package = "github.com/yanshicheng/kube-nova/application/manager-rpc/pb
 
 package pb;
 
-// 增加集群
+// 修改后的 AddClusterRequest:
 message AddClusterRequest {
-  string name = 2; //集群名称，全局唯一
-  string avatar = 3;
-  string description = 4; //集群描述信息
-  string clusterType = 5; //集群类型: standard(标准)/edge(边缘)/serverless(无服务器)
-  string environment = 6; //环境类型: development(开发)/testing(测试)/staging(预发布)/production(生产)
-  string region = 8; //地域信息，如cn-north-1/us-east-1
-  string zone = 9; //可用区信息，如cn-north-1a
-  string datacenter = 10; //数据中心名称
-  string provider = 11; //云提供商: aws/azure/gcp/alibaba/tencent/huawei/self-hosted(自建)
-  int64 isManaged = 12; //是否为云厂商托管集群，如EKS/AKS/GKE
-  string nodeLb = 13; //Node负载均衡IP地址
-  string masterLb = 14; //Master负载均衡IP地址
-  string IngressDomain = 7;
-  string authType = 15; //认证类型: kubeconfig(配置文件)/token(令牌)/cert(证书)/incluster(集群内认证)
-  string apiServerHost = 16; //API Server地址，格式: https://ip:port
-  string kubeFile = 17; //KubeConfig文件内容
-  string token = 19; //Bearer Token
-  string caCert = 20; //CA证书内容（PEM格式）
-  string caFile = 21; //CA证书文件路径
-  string clientCert = 22; //客户端证书内容（PEM格式）
-  string certFile = 23; //客户端证书文件路径
-  string clientKey = 24; //客户端密钥内容（PEM格式，AES加密存储）
-  string keyFile = 25; //客户端密钥文件路径
-  int64 insecureSkipVerify = 26; //是否跳过TLS证书验证（仅用于测试环境）
-  string CreatedBy = 27;
-  string UpdatedBy = 28;
+  string Name = 1;
+  string Avatar = 2;
+  string Description = 3;
+  string ClusterType = 4;
+  string Environment = 5;
+  string Region = 6;
+  string Zone = 7;
+  string Datacenter = 8;
+  string Provider = 9;
+  int64 IsManaged = 10;
+  string NodeLb = 11;
+  string MasterLb = 12;
+  string IngressDomain = 13;
+  string AuthType = 14;
+  string ApiServerHost = 15;
+  string KubeFile = 16;
+  string Token = 17;
+  string CaCert = 18;
+  string CaFile = 19;
+  string ClientCert = 20;
+  string CertFile = 21;
+  string ClientKey = 22;
+  string KeyFile = 23;
+  int64 InsecureSkipVerify = 24;
+  string CreatedBy = 25;
+  string UpdatedBy = 26;
+
+  // ========== 费用配置字段 ==========
+  uint64 PriceConfigId = 27;              // 价格配置ID（必填）
+  int64 BillingStartTime = 28;            // 计费开始时间（秒级时间戳，可选）
+
+  // ========== Prometheus 配置字段（可选） ==========
+  bool EnablePrometheus = 29;             // 是否配置 Prometheus
+  string PrometheusUrl = 30;              // Prometheus 地址（如：192.168.1.100）
+  int64 PrometheusPort = 31;              // Prometheus 端口（如：9090）
+  string PrometheusProtocol = 32;         // 协议：http/https
+  int64 PrometheusAuthEnabled = 33;       // 是否启用认证：0-否，1-是
+  string PrometheusAuthType = 34;         // 认证类型：none/basic/token/apikey
+  string PrometheusUsername = 35;         // Basic 认证用户名
+  string PrometheusPassword = 36;         // Basic 认证密码
+  string PrometheusToken = 37;            // Token 认证
+  string PrometheusAccessKey = 38;        // API Key
+  string PrometheusAccessSecret = 39;     // API Secret
+  int64 PrometheusTlsEnabled = 40;        // 是否启用 TLS：0-否，1-是
+  int64 PrometheusInsecureSkipVerify = 41; // 是否跳过证书验证：0-否，1-是
+  string PrometheusCaCert = 42;           // CA 证书
+  string PrometheusClientCert = 43;       // 客户端证书
+  string PrometheusClientKey = 44;        // 客户端密钥
 }
 
+// 修改响应，返回集群 UUID
 message AddClusterResponse {
+  string Uuid = 1;  // 返回创建的集群UUID
 }
 
 // 修改集群
@@ -370,6 +394,13 @@ message AppDefaultConfigResp {
   int64 insecureSkipVerify = 23; //是否跳过证书验证
 }
 
+
+message    ClusterNodeYamlDescribeReq {
+  uint64 id = 1;
+}
+message ClusterNodeYamlDescribeResp {
+  string data = 1;
+}
 
 
 // node 禁用或者启用调度
@@ -718,9 +749,12 @@ message AddOnecProjectClusterReq {
   string cpuLimit = 3; //上级分配的 CPU 配额（核心数）
   double cpuOvercommitRatio = 4; //CPU 超分比例
   string cpuCapacity = 5; //CPU 超分后总容量 (limit * overcommit_ratio)
+  uint64 priceConfigId = 6; //费用配置ID（新增）
   string memLimit = 7; //上级分配的内存配额（单位：GiB）
   double memOvercommitRatio = 8; //内存超分比例
   string memCapacity = 9; //内存超分后总容量 (limit * overcommit_ratio)
+  int64 billingStartTime = 10; //计费开始时间（秒级时间戳，新增）
+
   string storageLimit = 11; //存储配额上限（单位：GiB）
   string gpuLimit = 13; //上级分配的 GPU 配额（个数）
   double gpuOvercommitRatio = 14; //GPU 超分比例
@@ -1863,10 +1897,782 @@ message GetClusterNsDetailResp {
   uint64 workspaceId = 10;
   string WorkspaceNameCn = 11;
 }
-//   GetOnecProjectVersionDetailResp
 
-//
+// ######## 告警仪表盘相关接口
+// 告警仪表盘通用过滤条件
+message AlertDashboardFilter {
+  string clusterUuid = 1;    // 集群UUID，空表示全部集群
+  uint64 projectId = 2;      // 项目ID，0表示全部项目
+  uint64 workspaceId = 3;    // 工作空间ID，0表示全部工作空间
+}
 
+
+// 获取告警总览统计请求
+message GetAlertOverviewReq {
+  AlertDashboardFilter filter = 1;  // 过滤条件
+}
+
+// 告警总览统计响应
+message GetAlertOverviewResp {
+  int64 totalCount = 1;           // 告警总数
+  int64 firingCount = 2;          // 触发中数量
+  int64 resolvedCount = 3;        // 已恢复数量
+  int64 todayNewCount = 4;        // 今日新增数量
+  int64 todayResolvedCount = 5;   // 今日已恢复数量
+  double avgDuration = 6;         // 平均持续时长(秒)
+  double resolvedRate = 7;        // 恢复率(百分比，如87.5)
+  double compareYesterday = 8;    // 较昨日变化(百分比，如+12.5或-5.0)
+}
+
+
+// 获取告警级别统计请求
+message GetAlertSeverityStatsReq {
+  AlertDashboardFilter filter = 1;  // 过滤条件
+}
+
+// 单个级别的统计信息
+message SeverityStatItem {
+  string severity = 1;      // 级别名称：critical/warning/info/none
+  string severityCn = 2;    // 级别中文名：严重/警告/信息/无级别
+  int64 totalCount = 3;     // 该级别告警总数
+  int64 firingCount = 4;    // 该级别触发中数量
+  int64 resolvedCount = 5;  // 该级别已恢复数量
+  double percentage = 6;    // 占比(百分比)
+}
+
+// 告警级别统计响应
+message GetAlertSeverityStatsResp {
+  repeated SeverityStatItem items = 1;  // 各级别统计列表
+  int64 totalCount = 2;                 // 所有级别告警总数
+}
+
+
+// 获取告警趋势请求
+message GetAlertTrendReq {
+  AlertDashboardFilter filter = 1;  // 过滤条件
+  int32 days = 2;                   // 统计天数：7/14/30，默认7
+}
+
+// 单日趋势数据
+message TrendDataPoint {
+  string date = 1;          // 日期，格式：2025-01-15
+  int64 newCount = 2;       // 当日新增告警数
+  int64 resolvedCount = 3;  // 当日恢复告警数
+  int64 firingCount = 4;    // 当日触发中告警数（累计）
+}
+
+// 告警趋势响应
+message GetAlertTrendResp {
+  repeated TrendDataPoint dataPoints = 1;  // 趋势数据点列表
+  int64 totalNew = 2;                      // 期间新增总数
+  int64 totalResolved = 3;                 // 期间恢复总数
+}
+
+
+// 获取告警维度统计请求
+message GetAlertDimensionStatsReq {
+  AlertDashboardFilter filter = 1;  // 过滤条件
+  string dimension = 2;             // 维度：cluster/project/workspace
+  uint64 page = 3;                  // 页码，默认1
+  uint64 pageSize = 4;              // 每页数量，默认20
+}
+
+// 单个维度项的统计信息
+message DimensionStatItem {
+  string dimensionId = 1;     // 维度ID（clusterUuid/projectId/workspaceId）
+  string dimensionName = 2;   // 维度名称（集群名/项目名/工作空间名）
+  int64 totalCount = 3;       // 告警总数
+  int64 firingCount = 4;      // 触发中数量
+  int64 resolvedCount = 5;    // 已恢复数量
+  int64 criticalCount = 6;    // Critical级别数量
+  int64 warningCount = 7;     // Warning级别数量
+  int64 infoCount = 8;        // Info级别数量
+}
+
+// 告警维度统计响应
+message GetAlertDimensionStatsResp {
+  repeated DimensionStatItem items = 1;  // 维度统计列表
+  uint64 total = 2;                      // 总记录数（用于分页）
+}
+
+
+// 获取告警排行榜请求
+message GetAlertTopRankingReq {
+  AlertDashboardFilter filter = 1;  // 过滤条件
+  string rankingType = 2;           // 排行类型：cluster/project/workspace/rule/instance
+  int32 topN = 3;                   // 排行数量，默认10
+  string severity = 4;              // 可选，按级别筛选：critical/warning/info
+  string status = 5;                // 可选，按状态筛选：firing/resolved
+}
+
+// 单个排行项
+message RankingItem {
+  int32 rank = 1;             // 排名
+  string itemId = 2;          // 项目ID（根据rankingType不同含义不同）
+  string itemName = 3;        // 项目名称
+  int64 alertCount = 4;       // 告警数量
+  int64 firingCount = 5;      // 触发中数量
+  int64 criticalCount = 6;    // Critical级别数量
+  int64 warningCount = 7;     // Warning级别数量
+  double percentage = 8;      // 占总数百分比
+  string extraInfo = 9;       // 额外信息（如集群名、项目名等）
+}
+
+// 告警排行榜响应
+message GetAlertTopRankingResp {
+  repeated RankingItem items = 1;  // 排行列表
+  int64 totalAlerts = 2;           // 告警总数（用于计算百分比）
+}
+
+
+// 获取告警实时状态请求
+message GetAlertRealtimeStatusReq {
+  AlertDashboardFilter filter = 1;  // 过滤条件
+}
+
+// 告警实时状态响应
+message GetAlertRealtimeStatusResp {
+  int64 firingCount = 1;            // 当前触发中数量
+  int64 criticalFiringCount = 2;    // Critical触发中数量
+  int64 warningFiringCount = 3;     // Warning触发中数量
+  int64 infoFiringCount = 4;        // Info触发中数量
+  int64 last5MinNewCount = 5;       // 最近5分钟新增数量
+  int64 last5MinResolvedCount = 6;  // 最近5分钟恢复数量
+  int64 updateTimestamp = 7;        // 数据更新时间戳
+}
+
+
+// 获取告警汇总报告请求
+message GetAlertSummaryReportReq {
+  AlertDashboardFilter filter = 1;  // 过滤条件
+  int64 startTime = 2;              // 开始时间戳
+  int64 endTime = 3;                // 结束时间戳
+}
+
+// 告警汇总报告响应
+message GetAlertSummaryReportResp {
+  GetAlertOverviewResp overview = 1;              // 总览统计
+  GetAlertSeverityStatsResp severityStats = 2;    // 级别统计
+  GetAlertTrendResp trend = 3;                    // 趋势数据
+  repeated RankingItem topClusters = 4;           // Top集群
+  repeated RankingItem topProjects = 5;           // Top项目
+  repeated RankingItem topRules = 6;              // Top规则
+}
+
+
+
+// ==================== 资源仪表盘汇总 ====================
+// ==================== 汇总数据 ====================
+
+message ResourceDashboardSummaryReq {
+  string cluster_uuid = 1;  // 集群UUID，空表示全部
+  uint64 project_id = 2;    // 项目ID，0表示全部
+}
+
+message ResourceDashboardSummaryResp {
+  FilterCondition current_filter = 1;
+  DashboardSummaryCards summary_cards = 2;
+  ResourceAllocationOverview allocation_overview = 3;
+  ResourceOversellSavings oversell_savings = 4;
+}
+
+message FilterCondition {
+  string cluster_uuid = 1;
+  string cluster_name = 2;
+  uint64 project_id = 3;
+  string project_name = 4;
+  int64 filtered_cluster_count = 5;
+  int64 filtered_project_count = 6;
+  int64 filtered_workspace_count = 7;
+}
+
+message DashboardSummaryCards {
+  // 数量统计
+  int64 cluster_total_count = 1;
+  int64 project_total_count = 2;
+  int64 workspace_total_count = 3;
+
+  // CPU物理分配率 = limit / physical
+  double cpu_physical = 4;       // 物理CPU总量
+  double cpu_limit = 5;          // 已分配配额（不是超分）
+  double cpu_physical_rate = 6;  // 物理分配率
+
+  // 内存物理分配率
+  double mem_physical = 7;
+  double mem_limit = 8;
+  double mem_physical_rate = 9;
+
+  // GPU物理分配率
+  double gpu_physical = 10;
+  double gpu_limit = 11;
+  double gpu_physical_rate = 12;
+
+  // 存储分配率
+  double storage_physical = 13;
+  double storage_limit = 14;
+  double storage_physical_rate = 15;
+
+  // Pod分配率
+  int64 pod_physical = 16;
+  int64 pod_limit = 17;
+  double pod_physical_rate = 18;
+}
+
+// 资源分配概览 - 展示三层数据
+message ResourceAllocationOverview {
+  ResourceOverviewItem cpu = 1;      // 物理数、分配总数、超分总数
+  ResourceOverviewItem mem = 2;
+  ResourceOverviewItem gpu = 3;
+  ResourceOverviewItem storage = 4;  // 存储总数、分配总数（无超分）
+  ResourceOverviewItem pod = 5;      // Pod总数、分配总数（无超分）
+}
+message ResourceOverviewItem {
+  double physical = 1;    // 物理资源总量
+  double limit = 2;       // 分配总数（原始配额）
+  double capacity = 3;    // 超分总数（超分后容量）
+  string unit = 4;
+}
+
+message ResourceLayerData {
+  double physical = 1;           // 物理资源
+  double limit = 2;              // 已分配配额
+  double capacity = 3;           // 超分后容量
+  double allocated = 4;          // 已分配给工作空间
+  double physical_rate = 5;      // 物理分配率 = limit / physical
+  double capacity_rate = 6;      // 超分使用率 = allocated / capacity
+  string unit = 7;
+}
+
+
+message ResourceRingData {
+  double allocation_rate = 1;
+  double allocated = 2;
+  double capacity = 3;
+  string unit = 4;
+}
+
+message ResourceOversellSavings {
+  OversellSavingItem cpu = 1;
+  OversellSavingItem mem = 2;
+  OversellSavingItem gpu = 3;
+}
+
+message OversellSavingItem {
+  double limit_total = 1;     // 原始配额
+  double capacity_total = 2;  // 超分后容量
+  double saving_amount = 3;   // 节约量 = capacity - limit
+  double saving_rate = 4;     // 超分率 = (capacity - limit) / limit * 100
+  string unit = 5;
+}
+
+// ==================== 集群资源排行 ====================
+
+message ClusterResourceRankingReq {
+  uint64 project_id = 1;    // 项目ID，0表示全部（查看某项目在哪些集群占用资源多）
+  string sort_by = 2;       // 排序字段 cpu mem gpu storage pod
+  int64 top_n = 3;          // 排行数量默认10
+}
+
+message ClusterResourceRankingResp {
+  repeated ClusterRankingItem items = 1;
+  int64 total = 2;
+}
+
+// 集群排行项 - 展示集群维度的完整信息
+message ClusterRankingItem {
+  int64 rank = 1;                        // 排名
+  string cluster_uuid = 2;               // 集群UUID
+  string cluster_name = 3;               // 集群名称
+  string environment = 4;                // 环境（生产/测试/开发）
+  string region = 5;                     // 区域
+  string provider = 6;                   // 提供商
+  int64 project_count = 7;               // 关联项目数量
+  int64 workspace_count = 8;             // 关联工作空间数量
+  // CPU资源（可超分）
+  double cpu_capacity = 9;               // CPU物理容量（核）- 集群真实资源
+  double cpu_limit = 10;                 // CPU配额总量（核）- 分配给项目的总配额
+  double cpu_allocated = 11;             // CPU已分配（核）- 工作空间实际使用
+  double cpu_allocation_rate = 12;       // CPU分配率（allocated/capacity）
+  double cpu_oversell_rate = 13;         // CPU超分率（limit/capacity）
+  // 内存资源（可超分）
+  double mem_capacity_gib = 14;          // 内存物理容量（GiB）
+  double mem_limit_gib = 15;             // 内存配额总量（GiB）
+  double mem_allocated_gib = 16;         // 内存已分配（GiB）
+  double mem_allocation_rate = 17;       // 内存分配率
+  double mem_oversell_rate = 18;         // 内存超分率
+  // GPU资源（可超分）
+  double gpu_capacity = 19;              // GPU物理容量（卡）
+  double gpu_limit = 20;                 // GPU配额总量（卡）
+  double gpu_allocated = 21;             // GPU已分配（卡）
+  double gpu_allocation_rate = 22;       // GPU分配率
+  double gpu_oversell_rate = 23;         // GPU超分率
+  // 存储资源（不可超分）
+  double storage_limit_gib = 24;         // 存储配额总量（GiB）
+  double storage_allocated_gib = 25;     // 存储已分配（GiB）
+  double storage_allocation_rate = 26;   // 存储分配率
+  // Pod资源（不可超分）
+  int64 pods_limit = 27;                 // Pod配额总量
+  int64 pods_allocated = 28;             // Pod已分配
+  double pods_allocation_rate = 29;      // Pod分配率
+  // 综合占比
+  double overall_usage_rate = 30;        // 综合占比（按排序字段计算）
+}
+
+// ==================== 项目资源排行 ====================
+
+message ProjectResourceRankingReq {
+  string cluster_uuid = 1;  // 集群UUID，空表示全部（查看某集群下哪些项目占用资源多）
+  string sort_by = 2;       // 排序字段 cpu mem gpu storage pod
+  int64 top_n = 3;          // 排行数量默认10
+}
+
+message ProjectResourceRankingResp {
+  repeated ProjectRankingItem items = 1;
+  int64 total = 2;
+}
+
+// 项目排行项 - 展示项目维度的完整信息
+message ProjectRankingItem {
+  int64 rank = 1;                        // 排名
+  uint64 project_id = 2;                 // 项目ID
+  string project_name = 3;               // 项目名称
+  string project_uuid = 4;               // 项目UUID
+  bool is_system = 5;                    // 是否系统项目
+  int64 cluster_count = 6;               // 关联集群数量
+  int64 workspace_count = 7;             // 工作空间数量
+  string primary_cluster_uuid = 8;       // 主集群UUID（资源占用最多的）
+  string primary_cluster_name = 9;       // 主集群名称
+  // CPU资源
+  double cpu_limit = 10;                 // CPU配额（核）
+  double cpu_capacity = 11;              // CPU容量（核）- 超分后可用
+  double cpu_allocated = 12;             // CPU已分配（核）
+  double cpu_usage_rate = 13;            // CPU使用率（allocated/limit）
+  // 内存资源
+  double mem_limit_gib = 14;             // 内存配额（GiB）
+  double mem_capacity_gib = 15;          // 内存容量（GiB）
+  double mem_allocated_gib = 16;         // 内存已分配（GiB）
+  double mem_usage_rate = 17;            // 内存使用率
+  // GPU资源
+  double gpu_limit = 18;                 // GPU配额（卡）
+  double gpu_capacity = 19;              // GPU容量（卡）
+  double gpu_allocated = 20;             // GPU已分配（卡）
+  double gpu_usage_rate = 21;            // GPU使用率
+  // 存储资源
+  double storage_limit_gib = 22;         // 存储配额（GiB）
+  double storage_allocated_gib = 23;     // 存储已分配（GiB）
+  double storage_usage_rate = 24;        // 存储使用率
+  // Pod资源
+  int64 pods_limit = 25;                 // Pod配额
+  int64 pods_allocated = 26;             // Pod已分配
+  double pods_usage_rate = 27;           // Pod使用率
+  // 综合占比
+  double overall_usage_rate = 28;        // 综合占比
+}
+
+// ==================== 工作空间资源排行 ====================
+
+message WorkspaceResourceRankingReq {
+  string cluster_uuid = 1;  // 集群UUID，空表示全部
+  uint64 project_id = 2;    // 项目ID，0表示全部
+  string sort_by = 3;       // 排序字段 cpu mem gpu storage pod
+  int64 top_n = 4;          // 排行数量默认10
+}
+
+message WorkspaceResourceRankingResp {
+  repeated WorkspaceRankingItem items = 1;
+  int64 total = 2;
+}
+
+// 工作空间排行项 - 展示工作空间维度的完整信息
+message WorkspaceRankingItem {
+  int64 rank = 1;                        // 排名
+  uint64 workspace_id = 2;               // 工作空间ID
+  string workspace_name = 3;             // 工作空间名称
+  string workspace_uuid = 4;             // 工作空间UUID
+  string namespace = 5;                  // Kubernetes命名空间
+  // 所属信息
+  uint64 project_id = 6;                 // 所属项目ID
+  string project_name = 7;               // 所属项目名称
+  string cluster_uuid = 8;               // 所属集群UUID
+  string cluster_name = 9;               // 所属集群名称
+  // CPU资源
+  double cpu_limit = 10;                 // CPU配额（核）
+  double cpu_allocated = 11;             // CPU已分配（核）
+  double cpu_usage_rate = 12;            // CPU使用率
+  // 内存资源
+  double mem_limit_gib = 13;             // 内存配额（GiB）
+  double mem_allocated_gib = 14;         // 内存已分配（GiB）
+  double mem_usage_rate = 15;            // 内存使用率
+  // GPU资源
+  double gpu_limit = 16;                 // GPU配额（卡）
+  double gpu_allocated = 17;             // GPU已分配（卡）
+  double gpu_usage_rate = 18;            // GPU使用率
+  // 存储资源
+  double storage_limit_gib = 19;         // 存储配额（GiB）
+  double storage_allocated_gib = 20;     // 存储已分配（GiB）
+  double storage_usage_rate = 21;        // 存储使用率
+  // Pod资源
+  int64 pods_limit = 22;                 // Pod配额
+  int64 pods_allocated = 23;             // Pod已分配
+  double pods_usage_rate = 24;           // Pod使用率
+  // 综合占比
+  double overall_usage_rate = 25;        // 综合占比
+}
+
+
+
+// 费用相关 rpc
+//--------------------------------计费配置绑定表--------------------------------
+message OnecBillingConfigBinding {
+  uint64 id = 1; //自增主键
+  string bindingType = 2; //绑定类型：cluster/project_cluster
+  string bindingClusterUuid = 3; //绑定集群UUID
+  uint64 bindingProjectId = 4; //绑定项目ID，0表示集群默认
+  uint64 priceConfigId = 5; //关联的价格配置ID
+  int64 billingStartTime = 6; //计费开始时间
+  int64 lastBillingTime = 7; //上次计费截止时间
+  string createdBy = 8; //创建人
+  string updatedBy = 9; //更新人
+  int64 createdAt = 10; //创建时间
+  int64 updatedAt = 11; //更新时间
+}
+
+message OnecBillingConfigBindingAddReq {
+  string bindingType = 1; //绑定类型：cluster/project_cluster
+  string bindingClusterUuid = 2; //绑定集群UUID
+  uint64 bindingProjectId = 3; //绑定项目ID，0表示集群默认
+  uint64 priceConfigId = 4; //关联的价格配置ID
+  int64 billingStartTime = 5; //计费开始时间
+  string createdBy = 7; //创建人
+  bool isGenerateBilling = 11;
+}
+
+message OnecBillingConfigBindingAddResp {
+}
+
+// 更换费用绑定
+message OnecBillingConfigBindingUpdateReq {
+  uint64 id = 1; //自增主键
+  string bindingClusterUuid = 3; //绑定集群UUID
+  uint64 bindingProjectId = 4; //绑定项目ID，0表示集群默认
+  uint64 priceConfigId = 5; //关联的价格配置ID
+  string updatedBy = 8; //更新人
+  bool isGenerateBilling = 11;
+}
+
+message OnecBillingConfigBindingUpdateResp {
+}
+
+// 解除绑定
+message OnecBillingConfigBindingDelReq {
+  uint64 id = 1; //id
+}
+
+message OnecBillingConfigBindingDelResp {
+}
+
+
+
+// 查询绑定参数必须传递 下面所有字段
+message OnecBillingConfigBindingGetReq {
+  string bindingType = 5; //绑定类型：cluster/project_cluster
+  string bindingClusterUuid = 6; //绑定集群UUID
+  uint64 bindingProjectId = 7; //绑定项目ID，0表示集群默认
+}
+
+message OnecBillingConfigBindingGetResp {
+   OnecBillingConfigBinding data = 1; //onecBillingConfigBinding
+}
+
+//--------------------------------账单仪表盘 Message--------------------------------
+
+// 仪表盘统计卡片请求
+message OnecBillingDashboardStatsReq {
+  string month = 1; //查询月份，格式：2025-01
+  string clusterUuid = 2; //集群UUID，为空查全部
+  uint64 projectId = 3; //项目ID，0查全部
+  int64 startTime = 4;        // 开始时间(秒级时间戳),优先级高于month
+  int64 endTime = 5;          // 结束时间(秒级时间戳),优先级高于month
+}
+
+// 仪表盘统计卡片响应
+message OnecBillingDashboardStatsResp {
+  double totalCost = 1; //本月总费用
+  double totalCostMom = 2; //总费用环比（百分比，如 -5.2 表示下降5.2%）
+  double resourceCost = 3; //资源费用（CPU+内存+存储+GPU+Pod）
+  double resourceCostMom = 4; //资源费用环比
+  double managementCost = 5; //管理服务费
+  double managementCostMom = 6; //管理服务费环比
+  int64 statementCount = 7; //账单数量
+  int64 projectCount = 8; //涉及项目数量
+}
+
+// 费用构成请求
+message OnecBillingCostCompositionReq {
+  string month = 1; //查询月份，格式：2025-01
+  string clusterUuid = 2; //集群UUID，为空查全部
+  uint64 projectId = 3; //项目ID，0查全部
+  int64 startTime = 4;        // 开始时间(秒级时间戳)
+  int64 endTime = 5;          // 结束时间(秒级时间戳)
+}
+
+// 费用构成项
+message CostCompositionItem {
+  string costName = 1; //费用名称（CPU费用/内存费用/存储费用/GPU费用/管理费）
+  double costAmount = 2; //费用金额
+  double percentage = 3; //百分比
+}
+
+// 费用构成响应
+message OnecBillingCostCompositionResp {
+  repeated CostCompositionItem items = 1; //费用构成列表
+  double totalCost = 2; //总费用（用于校验）
+}
+
+// 费用趋势请求
+message OnecBillingCostTrendReq {
+  int32 months = 1; //查询月数，如6表示近6个月
+  string clusterUuid = 2; //集群UUID，为空查全部
+  uint64 projectId = 3; //项目ID，0查全部
+}
+
+// 费用趋势项
+message CostTrendItem {
+  string month = 1; //月份，格式：2025-01
+  double totalCost = 2; //总费用
+  double resourceCost = 3; //资源费用
+  double managementCost = 4; //管理服务费
+}
+
+// 费用趋势响应
+message OnecBillingCostTrendResp {
+  repeated CostTrendItem items = 1; //趋势数据列表
+}
+
+// 项目费用TOP请求
+message OnecBillingProjectTopReq {
+  string month = 1; //查询月份，格式：2025-01
+  string clusterUuid = 2; //集群UUID，为空查全部
+  int32 topN = 3; //TOP数量，默认10
+  int64 startTime = 4;        // 开始时间(秒级时间戳)
+  int64 endTime = 5;          // 结束时间(秒级时间戳)
+}
+
+// 项目费用TOP项
+message ProjectCostItem {
+  uint64 projectId = 1; //项目ID
+  string projectName = 2; //项目名称
+  string projectUuid = 3; //项目UUID
+  double totalCost = 4; //项目总费用
+}
+
+// 项目费用TOP响应
+message OnecBillingProjectTopResp {
+  repeated ProjectCostItem items = 1; //项目费用列表
+}
+
+// 集群费用TOP请求
+message OnecBillingClusterTopReq {
+  string month = 1; //查询月份，格式：2025-01
+  int32 topN = 2; //TOP数量，默认10
+  int64 startTime = 3;        // 开始时间(秒级时间戳)
+  int64 endTime = 4;          // 结束时间(秒级时间戳)
+}
+
+// 集群费用TOP项
+message ClusterCostItem {
+  string clusterUuid = 1; //集群UUID
+  string clusterName = 2; //集群名称
+  int64 projectCount = 3; //集群下项目数量
+  double totalCost = 4; //集群总费用
+}
+
+// 集群费用TOP响应
+message OnecBillingClusterTopResp {
+  repeated ClusterCostItem items = 1; //集群费用列表
+}
+
+//--------------------------------账单中心 Message--------------------------------
+
+// 账单明细
+message OnecBillingStatement {
+  uint64 id = 1; //主键ID
+  string statementNo = 2; //账单编号
+  string statementType = 3; //账单类型：daily/config_change/initial
+  int64 billingStartTime = 4; //计费开始时间
+  int64 billingEndTime = 5; //计费结束时间
+  double billingHours = 6; //计费时长（小时）
+  string clusterUuid = 7; //集群UUID
+  string clusterName = 8; //集群名称（快照）
+  uint64 projectId = 9; //项目ID
+  string projectName = 10; //项目名称（快照）
+  string projectUuid = 11; //项目UUID
+  uint64 projectClusterId = 12; //项目集群ID
+  uint64 bindingId = 13; //计费绑定ID
+  string cpuCapacity = 14; //CPU总容量
+  string memCapacity = 15; //内存总容量
+  string storageLimit = 16; //存储配额（GiB）
+  string gpuCapacity = 17; //GPU总容量
+  int64 podsLimit = 18; //Pod配额
+  int64 workspaceCount = 19; //工作空间数量
+  int64 applicationCount = 20; //应用数量
+  double priceCpu = 21; //CPU单价
+  double priceMemory = 22; //内存单价
+  double priceStorage = 23; //存储单价
+  double priceGpu = 24; //GPU单价
+  double pricePod = 25; //Pod单价
+  double priceManagementFee = 26; //管理费单价
+  double cpuCost = 27; //CPU费用
+  double memoryCost = 28; //内存费用
+  double storageCost = 29; //存储费用
+  double gpuCost = 30; //GPU费用
+  double podCost = 31; //Pod费用
+  double managementFee = 32; //管理费
+  double resourceCostTotal = 33; //资源费用合计
+  double totalAmount = 34; //总费用
+  string remark = 35; //备注
+  string createdBy = 36; //创建人
+  string updatedBy = 37; //更新人
+  int64 createdAt = 38; //创建时间
+  int64 updatedAt = 39; //更新时间
+}
+
+// 账单搜索请求
+message OnecBillingStatementSearchReq {
+  int64 startTime = 1; //计费开始时间（时间戳）
+  int64 endTime = 2; //计费结束时间（时间戳）
+  string clusterUuid = 3; //集群UUID，为空查全部
+  uint64 projectId = 4; //项目ID，0查全部
+  string statementType = 5; //账单类型，为空查全部
+  uint64 page = 6; //页码，从1开始
+  uint64 pageSize = 7; //每页数量
+  string orderField = 8; //排序字段
+  bool isAsc = 9; //是否升序
+}
+
+// 账单汇总统计
+message BillingStatementSummary {
+  int64 totalCount = 1; //账单总数
+  double totalAmount = 2; //总费用
+  double cpuCost = 3; //CPU费用合计
+  double memoryCost = 4; //内存费用合计
+  double storageCost = 5; //存储费用合计
+  double gpuCost = 6; //GPU费用合计
+  double podCost = 7; //Pod费用合计
+  double managementFee = 8; //管理服务费合计
+}
+
+// 账单搜索响应
+message OnecBillingStatementSearchResp {
+  BillingStatementSummary summary = 1; //汇总统计
+  repeated OnecBillingStatement list = 2; //账单列表
+  int64 total = 3; //总记录数（用于分页）
+}
+
+// 删除单条账单请求
+message OnecBillingStatementDelReq {
+  uint64 id = 1; //账单ID
+}
+
+// 删除单条账单响应
+message OnecBillingStatementDelResp {
+}
+
+// 批量删除账单请求
+message OnecBillingStatementBatchDelReq {
+  int64 beforeTime = 1; //删除此时间之前的账单（时间戳）
+  string clusterUuid = 2; //集群UUID，为空不限制
+  uint64 projectId = 3; //项目ID，0不限制
+}
+
+// 批量删除账单响应
+message OnecBillingStatementBatchDelResp {
+  int64 deletedCount = 1; //删除的账单数量
+}
+
+//--------------------------------收费配置表--------------------------------
+message OnecBillingPriceConfig {
+  uint64 id = 1; //自增主键
+  string configName = 2; //配置名称，如：生产环境-标准配置
+  string description = 3; //配置描述
+  double cpuPrice = 4; //CPU单价（元/核/小时）
+  double memoryPrice = 5; //内存单价（元/GiB/小时）
+  double storagePrice = 6; //存储单价（元/GiB/小时）
+  double gpuPrice = 7; //GPU单价（元/卡/小时）
+  double podPrice = 8; //Pod单价（元/个/小时）
+  double managementFee = 9; //管理费（元/小时）
+  int64 isSystem = 10; //是否系统内置：0-否 1-是
+  string createdBy = 11; //创建人
+  string updatedBy = 12; //更新人
+  int64 createdAt = 13; //创建时间
+  int64 updatedAt = 14; //更新时间
+}
+
+message OnecBillingPriceConfigAddReq {
+  string configName = 1; //配置名称，如：生产环境-标准配置
+  string description = 2; //配置描述
+  double cpuPrice = 3; //CPU单价（元/核/小时）
+  double memoryPrice = 4; //内存单价（元/GiB/小时）
+  double storagePrice = 5; //存储单价（元/GiB/小时）
+  double gpuPrice = 6; //GPU单价（元/卡/小时）
+  double podPrice = 7; //Pod单价（元/个/小时）
+  double managementFee = 8; //管理费（元/小时）
+  string createdBy = 9; //创建人
+  int64 isSystem = 10;
+}
+
+message OnecBillingPriceConfigAddResp {
+}
+
+message OnecBillingPriceConfigUpdateReq {
+  uint64 id = 1; //自增主键
+  string configName = 2; //配置名称，如：生产环境-标准配置
+  string description = 3; //配置描述
+  double cpuPrice = 4; //CPU单价（元/核/小时）
+  double memoryPrice = 5; //内存单价（元/GiB/小时）
+  double storagePrice = 6; //存储单价（元/GiB/小时）
+  double gpuPrice = 7; //GPU单价（元/卡/小时）
+  double podPrice = 8; //Pod单价（元/个/小时）
+  double managementFee = 9; //管理费（元/小时）
+  string updatedBy = 10; //更新人
+  bool isGenerateBilling = 11;
+}
+
+message OnecBillingPriceConfigUpdateResp {
+}
+
+message OnecBillingPriceConfigDelReq {
+  uint64 id = 1; //id
+}
+
+message OnecBillingPriceConfigDelResp {
+}
+
+message OnecBillingPriceConfigGetByIdReq {
+  uint64 id = 1; //id
+}
+
+message OnecBillingPriceConfigGetByIdResp {
+  OnecBillingPriceConfig data = 1; //onecBillingPriceConfig
+}
+
+message OnecBillingPriceConfigSearchReq {
+  string configName = 5; //配置名称，如：生产环境-标准配置
+}
+
+message OnecBillingPriceConfigSearchResp {
+  repeated OnecBillingPriceConfig data = 1; //onecBillingPriceConfig
+}
+
+// 立即生成账单请求
+message OnecBillingStatementGenerateReq {
+  string clusterUuid = 1;
+  uint64 projectId = 2;
+  string userName = 3;
+}
+
+message OnecBillingStatementGenerateResp {
+}
 service ManagerService {
   // //通过 clusterUuid 和 namespace 获取 详情信息
   rpc GetClusterNsDetail(GetClusterNsDetailReq) returns (GetClusterNsDetailResp);
@@ -1953,33 +2759,35 @@ service ManagerService {
   rpc ClusterResourceSync(ClusterResourceSyncReq) returns (ClusterResourceSyncResp);
   rpc ClusterSyncAll(ClusterSyncAllReq) returns (ClusterSyncAllResp);
   // node 相关
-    rpc NodeInfo(ClusterNodeInfoReq) returns (ClusterNodeInfoResp);
-    rpc NodeDetail(ClusterNodeDetailReq) returns (OnecClusterNodeResp);
+  rpc NodeInfo(ClusterNodeInfoReq) returns (ClusterNodeInfoResp);
+  rpc NodeDetail(ClusterNodeDetailReq) returns (OnecClusterNodeResp);
+  // 获取 node  yaml describe
+  rpc NodeYamlDescribe(ClusterNodeYamlDescribeReq) returns (ClusterNodeYamlDescribeResp);
   //   labels 相关
-    rpc NodeLabelsList(ClusterNodeLabelsListReq) returns (ClusterNodeLabelsListResp);
+  rpc NodeLabelsList(ClusterNodeLabelsListReq) returns (ClusterNodeLabelsListResp);
   // 添加 labels
-    rpc NodeAddLabels(ClusterNodeAddLabelsReq) returns (ClusterNodeDisableResp);
+  rpc NodeAddLabels(ClusterNodeAddLabelsReq) returns (ClusterNodeDisableResp);
   // 删除 labels
-    rpc NodeDeleteLabels(ClusterNodeDeleteLabelsReq) returns (ClusterNodeDisableResp);
+  rpc NodeDeleteLabels(ClusterNodeDeleteLabelsReq) returns (ClusterNodeDisableResp);
   // 注解相关
   // 添加注解
-    rpc NodeAddAnnotations(ClusterNodeAddAnnotationsReq) returns (ClusterNodeAddAnnotationsResp);
+  rpc NodeAddAnnotations(ClusterNodeAddAnnotationsReq) returns (ClusterNodeAddAnnotationsResp);
   // 删除注解
-    rpc NodeDeleteAnnotations(ClusterNodeDeleteAnnotationsReq) returns (ClusterNodeDeleteAnnotationsResp);
+  rpc NodeDeleteAnnotations(ClusterNodeDeleteAnnotationsReq) returns (ClusterNodeDeleteAnnotationsResp);
   // 获取注解列表
-    rpc NodeAnnotationsList(ClusterNodeAnnotationsListReq) returns (ClusterNodeAnnotationsListResp);
+  rpc NodeAnnotationsList(ClusterNodeAnnotationsListReq) returns (ClusterNodeAnnotationsListResp);
   // 污点相关
   // 启用或者禁用调度
-    rpc NodeDisable(ClusterNodeDisableReq) returns (ClusterNodeDisableResp);
+  rpc NodeDisable(ClusterNodeDisableReq) returns (ClusterNodeDisableResp);
   // 添加污点
-    rpc NodeAddTaint(ClusterNodeAddTaintReq) returns (ClusterNodeAddTaintResp);
+  rpc NodeAddTaint(ClusterNodeAddTaintReq) returns (ClusterNodeAddTaintResp);
   // 删除污点
-    rpc NodeDeleteTaint(ClusterNodeDeleteTaintReq) returns (ClusterNodeDisableResp);
+  rpc NodeDeleteTaint(ClusterNodeDeleteTaintReq) returns (ClusterNodeDisableResp);
   // 获取污点列表
-    rpc NodeTaintList(ClusterNodeTaintsListReq) returns (ClusterNodeTaintsListResp);
+  rpc NodeTaintList(ClusterNodeTaintsListReq) returns (ClusterNodeTaintsListResp);
 
   // 驱逐
-    rpc NodeEvict(ClusterEvictReq) returns (ClusterEvictResp);
+  rpc NodeEvict(ClusterEvictReq) returns (ClusterEvictResp);
   // app 相关
   // add 属于更新创建合并，存在就修改，否则就创建
   rpc AppAdd(AddClusterAppReq) returns (AddClusterAppResp);
@@ -2049,6 +2857,69 @@ service ManagerService {
   // 迁移相关
   // 迁移 workspace 到新的 project
   rpc MigrateWorkspace(MigrateWorkspaceReq) returns (MigrateWorkspaceResp);
+
+
+  // 告警仪表盘
+  // 获取告警总览统计
+  rpc AlertDashboardOverview(GetAlertOverviewReq) returns (GetAlertOverviewResp);
+
+  // 获取告警级别统计
+  rpc AlertDashboardSeverityStats(GetAlertSeverityStatsReq) returns (GetAlertSeverityStatsResp);
+
+  // 获取告警趋势分析
+  rpc AlertDashboardTrend(GetAlertTrendReq) returns (GetAlertTrendResp);
+
+  // 获取告警维度统计
+  rpc AlertDashboardDimensionStats(GetAlertDimensionStatsReq) returns (GetAlertDimensionStatsResp);
+
+  // 获取告警排行榜
+  rpc AlertDashboardTopRanking(GetAlertTopRankingReq) returns (GetAlertTopRankingResp);
+
+  // 获取告警实时状态
+  rpc AlertDashboardRealtimeStatus(GetAlertRealtimeStatusReq) returns (GetAlertRealtimeStatusResp);
+
+  // 获取告警汇总报告
+  rpc AlertDashboardSummaryReport(GetAlertSummaryReportReq) returns (GetAlertSummaryReportResp);
+  // 集群资源仪表盘
+  // 获取资源仪表盘汇总数据
+  rpc GetResourceDashboardSummary(ResourceDashboardSummaryReq) returns (ResourceDashboardSummaryResp);
+
+  // 获取集群资源排行
+  rpc GetClusterResourceRanking(ClusterResourceRankingReq) returns (ClusterResourceRankingResp);
+
+  // 获取项目资源排行
+  rpc GetProjectResourceRanking(ProjectResourceRankingReq) returns (ProjectResourceRankingResp);
+
+  // 获取工作空间资源排行
+  rpc GetWorkspaceResourceRanking(WorkspaceResourceRankingReq) returns (WorkspaceResourceRankingResp);
+
+
+
+  //-----------------------收费配置表-----------------------
+  rpc OnecBillingPriceConfigAdd(OnecBillingPriceConfigAddReq) returns (OnecBillingPriceConfigAddResp);
+  rpc OnecBillingPriceConfigUpdate(OnecBillingPriceConfigUpdateReq) returns (OnecBillingPriceConfigUpdateResp);
+  rpc OnecBillingPriceConfigDel(OnecBillingPriceConfigDelReq) returns (OnecBillingPriceConfigDelResp);
+  rpc OnecBillingPriceConfigGetById(OnecBillingPriceConfigGetByIdReq) returns (OnecBillingPriceConfigGetByIdResp);
+  rpc OnecBillingPriceConfigSearch(OnecBillingPriceConfigSearchReq) returns (OnecBillingPriceConfigSearchResp);
+
+  //-----------------------计费配置绑定表-----------------------
+  rpc OnecBillingConfigBindingAdd(OnecBillingConfigBindingAddReq) returns (OnecBillingConfigBindingAddResp);
+  rpc OnecBillingConfigBindingUpdate(OnecBillingConfigBindingUpdateReq) returns (OnecBillingConfigBindingUpdateResp);
+  rpc OnecBillingConfigBindingDel(OnecBillingConfigBindingDelReq) returns (OnecBillingConfigBindingDelResp);
+  rpc OnecBillingConfigBindingGet(OnecBillingConfigBindingGetReq) returns (OnecBillingConfigBindingGetResp);
+
+  //-----------------------账单仪表盘-----------------------
+  rpc OnecBillingDashboardStats(OnecBillingDashboardStatsReq) returns (OnecBillingDashboardStatsResp);
+  rpc OnecBillingCostComposition(OnecBillingCostCompositionReq) returns (OnecBillingCostCompositionResp);
+  rpc OnecBillingCostTrend(OnecBillingCostTrendReq) returns (OnecBillingCostTrendResp);
+  rpc OnecBillingProjectTop(OnecBillingProjectTopReq) returns (OnecBillingProjectTopResp);
+  rpc OnecBillingClusterTop(OnecBillingClusterTopReq) returns (OnecBillingClusterTopResp);
+
+  //-----------------------账单中心-----------------------
+  rpc OnecBillingStatementSearch(OnecBillingStatementSearchReq) returns (OnecBillingStatementSearchResp);
+  rpc OnecBillingStatementDel(OnecBillingStatementDelReq) returns (OnecBillingStatementDelResp);
+  rpc OnecBillingStatementBatchDel(OnecBillingStatementBatchDelReq) returns (OnecBillingStatementBatchDelResp);
+  // 立即生成账单
+  rpc OnecBillingStatementGenerate(OnecBillingStatementGenerateReq) returns (OnecBillingStatementGenerateResp);
+
 }
-
-

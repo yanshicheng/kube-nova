@@ -3,7 +3,9 @@ syntax = "v1"
 info(
     title: "告警接收 API"
     desc: "接收 Alertmanager Webhook"
-    version: "v1.0"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
 )
 
 // Alertmanager Webhook 请求体（完全符合官方格式）

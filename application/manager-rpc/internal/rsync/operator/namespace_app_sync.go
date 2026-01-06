@@ -645,7 +645,7 @@ func (s *ClusterResourceSync) syncSingleResource(
 	return true, nil
 }
 
-// findOrCreateApplication 查找或创建应用（保持不变）
+// findOrCreateApplication 查找或创建应用
 func (s *ClusterResourceSync) findOrCreateApplication(
 	ctx context.Context,
 	workspace *model.OnecProjectWorkspace,
@@ -681,9 +681,9 @@ func (s *ClusterResourceSync) findOrCreateApplication(
 
 		result, err := s.ProjectApplication.Insert(ctx, app)
 		if err != nil {
-			// 处理并发创建
+			// 处理并发创建 - 这里已有处理，改为 Info 级别
 			if strings.Contains(err.Error(), "Duplicate") {
-				s.Logger.WithContext(ctx).Infof("应用已存在（并发），重新查询")
+				s.Logger.WithContext(ctx).Infof("应用已存在（并发创建），重新查询: %s", appNameEn) // ← 改为 Infof
 				app, err = s.ProjectApplication.FindOneByWorkspaceIdNameEnResourceType(
 					ctx, workspace.Id, appNameEn, resourceType,
 				)

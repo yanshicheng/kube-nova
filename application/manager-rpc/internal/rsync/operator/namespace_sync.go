@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -324,6 +325,11 @@ func (s *ClusterResourceSync) createWorkspace(ctx context.Context, projectCluste
 
 	_, err = s.ProjectWorkspaceModel.Insert(ctx, workspace)
 	if err != nil {
+		// 处理并发创建导致的重复键错误
+		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "1062") {
+			s.Logger.WithContext(ctx).Infof("Workspace 已存在（并发创建）: %s", nsName)
+			return nil
+		}
 		s.Logger.WithContext(ctx).Errorf("创建 Workspace 失败: %v", err)
 		return fmt.Errorf("创建 Workspace 失败: %v", err)
 	}
@@ -332,6 +338,7 @@ func (s *ClusterResourceSync) createWorkspace(ctx context.Context, projectCluste
 	return nil
 }
 
+// createProjectClusterBinding 创建项目集群绑定
 // createProjectClusterBinding 创建项目集群绑定
 func (s *ClusterResourceSync) createProjectClusterBinding(ctx context.Context, clusterUuid string, projectId uint64, operator string) (*model.OnecProjectCluster, error) {
 	// 验证集群是否存在
@@ -394,7 +401,16 @@ func (s *ClusterResourceSync) createProjectClusterBinding(ctx context.Context, c
 
 	result, err := s.ProjectClusterResourceModel.Insert(ctx, projectCluster)
 	if err != nil {
-		return nil, fmt.Errorf("创建项目集群绑定失败: %v", err)
+		// 处理并发创建导致的重复键错误
+		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "1062") {
+			s.Logger.WithContext(ctx).Infof("项目集群绑定已存在（并发创建），重新查询: projectId=%d, clusterUuid=%s", projectId, clusterUuid)
+			existingBinding, findErr := s.ProjectClusterResourceModel.FindOneByClusterUuidProjectId(ctx, clusterUuid, projectId)
+			if findErr != nil {
+				return nil, fmt.Errorf("查询已存在的项目集群绑定失败: %v", findErr)
+			}
+			return existingBinding, nil
+		}
+		return nil, fmt.Errorf("插入项目集群绑定失败: %v", err)
 	}
 
 	insertId, err := result.LastInsertId()

@@ -24,8 +24,6 @@ func NewProjectClusterDelLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 }
 
 // ProjectClusterDel 删除项目集群配额
-
-// ProjectClusterDel 删除项目集群配额
 func (l *ProjectClusterDelLogic) ProjectClusterDel(in *pb.DelOnecProjectClusterReq) (*pb.DelOnecProjectClusterResp, error) {
 	l.Logger.Infof("开始删除项目集群配额，ID: %d", in.Id)
 
