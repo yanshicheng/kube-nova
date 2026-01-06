@@ -3,9 +3,9 @@ syntax = "v1"
 info(
     title: "Alert Rule Management API"
     desc: "告警规则管理相关接口"
-    author: "System"
-    email: "admin@example.com"
-    version: "2.0"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
 )
 
 import "./base.api"

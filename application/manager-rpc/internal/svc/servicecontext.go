@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
+	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/billing"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/config"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/consumer"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/model"
@@ -23,27 +24,31 @@ type ServiceContext struct {
 	Config config.Config
 	Cache  *redis.Redis
 	//ControllerRpc         controllerservice.ControllerService
-	OnecClusterModel          model.OnecClusterModel
-	OnecClusterAppModel       model.OnecClusterAppModel
-	OnecClusterNodeModel      model.OnecClusterNodeModel
-	OnecClusterAuthModel      model.OnecClusterAuthModel
-	OnecClusterNetworkModel   model.OnecClusterNetworkModel
-	OnecClusterResourceModel  model.OnecClusterResourceModel
-	OnecProjectModel          model.OnecProjectModel
-	OnecProjectAdminModel     model.OnecProjectAdminModel
-	OnecProjectClusterModel   model.OnecProjectClusterModel
-	OnecProjectWorkspaceModel model.OnecProjectWorkspaceModel
-	OnecProjectApplication    model.OnecProjectApplicationModel
-	OnecProjectVersion        model.OnecProjectVersionModel
-	OnecProjectAuditLog       model.OnecProjectAuditLogModel
-	Storage                   storageservice.StorageService
-	K8sManager                cluster.Manager
-	SyncOperator              types3.SyncService
-	AlertRuleFilesModel       model.AlertRuleFilesModel
-	AlertRuleGroupsModel      model.AlertRuleGroupsModel
-	AlertInstancesModel       model.AlertInstancesModel
-	AlertRulesModel           model.AlertRulesModel
-	AlertRpc                  alertservice.AlertService
+	OnecClusterModel              model.OnecClusterModel
+	OnecClusterAppModel           model.OnecClusterAppModel
+	OnecClusterNodeModel          model.OnecClusterNodeModel
+	OnecClusterAuthModel          model.OnecClusterAuthModel
+	OnecClusterNetworkModel       model.OnecClusterNetworkModel
+	OnecClusterResourceModel      model.OnecClusterResourceModel
+	OnecProjectModel              model.OnecProjectModel
+	OnecProjectAdminModel         model.OnecProjectAdminModel
+	OnecProjectClusterModel       model.OnecProjectClusterModel
+	OnecProjectWorkspaceModel     model.OnecProjectWorkspaceModel
+	OnecProjectApplication        model.OnecProjectApplicationModel
+	OnecProjectVersion            model.OnecProjectVersionModel
+	OnecProjectAuditLog           model.OnecProjectAuditLogModel
+	OnecBillingPriceConfigModel   model.OnecBillingPriceConfigModel
+	OnecBillingStatementModel     model.OnecBillingStatementModel
+	OnecBillingConfigBindingModel model.OnecBillingConfigBindingModel
+	Storage                       storageservice.StorageService
+	BillingService                billing.Service
+	K8sManager                    cluster.Manager
+	SyncOperator                  types3.SyncService
+	AlertRuleFilesModel           model.AlertRuleFilesModel
+	AlertRuleGroupsModel          model.AlertRuleGroupsModel
+	AlertInstancesModel           model.AlertInstancesModel
+	AlertRulesModel               model.AlertRulesModel
+	AlertRpc                      alertservice.AlertService
 	// 消费者
 	AlertConsumer consumer.Consumer
 }
@@ -85,32 +90,60 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		ProjectApplicationVersion:   model.NewOnecProjectVersionModel(sqlConn, c.DBCache),
 		ProjectAuditModel:           model.NewOnecProjectAuditLogModel(sqlConn, c.DBCache),
 	})
+	// 初始化账单服务
+	billingService := billing.NewService(billing.ServiceConfig{
+		ClusterModel:              model.NewOnecClusterModel(sqlConn, c.DBCache),
+		ProjectModel:              model.NewOnecProjectModel(sqlConn, c.DBCache),
+		ProjectClusterModel:       model.NewOnecProjectClusterModel(sqlConn, c.DBCache),
+		ProjectWorkspaceModel:     model.NewOnecProjectWorkspaceModel(sqlConn, c.DBCache),
+		ProjectApplicationModel:   model.NewOnecProjectApplicationModel(sqlConn, c.DBCache),
+		BillingPriceConfigModel:   model.NewOnecBillingPriceConfigModel(sqlConn, c.DBCache),
+		BillingConfigBindingModel: model.NewOnecBillingConfigBindingModel(sqlConn, c.DBCache),
+		BillingStatementModel:     model.NewOnecBillingStatementModel(sqlConn, c.DBCache),
+	})
 
+	// 在你的 logic 或 handler 中调用
+	//err = billingService.GenerateByClusterAndProject(
+	//	context.Background(),
+	//	"94d2b889-f138-44b5-83d8-3bf28d3fcfb3",
+	//	4,
+	//	&billing.GenerateOption{
+	//		StatementType: billing.StatementTypeDaily,
+	//		CreatedBy:     "admin",
+	//	},
+	//)
+	//if err != nil {
+	//	log.Fatal("生成账单失败: %v", err)
+	//}
 	return &ServiceContext{
 		Config: c,
 		Cache:  redis.MustNewRedis(c.Cache),
 		//ControllerRpc:         controllerservice.NewControllerService(controllerRpc),
-		Storage:                   storageservice.NewStorageService(zrpc.MustNewClient(c.PortalRpc)),
-		OnecClusterModel:          model.NewOnecClusterModel(sqlConn, c.DBCache),
-		OnecClusterAppModel:       model.NewOnecClusterAppModel(sqlConn, c.DBCache),
-		OnecClusterNodeModel:      model.NewOnecClusterNodeModel(sqlConn, c.DBCache),
-		OnecClusterAuthModel:      model.NewOnecClusterAuthModel(sqlConn, c.DBCache),
-		OnecClusterNetworkModel:   model.NewOnecClusterNetworkModel(sqlConn, c.DBCache),
-		OnecClusterResourceModel:  model.NewOnecClusterResourceModel(sqlConn, c.DBCache),
-		OnecProjectModel:          model.NewOnecProjectModel(sqlConn, c.DBCache),
-		OnecProjectAdminModel:     model.NewOnecProjectAdminModel(sqlConn, c.DBCache),
-		OnecProjectClusterModel:   model.NewOnecProjectClusterModel(sqlConn, c.DBCache),
-		OnecProjectWorkspaceModel: model.NewOnecProjectWorkspaceModel(sqlConn, c.DBCache),
-		OnecProjectApplication:    model.NewOnecProjectApplicationModel(sqlConn, c.DBCache),
-		OnecProjectVersion:        model.NewOnecProjectVersionModel(sqlConn, c.DBCache),
-		OnecProjectAuditLog:       model.NewOnecProjectAuditLogModel(sqlConn, c.DBCache),
-		K8sManager:                managerK8s,
-		SyncOperator:              resourceSync,
-		AlertRuleGroupsModel:      model.NewAlertRuleGroupsModel(sqlConn, c.DBCache),
-		AlertRuleFilesModel:       model.NewAlertRuleFilesModel(sqlConn, c.DBCache),
-		AlertInstancesModel:       model.NewAlertInstancesModel(sqlConn, c.DBCache),
-		AlertRulesModel:           model.NewAlertRulesModel(sqlConn, c.DBCache),
-		AlertRpc:                  alertservice.NewAlertService(alertRpc),
+		Storage:                       storageservice.NewStorageService(zrpc.MustNewClient(c.PortalRpc)),
+		OnecClusterModel:              model.NewOnecClusterModel(sqlConn, c.DBCache),
+		OnecClusterAppModel:           model.NewOnecClusterAppModel(sqlConn, c.DBCache),
+		OnecClusterNodeModel:          model.NewOnecClusterNodeModel(sqlConn, c.DBCache),
+		OnecClusterAuthModel:          model.NewOnecClusterAuthModel(sqlConn, c.DBCache),
+		OnecClusterNetworkModel:       model.NewOnecClusterNetworkModel(sqlConn, c.DBCache),
+		OnecClusterResourceModel:      model.NewOnecClusterResourceModel(sqlConn, c.DBCache),
+		OnecProjectModel:              model.NewOnecProjectModel(sqlConn, c.DBCache),
+		OnecProjectAdminModel:         model.NewOnecProjectAdminModel(sqlConn, c.DBCache),
+		OnecProjectClusterModel:       model.NewOnecProjectClusterModel(sqlConn, c.DBCache),
+		OnecProjectWorkspaceModel:     model.NewOnecProjectWorkspaceModel(sqlConn, c.DBCache),
+		OnecProjectApplication:        model.NewOnecProjectApplicationModel(sqlConn, c.DBCache),
+		OnecProjectVersion:            model.NewOnecProjectVersionModel(sqlConn, c.DBCache),
+		OnecProjectAuditLog:           model.NewOnecProjectAuditLogModel(sqlConn, c.DBCache),
+		OnecBillingPriceConfigModel:   model.NewOnecBillingPriceConfigModel(sqlConn, c.DBCache),
+		OnecBillingStatementModel:     model.NewOnecBillingStatementModel(sqlConn, c.DBCache),
+		OnecBillingConfigBindingModel: model.NewOnecBillingConfigBindingModel(sqlConn, c.DBCache),
+		BillingService:                billingService,
+		K8sManager:                    managerK8s,
+		SyncOperator:                  resourceSync,
+		AlertRuleGroupsModel:          model.NewAlertRuleGroupsModel(sqlConn, c.DBCache),
+		AlertRuleFilesModel:           model.NewAlertRuleFilesModel(sqlConn, c.DBCache),
+		AlertInstancesModel:           model.NewAlertInstancesModel(sqlConn, c.DBCache),
+		AlertRulesModel:               model.NewAlertRulesModel(sqlConn, c.DBCache),
+		AlertRpc:                      alertservice.NewAlertService(alertRpc),
 
 		// BookModel: models.NewBooksModel(sqlx.NewMysql(c.Mysql.DataSource), c.DBCache),
 	}

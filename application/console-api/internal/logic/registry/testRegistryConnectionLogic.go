@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"errors"
 
 	"github.com/yanshicheng/kube-nova/application/console-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/console-api/internal/types"
@@ -38,6 +39,12 @@ func (l *TestRegistryConnectionLogic) TestRegistryConnection(req *types.TestRegi
 		return "", err
 	}
 
-	l.Infof("测试仓库连接完成: Success=%v, Message=%s", rpcResp.Success, rpcResp.Message)
-	return "测试仓库连接完成", nil
+	// 检查 RPC 返回的业务状态
+	if !rpcResp.Success {
+		l.Errorf("仓库连接测试失败: %s", rpcResp.Message)
+		return "", errors.New(rpcResp.Message)
+	}
+
+	l.Infof("测试仓库连接成功")
+	return rpcResp.Message, nil
 }

@@ -37,6 +37,8 @@ func (l *AddProjectClusterLogic) AddProjectCluster(req *types.AddProjectClusterR
 	_, err = l.svcCtx.ManagerRpc.ProjectClusterAdd(l.ctx, &pb.AddOnecProjectClusterReq{
 		ClusterUuid:           req.ClusterUuid,
 		ProjectId:             req.ProjectId,
+		PriceConfigId:         req.PriceConfigId,
+		BillingStartTime:      req.BillingStartTime,
 		CpuLimit:              req.CpuLimit,
 		CpuOvercommitRatio:    req.CpuOvercommitRatio,
 		CpuCapacity:           req.CpuCapacity,

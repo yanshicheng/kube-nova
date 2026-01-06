@@ -1,0 +1,257 @@
+syntax = "v1"
+
+info(
+    title: "Resource Dashboard API"
+    desc: "集群资源仪表盘相关接口"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // ==================== 汇总数据 ====================
+
+    GetResourceDashboardSummaryReq {
+        ClusterUuid string `form:"clusterUuid,optional"`
+        ProjectId   uint64 `form:"projectId,optional"`
+    }
+
+    GetResourceDashboardSummaryResp {
+        CurrentFilter      FilterCondition            `json:"currentFilter"`
+        SummaryCards       DashboardSummaryCards      `json:"summaryCards"`
+        AllocationOverview ResourceAllocationOverview `json:"allocationOverview"`
+        OversellSavings    ResourceOversellSavings    `json:"oversellSavings"`
+    }
+
+    FilterCondition {
+        ClusterUuid            string `json:"clusterUuid"`
+        ClusterName            string `json:"clusterName"`
+        ProjectId              uint64 `json:"projectId"`
+        ProjectName            string `json:"projectName"`
+        FilteredClusterCount   int64  `json:"filteredClusterCount"`
+        FilteredProjectCount   int64  `json:"filteredProjectCount"`
+        FilteredWorkspaceCount int64  `json:"filteredWorkspaceCount"`
+    }
+
+        // 顶部统计卡片 - 8个卡片
+    DashboardSummaryCards {
+                                                         // 数量统计
+        ClusterTotalCount   int64 `json:"clusterTotalCount"`
+        ProjectTotalCount   int64 `json:"projectTotalCount"`
+        WorkspaceTotalCount int64 `json:"workspaceTotalCount"`
+
+                                                         // CPU物理分配率 = limit / physical * 100
+        CpuPhysical     float64 `json:"cpuPhysical"`     // 物理CPU总量
+        CpuLimit        float64 `json:"cpuLimit"`        // 已分配配额（不是超分）
+        CpuPhysicalRate float64 `json:"cpuPhysicalRate"` // 物理分配率
+
+                                                         // 内存物理分配率
+        MemPhysical     float64 `json:"memPhysical"`
+        MemLimit        float64 `json:"memLimit"`
+        MemPhysicalRate float64 `json:"memPhysicalRate"`
+
+                                                         // GPU物理分配率
+        GpuPhysical     float64 `json:"gpuPhysical"`
+        GpuLimit        float64 `json:"gpuLimit"`
+        GpuPhysicalRate float64 `json:"gpuPhysicalRate"`
+
+                                                         // 存储分配率
+        StoragePhysical     float64 `json:"storagePhysical"`
+        StorageLimit        float64 `json:"storageLimit"`
+        StoragePhysicalRate float64 `json:"storagePhysicalRate"`
+
+                                                         // Pod分配率
+        PodPhysical     int64   `json:"podPhysical"`
+        PodLimit        int64   `json:"podLimit"`
+        PodPhysicalRate float64 `json:"podPhysicalRate"`
+    }
+
+        // 资源概览项 - 三层数据
+    ResourceOverviewItem {
+        Physical float64 `json:"physical"` // 物理资源总量
+        Limit    float64 `json:"limit"`    // 分配总数（原始配额）
+        Capacity float64 `json:"capacity"` // 超分总数（超分后容量）
+        Unit     string  `json:"unit"`
+    }
+
+        // 资源分配概览
+    ResourceAllocationOverview {
+        Cpu     ResourceOverviewItem `json:"cpu"`     // 物理数、分配总数、超分总数
+        Mem     ResourceOverviewItem `json:"mem"`
+        Gpu     ResourceOverviewItem `json:"gpu"`
+        Storage ResourceOverviewItem `json:"storage"` // 存储总数、分配总数（无超分）
+        Pod     ResourceOverviewItem `json:"pod"`     // Pod总数、分配总数（无超分）
+    }
+
+        // 超分收益
+    ResourceOversellSavings {
+        Cpu OversellSavingItem `json:"cpu"`
+        Mem OversellSavingItem `json:"mem"`
+        Gpu OversellSavingItem `json:"gpu"`
+    }
+
+    OversellSavingItem {
+        LimitTotal    float64 `json:"limitTotal"`    // 原始配额
+        CapacityTotal float64 `json:"capacityTotal"` // 超分后容量
+        SavingAmount  float64 `json:"savingAmount"`  // 节约量 = capacity - limit
+        SavingRate    float64 `json:"savingRate"`    // 超分率
+        Unit          string  `json:"unit"`
+    }
+
+        // ==================== 集群资源排行 ====================
+
+    GetClusterResourceRankingReq {
+        ProjectId uint64 `form:"projectId,optional"`
+        SortBy    string `form:"sortBy,optional"`
+        TopN      int64  `form:"topN,optional"`
+    }
+
+    GetClusterResourceRankingResp {
+        Items []ClusterRankingItem `json:"items"`
+        Total int64                `json:"total"`
+    }
+
+    ClusterRankingItem {
+        Rank                  int64   `json:"rank"`
+        ClusterUuid           string  `json:"clusterUuid"`
+        ClusterName           string  `json:"clusterName"`
+        Environment           string  `json:"environment"`
+        Region                string  `json:"region"`
+        Provider              string  `json:"provider"`
+        ProjectCount          int64   `json:"projectCount"`
+        WorkspaceCount        int64   `json:"workspaceCount"`
+        CpuCapacity           float64 `json:"cpuCapacity"`
+        CpuLimit              float64 `json:"cpuLimit"`
+        CpuAllocated          float64 `json:"cpuAllocated"`
+        CpuAllocationRate     float64 `json:"cpuAllocationRate"`
+        CpuOversellRate       float64 `json:"cpuOversellRate"`
+        MemCapacityGib        float64 `json:"memCapacityGib"`
+        MemLimitGib           float64 `json:"memLimitGib"`
+        MemAllocatedGib       float64 `json:"memAllocatedGib"`
+        MemAllocationRate     float64 `json:"memAllocationRate"`
+        MemOversellRate       float64 `json:"memOversellRate"`
+        GpuCapacity           float64 `json:"gpuCapacity"`
+        GpuLimit              float64 `json:"gpuLimit"`
+        GpuAllocated          float64 `json:"gpuAllocated"`
+        GpuAllocationRate     float64 `json:"gpuAllocationRate"`
+        GpuOversellRate       float64 `json:"gpuOversellRate"`
+        StorageLimitGib       float64 `json:"storageLimitGib"`
+        StorageAllocatedGib   float64 `json:"storageAllocatedGib"`
+        StorageAllocationRate float64 `json:"storageAllocationRate"`
+        PodsLimit             int64   `json:"podsLimit"`
+        PodsAllocated         int64   `json:"podsAllocated"`
+        PodsAllocationRate    float64 `json:"podsAllocationRate"`
+        OverallUsageRate      float64 `json:"overallUsageRate"`
+    }
+
+        // ==================== 项目资源排行 ====================
+
+    GetProjectResourceRankingReq {
+        ClusterUuid string `form:"clusterUuid,optional"`
+        SortBy      string `form:"sortBy,optional"`
+        TopN        int64  `form:"topN,optional"`
+    }
+
+    GetProjectResourceRankingResp {
+        Items []ProjectRankingItem `json:"items"`
+        Total int64                `json:"total"`
+    }
+
+    ProjectRankingItem {
+        Rank               int64   `json:"rank"`
+        ProjectId          uint64  `json:"projectId"`
+        ProjectName        string  `json:"projectName"`
+        ProjectUuid        string  `json:"projectUuid"`
+        IsSystem           bool    `json:"isSystem"`
+        ClusterCount       int64   `json:"clusterCount"`
+        WorkspaceCount     int64   `json:"workspaceCount"`
+        PrimaryClusterUuid string  `json:"primaryClusterUuid"`
+        PrimaryClusterName string  `json:"primaryClusterName"`
+        CpuLimit           float64 `json:"cpuLimit"`
+        CpuCapacity        float64 `json:"cpuCapacity"`
+        CpuAllocated       float64 `json:"cpuAllocated"`
+        CpuUsageRate       float64 `json:"cpuUsageRate"`
+        MemLimitGib        float64 `json:"memLimitGib"`
+        MemCapacityGib     float64 `json:"memCapacityGib"`
+        MemAllocatedGib    float64 `json:"memAllocatedGib"`
+        MemUsageRate       float64 `json:"memUsageRate"`
+        GpuLimit           float64 `json:"gpuLimit"`
+        GpuCapacity        float64 `json:"gpuCapacity"`
+        GpuAllocated       float64 `json:"gpuAllocated"`
+        GpuUsageRate       float64 `json:"gpuUsageRate"`
+        StorageLimitGib    float64 `json:"storageLimitGib"`
+        StorageAllocatedGib float64 `json:"storageAllocatedGib"`
+        StorageUsageRate   float64 `json:"storageUsageRate"`
+        PodsLimit          int64   `json:"podsLimit"`
+        PodsAllocated      int64   `json:"podsAllocated"`
+        PodsUsageRate      float64 `json:"podsUsageRate"`
+        OverallUsageRate   float64 `json:"overallUsageRate"`
+    }
+
+        // ==================== 工作空间资源排行 ====================
+
+    GetWorkspaceResourceRankingReq {
+        ClusterUuid string `form:"clusterUuid,optional"`
+        ProjectId   uint64 `form:"projectId,optional"`
+        SortBy      string `form:"sortBy,optional"`
+        TopN        int64  `form:"topN,optional"`
+    }
+
+    GetWorkspaceResourceRankingResp {
+        Items []WorkspaceRankingItem `json:"items"`
+        Total int64                  `json:"total"`
+    }
+
+    WorkspaceRankingItem {
+        Rank                int64   `json:"rank"`
+        WorkspaceId         uint64  `json:"workspaceId"`
+        WorkspaceName       string  `json:"workspaceName"`
+        WorkspaceUuid       string  `json:"workspaceUuid"`
+        Namespace           string  `json:"namespace"`
+        ProjectId           uint64  `json:"projectId"`
+        ProjectName         string  `json:"projectName"`
+        ClusterUuid         string  `json:"clusterUuid"`
+        ClusterName         string  `json:"clusterName"`
+        CpuLimit            float64 `json:"cpuLimit"`
+        CpuAllocated        float64 `json:"cpuAllocated"`
+        CpuUsageRate        float64 `json:"cpuUsageRate"`
+        MemLimitGib         float64 `json:"memLimitGib"`
+        MemAllocatedGib     float64 `json:"memAllocatedGib"`
+        MemUsageRate        float64 `json:"memUsageRate"`
+        GpuLimit            float64 `json:"gpuLimit"`
+        GpuAllocated        float64 `json:"gpuAllocated"`
+        GpuUsageRate        float64 `json:"gpuUsageRate"`
+        StorageLimitGib     float64 `json:"storageLimitGib"`
+        StorageAllocatedGib float64 `json:"storageAllocatedGib"`
+        StorageUsageRate    float64 `json:"storageUsageRate"`
+        PodsLimit           int64   `json:"podsLimit"`
+        PodsAllocated       int64   `json:"podsAllocated"`
+        PodsUsageRate       float64 `json:"podsUsageRate"`
+        OverallUsageRate    float64 `json:"overallUsageRate"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: resourcedashboard
+    prefix: /manager/v1/resource/dashboard
+)
+service manager-api {
+    @doc "获取资源仪表盘汇总数据"
+    @handler GetResourceDashboardSummaryHandler
+    get /summary (GetResourceDashboardSummaryReq) returns (GetResourceDashboardSummaryResp)
+
+    @doc "获取集群资源排行"
+    @handler GetClusterResourceRankingHandler
+    get /ranking/cluster (GetClusterResourceRankingReq) returns (GetClusterResourceRankingResp)
+
+    @doc "获取项目资源排行"
+    @handler GetProjectResourceRankingHandler
+    get /ranking/project (GetProjectResourceRankingReq) returns (GetProjectResourceRankingResp)
+
+    @doc "获取工作空间资源排行"
+    @handler GetWorkspaceResourceRankingHandler
+    get /ranking/workspace (GetWorkspaceResourceRankingReq) returns (GetWorkspaceResourceRankingResp)
+}

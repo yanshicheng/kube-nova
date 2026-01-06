@@ -65,29 +65,47 @@ type AddClusterAppRequest struct {
 }
 
 type AddClusterRequest struct {
-	Name               string `form:"name"  validate:"min=1,max=100"`                                                       // 集群名称，全局唯一
-	Description        string `form:"description,optional"  validate:"omitempty,max=500"`                                   // 集群描述信息
-	ClusterType        string `form:"clusterType" validate:"oneof=standard edge serverless"`                                // 集群类型
-	Environment        string `form:"environment"  validate:"required"`                                                     // 环境类型
-	Region             string `form:"region,optional" validate:"omitempty,max=50"`                                          // 地域信息
-	Zone               string `form:"zone,optional"  validate:"omitempty,max=50"`                                           // 可用区信息
-	Datacenter         string `form:"datacenter,optional" validate:"omitempty,max=100"`                                     // 数据中心名称
-	Provider           string `form:"provider"  validate:"required,oneof=aws azure gcp alibaba tencent huawei self-hosted"` // 云提供商
-	IsManaged          int64  `form:"isManaged,optional"  validate:"omitempty,oneof=0 1"`                                   // 是否为云厂商托管集群
-	NodeLb             string `form:"nodeLb,optional" validate:"omitempty"`                                                 // Node负载均衡IP地址 支持 ipv4 ipv6 多个逗号分隔
-	MasterLb           string `form:"masterLb,optional"  validate:"omitempty"`                                              // Master负载均衡IP地址 支持 ipv4 ipv6 多个逗号分隔
-	IngressDomain      string `form:"ingressDomain,optional"  validate:"omitempty"`                                         // 配置可用的域名前缀， 注意是域名前缀不是ip 例如 ikubeops.com 多个逗号分隔// Master负载均衡IP地址
-	AuthType           string `form:"authType" validate:"required,oneof=kubeconfig token certificate incluster"`            // 认证类型
-	ApiServerHost      string `form:"apiServerHost,optional"  validate:"omitempty,url"`                                     // API Server地址
-	KubeFile           string `form:"kubeFile,optional"  validate:"omitempty"`                                              // KubeConfig文件内容
-	Token              string `form:"token,optional" validate:"omitempty"`                                                  // Bearer Token
-	CaCert             string `form:"caCert,optional" validate:"omitempty"`                                                 // CA证书内容
-	CaFile             string `form:"caFile,optional" validate:"omitempty,max=500"`                                         // CA证书文件路径
-	ClientCert         string `form:"clientCert,optional"   validate:"omitempty"`                                           // 客户端证书内容
-	CertFile           string `form:"certFile,optional" validate:"omitempty,max=500"`                                       // 客户端证书文件路径
-	ClientKey          string `form:"clientKey,optional"  validate:"omitempty"`                                             // 客户端密钥内容
-	KeyFile            string `form:"keyFile,optional" validate:"omitempty,max=500"`                                        // 客户端密钥文件路径
-	InsecureSkipVerify int64  `form:"insecureSkipVerify,optional"  validate:"omitempty,oneof=0 1"`                          // 是否跳过TLS证书验证
+	Name                         string `form:"name"  validate:"min=1,max=100"`                                                       // 集群名称，全局唯一
+	Description                  string `form:"description,optional"  validate:"omitempty,max=500"`                                   // 集群描述信息
+	ClusterType                  string `form:"clusterType" validate:"oneof=standard edge serverless"`                                // 集群类型
+	Environment                  string `form:"environment"  validate:"required"`                                                     // 环境类型
+	Region                       string `form:"region,optional" validate:"omitempty,max=50"`                                          // 地域信息
+	Zone                         string `form:"zone,optional"  validate:"omitempty,max=50"`                                           // 可用区信息
+	Datacenter                   string `form:"datacenter,optional" validate:"omitempty,max=100"`                                     // 数据中心名称
+	Provider                     string `form:"provider"  validate:"required,oneof=aws azure gcp alibaba tencent huawei self-hosted"` // 云提供商
+	IsManaged                    int64  `form:"isManaged,optional"  validate:"omitempty,oneof=0 1"`                                   // 是否为云厂商托管集群
+	NodeLb                       string `form:"nodeLb,optional" validate:"omitempty"`                                                 // Node负载均衡IP地址 支持 ipv4 ipv6 多个逗号分隔
+	MasterLb                     string `form:"masterLb,optional"  validate:"omitempty"`                                              // Master负载均衡IP地址 支持 ipv4 ipv6 多个逗号分隔
+	IngressDomain                string `form:"ingressDomain,optional"  validate:"omitempty"`                                         // 配置可用的域名前缀， 注意是域名前缀不是ip 例如 ikubeops.com 多个逗号分隔// Master负载均衡IP地址
+	AuthType                     string `form:"authType" validate:"required,oneof=kubeconfig token certificate incluster"`            // 认证类型
+	ApiServerHost                string `form:"apiServerHost,optional"  validate:"omitempty,url"`                                     // API Server地址
+	KubeFile                     string `form:"kubeFile,optional"  validate:"omitempty"`                                              // KubeConfig文件内容
+	Token                        string `form:"token,optional" validate:"omitempty"`                                                  // Bearer Token
+	CaCert                       string `form:"caCert,optional" validate:"omitempty"`                                                 // CA证书内容
+	CaFile                       string `form:"caFile,optional" validate:"omitempty,max=500"`                                         // CA证书文件路径
+	ClientCert                   string `form:"clientCert,optional"   validate:"omitempty"`                                           // 客户端证书内容
+	CertFile                     string `form:"certFile,optional" validate:"omitempty,max=500"`                                       // 客户端证书文件路径
+	ClientKey                    string `form:"clientKey,optional"  validate:"omitempty"`                                             // 客户端密钥内容
+	KeyFile                      string `form:"keyFile,optional" validate:"omitempty,max=500"`                                        // 客户端密钥文件路径
+	InsecureSkipVerify           int64  `form:"insecureSkipVerify,optional"  validate:"omitempty,oneof=0 1"`                          // 是否跳过TLS证书验证
+	PriceConfigId                uint64 `form:"priceConfigId" validate:"required,gt=0"`                                               // 价格配置ID（必填）
+	BillingStartTime             int64  `form:"billingStartTime,optional"`                                                            // 计费开始时间（秒级时间戳，可选）
+	EnablePrometheus             int64  `form:"enablePrometheus,optional" validate:"omitempty,oneof=0 1"`                             // 是否配置 Prometheus：0-否，1-是
+	PrometheusUrl                string `form:"prometheusUrl,optional" validate:"omitempty"`                                          // Prometheus 地址
+	PrometheusPort               int64  `form:"prometheusPort,optional" validate:"omitempty,min=1,max=65535"`                         // Prometheus 端口
+	PrometheusProtocol           string `form:"prometheusProtocol,optional" validate:"omitempty,oneof=http https"`                    // 协议
+	PrometheusAuthEnabled        int64  `form:"prometheusAuthEnabled,optional" validate:"omitempty,oneof=0 1"`                        // 是否启用认证
+	PrometheusAuthType           string `form:"prometheusAuthType,optional" validate:"omitempty,oneof=none basic token apikey"`       // 认证类型
+	PrometheusUsername           string `form:"prometheusUsername,optional"`                                                          // Basic 认证用户名
+	PrometheusPassword           string `form:"prometheusPassword,optional"`                                                          // Basic 认证密码
+	PrometheusToken              string `form:"prometheusToken,optional"`                                                             // Token 认证
+	PrometheusAccessKey          string `form:"prometheusAccessKey,optional"`                                                         // API Key
+	PrometheusAccessSecret       string `form:"prometheusAccessSecret,optional"`                                                      // API Secret
+	PrometheusTlsEnabled         int64  `form:"prometheusTlsEnabled,optional" validate:"omitempty,oneof=0 1"`                         // 是否启用 TLS
+	PrometheusInsecureSkipVerify int64  `form:"prometheusInsecureSkipVerify,optional" validate:"omitempty,oneof=0 1"`                 // 是否跳过证书验证
+	PrometheusCaCert             string `form:"prometheusCaCert,optional"`                                                            // CA 证书
+	PrometheusClientCert         string `form:"prometheusClientCert,optional"`                                                        // 客户端证书
+	PrometheusClientKey          string `form:"prometheusClientKey,optional"`                                                         // 客户端密钥
 }
 
 type AddProjectAdminRequest struct {
@@ -99,6 +117,8 @@ type AddProjectClusterRequest struct {
 	ClusterUuid           string  `json:"clusterUuid" validate:"required,uuid"`       // 关联的集群UUID
 	ProjectId             uint64  `json:"projectId" validate:"required,gt=0"`         // 关联的项目ID
 	CpuLimit              string  `json:"cpuLimit" validate:"required"`               // 上级分配的CPU配额（核心数）
+	PriceConfigId         uint64  `json:"priceConfigId" validate:"required,gt=0"`     // 费用配置ID（必填）
+	BillingStartTime      int64   `json:"billingStartTime,optional"`                  // 计费开始时间（秒级时间戳，可选，默认当前时间）
 	CpuOvercommitRatio    float64 `json:"cpuOvercommitRatio" validate:"omitempty"`    // CPU超分比例
 	CpuCapacity           string  `json:"cpuCapacity" validate:"omitempty"`           // CPU超分后总容量
 	MemLimit              string  `json:"memLimit" validate:"required"`               // 上级分配的内存配额（单位：GiB）
@@ -182,6 +202,12 @@ type Alert struct {
 	EndsAt       string            `json:"endsAt"`
 	GeneratorURL string            `json:"generatorURL"`
 	Fingerprint  string            `json:"fingerprint"`
+}
+
+type AlertDashboardFilter struct {
+	ClusterUuid string `form:"clusterUuid,optional" json:"clusterUuid,optional"` // 集群UUID，空表示全部集群
+	ProjectId   uint64 `form:"projectId,optional" json:"projectId,optional"`     // 项目ID，0表示全部项目
+	WorkspaceId uint64 `form:"workspaceId,optional" json:"workspaceId,optional"` // 工作空间ID，0表示全部工作空间
 }
 
 type AlertInstance struct {
@@ -337,6 +363,17 @@ type BatchImportAlertRulesResponse struct {
 	RuleCount  int64  `json:"ruleCount"`  // 导入的规则数量
 }
 
+type BillingStatementSummary struct {
+	TotalCount    int64   `json:"totalCount"`    // 账单总数
+	TotalAmount   float64 `json:"totalAmount"`   // 总费用
+	CpuCost       float64 `json:"cpuCost"`       // CPU费用合计
+	MemoryCost    float64 `json:"memoryCost"`    // 内存费用合计
+	StorageCost   float64 `json:"storageCost"`   // 存储费用合计
+	GpuCost       float64 `json:"gpuCost"`       // GPU费用合计
+	PodCost       float64 `json:"podCost"`       // Pod费用合计
+	ManagementFee float64 `json:"managementFee"` // 管理服务费合计
+}
+
 type Cluster struct {
 	Id           uint64 `json:"id"`           // 自增主键
 	Name         string `json:"name"`         // 集群名称
@@ -413,6 +450,13 @@ type ClusterAuthInfo struct {
 	InsecureSkipVerify int64  `json:"insecureSkipVerify"` // 是否跳过TLS证书验证
 	CreatedAt          int64  `json:"createdAt"`          // 记录创建时间
 	UpdatedAt          int64  `json:"updatedAt"`          // 记录更新时间
+}
+
+type ClusterCostItem struct {
+	ClusterUuid  string  `json:"clusterUuid"`  // 集群UUID
+	ClusterName  string  `json:"clusterName"`  // 集群名称
+	ProjectCount int64   `json:"projectCount"` // 集群下项目数量
+	TotalCost    float64 `json:"totalCost"`    // 集群总费用
 }
 
 type ClusterDetail struct {
@@ -521,6 +565,39 @@ type ClusterNodeInfo struct {
 	Unschedulable int64   `json:"unschedulable"`
 }
 
+type ClusterRankingItem struct {
+	Rank                  int64   `json:"rank"`
+	ClusterUuid           string  `json:"clusterUuid"`
+	ClusterName           string  `json:"clusterName"`
+	Environment           string  `json:"environment"`
+	Region                string  `json:"region"`
+	Provider              string  `json:"provider"`
+	ProjectCount          int64   `json:"projectCount"`
+	WorkspaceCount        int64   `json:"workspaceCount"`
+	CpuCapacity           float64 `json:"cpuCapacity"`
+	CpuLimit              float64 `json:"cpuLimit"`
+	CpuAllocated          float64 `json:"cpuAllocated"`
+	CpuAllocationRate     float64 `json:"cpuAllocationRate"`
+	CpuOversellRate       float64 `json:"cpuOversellRate"`
+	MemCapacityGib        float64 `json:"memCapacityGib"`
+	MemLimitGib           float64 `json:"memLimitGib"`
+	MemAllocatedGib       float64 `json:"memAllocatedGib"`
+	MemAllocationRate     float64 `json:"memAllocationRate"`
+	MemOversellRate       float64 `json:"memOversellRate"`
+	GpuCapacity           float64 `json:"gpuCapacity"`
+	GpuLimit              float64 `json:"gpuLimit"`
+	GpuAllocated          float64 `json:"gpuAllocated"`
+	GpuAllocationRate     float64 `json:"gpuAllocationRate"`
+	GpuOversellRate       float64 `json:"gpuOversellRate"`
+	StorageLimitGib       float64 `json:"storageLimitGib"`
+	StorageAllocatedGib   float64 `json:"storageAllocatedGib"`
+	StorageAllocationRate float64 `json:"storageAllocationRate"`
+	PodsLimit             int64   `json:"podsLimit"`
+	PodsAllocated         int64   `json:"podsAllocated"`
+	PodsAllocationRate    float64 `json:"podsAllocationRate"`
+	OverallUsageRate      float64 `json:"overallUsageRate"`
+}
+
 type ClusterResourceInfo struct {
 	Id                      uint64  `json:"id"`                      // 自增主键
 	ClusterUuid             string  `json:"clusterUuid"`             // 关联的集群UUID
@@ -543,6 +620,42 @@ type ClusterResourceInfo struct {
 type ClusterUpdateAvatarRequest struct {
 	Id     uint64 `path:"id" validate:"required,gt=0"` // 集群ID
 	Avatar string `form:"avatar, optional" validate:"omitempty"`
+}
+
+type CostCompositionItem struct {
+	CostName   string  `json:"costName"`   // 费用名称
+	CostAmount float64 `json:"costAmount"` // 费用金额
+	Percentage float64 `json:"percentage"` // 百分比
+}
+
+type CostTrendItem struct {
+	Month          string  `json:"month"`              // 月份
+	TotalCost      float64 `json:"totalCost"`          // 总费用
+	ResourceCost   float64 `json:"resourceCost"`       // 资源费用
+	ManagementCost float64 `json:"managementCost"`     // 管理服务费
+	StartTime      int64   `form:"startTime,optional"` // 计费开始时间
+	EndTime        int64   `form:"endTime,optional"`   // 计费结束时间
+}
+
+type DashboardSummaryCards struct {
+	ClusterTotalCount   int64   `json:"clusterTotalCount"`
+	ProjectTotalCount   int64   `json:"projectTotalCount"`
+	WorkspaceTotalCount int64   `json:"workspaceTotalCount"`
+	CpuPhysical         float64 `json:"cpuPhysical"`     // 物理CPU总量
+	CpuLimit            float64 `json:"cpuLimit"`        // 已分配配额（不是超分）
+	CpuPhysicalRate     float64 `json:"cpuPhysicalRate"` // 物理分配率
+	MemPhysical         float64 `json:"memPhysical"`
+	MemLimit            float64 `json:"memLimit"`
+	MemPhysicalRate     float64 `json:"memPhysicalRate"`
+	GpuPhysical         float64 `json:"gpuPhysical"`
+	GpuLimit            float64 `json:"gpuLimit"`
+	GpuPhysicalRate     float64 `json:"gpuPhysicalRate"`
+	StoragePhysical     float64 `json:"storagePhysical"`
+	StorageLimit        float64 `json:"storageLimit"`
+	StoragePhysicalRate float64 `json:"storagePhysicalRate"`
+	PodPhysical         int64   `json:"podPhysical"`
+	PodLimit            int64   `json:"podLimit"`
+	PodPhysicalRate     float64 `json:"podPhysicalRate"`
 }
 
 type DefaultIdRequest struct {
@@ -590,7 +703,75 @@ type DeployAllAlertRulesResponse struct {
 	RuleCount  int64 `json:"ruleCount"`  // 部署的规则数量
 }
 
+type DimensionStatItem struct {
+	DimensionId   string `json:"dimensionId"`   // 维度ID
+	DimensionName string `json:"dimensionName"` // 维度名称
+	TotalCount    int64  `json:"totalCount"`    // 告警总数
+	FiringCount   int64  `json:"firingCount"`   // 触发中数量
+	ResolvedCount int64  `json:"resolvedCount"` // 已恢复数量
+	CriticalCount int64  `json:"criticalCount"` // Critical级别数量
+	WarningCount  int64  `json:"warningCount"`  // Warning级别数量
+	InfoCount     int64  `json:"infoCount"`     // Info级别数量
+}
+
 type ExportAllAlertRulesRequest struct {
+}
+
+type FilterCondition struct {
+	ClusterUuid            string `json:"clusterUuid"`
+	ClusterName            string `json:"clusterName"`
+	ProjectId              uint64 `json:"projectId"`
+	ProjectName            string `json:"projectName"`
+	FilteredClusterCount   int64  `json:"filteredClusterCount"`
+	FilteredProjectCount   int64  `json:"filteredProjectCount"`
+	FilteredWorkspaceCount int64  `json:"filteredWorkspaceCount"`
+}
+
+type GetAlertDimensionStatsRequest struct {
+	ClusterUuid string `form:"clusterUuid,optional"`                                          // 集群UUID
+	ProjectId   uint64 `form:"projectId,optional"`                                            // 项目ID
+	WorkspaceId uint64 `form:"workspaceId,optional"`                                          // 工作空间ID
+	Dimension   string `form:"dimension" validate:"required,oneof=cluster project workspace"` // 维度类型
+	Page        uint64 `form:"page,optional"`                                                 // 页码
+	PageSize    uint64 `form:"pageSize,optional"`                                             // 每页数量
+}
+
+type GetAlertDimensionStatsResponse struct {
+	Items []DimensionStatItem `json:"items"` // 维度统计列表
+	Total uint64              `json:"total"` // 总记录数
+}
+
+type GetAlertOverviewRequest struct {
+	ClusterUuid string `form:"clusterUuid,optional"` // 集群UUID
+	ProjectId   uint64 `form:"projectId,optional"`   // 项目ID
+	WorkspaceId uint64 `form:"workspaceId,optional"` // 工作空间ID
+}
+
+type GetAlertOverviewResponse struct {
+	TotalCount         int64   `json:"totalCount"`         // 告警总数
+	FiringCount        int64   `json:"firingCount"`        // 触发中数量
+	ResolvedCount      int64   `json:"resolvedCount"`      // 已恢复数量
+	TodayNewCount      int64   `json:"todayNewCount"`      // 今日新增数量
+	TodayResolvedCount int64   `json:"todayResolvedCount"` // 今日已恢复数量
+	AvgDuration        float64 `json:"avgDuration"`        // 平均持续时长(秒)
+	ResolvedRate       float64 `json:"resolvedRate"`       // 恢复率(百分比)
+	CompareYesterday   float64 `json:"compareYesterday"`   // 较昨日变化(百分比)
+}
+
+type GetAlertRealtimeStatusRequest struct {
+	ClusterUuid string `form:"clusterUuid,optional"` // 集群UUID
+	ProjectId   uint64 `form:"projectId,optional"`   // 项目ID
+	WorkspaceId uint64 `form:"workspaceId,optional"` // 工作空间ID
+}
+
+type GetAlertRealtimeStatusResponse struct {
+	FiringCount         int64 `json:"firingCount"`         // 当前触发中数量
+	CriticalFiringCount int64 `json:"criticalFiringCount"` // Critical触发中数量
+	WarningFiringCount  int64 `json:"warningFiringCount"`  // Warning触发中数量
+	InfoFiringCount     int64 `json:"infoFiringCount"`     // Info触发中数量
+	Last5MinNewCount    int64 `json:"last5MinNewCount"`    // 最近5分钟新增数量
+	Last5MinResolved    int64 `json:"last5MinResolved"`    // 最近5分钟恢复数量
+	UpdateTimestamp     int64 `json:"updateTimestamp"`     // 数据更新时间戳
 }
 
 type GetAlertRuleTreeRequest struct {
@@ -599,6 +780,62 @@ type GetAlertRuleTreeRequest struct {
 
 type GetAlertRuleTreeResponse struct {
 	Data []AlertRuleTreeNode `json:"data"` // 树形结构数据
+}
+
+type GetAlertSeverityStatsRequest struct {
+	ClusterUuid string `form:"clusterUuid,optional"` // 集群UUID
+	ProjectId   uint64 `form:"projectId,optional"`   // 项目ID
+	WorkspaceId uint64 `form:"workspaceId,optional"` // 工作空间ID
+}
+
+type GetAlertSeverityStatsResponse struct {
+	Items      []SeverityStatItem `json:"items"`      // 各级别统计列表
+	TotalCount int64              `json:"totalCount"` // 所有级别告警总数
+}
+
+type GetAlertSummaryReportRequest struct {
+	ClusterUuid string `form:"clusterUuid,optional"` // 集群UUID
+	ProjectId   uint64 `form:"projectId,optional"`   // 项目ID
+	WorkspaceId uint64 `form:"workspaceId,optional"` // 工作空间ID
+	StartTime   int64  `form:"startTime,optional"`   // 开始时间戳
+	EndTime     int64  `form:"endTime,optional"`     // 结束时间戳
+}
+
+type GetAlertSummaryReportResponse struct {
+	Overview      GetAlertOverviewResponse      `json:"overview"`      // 总览统计
+	SeverityStats GetAlertSeverityStatsResponse `json:"severityStats"` // 级别统计
+	Trend         GetAlertTrendResponse         `json:"trend"`         // 趋势数据
+	TopClusters   []RankingItem                 `json:"topClusters"`   // Top集群
+	TopProjects   []RankingItem                 `json:"topProjects"`   // Top项目
+	TopRules      []RankingItem                 `json:"topRules"`      // Top规则
+}
+
+type GetAlertTopRankingRequest struct {
+	ClusterUuid string `form:"clusterUuid,optional"`                                                          // 集群UUID
+	ProjectId   uint64 `form:"projectId,optional"`                                                            // 项目ID
+	WorkspaceId uint64 `form:"workspaceId,optional"`                                                          // 工作空间ID
+	RankingType string `form:"rankingType" validate:"required,oneof=cluster project workspace rule instance"` // 排行类型
+	TopN        int32  `form:"topN,optional"`                                                                 // 排行数量，默认10
+	Severity    string `form:"severity,optional"`                                                             // 按级别筛选
+	Status      string `form:"status,optional"`                                                               // 按状态筛选
+}
+
+type GetAlertTopRankingResponse struct {
+	Items       []RankingItem `json:"items"`       // 排行列表
+	TotalAlerts int64         `json:"totalAlerts"` // 告警总数
+}
+
+type GetAlertTrendRequest struct {
+	ClusterUuid string `form:"clusterUuid,optional"` // 集群UUID
+	ProjectId   uint64 `form:"projectId,optional"`   // 项目ID
+	WorkspaceId uint64 `form:"workspaceId,optional"` // 工作空间ID
+	Days        int32  `form:"days,optional"`        // 统计天数，默认7
+}
+
+type GetAlertTrendResponse struct {
+	DataPoints    []TrendDataPoint `json:"dataPoints"`    // 趋势数据点列表
+	TotalNew      int64            `json:"totalNew"`      // 期间新增总数
+	TotalResolved int64            `json:"totalResolved"` // 期间恢复总数
 }
 
 type GetClusterIngressDomainsRequest struct {
@@ -613,12 +850,58 @@ type GetClusterNetworkRequest struct {
 	ClusterUuid string `path:"clusterUuid" validate:"required,uuid"` // 集群UUID
 }
 
+type GetClusterResourceRankingReq struct {
+	ProjectId uint64 `form:"projectId,optional"`
+	SortBy    string `form:"sortBy,optional"`
+	TopN      int64  `form:"topN,optional"`
+}
+
+type GetClusterResourceRankingResp struct {
+	Items []ClusterRankingItem `json:"items"`
+	Total int64                `json:"total"`
+}
+
 type GetProjectAdminsRequest struct {
 	ProjectId uint64 `form:"projectId" validate:"required,gt=0"` // 项目ID
 }
 
+type GetProjectResourceRankingReq struct {
+	ClusterUuid string `form:"clusterUuid,optional"`
+	SortBy      string `form:"sortBy,optional"`
+	TopN        int64  `form:"topN,optional"`
+}
+
+type GetProjectResourceRankingResp struct {
+	Items []ProjectRankingItem `json:"items"`
+	Total int64                `json:"total"`
+}
+
 type GetProjectsByUserIdRequest struct {
 	Name string `form:"name,optional" validate:"omitempty,max=100"`
+}
+
+type GetResourceDashboardSummaryReq struct {
+	ClusterUuid string `form:"clusterUuid,optional"`
+	ProjectId   uint64 `form:"projectId,optional"`
+}
+
+type GetResourceDashboardSummaryResp struct {
+	CurrentFilter      FilterCondition            `json:"currentFilter"`
+	SummaryCards       DashboardSummaryCards      `json:"summaryCards"`
+	AllocationOverview ResourceAllocationOverview `json:"allocationOverview"`
+	OversellSavings    ResourceOversellSavings    `json:"oversellSavings"`
+}
+
+type GetWorkspaceResourceRankingReq struct {
+	ClusterUuid string `form:"clusterUuid,optional"`
+	ProjectId   uint64 `form:"projectId,optional"`
+	SortBy      string `form:"sortBy,optional"`
+	TopN        int64  `form:"topN,optional"`
+}
+
+type GetWorkspaceResourceRankingResp struct {
+	Items []WorkspaceRankingItem `json:"items"`
+	Total int64                  `json:"total"`
 }
 
 type ListAlertRuleFileRequest struct {
@@ -706,6 +989,288 @@ type NodeTaintRequest struct {
 	Key    string `json:"key" validate:"required,max=253"`
 	Value  string `json:"value" validate:"omitempty,max=63"`
 	Effect string `json:"effect" validate:"required,oneof=NoSchedule PreferNoSchedule NoExecute"`
+}
+
+type OnecBillingClusterTopRequest struct {
+	Month     string `form:"month,optional"`     // 查询月份，格式：2025-01
+	TopN      int32  `form:"topN,optional"`      // TOP数量，默认10
+	StartTime int64  `form:"startTime,optional"` // 计费开始时间
+	EndTime   int64  `form:"endTime,optional"`   // 计费结束时间
+}
+
+type OnecBillingClusterTopResponse struct {
+	Items []ClusterCostItem `json:"items"` // 集群费用列表
+}
+
+type OnecBillingConfigBinding struct {
+	Id                 uint64 `json:"id"`                 // 自增主键
+	BindingType        string `json:"bindingType"`        // 绑定类型：cluster/project_cluster
+	BindingClusterUuid string `json:"bindingClusterUuid"` // 绑定集群UUID
+	BindingProjectId   uint64 `json:"bindingProjectId"`   // 绑定项目ID
+	PriceConfigId      uint64 `json:"priceConfigId"`      // 关联的价格配置ID
+	BillingStartTime   int64  `json:"billingStartTime"`   // 计费开始时间
+	LastBillingTime    int64  `json:"lastBillingTime"`    // 上次计费截止时间
+	CreatedBy          string `json:"createdBy"`          // 创建人
+	UpdatedBy          string `json:"updatedBy"`          // 更新人
+	CreatedAt          int64  `json:"createdAt"`          // 创建时间
+	UpdatedAt          int64  `json:"updatedAt"`          // 更新时间
+}
+
+type OnecBillingConfigBindingAddRequest struct {
+	BindingType        string `json:"bindingType" validate:"required,oneof=cluster project_cluster"` // 绑定类型
+	BindingClusterUuid string `json:"bindingClusterUuid" validate:"required"`                        // 绑定集群UUID
+	BindingProjectId   uint64 `json:"bindingProjectId,optional"`                                     // 绑定项目ID
+	PriceConfigId      uint64 `json:"priceConfigId" validate:"required"`                             // 关联的价格配置ID
+	BillingStartTime   int64  `json:"billingStartTime,optional"`                                     // 计费开始时间
+	IsGenerateBilling  bool   `json:"isGenerateBilling,optional"`                                    // 是否生成账单
+}
+
+type OnecBillingConfigBindingAddResponse struct {
+}
+
+type OnecBillingConfigBindingDelRequest struct {
+	Id uint64 `path:"id" validate:"required"` // 绑定ID
+}
+
+type OnecBillingConfigBindingDelResponse struct {
+}
+
+type OnecBillingConfigBindingGetRequest struct {
+	BindingType        string `form:"bindingType" validate:"required,oneof=cluster project_cluster"` // 绑定类型
+	BindingClusterUuid string `form:"bindingClusterUuid" validate:"required"`                        // 绑定集群UUID
+	BindingProjectId   uint64 `form:"bindingProjectId,optional"`                                     // 绑定项目ID
+}
+
+type OnecBillingConfigBindingGetResponse struct {
+	Data OnecBillingConfigBinding `json:"data"` // 绑定信息
+}
+
+type OnecBillingConfigBindingUpdateRequest struct {
+	Id                 uint64 `json:"id" validate:"required"`            // 绑定ID
+	BindingClusterUuid string `json:"bindingClusterUuid,optional"`       // 绑定集群UUID
+	BindingProjectId   uint64 `json:"bindingProjectId,optional"`         // 绑定项目ID
+	PriceConfigId      uint64 `json:"priceConfigId" validate:"required"` // 关联的价格配置ID
+	IsGenerateBilling  bool   `json:"isGenerateBilling,optional"`        // 是否生成账单
+}
+
+type OnecBillingConfigBindingUpdateResponse struct {
+}
+
+type OnecBillingCostCompositionRequest struct {
+	Month       string `form:"month,optional"`       // 查询月份，格式：2025-01
+	ClusterUuid string `form:"clusterUuid,optional"` // 集群UUID，为空查全部
+	ProjectId   uint64 `form:"projectId,optional"`   // 项目ID，0查全部
+	StartTime   int64  `form:"startTime,optional"`   // 计费开始时间
+	EndTime     int64  `form:"endTime,optional"`     // 计费结束时间
+}
+
+type OnecBillingCostCompositionResponse struct {
+	Items     []CostCompositionItem `json:"items"`     // 费用构成列表
+	TotalCost float64               `json:"totalCost"` // 总费用
+}
+
+type OnecBillingCostTrendRequest struct {
+	Months      int32  `form:"months,optional"`      // 查询月数，默认6
+	ClusterUuid string `form:"clusterUuid,optional"` // 集群UUID，为空查全部
+	ProjectId   uint64 `form:"projectId,optional"`   // 项目ID，0查全部
+	StartTime   int64  `form:"startTime,optional"`   // 计费开始时间
+	EndTime     int64  `form:"endTime,optional"`     // 计费结束时间
+}
+
+type OnecBillingCostTrendResponse struct {
+	Items []CostTrendItem `json:"items"` // 趋势数据列表
+}
+
+type OnecBillingDashboardStatsRequest struct {
+	Month       string `form:"month,optional"`       // 查询月份，格式：2025-01
+	ClusterUuid string `form:"clusterUuid,optional"` // 集群UUID，为空查全部
+	ProjectId   uint64 `form:"projectId,optional"`   // 项目ID，0查全部
+	StartTime   int64  `form:"startTime,optional"`   // 计费开始时间
+	EndTime     int64  `form:"endTime,optional"`     // 计费结束时间
+}
+
+type OnecBillingDashboardStatsResponse struct {
+	TotalCost         float64 `json:"totalCost"`         // 本月总费用
+	TotalCostMom      float64 `json:"totalCostMom"`      // 总费用环比
+	ResourceCost      float64 `json:"resourceCost"`      // 资源费用
+	ResourceCostMom   float64 `json:"resourceCostMom"`   // 资源费用环比
+	ManagementCost    float64 `json:"managementCost"`    // 管理服务费
+	ManagementCostMom float64 `json:"managementCostMom"` // 管理服务费环比
+	StatementCount    int64   `json:"statementCount"`    // 账单数量
+	ProjectCount      int64   `json:"projectCount"`      // 涉及项目数量
+}
+
+type OnecBillingPriceConfig struct {
+	Id            uint64  `json:"id"`            // 自增主键
+	ConfigName    string  `json:"configName"`    // 配置名称
+	Description   string  `json:"description"`   // 配置描述
+	CpuPrice      float64 `json:"cpuPrice"`      // CPU单价（元/核/小时）
+	MemoryPrice   float64 `json:"memoryPrice"`   // 内存单价（元/GiB/小时）
+	StoragePrice  float64 `json:"storagePrice"`  // 存储单价（元/GiB/小时）
+	GpuPrice      float64 `json:"gpuPrice"`      // GPU单价（元/卡/小时）
+	PodPrice      float64 `json:"podPrice"`      // Pod单价（元/个/小时）
+	ManagementFee float64 `json:"managementFee"` // 管理费（元/小时）
+	IsSystem      int64   `json:"isSystem"`      // 是否系统内置：0-否 1-是
+	CreatedBy     string  `json:"createdBy"`     // 创建人
+	UpdatedBy     string  `json:"updatedBy"`     // 更新人
+	CreatedAt     int64   `json:"createdAt"`     // 创建时间
+	UpdatedAt     int64   `json:"updatedAt"`     // 更新时间
+}
+
+type OnecBillingPriceConfigAddRequest struct {
+	ConfigName    string  `json:"configName" validate:"required"` // 配置名称
+	Description   string  `json:"description,optional"`           // 配置描述
+	CpuPrice      float64 `json:"cpuPrice"`                       // CPU单价（元/核/小时）
+	MemoryPrice   float64 `json:"memoryPrice"`                    // 内存单价（元/GiB/小时）
+	StoragePrice  float64 `json:"storagePrice"`                   // 存储单价（元/GiB/小时）
+	GpuPrice      float64 `json:"gpuPrice"`                       // GPU单价（元/卡/小时）
+	PodPrice      float64 `json:"podPrice"`                       // Pod单价（元/个/小时）
+	ManagementFee float64 `json:"managementFee"`                  // 管理费（元/小时）
+	IsSystem      int64   `json:"isSystem,optional"`              // 是否系统内置：0-否 1-是
+}
+
+type OnecBillingPriceConfigAddResponse struct {
+}
+
+type OnecBillingPriceConfigDelRequest struct {
+	Id uint64 `path:"id" validate:"required"` // 配置ID
+}
+
+type OnecBillingPriceConfigDelResponse struct {
+}
+
+type OnecBillingPriceConfigGetByIdRequest struct {
+	Id uint64 `path:"id" validate:"required"` // 配置ID
+}
+
+type OnecBillingPriceConfigGetByIdResponse struct {
+	Data OnecBillingPriceConfig `json:"data"` // 配置信息
+}
+
+type OnecBillingPriceConfigSearchRequest struct {
+	ConfigName string `form:"configName,optional"` // 配置名称
+}
+
+type OnecBillingPriceConfigSearchResponse struct {
+	Data []OnecBillingPriceConfig `json:"data"` // 配置列表
+}
+
+type OnecBillingPriceConfigUpdateRequest struct {
+	Id                uint64  `json:"id" validate:"required"`         // 自增主键
+	ConfigName        string  `json:"configName" validate:"required"` // 配置名称
+	Description       string  `json:"description,optional"`           // 配置描述
+	CpuPrice          float64 `json:"cpuPrice"`                       // CPU单价（元/核/小时）
+	MemoryPrice       float64 `json:"memoryPrice"`                    // 内存单价（元/GiB/小时）
+	StoragePrice      float64 `json:"storagePrice"`                   // 存储单价（元/GiB/小时）
+	GpuPrice          float64 `json:"gpuPrice"`                       // GPU单价（元/卡/小时）
+	PodPrice          float64 `json:"podPrice"`                       // Pod单价（元/个/小时）
+	ManagementFee     float64 `json:"managementFee"`                  // 管理费（元/小时）
+	IsGenerateBilling bool    `json:"isGenerateBilling,optional"`     // 是否生成账单
+}
+
+type OnecBillingPriceConfigUpdateResponse struct {
+}
+
+type OnecBillingProjectTopRequest struct {
+	Month       string `form:"month,optional"`       // 查询月份，格式：2025-01
+	ClusterUuid string `form:"clusterUuid,optional"` // 集群UUID，为空查全部
+	TopN        int32  `form:"topN,optional"`        // TOP数量，默认10
+	StartTime   int64  `form:"startTime,optional"`   // 计费开始时间
+	EndTime     int64  `form:"endTime,optional"`     // 计费结束时间
+}
+
+type OnecBillingProjectTopResponse struct {
+	Items []ProjectCostItem `json:"items"` // 项目费用列表
+}
+
+type OnecBillingStatement struct {
+	Id                 uint64  `json:"id"`                 // 主键ID
+	StatementNo        string  `json:"statementNo"`        // 账单编号
+	StatementType      string  `json:"statementType"`      // 账单类型
+	BillingStartTime   int64   `json:"billingStartTime"`   // 计费开始时间
+	BillingEndTime     int64   `json:"billingEndTime"`     // 计费结束时间
+	BillingHours       float64 `json:"billingHours"`       // 计费时长
+	ClusterUuid        string  `json:"clusterUuid"`        // 集群UUID
+	ClusterName        string  `json:"clusterName"`        // 集群名称
+	ProjectId          uint64  `json:"projectId"`          // 项目ID
+	ProjectName        string  `json:"projectName"`        // 项目名称
+	ProjectUuid        string  `json:"projectUuid"`        // 项目UUID
+	ProjectClusterId   uint64  `json:"projectClusterId"`   // 项目集群ID
+	BindingId          uint64  `json:"bindingId"`          // 计费绑定ID
+	CpuCapacity        string  `json:"cpuCapacity"`        // CPU总容量
+	MemCapacity        string  `json:"memCapacity"`        // 内存总容量
+	StorageLimit       string  `json:"storageLimit"`       // 存储配额
+	GpuCapacity        string  `json:"gpuCapacity"`        // GPU总容量
+	PodsLimit          int64   `json:"podsLimit"`          // Pod配额
+	WorkspaceCount     int64   `json:"workspaceCount"`     // 工作空间数量
+	ApplicationCount   int64   `json:"applicationCount"`   // 应用数量
+	PriceCpu           float64 `json:"priceCpu"`           // CPU单价
+	PriceMemory        float64 `json:"priceMemory"`        // 内存单价
+	PriceStorage       float64 `json:"priceStorage"`       // 存储单价
+	PriceGpu           float64 `json:"priceGpu"`           // GPU单价
+	PricePod           float64 `json:"pricePod"`           // Pod单价
+	PriceManagementFee float64 `json:"priceManagementFee"` // 管理费单价
+	CpuCost            float64 `json:"cpuCost"`            // CPU费用
+	MemoryCost         float64 `json:"memoryCost"`         // 内存费用
+	StorageCost        float64 `json:"storageCost"`        // 存储费用
+	GpuCost            float64 `json:"gpuCost"`            // GPU费用
+	PodCost            float64 `json:"podCost"`            // Pod费用
+	ManagementFee      float64 `json:"managementFee"`      // 管理费
+	ResourceCostTotal  float64 `json:"resourceCostTotal"`  // 资源费用合计
+	TotalAmount        float64 `json:"totalAmount"`        // 总费用
+	Remark             string  `json:"remark"`             // 备注
+	CreatedBy          string  `json:"createdBy"`          // 创建人
+	UpdatedBy          string  `json:"updatedBy"`          // 更新人
+	CreatedAt          int64   `json:"createdAt"`          // 创建时间
+	UpdatedAt          int64   `json:"updatedAt"`          // 更新时间
+}
+
+type OnecBillingStatementBatchDelRequest struct {
+	BeforeTime  int64  `json:"beforeTime" validate:"required"` // 删除此时间之前的账单
+	ClusterUuid string `json:"clusterUuid,optional"`           // 集群UUID
+	ProjectId   uint64 `json:"projectId,optional"`             // 项目ID
+}
+
+type OnecBillingStatementBatchDelResponse struct {
+	DeletedCount int64 `json:"deletedCount"` // 删除的账单数量
+}
+
+type OnecBillingStatementDelRequest struct {
+	Id uint64 `path:"id" validate:"required"` // 账单ID
+}
+
+type OnecBillingStatementDelResponse struct {
+}
+
+type OnecBillingStatementGenerateRequest struct {
+	ClusterUuid string `json:"clusterUuid,optional"` // 集群UUID
+	ProjectId   uint64 `json:"projectId,optional"`   // 项目ID
+}
+
+type OnecBillingStatementSearchRequest struct {
+	StartTime     int64  `form:"startTime,optional"`     // 计费开始时间
+	EndTime       int64  `form:"endTime,optional"`       // 计费结束时间
+	ClusterUuid   string `form:"clusterUuid,optional"`   // 集群UUID
+	ProjectId     uint64 `form:"projectId,optional"`     // 项目ID
+	StatementType string `form:"statementType,optional"` // 账单类型
+	Page          uint64 `form:"page,optional"`          // 页码
+	PageSize      uint64 `form:"pageSize,optional"`      // 每页数量
+	OrderField    string `form:"orderField,optional"`    // 排序字段
+	IsAsc         bool   `form:"isAsc,optional"`         // 是否升序
+}
+
+type OnecBillingStatementSearchResponse struct {
+	Summary BillingStatementSummary `json:"summary"` // 汇总统计
+	List    []OnecBillingStatement  `json:"list"`    // 账单列表
+	Total   int64                   `json:"total"`   // 总记录数
+}
+
+type OversellSavingItem struct {
+	LimitTotal    float64 `json:"limitTotal"`    // 原始配额
+	CapacityTotal float64 `json:"capacityTotal"` // 超分后容量
+	SavingAmount  float64 `json:"savingAmount"`  // 节约量 = capacity - limit
+	SavingRate    float64 `json:"savingRate"`    // 超分率
+	Unit          string  `json:"unit"`
 }
 
 type PageRequest struct {
@@ -820,6 +1385,44 @@ type ProjectCluster struct {
 	UpdatedAt                 int64   `json:"updatedAt"`                 // 记录更新时间
 }
 
+type ProjectCostItem struct {
+	ProjectId   uint64  `json:"projectId"`   // 项目ID
+	ProjectName string  `json:"projectName"` // 项目名称
+	ProjectUuid string  `json:"projectUuid"` // 项目UUID
+	TotalCost   float64 `json:"totalCost"`   // 项目总费用
+}
+
+type ProjectRankingItem struct {
+	Rank                int64   `json:"rank"`
+	ProjectId           uint64  `json:"projectId"`
+	ProjectName         string  `json:"projectName"`
+	ProjectUuid         string  `json:"projectUuid"`
+	IsSystem            bool    `json:"isSystem"`
+	ClusterCount        int64   `json:"clusterCount"`
+	WorkspaceCount      int64   `json:"workspaceCount"`
+	PrimaryClusterUuid  string  `json:"primaryClusterUuid"`
+	PrimaryClusterName  string  `json:"primaryClusterName"`
+	CpuLimit            float64 `json:"cpuLimit"`
+	CpuCapacity         float64 `json:"cpuCapacity"`
+	CpuAllocated        float64 `json:"cpuAllocated"`
+	CpuUsageRate        float64 `json:"cpuUsageRate"`
+	MemLimitGib         float64 `json:"memLimitGib"`
+	MemCapacityGib      float64 `json:"memCapacityGib"`
+	MemAllocatedGib     float64 `json:"memAllocatedGib"`
+	MemUsageRate        float64 `json:"memUsageRate"`
+	GpuLimit            float64 `json:"gpuLimit"`
+	GpuCapacity         float64 `json:"gpuCapacity"`
+	GpuAllocated        float64 `json:"gpuAllocated"`
+	GpuUsageRate        float64 `json:"gpuUsageRate"`
+	StorageLimitGib     float64 `json:"storageLimitGib"`
+	StorageAllocatedGib float64 `json:"storageAllocatedGib"`
+	StorageUsageRate    float64 `json:"storageUsageRate"`
+	PodsLimit           int64   `json:"podsLimit"`
+	PodsAllocated       int64   `json:"podsAllocated"`
+	PodsUsageRate       float64 `json:"podsUsageRate"`
+	OverallUsageRate    float64 `json:"overallUsageRate"`
+}
+
 type ProjectWorkspace struct {
 	Id                                      uint64 `json:"id"`                                      // 主键ID
 	ProjectClusterId                        uint64 `json:"projectClusterId"`                        // 关联的项目集群ID
@@ -871,6 +1474,39 @@ type ProjectWorkspace struct {
 	UpdatedBy                               string `json:"updatedBy"`                               // 记录更新人
 	CreatedAt                               int64  `json:"createdAt"`                               // 记录创建时间
 	UpdatedAt                               int64  `json:"updatedAt"`                               // 记录更新时间
+}
+
+type RankingItem struct {
+	Rank          int32   `json:"rank"`          // 排名
+	ItemId        string  `json:"itemId"`        // 项目ID
+	ItemName      string  `json:"itemName"`      // 项目名称
+	AlertCount    int64   `json:"alertCount"`    // 告警数量
+	FiringCount   int64   `json:"firingCount"`   // 触发中数量
+	CriticalCount int64   `json:"criticalCount"` // Critical级别数量
+	WarningCount  int64   `json:"warningCount"`  // Warning级别数量
+	Percentage    float64 `json:"percentage"`    // 占总数百分比
+	ExtraInfo     string  `json:"extraInfo"`     // 额外信息
+}
+
+type ResourceAllocationOverview struct {
+	Cpu     ResourceOverviewItem `json:"cpu"` // 物理数、分配总数、超分总数
+	Mem     ResourceOverviewItem `json:"mem"`
+	Gpu     ResourceOverviewItem `json:"gpu"`
+	Storage ResourceOverviewItem `json:"storage"` // 存储总数、分配总数（无超分）
+	Pod     ResourceOverviewItem `json:"pod"`     // Pod总数、分配总数（无超分）
+}
+
+type ResourceOversellSavings struct {
+	Cpu OversellSavingItem `json:"cpu"`
+	Mem OversellSavingItem `json:"mem"`
+	Gpu OversellSavingItem `json:"gpu"`
+}
+
+type ResourceOverviewItem struct {
+	Physical float64 `json:"physical"` // 物理资源总量
+	Limit    float64 `json:"limit"`    // 分配总数（原始配额）
+	Capacity float64 `json:"capacity"` // 超分总数（超分后容量）
+	Unit     string  `json:"unit"`
 }
 
 type SearchAlertInstanceRequest struct {
@@ -1016,6 +1652,15 @@ type SearchProjectWorkspaceRequest struct {
 	Namespace        string `form:"namespace,optional" validate:"omitempty,max=63"` // 命名空间（可选）
 }
 
+type SeverityStatItem struct {
+	Severity      string  `json:"severity"`      // 级别名称
+	SeverityCn    string  `json:"severityCn"`    // 级别中文名
+	TotalCount    int64   `json:"totalCount"`    // 该级别告警总数
+	FiringCount   int64   `json:"firingCount"`   // 该级别触发中数量
+	ResolvedCount int64   `json:"resolvedCount"` // 该级别已恢复数量
+	Percentage    float64 `json:"percentage"`    // 占比(百分比)
+}
+
 type SyncClusterRequest struct {
 	Id uint64 `path:"id" validate:"required,gt=0"` // 集群ID
 }
@@ -1040,6 +1685,13 @@ type TestClusterConnectivityRequest struct {
 	ClientKey          string `json:"clientKey,optional" validate:"omitempty"`                                   // 客户端密钥内容
 	KeyFile            string `json:"keyFile,optional" validate:"omitempty,max=500"`                             // 客户端密钥文件路径
 	InsecureSkipVerify int64  `json:"insecureSkipVerify,optional" validate:"omitempty,oneof=0 1"`                // 是否跳
+}
+
+type TrendDataPoint struct {
+	Date          string `json:"date"`          // 日期
+	NewCount      int64  `json:"newCount"`      // 当日新增告警数
+	ResolvedCount int64  `json:"resolvedCount"` // 当日恢复告警数
+	FiringCount   int64  `json:"firingCount"`   // 当日触发中告警数
 }
 
 type UpdateAlertRuleFileRequest struct {
@@ -1188,4 +1840,32 @@ type UpdateProjectWorkspaceRequest struct {
 	ContainerDefaultRequestCpu              string `json:"containerDefaultRequestCpu" validate:"omitempty"`              // 容器默认CPU请求
 	ContainerDefaultRequestMemory           string `json:"containerDefaultRequestMemory" validate:"omitempty"`           // 容器默认内存请求
 	ContainerDefaultRequestEphemeralStorage string `json:"containerDefaultRequestEphemeralStorage" validate:"omitempty"` // 容器默认临时存储请求
+}
+
+type WorkspaceRankingItem struct {
+	Rank                int64   `json:"rank"`
+	WorkspaceId         uint64  `json:"workspaceId"`
+	WorkspaceName       string  `json:"workspaceName"`
+	WorkspaceUuid       string  `json:"workspaceUuid"`
+	Namespace           string  `json:"namespace"`
+	ProjectId           uint64  `json:"projectId"`
+	ProjectName         string  `json:"projectName"`
+	ClusterUuid         string  `json:"clusterUuid"`
+	ClusterName         string  `json:"clusterName"`
+	CpuLimit            float64 `json:"cpuLimit"`
+	CpuAllocated        float64 `json:"cpuAllocated"`
+	CpuUsageRate        float64 `json:"cpuUsageRate"`
+	MemLimitGib         float64 `json:"memLimitGib"`
+	MemAllocatedGib     float64 `json:"memAllocatedGib"`
+	MemUsageRate        float64 `json:"memUsageRate"`
+	GpuLimit            float64 `json:"gpuLimit"`
+	GpuAllocated        float64 `json:"gpuAllocated"`
+	GpuUsageRate        float64 `json:"gpuUsageRate"`
+	StorageLimitGib     float64 `json:"storageLimitGib"`
+	StorageAllocatedGib float64 `json:"storageAllocatedGib"`
+	StorageUsageRate    float64 `json:"storageUsageRate"`
+	PodsLimit           int64   `json:"podsLimit"`
+	PodsAllocated       int64   `json:"podsAllocated"`
+	PodsUsageRate       float64 `json:"podsUsageRate"`
+	OverallUsageRate    float64 `json:"overallUsageRate"`
 }

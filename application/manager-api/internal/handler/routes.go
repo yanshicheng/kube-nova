@@ -7,11 +7,14 @@ import (
 	"net/http"
 
 	alert "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/alert"
+	alertdashboard "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/alertdashboard"
 	app "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/app"
+	billing "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/billing"
 	cluster "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/cluster"
 	node "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/node"
 	project "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/project"
 	projectauditlog "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/projectauditlog"
+	resourcedashboard "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/resourcedashboard"
 	sync "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/sync"
 	webhook "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/webhook"
 	"github.com/yanshicheng/kube-nova/application/manager-api/internal/svc"
@@ -208,6 +211,57 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
 			[]rest.Route{
 				{
+					// 获取告警维度统计
+					Method:  http.MethodGet,
+					Path:    "/dimension",
+					Handler: alertdashboard.GetAlertDimensionStatsHandler(serverCtx),
+				},
+				{
+					// 获取告警总览统计
+					Method:  http.MethodGet,
+					Path:    "/overview",
+					Handler: alertdashboard.GetAlertOverviewHandler(serverCtx),
+				},
+				{
+					// 获取告警排行榜
+					Method:  http.MethodGet,
+					Path:    "/ranking",
+					Handler: alertdashboard.GetAlertTopRankingHandler(serverCtx),
+				},
+				{
+					// 获取告警实时状态
+					Method:  http.MethodGet,
+					Path:    "/realtime",
+					Handler: alertdashboard.GetAlertRealtimeStatusHandler(serverCtx),
+				},
+				{
+					// 获取告警汇总报告
+					Method:  http.MethodGet,
+					Path:    "/report",
+					Handler: alertdashboard.GetAlertSummaryReportHandler(serverCtx),
+				},
+				{
+					// 获取告警级别统计
+					Method:  http.MethodGet,
+					Path:    "/severity",
+					Handler: alertdashboard.GetAlertSeverityStatsHandler(serverCtx),
+				},
+				{
+					// 获取告警趋势分析
+					Method:  http.MethodGet,
+					Path:    "/trend",
+					Handler: alertdashboard.GetAlertTrendHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/manager/v1/alert/dashboard"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
+			[]rest.Route{
+				{
 					// 添加或更新集群应用配置，如果应用已存在则更新，否则创建新应用
 					Method:  http.MethodPost,
 					Path:    "/",
@@ -234,6 +288,123 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithPrefix("/manager/v1/app"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
+			[]rest.Route{
+				{
+					// 新增计费配置绑定
+					Method:  http.MethodPost,
+					Path:    "/config-binding",
+					Handler: billing.OnecBillingConfigBindingAddHandler(serverCtx),
+				},
+				{
+					// 更新计费配置绑定
+					Method:  http.MethodPut,
+					Path:    "/config-binding",
+					Handler: billing.OnecBillingConfigBindingUpdateHandler(serverCtx),
+				},
+				{
+					// 获取计费配置绑定
+					Method:  http.MethodGet,
+					Path:    "/config-binding",
+					Handler: billing.OnecBillingConfigBindingGetHandler(serverCtx),
+				},
+				{
+					// 删除计费配置绑定
+					Method:  http.MethodDelete,
+					Path:    "/config-binding/:id",
+					Handler: billing.OnecBillingConfigBindingDelHandler(serverCtx),
+				},
+				{
+					// 获取集群费用排行
+					Method:  http.MethodGet,
+					Path:    "/dashboard/cluster-top",
+					Handler: billing.OnecBillingClusterTopHandler(serverCtx),
+				},
+				{
+					// 获取费用构成
+					Method:  http.MethodGet,
+					Path:    "/dashboard/composition",
+					Handler: billing.OnecBillingCostCompositionHandler(serverCtx),
+				},
+				{
+					// 获取项目费用排行
+					Method:  http.MethodGet,
+					Path:    "/dashboard/project-top",
+					Handler: billing.OnecBillingProjectTopHandler(serverCtx),
+				},
+				{
+					// 获取仪表盘统计数据
+					Method:  http.MethodGet,
+					Path:    "/dashboard/stats",
+					Handler: billing.OnecBillingDashboardStatsHandler(serverCtx),
+				},
+				{
+					// 获取费用趋势
+					Method:  http.MethodGet,
+					Path:    "/dashboard/trend",
+					Handler: billing.OnecBillingCostTrendHandler(serverCtx),
+				},
+				{
+					// 新增收费配置
+					Method:  http.MethodPost,
+					Path:    "/price-config",
+					Handler: billing.OnecBillingPriceConfigAddHandler(serverCtx),
+				},
+				{
+					// 更新收费配置
+					Method:  http.MethodPut,
+					Path:    "/price-config",
+					Handler: billing.OnecBillingPriceConfigUpdateHandler(serverCtx),
+				},
+				{
+					// 搜索收费配置
+					Method:  http.MethodGet,
+					Path:    "/price-config",
+					Handler: billing.OnecBillingPriceConfigSearchHandler(serverCtx),
+				},
+				{
+					// 删除收费配置
+					Method:  http.MethodDelete,
+					Path:    "/price-config/:id",
+					Handler: billing.OnecBillingPriceConfigDelHandler(serverCtx),
+				},
+				{
+					// 根据ID获取收费配置
+					Method:  http.MethodGet,
+					Path:    "/price-config/:id",
+					Handler: billing.OnecBillingPriceConfigGetByIdHandler(serverCtx),
+				},
+				{
+					// 搜索账单
+					Method:  http.MethodGet,
+					Path:    "/statement",
+					Handler: billing.OnecBillingStatementSearchHandler(serverCtx),
+				},
+				{
+					// 删除单条账单
+					Method:  http.MethodDelete,
+					Path:    "/statement/:id",
+					Handler: billing.OnecBillingStatementDelHandler(serverCtx),
+				},
+				{
+					// 批量删除账单
+					Method:  http.MethodPost,
+					Path:    "/statement/batch-delete",
+					Handler: billing.OnecBillingStatementBatchDelHandler(serverCtx),
+				},
+				{
+					// 立即生成账单
+					Method:  http.MethodPost,
+					Path:    "/statement/generate",
+					Handler: billing.OnecBillingStatementGenerateHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/manager/v1/billing"),
 	)
 
 	server.AddRoutes(
@@ -383,6 +554,11 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Method:  http.MethodDelete,
 					Path:    "/:id/taints",
 					Handler: node.DeleteNodeTaintHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/:id/yaml",
+					Handler: node.GetNodeYamlHandler(serverCtx),
 				},
 			}...,
 		),
@@ -549,6 +725,39 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithPrefix("/manager/v1/project/audit-log"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
+			[]rest.Route{
+				{
+					// 获取集群资源排行
+					Method:  http.MethodGet,
+					Path:    "/ranking/cluster",
+					Handler: resourcedashboard.GetClusterResourceRankingHandler(serverCtx),
+				},
+				{
+					// 获取项目资源排行
+					Method:  http.MethodGet,
+					Path:    "/ranking/project",
+					Handler: resourcedashboard.GetProjectResourceRankingHandler(serverCtx),
+				},
+				{
+					// 获取工作空间资源排行
+					Method:  http.MethodGet,
+					Path:    "/ranking/workspace",
+					Handler: resourcedashboard.GetWorkspaceResourceRankingHandler(serverCtx),
+				},
+				{
+					// 获取资源仪表盘汇总数据
+					Method:  http.MethodGet,
+					Path:    "/summary",
+					Handler: resourcedashboard.GetResourceDashboardSummaryHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/manager/v1/resource/dashboard"),
 	)
 
 	server.AddRoutes(

@@ -1,0 +1,231 @@
+syntax = "v1"
+
+info(
+    title: "Alert Dashboard API"
+    desc: "告警仪表盘相关接口"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // ===================== 告警仪表盘通用过滤条件 =====================
+
+    // 告警仪表盘过滤条件
+    AlertDashboardFilter {
+        ClusterUuid string `form:"clusterUuid,optional" json:"clusterUuid,optional"`      // 集群UUID，空表示全部集群
+        ProjectId uint64 `form:"projectId,optional" json:"projectId,optional"`            // 项目ID，0表示全部项目
+        WorkspaceId uint64 `form:"workspaceId,optional" json:"workspaceId,optional"`      // 工作空间ID，0表示全部工作空间
+    }
+
+        // ===================== 告警总览统计 =====================
+
+        // 获取告警总览统计请求
+    GetAlertOverviewRequest {
+        ClusterUuid string `form:"clusterUuid,optional"`      // 集群UUID
+        ProjectId uint64 `form:"projectId,optional"`          // 项目ID
+        WorkspaceId uint64 `form:"workspaceId,optional"`      // 工作空间ID
+    }
+
+        // 告警总览统计响应
+    GetAlertOverviewResponse {
+        TotalCount int64 `json:"totalCount"`                  // 告警总数
+        FiringCount int64 `json:"firingCount"`                // 触发中数量
+        ResolvedCount int64 `json:"resolvedCount"`            // 已恢复数量
+        TodayNewCount int64 `json:"todayNewCount"`            // 今日新增数量
+        TodayResolvedCount int64 `json:"todayResolvedCount"`  // 今日已恢复数量
+        AvgDuration float64 `json:"avgDuration"`              // 平均持续时长(秒)
+        ResolvedRate float64 `json:"resolvedRate"`            // 恢复率(百分比)
+        CompareYesterday float64 `json:"compareYesterday"`    // 较昨日变化(百分比)
+    }
+
+        // ===================== 告警级别统计 =====================
+
+        // 获取告警级别统计请求
+    GetAlertSeverityStatsRequest {
+        ClusterUuid string `form:"clusterUuid,optional"`      // 集群UUID
+        ProjectId uint64 `form:"projectId,optional"`          // 项目ID
+        WorkspaceId uint64 `form:"workspaceId,optional"`      // 工作空间ID
+    }
+
+        // 单个级别的统计信息
+    SeverityStatItem {
+        Severity string `json:"severity"`                     // 级别名称
+        SeverityCn string `json:"severityCn"`                 // 级别中文名
+        TotalCount int64 `json:"totalCount"`                  // 该级别告警总数
+        FiringCount int64 `json:"firingCount"`                // 该级别触发中数量
+        ResolvedCount int64 `json:"resolvedCount"`            // 该级别已恢复数量
+        Percentage float64 `json:"percentage"`                // 占比(百分比)
+    }
+
+        // 告警级别统计响应
+    GetAlertSeverityStatsResponse {
+        Items []SeverityStatItem `json:"items"`               // 各级别统计列表
+        TotalCount int64 `json:"totalCount"`                  // 所有级别告警总数
+    }
+
+        // ===================== 告警趋势分析 =====================
+
+        // 获取告警趋势请求
+    GetAlertTrendRequest {
+        ClusterUuid string `form:"clusterUuid,optional"`      // 集群UUID
+        ProjectId uint64 `form:"projectId,optional"`          // 项目ID
+        WorkspaceId uint64 `form:"workspaceId,optional"`      // 工作空间ID
+        Days int32 `form:"days,optional"`                     // 统计天数，默认7
+    }
+
+        // 单日趋势数据
+    TrendDataPoint {
+        Date string `json:"date"`                             // 日期
+        NewCount int64 `json:"newCount"`                      // 当日新增告警数
+        ResolvedCount int64 `json:"resolvedCount"`            // 当日恢复告警数
+        FiringCount int64 `json:"firingCount"`                // 当日触发中告警数
+    }
+
+        // 告警趋势响应
+    GetAlertTrendResponse {
+        DataPoints []TrendDataPoint `json:"dataPoints"`       // 趋势数据点列表
+        TotalNew int64 `json:"totalNew"`                      // 期间新增总数
+        TotalResolved int64 `json:"totalResolved"`            // 期间恢复总数
+    }
+
+        // ===================== 告警维度统计 =====================
+
+        // 获取告警维度统计请求
+    GetAlertDimensionStatsRequest {
+        ClusterUuid string `form:"clusterUuid,optional"`      // 集群UUID
+        ProjectId uint64 `form:"projectId,optional"`          // 项目ID
+        WorkspaceId uint64 `form:"workspaceId,optional"`      // 工作空间ID
+        Dimension string `form:"dimension" validate:"required,oneof=cluster project workspace"` // 维度类型
+        Page uint64 `form:"page,optional"`                    // 页码
+        PageSize uint64 `form:"pageSize,optional"`            // 每页数量
+    }
+
+        // 单个维度项的统计信息
+    DimensionStatItem {
+        DimensionId string `json:"dimensionId"`               // 维度ID
+        DimensionName string `json:"dimensionName"`           // 维度名称
+        TotalCount int64 `json:"totalCount"`                  // 告警总数
+        FiringCount int64 `json:"firingCount"`                // 触发中数量
+        ResolvedCount int64 `json:"resolvedCount"`            // 已恢复数量
+        CriticalCount int64 `json:"criticalCount"`            // Critical级别数量
+        WarningCount int64 `json:"warningCount"`              // Warning级别数量
+        InfoCount int64 `json:"infoCount"`                    // Info级别数量
+    }
+
+        // 告警维度统计响应
+    GetAlertDimensionStatsResponse {
+        Items []DimensionStatItem `json:"items"`              // 维度统计列表
+        Total uint64 `json:"total"`                           // 总记录数
+    }
+
+        // ===================== 告警排行榜 =====================
+
+        // 获取告警排行榜请求
+    GetAlertTopRankingRequest {
+        ClusterUuid string `form:"clusterUuid,optional"`      // 集群UUID
+        ProjectId uint64 `form:"projectId,optional"`          // 项目ID
+        WorkspaceId uint64 `form:"workspaceId,optional"`      // 工作空间ID
+        RankingType string `form:"rankingType" validate:"required,oneof=cluster project workspace rule instance"` // 排行类型
+        TopN int32 `form:"topN,optional"`                     // 排行数量，默认10
+        Severity string `form:"severity,optional"`            // 按级别筛选
+        Status string `form:"status,optional"`                // 按状态筛选
+    }
+
+        // 单个排行项
+    RankingItem {
+        Rank int32 `json:"rank"`                              // 排名
+        ItemId string `json:"itemId"`                         // 项目ID
+        ItemName string `json:"itemName"`                     // 项目名称
+        AlertCount int64 `json:"alertCount"`                  // 告警数量
+        FiringCount int64 `json:"firingCount"`                // 触发中数量
+        CriticalCount int64 `json:"criticalCount"`            // Critical级别数量
+        WarningCount int64 `json:"warningCount"`              // Warning级别数量
+        Percentage float64 `json:"percentage"`                // 占总数百分比
+        ExtraInfo string `json:"extraInfo"`                   // 额外信息
+    }
+
+        // 告警排行榜响应
+    GetAlertTopRankingResponse {
+        Items []RankingItem `json:"items"`                    // 排行列表
+        TotalAlerts int64 `json:"totalAlerts"`                // 告警总数
+    }
+
+        // ===================== 告警实时状态 =====================
+
+        // 获取告警实时状态请求
+    GetAlertRealtimeStatusRequest {
+        ClusterUuid string `form:"clusterUuid,optional"`      // 集群UUID
+        ProjectId uint64 `form:"projectId,optional"`          // 项目ID
+        WorkspaceId uint64 `form:"workspaceId,optional"`      // 工作空间ID
+    }
+
+        // 告警实时状态响应
+    GetAlertRealtimeStatusResponse {
+        FiringCount int64 `json:"firingCount"`                // 当前触发中数量
+        CriticalFiringCount int64 `json:"criticalFiringCount"` // Critical触发中数量
+        WarningFiringCount int64 `json:"warningFiringCount"`  // Warning触发中数量
+        InfoFiringCount int64 `json:"infoFiringCount"`        // Info触发中数量
+        Last5MinNewCount int64 `json:"last5MinNewCount"`      // 最近5分钟新增数量
+        Last5MinResolved int64 `json:"last5MinResolved"`      // 最近5分钟恢复数量
+        UpdateTimestamp int64 `json:"updateTimestamp"`        // 数据更新时间戳
+    }
+
+        // ===================== 告警汇总报告 =====================
+
+        // 获取告警汇总报告请求
+    GetAlertSummaryReportRequest {
+        ClusterUuid string `form:"clusterUuid,optional"`      // 集群UUID
+        ProjectId uint64 `form:"projectId,optional"`          // 项目ID
+        WorkspaceId uint64 `form:"workspaceId,optional"`      // 工作空间ID
+        StartTime int64 `form:"startTime,optional"`           // 开始时间戳
+        EndTime int64 `form:"endTime,optional"`               // 结束时间戳
+    }
+
+        // 告警汇总报告响应
+    GetAlertSummaryReportResponse {
+        Overview GetAlertOverviewResponse `json:"overview"`              // 总览统计
+        SeverityStats GetAlertSeverityStatsResponse `json:"severityStats"` // 级别统计
+        Trend GetAlertTrendResponse `json:"trend"`                       // 趋势数据
+        TopClusters []RankingItem `json:"topClusters"`                   // Top集群
+        TopProjects []RankingItem `json:"topProjects"`                   // Top项目
+        TopRules []RankingItem `json:"topRules"`                         // Top规则
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: alertdashboard
+    prefix: /manager/v1/alert/dashboard
+)
+service manager-api {
+    @doc "获取告警总览统计"
+    @handler GetAlertOverviewHandler
+    get /overview (GetAlertOverviewRequest) returns (GetAlertOverviewResponse)
+
+    @doc "获取告警级别统计"
+    @handler GetAlertSeverityStatsHandler
+    get /severity (GetAlertSeverityStatsRequest) returns (GetAlertSeverityStatsResponse)
+
+    @doc "获取告警趋势分析"
+    @handler GetAlertTrendHandler
+    get /trend (GetAlertTrendRequest) returns (GetAlertTrendResponse)
+
+    @doc "获取告警维度统计"
+    @handler GetAlertDimensionStatsHandler
+    get /dimension (GetAlertDimensionStatsRequest) returns (GetAlertDimensionStatsResponse)
+
+    @doc "获取告警排行榜"
+    @handler GetAlertTopRankingHandler
+    get /ranking (GetAlertTopRankingRequest) returns (GetAlertTopRankingResponse)
+
+    @doc "获取告警实时状态"
+    @handler GetAlertRealtimeStatusHandler
+    get /realtime (GetAlertRealtimeStatusRequest) returns (GetAlertRealtimeStatusResponse)
+
+    @doc "获取告警汇总报告"
+    @handler GetAlertSummaryReportHandler
+    get /report (GetAlertSummaryReportRequest) returns (GetAlertSummaryReportResponse)
+}

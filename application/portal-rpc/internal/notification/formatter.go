@@ -49,20 +49,9 @@ func (f *MessageFormatter) AnalyzeAlerts(alerts []*AlertInstance) *AlertSummary 
 }
 
 // GetSeverityEmoji 获取级别对应的 Emoji
+// TODO: 暂时取消 标题图标
 func (f *MessageFormatter) GetSeverityEmoji(severity string) string {
-	switch strings.ToLower(severity) {
-	case "info":
-		return "⚪"
-	case "warning":
-		return "🟡"
-	case "critical":
-		return "🔴"
-	// 通知类型
-	case "notification":
-		return "🟢"
-	default:
-		return "🟢"
-	}
+	return ""
 }
 
 // GetSeverityColor 获取级别对应的颜色（带#前缀）
@@ -135,10 +124,6 @@ func (f *MessageFormatter) GetAlertFiredTime(alert *AlertInstance) string {
 	// 使用 StartsAt 字段作为告警触发时间
 	return alert.StartsAt.Format("2006-01-02 15:04:05")
 }
-
-// ========================================
-// 钉钉格式（Markdown）
-// ========================================
 
 // FormatMarkdownForDingTalk 为钉钉格式化 Markdown 消息
 func (f *MessageFormatter) FormatMarkdownForDingTalk(opts *AlertOptions, alerts []*AlertInstance) (title, content string) {
@@ -247,10 +232,6 @@ func (f *MessageFormatter) FormatNotificationForDingTalk(opts *NotificationOptio
 	return
 }
 
-// ========================================
-// 企业微信格式（Markdown - 仅支持特定格式）
-// ========================================
-
 // FormatMarkdownForWeChat 为企业微信格式化 Markdown 消息
 // 注意：企业微信的markdown不支持分割线(---)，只支持有限的格式
 func (f *MessageFormatter) FormatMarkdownForWeChat(opts *AlertOptions, alerts []*AlertInstance) string {
@@ -326,7 +307,7 @@ func (f *MessageFormatter) FormatMarkdownForWeChat(opts *AlertOptions, alerts []
 	return sb.String()
 }
 
-// FormatNotificationForWeChat 为企业微信格式化通知消息
+// FormatNotificationForWeChat 微信消息通知
 func (f *MessageFormatter) FormatNotificationForWeChat(opts *NotificationOptions) string {
 	now := time.Now().Format("2006-01-02 15:04:05")
 
@@ -341,10 +322,6 @@ func (f *MessageFormatter) FormatNotificationForWeChat(opts *NotificationOptions
 
 	return sb.String()
 }
-
-// ========================================
-// 飞书格式（富文本 - Post类型）
-// ========================================
 
 // FormatRichTextForFeiShu 为飞书格式化富文本消息
 func (f *MessageFormatter) FormatRichTextForFeiShu(opts *AlertOptions, alerts []*AlertInstance) (title string, content [][]map[string]interface{}) {
@@ -482,10 +459,6 @@ func (f *MessageFormatter) FormatNotificationForFeiShu(opts *NotificationOptions
 
 	return
 }
-
-// ========================================
-// 邮件 HTML 格式
-// ========================================
 
 // FormatHTMLForEmail 为邮件格式化 HTML 消息
 func (f *MessageFormatter) FormatHTMLForEmail(opts *AlertOptions, alerts []*AlertInstance) (subject, body string) {

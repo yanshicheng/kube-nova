@@ -40,6 +40,7 @@ type (
 	AddOnecProjectWorkspaceReq           = pb.AddOnecProjectWorkspaceReq
 	AddOnecProjectWorkspaceResp          = pb.AddOnecProjectWorkspaceResp
 	Alert                                = pb.Alert
+	AlertDashboardFilter                 = pb.AlertDashboardFilter
 	AlertInstances                       = pb.AlertInstances
 	AlertRule                            = pb.AlertRule
 	AlertRuleFile                        = pb.AlertRuleFile
@@ -58,6 +59,7 @@ type (
 	BatchExportAlertRulesResp            = pb.BatchExportAlertRulesResp
 	BatchImportAlertRulesReq             = pb.BatchImportAlertRulesReq
 	BatchImportAlertRulesResp            = pb.BatchImportAlertRulesResp
+	BillingStatementSummary              = pb.BillingStatementSummary
 	Cluster                              = pb.Cluster
 	ClusterAppDetailReq                  = pb.ClusterAppDetailReq
 	ClusterAppDetailResp                 = pb.ClusterAppDetailResp
@@ -67,6 +69,7 @@ type (
 	ClusterAppValidateResp               = pb.ClusterAppValidateResp
 	ClusterAuthInfoReq                   = pb.ClusterAuthInfoReq
 	ClusterAuthInfoResp                  = pb.ClusterAuthInfoResp
+	ClusterCostItem                      = pb.ClusterCostItem
 	ClusterDetailReq                     = pb.ClusterDetailReq
 	ClusterDetailResp                    = pb.ClusterDetailResp
 	ClusterEvictReq                      = pb.ClusterEvictReq
@@ -96,8 +99,13 @@ type (
 	ClusterNodeTaint                     = pb.ClusterNodeTaint
 	ClusterNodeTaintsListReq             = pb.ClusterNodeTaintsListReq
 	ClusterNodeTaintsListResp            = pb.ClusterNodeTaintsListResp
+	ClusterNodeYamlDescribeReq           = pb.ClusterNodeYamlDescribeReq
+	ClusterNodeYamlDescribeResp          = pb.ClusterNodeYamlDescribeResp
+	ClusterRankingItem                   = pb.ClusterRankingItem
 	ClusterResourceInfoReq               = pb.ClusterResourceInfoReq
 	ClusterResourceInfoResp              = pb.ClusterResourceInfoResp
+	ClusterResourceRankingReq            = pb.ClusterResourceRankingReq
+	ClusterResourceRankingResp           = pb.ClusterResourceRankingResp
 	ClusterResourceSyncReq               = pb.ClusterResourceSyncReq
 	ClusterResourceSyncResp              = pb.ClusterResourceSyncResp
 	ClusterSyncAllReq                    = pb.ClusterSyncAllReq
@@ -108,6 +116,9 @@ type (
 	ClusterUpdateAuthInfoResp            = pb.ClusterUpdateAuthInfoResp
 	ClusterUpdateAvatarReq               = pb.ClusterUpdateAvatarReq
 	ClusterUpdateAvatarResp              = pb.ClusterUpdateAvatarResp
+	CostCompositionItem                  = pb.CostCompositionItem
+	CostTrendItem                        = pb.CostTrendItem
+	DashboardSummaryCards                = pb.DashboardSummaryCards
 	DelAlertInstancesReq                 = pb.DelAlertInstancesReq
 	DelAlertInstancesResp                = pb.DelAlertInstancesResp
 	DelAlertRuleFileReq                  = pb.DelAlertRuleFileReq
@@ -136,11 +147,19 @@ type (
 	DeployAlertRulesResp                 = pb.DeployAlertRulesResp
 	DeployAllAlertRulesReq               = pb.DeployAllAlertRulesReq
 	DeployAllAlertRulesResp              = pb.DeployAllAlertRulesResp
+	DimensionStatItem                    = pb.DimensionStatItem
 	ExportAllAlertRulesReq               = pb.ExportAllAlertRulesReq
 	ExportAllAlertRulesResp              = pb.ExportAllAlertRulesResp
 	ExportedAlertRuleFile                = pb.ExportedAlertRuleFile
+	FilterCondition                      = pb.FilterCondition
+	GetAlertDimensionStatsReq            = pb.GetAlertDimensionStatsReq
+	GetAlertDimensionStatsResp           = pb.GetAlertDimensionStatsResp
 	GetAlertInstancesByIdReq             = pb.GetAlertInstancesByIdReq
 	GetAlertInstancesByIdResp            = pb.GetAlertInstancesByIdResp
+	GetAlertOverviewReq                  = pb.GetAlertOverviewReq
+	GetAlertOverviewResp                 = pb.GetAlertOverviewResp
+	GetAlertRealtimeStatusReq            = pb.GetAlertRealtimeStatusReq
+	GetAlertRealtimeStatusResp           = pb.GetAlertRealtimeStatusResp
 	GetAlertRuleByIdReq                  = pb.GetAlertRuleByIdReq
 	GetAlertRuleByIdResp                 = pb.GetAlertRuleByIdResp
 	GetAlertRuleFileByIdReq              = pb.GetAlertRuleFileByIdReq
@@ -149,6 +168,14 @@ type (
 	GetAlertRuleGroupByIdResp            = pb.GetAlertRuleGroupByIdResp
 	GetAlertRuleTreeReq                  = pb.GetAlertRuleTreeReq
 	GetAlertRuleTreeResp                 = pb.GetAlertRuleTreeResp
+	GetAlertSeverityStatsReq             = pb.GetAlertSeverityStatsReq
+	GetAlertSeverityStatsResp            = pb.GetAlertSeverityStatsResp
+	GetAlertSummaryReportReq             = pb.GetAlertSummaryReportReq
+	GetAlertSummaryReportResp            = pb.GetAlertSummaryReportResp
+	GetAlertTopRankingReq                = pb.GetAlertTopRankingReq
+	GetAlertTopRankingResp               = pb.GetAlertTopRankingResp
+	GetAlertTrendReq                     = pb.GetAlertTrendReq
+	GetAlertTrendResp                    = pb.GetAlertTrendResp
 	GetClusterAuthInfoReq                = pb.GetClusterAuthInfoReq
 	GetClusterAuthInfoResp               = pb.GetClusterAuthInfoResp
 	GetClusterDefaultDomainSuffixReq     = pb.GetClusterDefaultDomainSuffixReq
@@ -184,6 +211,45 @@ type (
 	ListAlertRuleGroupResp               = pb.ListAlertRuleGroupResp
 	MigrateWorkspaceReq                  = pb.MigrateWorkspaceReq
 	MigrateWorkspaceResp                 = pb.MigrateWorkspaceResp
+	OnecBillingClusterTopReq             = pb.OnecBillingClusterTopReq
+	OnecBillingClusterTopResp            = pb.OnecBillingClusterTopResp
+	OnecBillingConfigBinding             = pb.OnecBillingConfigBinding
+	OnecBillingConfigBindingAddReq       = pb.OnecBillingConfigBindingAddReq
+	OnecBillingConfigBindingAddResp      = pb.OnecBillingConfigBindingAddResp
+	OnecBillingConfigBindingDelReq       = pb.OnecBillingConfigBindingDelReq
+	OnecBillingConfigBindingDelResp      = pb.OnecBillingConfigBindingDelResp
+	OnecBillingConfigBindingGetReq       = pb.OnecBillingConfigBindingGetReq
+	OnecBillingConfigBindingGetResp      = pb.OnecBillingConfigBindingGetResp
+	OnecBillingConfigBindingUpdateReq    = pb.OnecBillingConfigBindingUpdateReq
+	OnecBillingConfigBindingUpdateResp   = pb.OnecBillingConfigBindingUpdateResp
+	OnecBillingCostCompositionReq        = pb.OnecBillingCostCompositionReq
+	OnecBillingCostCompositionResp       = pb.OnecBillingCostCompositionResp
+	OnecBillingCostTrendReq              = pb.OnecBillingCostTrendReq
+	OnecBillingCostTrendResp             = pb.OnecBillingCostTrendResp
+	OnecBillingDashboardStatsReq         = pb.OnecBillingDashboardStatsReq
+	OnecBillingDashboardStatsResp        = pb.OnecBillingDashboardStatsResp
+	OnecBillingPriceConfig               = pb.OnecBillingPriceConfig
+	OnecBillingPriceConfigAddReq         = pb.OnecBillingPriceConfigAddReq
+	OnecBillingPriceConfigAddResp        = pb.OnecBillingPriceConfigAddResp
+	OnecBillingPriceConfigDelReq         = pb.OnecBillingPriceConfigDelReq
+	OnecBillingPriceConfigDelResp        = pb.OnecBillingPriceConfigDelResp
+	OnecBillingPriceConfigGetByIdReq     = pb.OnecBillingPriceConfigGetByIdReq
+	OnecBillingPriceConfigGetByIdResp    = pb.OnecBillingPriceConfigGetByIdResp
+	OnecBillingPriceConfigSearchReq      = pb.OnecBillingPriceConfigSearchReq
+	OnecBillingPriceConfigSearchResp     = pb.OnecBillingPriceConfigSearchResp
+	OnecBillingPriceConfigUpdateReq      = pb.OnecBillingPriceConfigUpdateReq
+	OnecBillingPriceConfigUpdateResp     = pb.OnecBillingPriceConfigUpdateResp
+	OnecBillingProjectTopReq             = pb.OnecBillingProjectTopReq
+	OnecBillingProjectTopResp            = pb.OnecBillingProjectTopResp
+	OnecBillingStatement                 = pb.OnecBillingStatement
+	OnecBillingStatementBatchDelReq      = pb.OnecBillingStatementBatchDelReq
+	OnecBillingStatementBatchDelResp     = pb.OnecBillingStatementBatchDelResp
+	OnecBillingStatementDelReq           = pb.OnecBillingStatementDelReq
+	OnecBillingStatementDelResp          = pb.OnecBillingStatementDelResp
+	OnecBillingStatementGenerateReq      = pb.OnecBillingStatementGenerateReq
+	OnecBillingStatementGenerateResp     = pb.OnecBillingStatementGenerateResp
+	OnecBillingStatementSearchReq        = pb.OnecBillingStatementSearchReq
+	OnecBillingStatementSearchResp       = pb.OnecBillingStatementSearchResp
 	OnecClusterNodeResp                  = pb.OnecClusterNodeResp
 	OnecProjectAdmin                     = pb.OnecProjectAdmin
 	OnecProjectApplication               = pb.OnecProjectApplication
@@ -191,19 +257,32 @@ type (
 	OnecProjectCluster                   = pb.OnecProjectCluster
 	OnecProjectVersion                   = pb.OnecProjectVersion
 	OnecProjectWorkspace                 = pb.OnecProjectWorkspace
+	OversellSavingItem                   = pb.OversellSavingItem
 	PreviewAlertRulesYamlReq             = pb.PreviewAlertRulesYamlReq
 	PreviewAlertRulesYamlResp            = pb.PreviewAlertRulesYamlResp
 	ProjectClusterSyncReq                = pb.ProjectClusterSyncReq
 	ProjectClusterSyncResp               = pb.ProjectClusterSyncResp
+	ProjectCostItem                      = pb.ProjectCostItem
 	ProjectInfo                          = pb.ProjectInfo
 	ProjectQuotaSyncReq                  = pb.ProjectQuotaSyncReq
 	ProjectQuotaSyncResp                 = pb.ProjectQuotaSyncResp
+	ProjectRankingItem                   = pb.ProjectRankingItem
+	ProjectResourceRankingReq            = pb.ProjectResourceRankingReq
+	ProjectResourceRankingResp           = pb.ProjectResourceRankingResp
 	ProjectSyncReq                       = pb.ProjectSyncReq
 	ProjectSyncResp                      = pb.ProjectSyncResp
 	ProjectWorkspaceSyncReq              = pb.ProjectWorkspaceSyncReq
 	ProjectWorkspaceSyncResp             = pb.ProjectWorkspaceSyncResp
+	RankingItem                          = pb.RankingItem
 	ReceiveAlertmanagerWebhookReq        = pb.ReceiveAlertmanagerWebhookReq
 	ReceiveAlertmanagerWebhookResp       = pb.ReceiveAlertmanagerWebhookResp
+	ResourceAllocationOverview           = pb.ResourceAllocationOverview
+	ResourceDashboardSummaryReq          = pb.ResourceDashboardSummaryReq
+	ResourceDashboardSummaryResp         = pb.ResourceDashboardSummaryResp
+	ResourceLayerData                    = pb.ResourceLayerData
+	ResourceOversellSavings              = pb.ResourceOversellSavings
+	ResourceOverviewItem                 = pb.ResourceOverviewItem
+	ResourceRingData                     = pb.ResourceRingData
 	SearchAlertInstancesReq              = pb.SearchAlertInstancesReq
 	SearchAlertInstancesResp             = pb.SearchAlertInstancesResp
 	SearchAlertRuleFileReq               = pb.SearchAlertRuleFileReq
@@ -226,8 +305,10 @@ type (
 	SearchOnecProjectVersionResp         = pb.SearchOnecProjectVersionResp
 	SearchOnecProjectWorkspaceReq        = pb.SearchOnecProjectWorkspaceReq
 	SearchOnecProjectWorkspaceResp       = pb.SearchOnecProjectWorkspaceResp
+	SeverityStatItem                     = pb.SeverityStatItem
 	SyncClusterReq                       = pb.SyncClusterReq
 	SyncClusterResp                      = pb.SyncClusterResp
+	TrendDataPoint                       = pb.TrendDataPoint
 	UpdateAlertRuleFileReq               = pb.UpdateAlertRuleFileReq
 	UpdateAlertRuleFileResp              = pb.UpdateAlertRuleFileResp
 	UpdateAlertRuleGroupReq              = pb.UpdateAlertRuleGroupReq
@@ -246,6 +327,9 @@ type (
 	UpdateOnecProjectResp                = pb.UpdateOnecProjectResp
 	UpdateOnecProjectWorkspaceReq        = pb.UpdateOnecProjectWorkspaceReq
 	UpdateOnecProjectWorkspaceResp       = pb.UpdateOnecProjectWorkspaceResp
+	WorkspaceRankingItem                 = pb.WorkspaceRankingItem
+	WorkspaceResourceRankingReq          = pb.WorkspaceResourceRankingReq
+	WorkspaceResourceRankingResp         = pb.WorkspaceResourceRankingResp
 
 	ManagerService interface {
 		// //通过 clusterUuid 和 namespace 获取 详情信息
@@ -323,6 +407,8 @@ type (
 		// node 相关
 		NodeInfo(ctx context.Context, in *ClusterNodeInfoReq, opts ...grpc.CallOption) (*ClusterNodeInfoResp, error)
 		NodeDetail(ctx context.Context, in *ClusterNodeDetailReq, opts ...grpc.CallOption) (*OnecClusterNodeResp, error)
+		// 获取 node  yaml describe
+		NodeYamlDescribe(ctx context.Context, in *ClusterNodeYamlDescribeReq, opts ...grpc.CallOption) (*ClusterNodeYamlDescribeResp, error)
 		// labels 相关
 		NodeLabelsList(ctx context.Context, in *ClusterNodeLabelsListReq, opts ...grpc.CallOption) (*ClusterNodeLabelsListResp, error)
 		// 添加 labels
@@ -406,6 +492,51 @@ type (
 		ProjectAuditLogDelBeforeDays(ctx context.Context, in *DelOnecProjectAuditLogBeforeDaysReq, opts ...grpc.CallOption) (*DelOnecProjectAuditLogBeforeDaysResp, error)
 		// 迁移相关
 		MigrateWorkspace(ctx context.Context, in *MigrateWorkspaceReq, opts ...grpc.CallOption) (*MigrateWorkspaceResp, error)
+		// 告警仪表盘
+		AlertDashboardOverview(ctx context.Context, in *GetAlertOverviewReq, opts ...grpc.CallOption) (*GetAlertOverviewResp, error)
+		// 获取告警级别统计
+		AlertDashboardSeverityStats(ctx context.Context, in *GetAlertSeverityStatsReq, opts ...grpc.CallOption) (*GetAlertSeverityStatsResp, error)
+		// 获取告警趋势分析
+		AlertDashboardTrend(ctx context.Context, in *GetAlertTrendReq, opts ...grpc.CallOption) (*GetAlertTrendResp, error)
+		// 获取告警维度统计
+		AlertDashboardDimensionStats(ctx context.Context, in *GetAlertDimensionStatsReq, opts ...grpc.CallOption) (*GetAlertDimensionStatsResp, error)
+		// 获取告警排行榜
+		AlertDashboardTopRanking(ctx context.Context, in *GetAlertTopRankingReq, opts ...grpc.CallOption) (*GetAlertTopRankingResp, error)
+		// 获取告警实时状态
+		AlertDashboardRealtimeStatus(ctx context.Context, in *GetAlertRealtimeStatusReq, opts ...grpc.CallOption) (*GetAlertRealtimeStatusResp, error)
+		// 获取告警汇总报告
+		AlertDashboardSummaryReport(ctx context.Context, in *GetAlertSummaryReportReq, opts ...grpc.CallOption) (*GetAlertSummaryReportResp, error)
+		// 集群资源仪表盘
+		GetResourceDashboardSummary(ctx context.Context, in *ResourceDashboardSummaryReq, opts ...grpc.CallOption) (*ResourceDashboardSummaryResp, error)
+		// 获取集群资源排行
+		GetClusterResourceRanking(ctx context.Context, in *ClusterResourceRankingReq, opts ...grpc.CallOption) (*ClusterResourceRankingResp, error)
+		// 获取项目资源排行
+		GetProjectResourceRanking(ctx context.Context, in *ProjectResourceRankingReq, opts ...grpc.CallOption) (*ProjectResourceRankingResp, error)
+		// 获取工作空间资源排行
+		GetWorkspaceResourceRanking(ctx context.Context, in *WorkspaceResourceRankingReq, opts ...grpc.CallOption) (*WorkspaceResourceRankingResp, error)
+		// -----------------------收费配置表-----------------------
+		OnecBillingPriceConfigAdd(ctx context.Context, in *OnecBillingPriceConfigAddReq, opts ...grpc.CallOption) (*OnecBillingPriceConfigAddResp, error)
+		OnecBillingPriceConfigUpdate(ctx context.Context, in *OnecBillingPriceConfigUpdateReq, opts ...grpc.CallOption) (*OnecBillingPriceConfigUpdateResp, error)
+		OnecBillingPriceConfigDel(ctx context.Context, in *OnecBillingPriceConfigDelReq, opts ...grpc.CallOption) (*OnecBillingPriceConfigDelResp, error)
+		OnecBillingPriceConfigGetById(ctx context.Context, in *OnecBillingPriceConfigGetByIdReq, opts ...grpc.CallOption) (*OnecBillingPriceConfigGetByIdResp, error)
+		OnecBillingPriceConfigSearch(ctx context.Context, in *OnecBillingPriceConfigSearchReq, opts ...grpc.CallOption) (*OnecBillingPriceConfigSearchResp, error)
+		// -----------------------计费配置绑定表-----------------------
+		OnecBillingConfigBindingAdd(ctx context.Context, in *OnecBillingConfigBindingAddReq, opts ...grpc.CallOption) (*OnecBillingConfigBindingAddResp, error)
+		OnecBillingConfigBindingUpdate(ctx context.Context, in *OnecBillingConfigBindingUpdateReq, opts ...grpc.CallOption) (*OnecBillingConfigBindingUpdateResp, error)
+		OnecBillingConfigBindingDel(ctx context.Context, in *OnecBillingConfigBindingDelReq, opts ...grpc.CallOption) (*OnecBillingConfigBindingDelResp, error)
+		OnecBillingConfigBindingGet(ctx context.Context, in *OnecBillingConfigBindingGetReq, opts ...grpc.CallOption) (*OnecBillingConfigBindingGetResp, error)
+		// -----------------------账单仪表盘-----------------------
+		OnecBillingDashboardStats(ctx context.Context, in *OnecBillingDashboardStatsReq, opts ...grpc.CallOption) (*OnecBillingDashboardStatsResp, error)
+		OnecBillingCostComposition(ctx context.Context, in *OnecBillingCostCompositionReq, opts ...grpc.CallOption) (*OnecBillingCostCompositionResp, error)
+		OnecBillingCostTrend(ctx context.Context, in *OnecBillingCostTrendReq, opts ...grpc.CallOption) (*OnecBillingCostTrendResp, error)
+		OnecBillingProjectTop(ctx context.Context, in *OnecBillingProjectTopReq, opts ...grpc.CallOption) (*OnecBillingProjectTopResp, error)
+		OnecBillingClusterTop(ctx context.Context, in *OnecBillingClusterTopReq, opts ...grpc.CallOption) (*OnecBillingClusterTopResp, error)
+		// -----------------------账单中心-----------------------
+		OnecBillingStatementSearch(ctx context.Context, in *OnecBillingStatementSearchReq, opts ...grpc.CallOption) (*OnecBillingStatementSearchResp, error)
+		OnecBillingStatementDel(ctx context.Context, in *OnecBillingStatementDelReq, opts ...grpc.CallOption) (*OnecBillingStatementDelResp, error)
+		OnecBillingStatementBatchDel(ctx context.Context, in *OnecBillingStatementBatchDelReq, opts ...grpc.CallOption) (*OnecBillingStatementBatchDelResp, error)
+		// 立即生成账单
+		OnecBillingStatementGenerate(ctx context.Context, in *OnecBillingStatementGenerateReq, opts ...grpc.CallOption) (*OnecBillingStatementGenerateResp, error)
 	}
 
 	defaultManagerService struct {
@@ -706,6 +837,12 @@ func (m *defaultManagerService) NodeDetail(ctx context.Context, in *ClusterNodeD
 	return client.NodeDetail(ctx, in, opts...)
 }
 
+// 获取 node  yaml describe
+func (m *defaultManagerService) NodeYamlDescribe(ctx context.Context, in *ClusterNodeYamlDescribeReq, opts ...grpc.CallOption) (*ClusterNodeYamlDescribeResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.NodeYamlDescribe(ctx, in, opts...)
+}
+
 // labels 相关
 func (m *defaultManagerService) NodeLabelsList(ctx context.Context, in *ClusterNodeLabelsListReq, opts ...grpc.CallOption) (*ClusterNodeLabelsListResp, error) {
 	client := pb.NewManagerServiceClient(m.cli.Conn())
@@ -999,4 +1136,165 @@ func (m *defaultManagerService) ProjectAuditLogDelBeforeDays(ctx context.Context
 func (m *defaultManagerService) MigrateWorkspace(ctx context.Context, in *MigrateWorkspaceReq, opts ...grpc.CallOption) (*MigrateWorkspaceResp, error) {
 	client := pb.NewManagerServiceClient(m.cli.Conn())
 	return client.MigrateWorkspace(ctx, in, opts...)
+}
+
+// 告警仪表盘
+func (m *defaultManagerService) AlertDashboardOverview(ctx context.Context, in *GetAlertOverviewReq, opts ...grpc.CallOption) (*GetAlertOverviewResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.AlertDashboardOverview(ctx, in, opts...)
+}
+
+// 获取告警级别统计
+func (m *defaultManagerService) AlertDashboardSeverityStats(ctx context.Context, in *GetAlertSeverityStatsReq, opts ...grpc.CallOption) (*GetAlertSeverityStatsResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.AlertDashboardSeverityStats(ctx, in, opts...)
+}
+
+// 获取告警趋势分析
+func (m *defaultManagerService) AlertDashboardTrend(ctx context.Context, in *GetAlertTrendReq, opts ...grpc.CallOption) (*GetAlertTrendResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.AlertDashboardTrend(ctx, in, opts...)
+}
+
+// 获取告警维度统计
+func (m *defaultManagerService) AlertDashboardDimensionStats(ctx context.Context, in *GetAlertDimensionStatsReq, opts ...grpc.CallOption) (*GetAlertDimensionStatsResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.AlertDashboardDimensionStats(ctx, in, opts...)
+}
+
+// 获取告警排行榜
+func (m *defaultManagerService) AlertDashboardTopRanking(ctx context.Context, in *GetAlertTopRankingReq, opts ...grpc.CallOption) (*GetAlertTopRankingResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.AlertDashboardTopRanking(ctx, in, opts...)
+}
+
+// 获取告警实时状态
+func (m *defaultManagerService) AlertDashboardRealtimeStatus(ctx context.Context, in *GetAlertRealtimeStatusReq, opts ...grpc.CallOption) (*GetAlertRealtimeStatusResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.AlertDashboardRealtimeStatus(ctx, in, opts...)
+}
+
+// 获取告警汇总报告
+func (m *defaultManagerService) AlertDashboardSummaryReport(ctx context.Context, in *GetAlertSummaryReportReq, opts ...grpc.CallOption) (*GetAlertSummaryReportResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.AlertDashboardSummaryReport(ctx, in, opts...)
+}
+
+// 集群资源仪表盘
+func (m *defaultManagerService) GetResourceDashboardSummary(ctx context.Context, in *ResourceDashboardSummaryReq, opts ...grpc.CallOption) (*ResourceDashboardSummaryResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.GetResourceDashboardSummary(ctx, in, opts...)
+}
+
+// 获取集群资源排行
+func (m *defaultManagerService) GetClusterResourceRanking(ctx context.Context, in *ClusterResourceRankingReq, opts ...grpc.CallOption) (*ClusterResourceRankingResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.GetClusterResourceRanking(ctx, in, opts...)
+}
+
+// 获取项目资源排行
+func (m *defaultManagerService) GetProjectResourceRanking(ctx context.Context, in *ProjectResourceRankingReq, opts ...grpc.CallOption) (*ProjectResourceRankingResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.GetProjectResourceRanking(ctx, in, opts...)
+}
+
+// 获取工作空间资源排行
+func (m *defaultManagerService) GetWorkspaceResourceRanking(ctx context.Context, in *WorkspaceResourceRankingReq, opts ...grpc.CallOption) (*WorkspaceResourceRankingResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.GetWorkspaceResourceRanking(ctx, in, opts...)
+}
+
+// -----------------------收费配置表-----------------------
+func (m *defaultManagerService) OnecBillingPriceConfigAdd(ctx context.Context, in *OnecBillingPriceConfigAddReq, opts ...grpc.CallOption) (*OnecBillingPriceConfigAddResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingPriceConfigAdd(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) OnecBillingPriceConfigUpdate(ctx context.Context, in *OnecBillingPriceConfigUpdateReq, opts ...grpc.CallOption) (*OnecBillingPriceConfigUpdateResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingPriceConfigUpdate(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) OnecBillingPriceConfigDel(ctx context.Context, in *OnecBillingPriceConfigDelReq, opts ...grpc.CallOption) (*OnecBillingPriceConfigDelResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingPriceConfigDel(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) OnecBillingPriceConfigGetById(ctx context.Context, in *OnecBillingPriceConfigGetByIdReq, opts ...grpc.CallOption) (*OnecBillingPriceConfigGetByIdResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingPriceConfigGetById(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) OnecBillingPriceConfigSearch(ctx context.Context, in *OnecBillingPriceConfigSearchReq, opts ...grpc.CallOption) (*OnecBillingPriceConfigSearchResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingPriceConfigSearch(ctx, in, opts...)
+}
+
+// -----------------------计费配置绑定表-----------------------
+func (m *defaultManagerService) OnecBillingConfigBindingAdd(ctx context.Context, in *OnecBillingConfigBindingAddReq, opts ...grpc.CallOption) (*OnecBillingConfigBindingAddResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingConfigBindingAdd(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) OnecBillingConfigBindingUpdate(ctx context.Context, in *OnecBillingConfigBindingUpdateReq, opts ...grpc.CallOption) (*OnecBillingConfigBindingUpdateResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingConfigBindingUpdate(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) OnecBillingConfigBindingDel(ctx context.Context, in *OnecBillingConfigBindingDelReq, opts ...grpc.CallOption) (*OnecBillingConfigBindingDelResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingConfigBindingDel(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) OnecBillingConfigBindingGet(ctx context.Context, in *OnecBillingConfigBindingGetReq, opts ...grpc.CallOption) (*OnecBillingConfigBindingGetResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingConfigBindingGet(ctx, in, opts...)
+}
+
+// -----------------------账单仪表盘-----------------------
+func (m *defaultManagerService) OnecBillingDashboardStats(ctx context.Context, in *OnecBillingDashboardStatsReq, opts ...grpc.CallOption) (*OnecBillingDashboardStatsResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingDashboardStats(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) OnecBillingCostComposition(ctx context.Context, in *OnecBillingCostCompositionReq, opts ...grpc.CallOption) (*OnecBillingCostCompositionResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingCostComposition(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) OnecBillingCostTrend(ctx context.Context, in *OnecBillingCostTrendReq, opts ...grpc.CallOption) (*OnecBillingCostTrendResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingCostTrend(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) OnecBillingProjectTop(ctx context.Context, in *OnecBillingProjectTopReq, opts ...grpc.CallOption) (*OnecBillingProjectTopResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingProjectTop(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) OnecBillingClusterTop(ctx context.Context, in *OnecBillingClusterTopReq, opts ...grpc.CallOption) (*OnecBillingClusterTopResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingClusterTop(ctx, in, opts...)
+}
+
+// -----------------------账单中心-----------------------
+func (m *defaultManagerService) OnecBillingStatementSearch(ctx context.Context, in *OnecBillingStatementSearchReq, opts ...grpc.CallOption) (*OnecBillingStatementSearchResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingStatementSearch(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) OnecBillingStatementDel(ctx context.Context, in *OnecBillingStatementDelReq, opts ...grpc.CallOption) (*OnecBillingStatementDelResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingStatementDel(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) OnecBillingStatementBatchDel(ctx context.Context, in *OnecBillingStatementBatchDelReq, opts ...grpc.CallOption) (*OnecBillingStatementBatchDelResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingStatementBatchDel(ctx, in, opts...)
+}
+
+// 立即生成账单
+func (m *defaultManagerService) OnecBillingStatementGenerate(ctx context.Context, in *OnecBillingStatementGenerateReq, opts ...grpc.CallOption) (*OnecBillingStatementGenerateResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingStatementGenerate(ctx, in, opts...)
 }

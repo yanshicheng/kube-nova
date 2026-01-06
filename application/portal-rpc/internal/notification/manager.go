@@ -385,13 +385,45 @@ type alertGroupInfo struct {
 	ProjectName string
 	ClusterName string
 	Severity    string
+	AlertName   string
 	Alerts      []*AlertInstance
 }
 
-// ========== PrometheusAlertNotification 核心方法（只接收 ctx 和 alerts）==========
+// groupAlertsByProjectSeverityAndName 按项目、级别和告警名称分组
+// 同一个告警名称的多个实例会被聚合到同一个分组
+func (m *manager) groupAlertsByProjectSeverityAndName(alerts []*AlertInstance) map[string]*alertGroupInfo {
+	groups := make(map[string]*alertGroupInfo)
+
+	for _, alert := range alerts {
+		// 分组键包含 alertName，确保同类告警聚合在一起
+		key := fmt.Sprintf("%d-%s-%s", alert.ProjectID, alert.Severity, alert.AlertName)
+
+		if _, exists := groups[key]; !exists {
+			groups[key] = &alertGroupInfo{
+				ProjectID:   alert.ProjectID,
+				ProjectName: alert.ProjectName,
+				ClusterName: alert.ClusterName,
+				Severity:    alert.Severity,
+				AlertName:   alert.AlertName,
+				Alerts:      make([]*AlertInstance, 0),
+			}
+		}
+
+		groups[key].Alerts = append(groups[key].Alerts, alert)
+
+		// 更新项目名称和集群名称
+		if groups[key].ProjectName == "" && alert.ProjectName != "" {
+			groups[key].ProjectName = alert.ProjectName
+		}
+		if groups[key].ClusterName == "" && alert.ClusterName != "" {
+			groups[key].ClusterName = alert.ClusterName
+		}
+	}
+
+	return groups
+}
 
 // PrometheusAlertNotification 发送 Prometheus 告警通知
-// 只接收 ctx 和 alerts，内部自动按 ProjectID + Severity 分组处理
 func (m *manager) PrometheusAlertNotification(ctx context.Context, alerts []*AlertInstance) error {
 	if len(alerts) == 0 {
 		m.l.Infof("[告警通知] 告警列表为空，跳过处理")
@@ -400,18 +432,17 @@ func (m *manager) PrometheusAlertNotification(ctx context.Context, alerts []*Ale
 
 	m.l.Infof("[告警通知] 开始处理 %d 条告警", len(alerts))
 
-	// 如果启用聚合器，使用聚合器处理
+	// 启用聚合器时使用聚合器处理
 	if m.aggregator != nil && m.aggregator.config.Enabled {
 		m.l.Info("[告警通知] 使用聚合器处理告警")
 		return m.aggregator.AddAlert(ctx, alerts)
 	}
-	m.l.Info("[告警通知] 使用直接发送（未启用聚合）")
+	m.l.Info("[告警通知] 使用直接发送")
 
-	// 1. 按 ProjectID + Severity 分组
-	groups := m.groupAlertsByProjectAndSeverity(alerts)
+	// 按项目、级别和告警名称分组
+	groups := m.groupAlertsByProjectSeverityAndName(alerts)
 	m.l.Infof("[告警通知] 分组完成，共 %d 个分组", len(groups))
 
-	// 2. 并发处理每个分组
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var errors []error
@@ -421,8 +452,8 @@ func (m *manager) PrometheusAlertNotification(ctx context.Context, alerts []*Ale
 		go func(groupKey string, groupInfo *alertGroupInfo) {
 			defer wg.Done()
 
-			m.l.Infof("[告警通知] 处理分组: %s | ProjectID: %d | Severity: %s | 告警数: %d",
-				groupKey, groupInfo.ProjectID, groupInfo.Severity, len(groupInfo.Alerts))
+			m.l.Infof("[告警通知] 处理分组: %s | 告警名称: %s | 实例数: %d",
+				groupKey, groupInfo.AlertName, len(groupInfo.Alerts))
 
 			if err := m.processAlertGroup(ctx, groupInfo); err != nil {
 				mu.Lock()
@@ -559,84 +590,93 @@ func (m *manager) hasChannelType(channels []*ChannelInfo, channelType AlertType)
 	return false
 }
 
+// createSiteMessagesForAlerts 为告警创建站内信
 func (m *manager) createSiteMessagesForAlerts(ctx context.Context, alerts []*AlertInstance, mentions *MentionConfig, opts *AlertOptions) error {
 	if m.siteMessagesModel == nil || mentions == nil || len(mentions.AtUserIds) == 0 {
+		return nil
+	}
+
+	if len(alerts) == 0 {
 		return nil
 	}
 
 	formatter := NewMessageFormatter(opts.PortalName, opts.PortalUrl)
 	expireAt := time.Now().AddDate(0, 0, 30)
 
-	for _, alert := range alerts {
-		for _, userIdStr := range mentions.AtUserIds {
-			var userId uint64
-			if _, err := fmt.Sscanf(userIdStr, "%d", &userId); err != nil {
-				continue
+	firstAlert := alerts[0]
+
+	// 构建标题，多实例时显示数量
+	title := firstAlert.AlertName
+	if len(alerts) > 1 {
+		title = fmt.Sprintf("%s (%d个实例)", firstAlert.AlertName, len(alerts))
+	}
+
+	// 构建聚合内容
+	content := m.buildAggregatedAlertContent(formatter, alerts, opts)
+
+	// 为每个用户创建一条聚合消息
+	for _, userIdStr := range mentions.AtUserIds {
+		var userId uint64
+		if _, err := fmt.Sscanf(userIdStr, "%d", &userId); err != nil {
+			continue
+		}
+
+		msgUUID := uuid.New().String()
+
+		siteMsg := &model.SiteMessages{
+			Uuid:           msgUUID,
+			NotificationId: 0,
+			InstanceId:     firstAlert.ID,
+			UserId:         userId,
+			Title:          title,
+			Content:        content,
+			MessageType:    "alert",
+			Severity:       firstAlert.Severity,
+			Category:       "prometheus",
+			ExtraData:      fmt.Sprintf(`{"instance_count":%d,"alert_name":"%s"}`, len(alerts), firstAlert.AlertName),
+			ActionUrl:      opts.PortalUrl,
+			ActionText:     "查看详情",
+			IsRead:         0,
+			ReadAt:         time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
+			IsStarred:      0,
+			ExpireAt:       expireAt,
+		}
+
+		result, err := m.siteMessagesModel.Insert(ctx, siteMsg)
+		if err != nil {
+			m.l.Errorf("[站内信] 创建失败: alertName=%s, userID=%d, instanceCount=%d, err=%v",
+				firstAlert.AlertName, userId, len(alerts), err)
+			continue
+		}
+
+		// 推送消息到 Redis
+		if m.messagePusher != nil {
+			msgID, _ := result.LastInsertId()
+			pushData := &SiteMessageData{
+				UUID:        msgUUID,
+				UserID:      userId,
+				Title:       title,
+				Content:     content,
+				MessageType: "alert",
+				Severity:    firstAlert.Severity,
+				Category:    "prometheus",
+				ActionURL:   opts.PortalUrl,
+				ActionText:  "查看详情",
+				IsRead:      0,
+				InstanceID:  firstAlert.ID,
 			}
+			_ = msgID
 
-			// 构建站内信内容
-			content := fmt.Sprintf("**实例:** %s\n**持续:** %s\n**描述:** %s",
-				alert.Instance,
-				formatter.FormatDuration(alert.Duration),
-				formatter.GetAlertDescription(alert),
-			)
+			go func(data *SiteMessageData, alertName string, uid uint64, count int) {
+				pushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
 
-			msgUUID := uuid.New().String()
-
-			siteMsg := &model.SiteMessages{
-				Uuid:           msgUUID,
-				NotificationId: 0,
-				InstanceId:     alert.ID,
-				UserId:         userId,
-				Title:          alert.AlertName,
-				Content:        content,
-				MessageType:    "alert",
-				Severity:       alert.Severity,
-				Category:       "prometheus",
-				ExtraData:      "{}",
-				ActionUrl:      opts.PortalUrl,
-				ActionText:     "查看详情",
-				IsRead:         0,
-				ReadAt:         time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
-				IsStarred:      0,
-				ExpireAt:       expireAt,
-			}
-
-			result, err := m.siteMessagesModel.Insert(ctx, siteMsg)
-			if err != nil {
-				m.l.Errorf("[站内信] 创建失败: alertID=%d, userID=%d, err=%v", alert.ID, userId, err)
-				continue
-			}
-
-			if m.messagePusher != nil {
-				msgID, _ := result.LastInsertId()
-				pushData := &SiteMessageData{
-					UUID:        msgUUID,
-					UserID:      userId,
-					Title:       alert.AlertName,
-					Content:     content,
-					MessageType: "alert",
-					Severity:    alert.Severity,
-					Category:    "prometheus",
-					ActionURL:   opts.PortalUrl,
-					ActionText:  "查看详情",
-					IsRead:      0,
-					InstanceID:  alert.ID,
+				if err := m.messagePusher.PushMessage(pushCtx, data); err != nil {
+					m.l.Errorf("[站内信] Redis推送失败: alertName=%s, userID=%d, err=%v", alertName, uid, err)
+				} else {
+					m.l.Infof("[站内信] 推送成功: alertName=%s, userID=%d, 实例数=%d", alertName, uid, count)
 				}
-				_ = msgID // msgID 可用于日志或其他用途
-
-				// 异步推送，不阻塞主流程
-				go func(data *SiteMessageData, alertID uint64, uid uint64) {
-					pushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					defer cancel()
-
-					if err := m.messagePusher.PushMessage(pushCtx, data); err != nil {
-						m.l.Errorf("[站内信] Redis推送失败: alertID=%d, userID=%d, err=%v", alertID, uid, err)
-					} else {
-						m.l.Infof("[站内信] 推送成功: alertID=%d, userID=%d", alertID, uid)
-					}
-				}(pushData, alert.ID, userId)
-			}
+			}(pushData, firstAlert.AlertName, userId, len(alerts))
 		}
 	}
 
@@ -1152,6 +1192,55 @@ func (m *manager) sendNotificationToChannels(ctx context.Context, channels []*Ch
 		return errors[0]
 	}
 	return nil
+}
+
+// buildAggregatedAlertContent 构建聚合告警内容
+func (m *manager) buildAggregatedAlertContent(formatter *MessageFormatter, alerts []*AlertInstance, opts *AlertOptions) string {
+	if len(alerts) == 0 {
+		return ""
+	}
+
+	first := alerts[0]
+	projectDisplay := opts.ProjectName
+	if projectDisplay == "" {
+		projectDisplay = "集群级"
+	}
+
+	var content strings.Builder
+
+	// 告警基本信息
+	content.WriteString("## 告警信息\n\n")
+	content.WriteString(fmt.Sprintf("- **项目**: %s\n", projectDisplay))
+	content.WriteString(fmt.Sprintf("- **集群**: %s\n", opts.ClusterName))
+	content.WriteString(fmt.Sprintf("- **告警规则**: %s\n", first.AlertName))
+	content.WriteString(fmt.Sprintf("- **级别**: %s\n", first.Severity))
+	content.WriteString(fmt.Sprintf("- **状态**: %s\n", first.Status))
+
+	// 实例列表
+	if len(alerts) > 1 {
+		content.WriteString(fmt.Sprintf("\n## 受影响实例 (%d个)\n\n", len(alerts)))
+
+		maxShow := 10
+		for i, alert := range alerts {
+			if i >= maxShow {
+				content.WriteString(fmt.Sprintf("- ... 还有 %d 个实例\n", len(alerts)-maxShow))
+				break
+			}
+			duration := formatter.FormatDuration(alert.Duration)
+			content.WriteString(fmt.Sprintf("- `%s` (持续: %s)\n", alert.Instance, duration))
+		}
+	} else {
+		content.WriteString(fmt.Sprintf("- **实例**: %s\n", first.Instance))
+		content.WriteString(fmt.Sprintf("- **持续时间**: %s\n", formatter.FormatDuration(first.Duration)))
+	}
+
+	// 告警描述
+	description := formatter.GetAlertDescription(first)
+	if description != "" && description != "暂无描述" {
+		content.WriteString(fmt.Sprintf("\n## 告警描述\n\n%s\n", description))
+	}
+
+	return content.String()
 }
 
 // getOrCreateChannelClient 获取或创建渠道客户端

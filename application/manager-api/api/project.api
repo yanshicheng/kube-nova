@@ -137,6 +137,8 @@ type (
         ClusterUuid string `json:"clusterUuid" validate:"required,uuid"`                                         // 关联的集群UUID
         ProjectId uint64 `json:"projectId" validate:"required,gt=0"`                                             // 关联的项目ID
         CpuLimit string `json:"cpuLimit" validate:"required"`                                                    // 上级分配的CPU配额（核心数）
+        PriceConfigId uint64 `json:"priceConfigId" validate:"required,gt=0"`                                     // 费用配置ID（必填）
+        BillingStartTime int64 `json:"billingStartTime,optional"`                                                // 计费开始时间（秒级时间戳，可选，默认当前时间）
         CpuOvercommitRatio float64 `json:"cpuOvercommitRatio" validate:"omitempty"`                              // CPU超分比例
         CpuCapacity string `json:"cpuCapacity" validate:"omitempty"`                                             // CPU超分后总容量
         MemLimit string `json:"memLimit" validate:"required"`                                                    // 上级分配的内存配额（单位：GiB）

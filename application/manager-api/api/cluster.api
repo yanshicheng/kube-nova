@@ -114,6 +114,27 @@ type (
         ClientKey string `form:"clientKey,optional"  validate:"omitempty"`                                                                                             // 客户端密钥内容
         KeyFile string `form:"keyFile,optional" validate:"omitempty,max=500"`                                                                                          // 客户端密钥文件路径
         InsecureSkipVerify int64 `form:"insecureSkipVerify,optional"  validate:"omitempty,oneof=0 1"`                                                                  // 是否跳过TLS证书验证
+                                                                                                                                                                       // ========== 费用配置字段 ==========
+        PriceConfigId uint64 `form:"priceConfigId" validate:"required,gt=0"`                    // 价格配置ID（必填）
+        BillingStartTime int64 `form:"billingStartTime,optional"`                               // 计费开始时间（秒级时间戳，可选）
+
+                                                                                                                                                                       // ========== Prometheus 配置字段（可选） ==========
+        EnablePrometheus int64 `form:"enablePrometheus,optional" validate:"omitempty,oneof=0 1"` // 是否配置 Prometheus：0-否，1-是
+        PrometheusUrl string `form:"prometheusUrl,optional" validate:"omitempty"`                // Prometheus 地址
+        PrometheusPort int64 `form:"prometheusPort,optional" validate:"omitempty,min=1,max=65535"` // Prometheus 端口
+        PrometheusProtocol string `form:"prometheusProtocol,optional" validate:"omitempty,oneof=http https"` // 协议
+        PrometheusAuthEnabled int64 `form:"prometheusAuthEnabled,optional" validate:"omitempty,oneof=0 1"` // 是否启用认证
+        PrometheusAuthType string `form:"prometheusAuthType,optional" validate:"omitempty,oneof=none basic token apikey"` // 认证类型
+        PrometheusUsername string `form:"prometheusUsername,optional"`                           // Basic 认证用户名
+        PrometheusPassword string `form:"prometheusPassword,optional"`                           // Basic 认证密码
+        PrometheusToken string `form:"prometheusToken,optional"`                                 // Token 认证
+        PrometheusAccessKey string `form:"prometheusAccessKey,optional"`                         // API Key
+        PrometheusAccessSecret string `form:"prometheusAccessSecret,optional"`                   // API Secret
+        PrometheusTlsEnabled int64 `form:"prometheusTlsEnabled,optional" validate:"omitempty,oneof=0 1"` // 是否启用 TLS
+        PrometheusInsecureSkipVerify int64 `form:"prometheusInsecureSkipVerify,optional" validate:"omitempty,oneof=0 1"` // 是否跳过证书验证
+        PrometheusCaCert string `form:"prometheusCaCert,optional"`                               // CA 证书
+        PrometheusClientCert string `form:"prometheusClientCert,optional"`                       // 客户端证书
+        PrometheusClientKey string `form:"prometheusClientKey,optional"`                         // 客户端密钥
     }
 
         // 更新集群请求 - multipart/form-data
