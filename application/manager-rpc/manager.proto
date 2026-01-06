@@ -1278,9 +1278,8 @@ message GetOnecProjectVersionDetailResp {
   string resourceType = 17;
   uint64 applicationId = 18;
   string applicationNameCn = 19;
-  string applicationNameEn = 20;
-  uint64 workspaceId = 21;
-  uint64 versionId = 22;
+  uint64 workspaceId = 20;
+  uint64 versionId = 21;
 
 }
 
@@ -2062,6 +2061,8 @@ message GetAlertSummaryReportResp {
 
 
 
+// ==================== 资源仪表盘汇总 ====================
+// ==================== 汇总数据 ====================
 
 message ResourceDashboardSummaryReq {
   string cluster_uuid = 1;  // 集群UUID，空表示全部
@@ -2672,68 +2673,6 @@ message OnecBillingStatementGenerateReq {
 
 message OnecBillingStatementGenerateResp {
 }
-// 生成所有账单请求
-message OnecBillingStatementGenerateAllReq {
-  string userName = 3;
-}
-
-// 生成所有账单响应
-message OnecBillingStatementGenerateAllResp {
-
-}
-
-
-
-
-
-
-
-
-// 获取Alertmanager配置请求
-message GetAlertmanagerConfigReq {
-  string clusterUuid = 1;  // 集群UUID
-  string namespace = 2;    // 命名空间，默认monitoring
-  string crdType = 3;      // 资源类型: configmap/secret，默认secret
-  string name = 4;         // 资源名称，默认alertmanager-main
-  string token = 5;
-}
-
-// 获取Alertmanager配置响应
-message GetAlertmanagerConfigResp {
-  string config = 1;  
-}
-
-// 获取Prometheus配置请求
-message GetPrometheusConfigReq {
-  string clusterUuid = 1;  // 集群UUID
-  string namespace = 2;    // 命名空间，默认monitoring
-  string name = 3;         // 资源名称，默认k8s
-}
-
-// 获取Prometheus配置响应
-message GetPrometheusConfigResp {
-  string config = 1;  
-}
-
-// 配置Alertmanager请求
-message SetAlertmanagerConfigReq {
-  string clusterUuid = 1;  // 集群UUID
-  string namespace = 2;    // 命名空间，默认monitoring
-  string crdType = 3;      // 资源类型: configmap/secret，默认secret
-  string name = 4;         // 资源名称，默认alertmanager-main
-  string operator = 7;     // 操作人
-  string token= 5;
-}
-
-// 配置Alertmanager响应
-message SetAlertmanagerConfigResp {
-}
-
-
-
-
-
-
 service ManagerService {
   // //通过 clusterUuid 和 namespace 获取 详情信息
   rpc GetClusterNsDetail(GetClusterNsDetailReq) returns (GetClusterNsDetailResp);
@@ -2982,17 +2921,5 @@ service ManagerService {
   rpc OnecBillingStatementBatchDel(OnecBillingStatementBatchDelReq) returns (OnecBillingStatementBatchDelResp);
   // 立即生成账单
   rpc OnecBillingStatementGenerate(OnecBillingStatementGenerateReq) returns (OnecBillingStatementGenerateResp);
-  // 生成所有账单
-  rpc OnecBillingStatementGenerateAll(OnecBillingStatementGenerateAllReq) returns (OnecBillingStatementGenerateAllResp);
-
-
-  // 获取Alertmanager配置
-  rpc GetAlertmanagerConfig(GetAlertmanagerConfigReq) returns (GetAlertmanagerConfigResp);
-
-  // 获取Prometheus配置
-  rpc GetPrometheusConfig(GetPrometheusConfigReq) returns (GetPrometheusConfigResp);
-
-  // 配置Alertmanager
-  rpc SetAlertmanagerConfig(SetAlertmanagerConfigReq) returns (SetAlertmanagerConfigResp);
 
 }

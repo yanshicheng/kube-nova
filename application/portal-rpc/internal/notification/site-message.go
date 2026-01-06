@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/yanshicheng/kube-nova/common/handler/errorx"
 )
 
 // SiteMessageStore 站内信存储接口（需要外部实现）
@@ -20,7 +18,7 @@ type SiteMessageStore interface {
 	SaveBatchMessages(ctx context.Context, msgs []*SiteMessageData) error
 }
 
-// MessagePushCallback 消息推送回调接口
+// MessagePushCallback 消息推送回调接口（新增）
 type MessagePushCallback interface {
 	// OnMessageCreated 当消息创建后回调（用于推送到 WebSocket）
 	OnMessageCreated(ctx context.Context, msg *SiteMessageData) error
@@ -32,14 +30,13 @@ type MessagePushCallback interface {
 type siteMessageClient struct {
 	*baseClient
 	store        SiteMessageStore
-	pushCallback MessagePushCallback
-	pushWg       sync.WaitGroup // 追踪推送 goroutine，确保优雅关闭
+	pushCallback MessagePushCallback // 新增：推送回调
 }
 
 // NewSiteMessageClient 创建站内信客户端
 func NewSiteMessageClient(config Config, store SiteMessageStore) (FullChannel, error) {
 	if store == nil {
-		return nil, errorx.Msg("站内信存储接口不能为空")
+		return nil, fmt.Errorf("站内信存储接口不能为空")
 	}
 
 	bc := newBaseClient(config)
@@ -52,24 +49,15 @@ func NewSiteMessageClient(config Config, store SiteMessageStore) (FullChannel, e
 	return client, nil
 }
 
-// SetPushCallback 设置推送回调
+// SetPushCallback 设置推送回调（新增）
 func (c *siteMessageClient) SetPushCallback(callback MessagePushCallback) {
 	c.pushCallback = callback
 }
 
 // WithContext 设置上下文
-// 返回带有新上下文的客户端副本
 func (c *siteMessageClient) WithContext(ctx context.Context) Client {
-	// 创建新的 baseClient 副本
-	newBaseClient := c.baseClient.WithContext(ctx).(*baseClient)
-
-	// 创建新的 siteMessageClient 实例（共享 store 和 pushCallback）
-	return &siteMessageClient{
-		baseClient:   newBaseClient,
-		store:        c.store,
-		pushCallback: c.pushCallback,
-		pushWg:       sync.WaitGroup{}, // 新的 WaitGroup，不影响原始客户端
-	}
+	c.baseClient.ctx = ctx
+	return c
 }
 
 // SendPrometheusAlert 发送 Prometheus 告警站内信
@@ -77,7 +65,7 @@ func (c *siteMessageClient) SendPrometheusAlert(ctx context.Context, opts *Alert
 	startTime := time.Now()
 
 	if atomic.LoadInt32(&c.closed) == 1 {
-		return nil, errorx.Msg("客户端已关闭")
+		return nil, fmt.Errorf("客户端已关闭")
 	}
 
 	if opts.Mentions == nil {
@@ -85,8 +73,8 @@ func (c *siteMessageClient) SendPrometheusAlert(ctx context.Context, opts *Alert
 			Success:   false,
 			Message:   "站内信需要指定用户ID",
 			Timestamp: time.Now(),
-			Error:     errorx.Msg("未指定用户ID"),
-		}, errorx.Msg("未指定用户ID")
+			Error:     fmt.Errorf("未指定用户ID"),
+		}, fmt.Errorf("未指定用户ID")
 	}
 
 	formatter := NewMessageFormatter(opts.PortalName, opts.PortalUrl)
@@ -100,77 +88,35 @@ func (c *siteMessageClient) SendPrometheusAlert(ctx context.Context, opts *Alert
 	var msgs []*SiteMessageData
 	expireAt := time.Now().AddDate(0, 0, 30)
 
-	// 修复: 使用 InternalUserIds 而不是 AtUserIds，避免类型转换
-	if len(opts.Mentions.InternalUserIds) == 0 {
-		// 向后兼容：如果 InternalUserIds 为空，尝试使用 AtUserIds
-		if len(opts.Mentions.AtUserIds) > 0 {
-			c.l.Infof("[站内信] 使用向后兼容模式: AtUserIds")
-			for _, userIdStr := range opts.Mentions.AtUserIds {
-				var userId uint64
-				_, err := fmt.Sscanf(userIdStr, "%d", &userId)
-				if err != nil {
-					c.l.Errorf("[站内信] 用户ID转换失败: %s, 错误: %v", userIdStr, err)
-					continue
-				}
-
-				// 为每个告警名称创建一条聚合消息
-				for alertName, alertGroup := range alertsByName {
-					title := c.buildAggregatedTitle(alertName, alertGroup, opts)
-					content := c.buildAggregatedContent(formatter, alertGroup, opts)
-
-					msg := &SiteMessageData{
-						UUID:           uuid.New().String(),
-						UserID:         userId,
-						InstanceID:     alertGroup[0].ID,
-						NotificationID: 0,
-						Title:          title,
-						Content:        content,
-						MessageType:    "alert",
-						Severity:       alertGroup[0].Severity,
-						Category:       "prometheus",
-						ActionURL:      alertGroup[0].GeneratorURL,
-						ActionText:     "查看详情",
-						IsRead:         0,
-						IsStarred:      0,
-						ExpireAt:       expireAt,
-					}
-					msgs = append(msgs, msg)
-				}
-			}
-		} else {
-			return &SendResult{
-				Success:   false,
-				Message:   "没有有效的用户ID",
-				Timestamp: time.Now(),
-				Error:     errorx.Msg("没有有效的用户ID"),
-			}, errorx.Msg("没有有效的用户ID")
+	for _, userIdStr := range opts.Mentions.AtUserIds {
+		var userId uint64
+		_, err := fmt.Sscanf(userIdStr, "%d", &userId)
+		if err != nil {
+			continue
 		}
-	} else {
-		// 使用新的 InternalUserIds（推荐方式）
-		for _, userId := range opts.Mentions.InternalUserIds {
-			// 为每个告警名称创建一条聚合消息
-			for alertName, alertGroup := range alertsByName {
-				title := c.buildAggregatedTitle(alertName, alertGroup, opts)
-				content := c.buildAggregatedContent(formatter, alertGroup, opts)
 
-				msg := &SiteMessageData{
-					UUID:           uuid.New().String(),
-					UserID:         userId,
-					InstanceID:     alertGroup[0].ID,
-					NotificationID: 0,
-					Title:          title,
-					Content:        content,
-					MessageType:    "alert",
-					Severity:       alertGroup[0].Severity,
-					Category:       "prometheus",
-					ActionURL:      alertGroup[0].GeneratorURL,
-					ActionText:     "查看详情",
-					IsRead:         0,
-					IsStarred:      0,
-					ExpireAt:       expireAt,
-				}
-				msgs = append(msgs, msg)
+		// 为每个告警名称创建一条聚合消息
+		for alertName, alertGroup := range alertsByName {
+			title := c.buildAggregatedTitle(alertName, alertGroup, opts)
+			content := c.buildAggregatedContent(formatter, alertGroup, opts)
+
+			msg := &SiteMessageData{
+				UUID:           uuid.New().String(),
+				UserID:         userId,
+				InstanceID:     alertGroup[0].ID,
+				NotificationID: 0,
+				Title:          title,
+				Content:        content,
+				MessageType:    "alert",
+				Severity:       alertGroup[0].Severity,
+				Category:       "prometheus",
+				ActionURL:      alertGroup[0].GeneratorURL,
+				ActionText:     "查看详情",
+				IsRead:         0,
+				IsStarred:      0,
+				ExpireAt:       expireAt,
 			}
+			msgs = append(msgs, msg)
 		}
 	}
 
@@ -179,8 +125,8 @@ func (c *siteMessageClient) SendPrometheusAlert(ctx context.Context, opts *Alert
 			Success:   false,
 			Message:   "没有有效的用户ID或告警",
 			Timestamp: time.Now(),
-			Error:     errorx.Msg("没有有效的用户ID或告警"),
-		}, errorx.Msg("没有有效的用户ID或告警")
+			Error:     fmt.Errorf("没有有效的用户ID或告警"),
+		}, fmt.Errorf("没有有效的用户ID或告警")
 	}
 
 	// 批量保存
@@ -196,12 +142,8 @@ func (c *siteMessageClient) SendPrometheusAlert(ctx context.Context, opts *Alert
 		}, err
 	}
 
-	// 异步推送，使用 WaitGroup 追踪确保消息不丢失
 	if c.pushCallback != nil {
-		c.pushWg.Add(1) // 增加计数
 		go func() {
-			defer c.pushWg.Done() // 完成后减少计数
-
 			pushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
@@ -215,7 +157,7 @@ func (c *siteMessageClient) SendPrometheusAlert(ctx context.Context, opts *Alert
 	c.recordSuccess(time.Since(startTime))
 
 	c.l.Infof("[站内信] 发送成功 | UUID: %s | 告警类型数: %d | 消息数: %d | 用户数: %d | 原始告警数: %d | 耗时: %dms",
-		c.baseClient.GetUUID(), len(alertsByName), len(msgs), len(opts.Mentions.InternalUserIds), len(alerts), time.Since(startTime).Milliseconds())
+		c.baseClient.GetUUID(), len(alertsByName), len(msgs), len(opts.Mentions.AtUserIds), len(alerts), time.Since(startTime).Milliseconds())
 
 	return &SendResult{
 		Success:   true,
@@ -295,7 +237,6 @@ func (c *siteMessageClient) buildAggregatedTitle(alertName string, alerts []*Ale
 }
 
 // buildSingleAlertContent 构建单个告警的内容
-// 注意: 此方法当前未被使用，保留用于后续可能的单条告警场景
 func (c *siteMessageClient) buildSingleAlertContent(formatter *MessageFormatter, alert *AlertInstance, opts *AlertOptions) string {
 	projectDisplay := opts.ProjectName
 	if projectDisplay == "" {
@@ -347,7 +288,7 @@ func (c *siteMessageClient) SendNotification(ctx context.Context, opts *Notifica
 
 	// 检查客户端状态
 	if atomic.LoadInt32(&c.closed) == 1 {
-		return nil, errorx.Msg("客户端已关闭")
+		return nil, fmt.Errorf("客户端已关闭")
 	}
 
 	// 获取用户ID列表
@@ -356,70 +297,36 @@ func (c *siteMessageClient) SendNotification(ctx context.Context, opts *Notifica
 			Success:   false,
 			Message:   "站内信需要指定用户ID",
 			Timestamp: time.Now(),
-			Error:     errorx.Msg("未指定用户ID"),
-		}, errorx.Msg("未指定用户ID")
+			Error:     fmt.Errorf("未指定用户ID"),
+		}, fmt.Errorf("未指定用户ID")
 	}
 
 	// 为每个用户创建站内信
 	var msgs []*SiteMessageData
 	expireAt := time.Now().AddDate(0, 0, 30)
 
-	// 修复: 使用 InternalUserIds 而不是 AtUserIds
-	if len(opts.Mentions.InternalUserIds) == 0 {
-		// 向后兼容：如果 InternalUserIds 为空，尝试使用 AtUserIds
-		if len(opts.Mentions.AtUserIds) > 0 {
-			c.l.Infof("[站内信] 使用向后兼容模式: AtUserIds")
-			for _, userIdStr := range opts.Mentions.AtUserIds {
-				var userId uint64
-				_, err := fmt.Sscanf(userIdStr, "%d", &userId)
-				if err != nil {
-					c.l.Errorf("[站内信] 用户ID转换失败: %s, 错误: %v", userIdStr, err)
-					continue
-				}
+	for _, userIdStr := range opts.Mentions.AtUserIds {
+		var userId uint64
+		_, err := fmt.Sscanf(userIdStr, "%d", &userId)
+		if err != nil {
+			continue
+		}
 
-				msg := &SiteMessageData{
-					UUID:        uuid.New().String(),
-					UserID:      userId,
-					Title:       opts.Title,
-					Content:     opts.Content,
-					MessageType: "notification",
-					Severity:    "info",
-					Category:    "system",
-					ActionURL:   opts.PortalUrl,
-					ActionText:  "查看详情",
-					IsRead:      0,
-					IsStarred:   0,
-					ExpireAt:    expireAt,
-				}
-				msgs = append(msgs, msg)
-			}
-		} else {
-			return &SendResult{
-				Success:   false,
-				Message:   "没有有效的用户ID",
-				Timestamp: time.Now(),
-				Error:     errorx.Msg("没有有效的用户ID"),
-			}, errorx.Msg("没有有效的用户ID")
+		msg := &SiteMessageData{
+			UUID:        uuid.New().String(),
+			UserID:      userId,
+			Title:       opts.Title,
+			Content:     opts.Content,
+			MessageType: "notification",
+			Severity:    "info",
+			Category:    "system",
+			ActionURL:   opts.PortalUrl,
+			ActionText:  "查看详情",
+			IsRead:      0,
+			IsStarred:   0,
+			ExpireAt:    expireAt,
 		}
-	} else {
-		// 使用新的 InternalUserIds（推荐方式）
-		for _, userId := range opts.Mentions.InternalUserIds {
-			msg := &SiteMessageData{
-				UUID:        uuid.New().String(),
-				UserID:      userId,
-				Title:       opts.Title,
-				Content:     opts.Content,
-				MessageType: "notification",
-				Severity:    "info",
-				Category:    "system",
-				ActionURL:   opts.PortalUrl,
-				ActionText:  "查看详情",
-				IsRead:      0,
-				IsStarred:   0,
-				ExpireAt:    expireAt,
-			}
-			msgs = append(msgs, msg)
-		}
+		msgs = append(msgs, msg)
 	}
 
 	if len(msgs) == 0 {
@@ -427,8 +334,8 @@ func (c *siteMessageClient) SendNotification(ctx context.Context, opts *Notifica
 			Success:   false,
 			Message:   "没有有效的用户ID",
 			Timestamp: time.Now(),
-			Error:     errorx.Msg("没有有效的用户ID"),
-		}, errorx.Msg("没有有效的用户ID")
+			Error:     fmt.Errorf("没有有效的用户ID"),
+		}, fmt.Errorf("没有有效的用户ID")
 	}
 
 	// 批量保存
@@ -444,12 +351,9 @@ func (c *siteMessageClient) SendNotification(ctx context.Context, opts *Notifica
 		}, err
 	}
 
-	// 异步推送，使用 WaitGroup 追踪确保消息不丢失
 	if c.pushCallback != nil {
-		c.pushWg.Add(1) // 增加计数
+		// 异步推送，不阻塞主流程
 		go func() {
-			defer c.pushWg.Done() // 完成后减少计数
-
 			pushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
@@ -482,8 +386,8 @@ func (c *siteMessageClient) TestConnection(ctx context.Context, toEmail []string
 			Message:   "存储接口未初始化",
 			Latency:   time.Since(startTime),
 			Timestamp: time.Now(),
-			Error:     errorx.Msg("存储接口未初始化"),
-		}, errorx.Msg("存储接口未初始化")
+			Error:     fmt.Errorf("存储接口未初始化"),
+		}, fmt.Errorf("存储接口未初始化")
 	}
 
 	return &TestResult{
@@ -501,16 +405,16 @@ func (c *siteMessageClient) HealthCheck(ctx context.Context) (*HealthStatus, err
 			Healthy:       false,
 			Message:       "客户端已关闭",
 			LastCheckTime: time.Now(),
-		}, errorx.Msg("客户端已关闭")
+		}, fmt.Errorf("客户端已关闭")
 	}
 
 	if c.store == nil {
-		c.updateHealthStatus(false, errorx.Msg("存储接口未初始化"))
+		c.updateHealthStatus(false, fmt.Errorf("存储接口未初始化"))
 		return &HealthStatus{
 			Healthy:       false,
 			Message:       "存储接口未初始化",
 			LastCheckTime: time.Now(),
-		}, errorx.Msg("存储接口未初始化")
+		}, fmt.Errorf("存储接口未初始化")
 	}
 
 	c.updateHealthStatus(true, nil)
@@ -519,24 +423,4 @@ func (c *siteMessageClient) HealthCheck(ctx context.Context) (*HealthStatus, err
 		Message:       "站内信客户端健康",
 		LastCheckTime: time.Now(),
 	}, nil
-}
-
-// Close 关闭客户端
-// 等待所有推送 goroutine 完成，确保消息不丢失
-func (c *siteMessageClient) Close() error {
-	// 等待所有推送完成，最多等待 10 秒
-	done := make(chan struct{})
-	go func() {
-		c.pushWg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		c.l.Info("[站内信] 所有推送已完成")
-	case <-time.After(10 * time.Second):
-		c.l.Infof("[站内信] 等待推送超时，强制关闭")
-	}
-
-	return c.baseClient.Close()
 }

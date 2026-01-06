@@ -11,7 +11,6 @@ import (
 	app "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/app"
 	billing "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/billing"
 	cluster "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/cluster"
-	monitoring "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/monitoring"
 	node "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/node"
 	project "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/project"
 	projectauditlog "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/projectauditlog"
@@ -398,12 +397,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Handler: billing.OnecBillingStatementBatchDelHandler(serverCtx),
 				},
 				{
-					// 导出账单Excel
-					Method:  http.MethodGet,
-					Path:    "/statement/export",
-					Handler: billing.OnecBillingStatementExportHandler(serverCtx),
-				},
-				{
 					// 立即生成账单
 					Method:  http.MethodPost,
 					Path:    "/statement/generate",
@@ -491,33 +484,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithPrefix("/manager/v1/cluster"),
-	)
-
-	server.AddRoutes(
-		rest.WithMiddlewares(
-			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
-			[]rest.Route{
-				{
-					// 获取指定集群的Alertmanager配置
-					Method:  http.MethodGet,
-					Path:    "/alertmanager/:clusterUuid/config",
-					Handler: monitoring.GetAlertmanagerConfigHandler(serverCtx),
-				},
-				{
-					// 配置指定集群的Alertmanager
-					Method:  http.MethodPost,
-					Path:    "/alertmanager/:clusterUuid/config",
-					Handler: monitoring.SetAlertmanagerConfigHandler(serverCtx),
-				},
-				{
-					// 获取指定集群的Prometheus配置
-					Method:  http.MethodGet,
-					Path:    "/prometheus/:clusterUuid/config",
-					Handler: monitoring.GetPrometheusConfigHandler(serverCtx),
-				},
-			}...,
-		),
-		rest.WithPrefix("/manager/v1/monitoring"),
 	)
 
 	server.AddRoutes(

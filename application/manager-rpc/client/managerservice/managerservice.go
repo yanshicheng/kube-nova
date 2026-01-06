@@ -176,8 +176,6 @@ type (
 	GetAlertTopRankingResp               = pb.GetAlertTopRankingResp
 	GetAlertTrendReq                     = pb.GetAlertTrendReq
 	GetAlertTrendResp                    = pb.GetAlertTrendResp
-	GetAlertmanagerConfigReq             = pb.GetAlertmanagerConfigReq
-	GetAlertmanagerConfigResp            = pb.GetAlertmanagerConfigResp
 	GetClusterAuthInfoReq                = pb.GetClusterAuthInfoReq
 	GetClusterAuthInfoResp               = pb.GetClusterAuthInfoResp
 	GetClusterDefaultDomainSuffixReq     = pb.GetClusterDefaultDomainSuffixReq
@@ -207,8 +205,6 @@ type (
 	GetOnecProjectWorkspaceByIdResp      = pb.GetOnecProjectWorkspaceByIdResp
 	GetOnecProjectsByUserIdReq           = pb.GetOnecProjectsByUserIdReq
 	GetOnecProjectsByUserIdResp          = pb.GetOnecProjectsByUserIdResp
-	GetPrometheusConfigReq               = pb.GetPrometheusConfigReq
-	GetPrometheusConfigResp              = pb.GetPrometheusConfigResp
 	ListAlertRuleFileReq                 = pb.ListAlertRuleFileReq
 	ListAlertRuleFileResp                = pb.ListAlertRuleFileResp
 	ListAlertRuleGroupReq                = pb.ListAlertRuleGroupReq
@@ -250,8 +246,6 @@ type (
 	OnecBillingStatementBatchDelResp     = pb.OnecBillingStatementBatchDelResp
 	OnecBillingStatementDelReq           = pb.OnecBillingStatementDelReq
 	OnecBillingStatementDelResp          = pb.OnecBillingStatementDelResp
-	OnecBillingStatementGenerateAllReq   = pb.OnecBillingStatementGenerateAllReq
-	OnecBillingStatementGenerateAllResp  = pb.OnecBillingStatementGenerateAllResp
 	OnecBillingStatementGenerateReq      = pb.OnecBillingStatementGenerateReq
 	OnecBillingStatementGenerateResp     = pb.OnecBillingStatementGenerateResp
 	OnecBillingStatementSearchReq        = pb.OnecBillingStatementSearchReq
@@ -311,8 +305,6 @@ type (
 	SearchOnecProjectVersionResp         = pb.SearchOnecProjectVersionResp
 	SearchOnecProjectWorkspaceReq        = pb.SearchOnecProjectWorkspaceReq
 	SearchOnecProjectWorkspaceResp       = pb.SearchOnecProjectWorkspaceResp
-	SetAlertmanagerConfigReq             = pb.SetAlertmanagerConfigReq
-	SetAlertmanagerConfigResp            = pb.SetAlertmanagerConfigResp
 	SeverityStatItem                     = pb.SeverityStatItem
 	SyncClusterReq                       = pb.SyncClusterReq
 	SyncClusterResp                      = pb.SyncClusterResp
@@ -545,14 +537,6 @@ type (
 		OnecBillingStatementBatchDel(ctx context.Context, in *OnecBillingStatementBatchDelReq, opts ...grpc.CallOption) (*OnecBillingStatementBatchDelResp, error)
 		// 立即生成账单
 		OnecBillingStatementGenerate(ctx context.Context, in *OnecBillingStatementGenerateReq, opts ...grpc.CallOption) (*OnecBillingStatementGenerateResp, error)
-		// 生成所有账单
-		OnecBillingStatementGenerateAll(ctx context.Context, in *OnecBillingStatementGenerateAllReq, opts ...grpc.CallOption) (*OnecBillingStatementGenerateAllResp, error)
-		// 获取Alertmanager配置
-		GetAlertmanagerConfig(ctx context.Context, in *GetAlertmanagerConfigReq, opts ...grpc.CallOption) (*GetAlertmanagerConfigResp, error)
-		// 获取Prometheus配置
-		GetPrometheusConfig(ctx context.Context, in *GetPrometheusConfigReq, opts ...grpc.CallOption) (*GetPrometheusConfigResp, error)
-		// 配置Alertmanager
-		SetAlertmanagerConfig(ctx context.Context, in *SetAlertmanagerConfigReq, opts ...grpc.CallOption) (*SetAlertmanagerConfigResp, error)
 	}
 
 	defaultManagerService struct {
@@ -1313,28 +1297,4 @@ func (m *defaultManagerService) OnecBillingStatementBatchDel(ctx context.Context
 func (m *defaultManagerService) OnecBillingStatementGenerate(ctx context.Context, in *OnecBillingStatementGenerateReq, opts ...grpc.CallOption) (*OnecBillingStatementGenerateResp, error) {
 	client := pb.NewManagerServiceClient(m.cli.Conn())
 	return client.OnecBillingStatementGenerate(ctx, in, opts...)
-}
-
-// 生成所有账单
-func (m *defaultManagerService) OnecBillingStatementGenerateAll(ctx context.Context, in *OnecBillingStatementGenerateAllReq, opts ...grpc.CallOption) (*OnecBillingStatementGenerateAllResp, error) {
-	client := pb.NewManagerServiceClient(m.cli.Conn())
-	return client.OnecBillingStatementGenerateAll(ctx, in, opts...)
-}
-
-// 获取Alertmanager配置
-func (m *defaultManagerService) GetAlertmanagerConfig(ctx context.Context, in *GetAlertmanagerConfigReq, opts ...grpc.CallOption) (*GetAlertmanagerConfigResp, error) {
-	client := pb.NewManagerServiceClient(m.cli.Conn())
-	return client.GetAlertmanagerConfig(ctx, in, opts...)
-}
-
-// 获取Prometheus配置
-func (m *defaultManagerService) GetPrometheusConfig(ctx context.Context, in *GetPrometheusConfigReq, opts ...grpc.CallOption) (*GetPrometheusConfigResp, error) {
-	client := pb.NewManagerServiceClient(m.cli.Conn())
-	return client.GetPrometheusConfig(ctx, in, opts...)
-}
-
-// 配置Alertmanager
-func (m *defaultManagerService) SetAlertmanagerConfig(ctx context.Context, in *SetAlertmanagerConfigReq, opts ...grpc.CallOption) (*SetAlertmanagerConfigResp, error) {
-	client := pb.NewManagerServiceClient(m.cli.Conn())
-	return client.SetAlertmanagerConfig(ctx, in, opts...)
 }
