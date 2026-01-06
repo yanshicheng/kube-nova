@@ -11,15 +11,14 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-// CasbinAdapter 从现有数据库表加载Casbin策略
-// 使用 sys_role, sys_api, sys_role_api 三张表
+// CasbinAdapter 从现有数据库表加载 Casbin 策略
 type CasbinAdapter struct {
-	sysRole    model2.SysRoleModel
-	sysApi     model2.SysApiModel
-	sysRoleApi model2.SysRoleApiModel
+	sysRole    model2.SysRoleModel    // 角色数据模型
+	sysApi     model2.SysApiModel     // API 数据模型
+	sysRoleApi model2.SysRoleApiModel // 角色 API 关联数据模型
 }
 
-// NewCasbinAdapter 创建Adapter
+// NewCasbinAdapter 创建适配器
 func NewCasbinAdapter(
 	sysRole model2.SysRoleModel,
 	sysApi model2.SysApiModel,
@@ -32,12 +31,13 @@ func NewCasbinAdapter(
 	}
 }
 
-// LoadPolicy 从数据库加载策略到Casbin
+// LoadPolicy 从数据库加载策略到 Casbin
 // 策略格式: p, role_code, api_path, http_method
+// 示例: p, ADMIN, /portal/v1/user/*, POST
 func (a *CasbinAdapter) LoadPolicy(m model.Model) error {
 	ctx := context.Background()
 
-	// 1. 查询所有角色
+	// 查询所有角色
 	roles, err := a.sysRole.SearchNoPage(ctx, "", true, "")
 	if err != nil {
 		return fmt.Errorf("查询角色失败: %w", err)
@@ -47,91 +47,89 @@ func (a *CasbinAdapter) LoadPolicy(m model.Model) error {
 
 	policyCount := 0
 
-	// 2. 遍历每个角色
+	// 遍历每个角色
 	for _, role := range roles {
-		// 查询角色的API权限关联
+		// 查询角色的 API 权限关联
 		roleApis, err := a.sysRoleApi.SearchNoPage(ctx, "", true, "role_id = ?", role.Id)
 		if err != nil {
-			logx.Errorf("[Adapter] 查询角色 %s (ID=%d) 的API关联失败: %v",
+			logx.Errorf("[Adapter] 查询角色 %s (ID=%d) 的 API 关联失败: %v",
 				role.Code, role.Id, err)
 			continue
 		}
 
 		if len(roleApis) == 0 {
-			logx.Infof("[Adapter] 角色 %s 没有关联任何API权限", role.Code)
+			logx.Infof("[Adapter] 角色 %s 没有关联任何 API 权限", role.Code)
 			continue
 		}
 
-		// 3. 提取API ID列表
+		// 提取 API ID 列表
 		apiIds := make([]uint64, 0, len(roleApis))
 		for _, ra := range roleApis {
 			apiIds = append(apiIds, ra.ApiId)
 		}
 
-		// 4. 批量查询API详情
+		// 批量查询 API 详情
 		apis, err := a.batchGetApis(ctx, apiIds)
 		if err != nil {
-			logx.Errorf("[Adapter] 批量查询API失败: %v", err)
+			logx.Errorf("[Adapter] 批量查询 API 失败: %v", err)
 			continue
 		}
 
-		// 5. 构建Casbin策略
+		// 构建 Casbin 策略
 		for _, api := range apis {
-			// 只处理权限类型的API（is_permission = 1）
-			// is_permission = 0 表示分组，不需要加载到Casbin
+			// 只处理权限类型的 API，is_permission 为 1 表示权限类型
+			// is_permission 为 0 表示分组，不需要加载到 Casbin
 			if api.IsPermission != 1 {
 				continue
 			}
 
 			// 策略格式: p, role_code, path, method
-			// 示例: p, ADMIN, /portal/v1/user/*, POST
 			line := fmt.Sprintf("p, %s, %s, %s", role.Code, api.Path, api.Method)
 
-			// 加载到Casbin模型
+			// 加载到 Casbin 模型
 			if err := persist.LoadPolicyLine(line, m); err != nil {
-				logx.Errorf("[Adapter] 加载策略失败: %s, error: %v", line, err)
+				logx.Errorf("[Adapter] 加载策略失败: %s, 错误: %v", line, err)
 				continue
 			}
 
 			policyCount++
 		}
 
-		logx.Infof("[Adapter] 角色 %s 加载了 %d 个API权限", role.Code, len(apis))
+		logx.Infof("[Adapter] 角色 %s 加载了 %d 个 API 权限", role.Code, len(apis))
 	}
 
 	logx.Infof("[Adapter] 策略加载完成，共 %d 条策略规则", policyCount)
 	return nil
 }
 
-// SavePolicy 保存策略（不需要实现，通过数据库表管理）
+// SavePolicy 保存策略
+// 策略通过 sys_role_api 表管理，不需要保存到单独的 casbin_rule 表
 func (a *CasbinAdapter) SavePolicy(m model.Model) error {
-	// 策略通过 sys_role_api 表管理，不需要保存到单独的casbin_rule表
 	return nil
 }
 
-// AddPolicy 添加单条策略（不需要实现）
+// AddPolicy 添加单条策略
 func (a *CasbinAdapter) AddPolicy(sec string, ptype string, rule []string) error {
 	return nil
 }
 
-// RemovePolicy 删除单条策略（不需要实现）
+// RemovePolicy 删除单条策略
 func (a *CasbinAdapter) RemovePolicy(sec string, ptype string, rule []string) error {
 	return nil
 }
 
-// RemoveFilteredPolicy 删除过滤策略（不需要实现）
+// RemoveFilteredPolicy 删除过滤策略
 func (a *CasbinAdapter) RemoveFilteredPolicy(sec string, ptype string, fieldIndex int, fieldValues ...string) error {
 	return nil
 }
 
-// batchGetApis 批量查询API
+// batchGetApis 批量查询 API
 func (a *CasbinAdapter) batchGetApis(ctx context.Context, apiIds []uint64) ([]*model2.SysApi, error) {
 	if len(apiIds) == 0 {
 		return nil, nil
 	}
 
-	// 构建 IN 查询
-	// 示例: id IN (1, 2, 3)
+	// 构建 IN 查询条件
 	placeholders := make([]string, len(apiIds))
 	args := make([]interface{}, len(apiIds))
 	for i, id := range apiIds {
@@ -143,5 +141,5 @@ func (a *CasbinAdapter) batchGetApis(ctx context.Context, apiIds []uint64) ([]*m
 	return a.sysApi.SearchNoPage(ctx, "", true, query, args...)
 }
 
-// 确保实现了persist.Adapter接口
+// 确保实现了 persist.Adapter 接口
 var _ persist.Adapter = (*CasbinAdapter)(nil)
