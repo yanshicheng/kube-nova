@@ -3,6 +3,7 @@ package notification
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -63,12 +64,10 @@ func (c *siteMessageClient) WithContext(ctx context.Context) Client {
 func (c *siteMessageClient) SendPrometheusAlert(ctx context.Context, opts *AlertOptions, alerts []*AlertInstance) (*SendResult, error) {
 	startTime := time.Now()
 
-	// 检查客户端状态
 	if atomic.LoadInt32(&c.closed) == 1 {
 		return nil, fmt.Errorf("客户端已关闭")
 	}
 
-	// 获取用户ID列表
 	if opts.Mentions == nil {
 		return &SendResult{
 			Success:   false,
@@ -78,13 +77,17 @@ func (c *siteMessageClient) SendPrometheusAlert(ctx context.Context, opts *Alert
 		}, fmt.Errorf("未指定用户ID")
 	}
 
-	// 使用格式化器构建消息
 	formatter := NewMessageFormatter(opts.PortalName, opts.PortalUrl)
+
+	// 按告警名称聚合
+	alertsByName := make(map[string][]*AlertInstance)
+	for _, alert := range alerts {
+		alertsByName[alert.AlertName] = append(alertsByName[alert.AlertName], alert)
+	}
 
 	var msgs []*SiteMessageData
 	expireAt := time.Now().AddDate(0, 0, 30)
 
-	// 为每个用户的每个告警创建独立的站内消息
 	for _, userIdStr := range opts.Mentions.AtUserIds {
 		var userId uint64
 		_, err := fmt.Sscanf(userIdStr, "%d", &userId)
@@ -92,27 +95,22 @@ func (c *siteMessageClient) SendPrometheusAlert(ctx context.Context, opts *Alert
 			continue
 		}
 
-		// 为每个告警实例创建一条消息
-		for _, alert := range alerts {
-			// 构建单个告警的标题和内容
-			title := fmt.Sprintf("%s %s - %s",
-				formatter.GetSeverityEmoji(alert.Severity),
-				alert.AlertName,
-				opts.ClusterName)
-
-			content := c.buildSingleAlertContent(formatter, alert, opts)
+		// 为每个告警名称创建一条聚合消息
+		for alertName, alertGroup := range alertsByName {
+			title := c.buildAggregatedTitle(alertName, alertGroup, opts)
+			content := c.buildAggregatedContent(formatter, alertGroup, opts)
 
 			msg := &SiteMessageData{
 				UUID:           uuid.New().String(),
 				UserID:         userId,
-				InstanceID:     alert.ID,
+				InstanceID:     alertGroup[0].ID,
 				NotificationID: 0,
 				Title:          title,
 				Content:        content,
 				MessageType:    "alert",
-				Severity:       alert.Severity,
+				Severity:       alertGroup[0].Severity,
 				Category:       "prometheus",
-				ActionURL:      alert.GeneratorURL,
+				ActionURL:      alertGroup[0].GeneratorURL,
 				ActionText:     "查看详情",
 				IsRead:         0,
 				IsStarred:      0,
@@ -145,7 +143,6 @@ func (c *siteMessageClient) SendPrometheusAlert(ctx context.Context, opts *Alert
 	}
 
 	if c.pushCallback != nil {
-		// 异步推送，不阻塞主流程
 		go func() {
 			pushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
@@ -158,16 +155,85 @@ func (c *siteMessageClient) SendPrometheusAlert(ctx context.Context, opts *Alert
 	}
 
 	c.recordSuccess(time.Since(startTime))
-	c.l.Infof("[站内信] 发送成功 | UUID: %s | 消息数: %d | 用户数: %d | 告警数: %d | 耗时: %dms",
-		c.baseClient.GetUUID(), len(msgs), len(opts.Mentions.AtUserIds), len(alerts), time.Since(startTime).Milliseconds())
+
+	c.l.Infof("[站内信] 发送成功 | UUID: %s | 告警类型数: %d | 消息数: %d | 用户数: %d | 原始告警数: %d | 耗时: %dms",
+		c.baseClient.GetUUID(), len(alertsByName), len(msgs), len(opts.Mentions.AtUserIds), len(alerts), time.Since(startTime).Milliseconds())
 
 	return &SendResult{
-		Success: true,
-		Message: fmt.Sprintf("站内信发送成功，用户数: %d，告警数: %d，总消息数: %d",
-			len(opts.Mentions.AtUserIds), len(alerts), len(msgs)),
+		Success:   true,
+		Message:   fmt.Sprintf("站内信发送成功，告警类型: %d，消息数: %d", len(alertsByName), len(msgs)),
 		Timestamp: time.Now(),
 		CostMs:    time.Since(startTime).Milliseconds(),
 	}, nil
+}
+
+// buildAggregatedContent 构建聚合内容
+func (c *siteMessageClient) buildAggregatedContent(formatter *MessageFormatter, alerts []*AlertInstance, opts *AlertOptions) string {
+	if len(alerts) == 0 {
+		return ""
+	}
+
+	first := alerts[0]
+	projectDisplay := opts.ProjectName
+	if projectDisplay == "" {
+		projectDisplay = "集群级"
+	}
+
+	var content strings.Builder
+
+	// 告警基本信息
+	content.WriteString("## 告警信息\n\n")
+	content.WriteString(fmt.Sprintf("- **项目**: %s\n", projectDisplay))
+	content.WriteString(fmt.Sprintf("- **集群**: %s\n", opts.ClusterName))
+	content.WriteString(fmt.Sprintf("- **告警规则**: %s\n", first.AlertName))
+	content.WriteString(fmt.Sprintf("- **级别**: %s\n", first.Severity))
+	content.WriteString(fmt.Sprintf("- **状态**: %s\n", first.Status))
+
+	// 实例列表
+	if len(alerts) > 1 {
+		content.WriteString(fmt.Sprintf("\n## 受影响实例 (%d个)\n\n", len(alerts)))
+
+		maxShow := 10
+		for i, alert := range alerts {
+			if i >= maxShow {
+				content.WriteString(fmt.Sprintf("- ... 还有 %d 个实例\n", len(alerts)-maxShow))
+				break
+			}
+			duration := formatter.FormatDuration(alert.Duration)
+			content.WriteString(fmt.Sprintf("- `%s` (持续: %s)\n", alert.Instance, duration))
+		}
+	} else {
+		content.WriteString(fmt.Sprintf("- **实例**: %s\n", first.Instance))
+		content.WriteString(fmt.Sprintf("- **持续时间**: %s\n", formatter.FormatDuration(first.Duration)))
+	}
+
+	// 告警描述
+	description := formatter.GetAlertDescription(first)
+	if description != "" && description != "暂无描述" {
+		content.WriteString(fmt.Sprintf("\n## 告警描述\n\n%s\n", description))
+	}
+
+	// 标签信息
+	if len(first.Labels) > 0 {
+		content.WriteString("\n## 标签\n\n")
+		for k, v := range first.Labels {
+			// 跳过已展示的标签
+			if k == "alertname" || k == "severity" || k == "instance" {
+				continue
+			}
+			content.WriteString(fmt.Sprintf("- **%s**: `%s`\n", k, v))
+		}
+	}
+
+	return content.String()
+}
+
+// buildAggregatedTitle 构建聚合标题
+func (c *siteMessageClient) buildAggregatedTitle(alertName string, alerts []*AlertInstance, opts *AlertOptions) string {
+	if len(alerts) > 1 {
+		return fmt.Sprintf("%s (%d个实例) - %s", alertName, len(alerts), opts.ClusterName)
+	}
+	return fmt.Sprintf("%s - %s", alertName, opts.ClusterName)
 }
 
 // buildSingleAlertContent 构建单个告警的内容

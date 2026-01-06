@@ -2,8 +2,10 @@ package managerservicelogic
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/model"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/svc"
@@ -56,7 +58,15 @@ func (l *ProjectClusterAddLogic) ProjectClusterAdd(in *pb.AddOnecProjectClusterR
 		l.Error("查询集群失败", err)
 		return nil, errorx.Msg("查询集群失败")
 	}
-
+	// 新增：检查费用配置是否存在
+	priceConfig, err := l.svcCtx.OnecBillingPriceConfigModel.FindOne(l.ctx, in.PriceConfigId)
+	if err != nil {
+		if errors.Is(err, model.ErrNotFound) {
+			return nil, errorx.Msg("费用配置不存在")
+		}
+		l.Error("查询费用配置失败", err)
+		return nil, errorx.Msg("查询费用配置失败")
+	}
 	// 检查是否已存在相同的项目集群配额
 	existing, err := l.svcCtx.OnecProjectClusterModel.FindOneByClusterUuidProjectId(l.ctx, in.ClusterUuid, in.ProjectId)
 	if err == nil && existing != nil {
@@ -135,10 +145,37 @@ func (l *ProjectClusterAddLogic) ProjectClusterAdd(in *pb.AddOnecProjectClusterR
 		l.Error("创建项目集群配额失败", err)
 		return nil, errorx.Msg("创建项目集群配额失败")
 	}
-	_, err = res.LastInsertId()
+	projectClusterId, err := res.LastInsertId()
 	if err != nil {
 		l.Error("创建项目集群配额失败", err)
 		return nil, errorx.Msg("创建项目集群配额失败")
+	}
+	var billingStartTime time.Time
+	if in.BillingStartTime > 0 {
+		billingStartTime = time.Unix(in.BillingStartTime, 0)
+	} else {
+		billingStartTime = time.Now()
+	}
+
+	billingBinding := model.OnecBillingConfigBinding{
+		BindingType:        "project_cluster",
+		BindingClusterUuid: in.ClusterUuid,
+		BindingProjectId:   in.ProjectId,
+		PriceConfigId:      in.PriceConfigId,
+		BillingStartTime:   sql.NullTime{Time: billingStartTime, Valid: true},
+		LastBillingTime:    sql.NullTime{Valid: false}, // 初始为 null，等待首次计费
+		CreatedBy:          in.CreatedBy,
+		UpdatedBy:          in.UpdatedBy,
+	}
+
+	_, err = l.svcCtx.OnecBillingConfigBindingModel.Insert(l.ctx, &billingBinding)
+	if err != nil {
+		l.Errorf("创建计费配置绑定失败: %v", err)
+		// 注意：这里不回滚项目集群配额，因为计费绑定可以后续补充
+		// 但是记录错误日志
+	} else {
+		l.Infof("成功创建计费配置绑定，项目集群ID: %d, 费用配置ID: %d, 费用配置名称: %s",
+			projectClusterId, priceConfig.Id, priceConfig.ConfigName)
 	}
 
 	// 更新集群资源信息

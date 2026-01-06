@@ -151,6 +151,9 @@ service manager-api {
     @handler GetNodeDetailHandler
     get /:id (NodeIdRequest) returns (ClusterNodeDetail)
 
+    @handler GetNodeYamlHandler
+    get /:id/yaml (NodeIdRequest) returns (string)
+
     @handler UpdateNodeScheduleHandler
     put /:id/schedule (NodeDisableScheduleRequest) returns (string)
 

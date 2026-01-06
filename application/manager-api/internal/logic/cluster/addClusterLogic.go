@@ -97,19 +97,21 @@ func (l *AddClusterLogic) AddCluster(r *http.Request, req *types.AddClusterReque
 
 	// 调用RPC创建集群
 	rpcReq := &pb.AddClusterRequest{
-		Name:               req.Name,
-		Avatar:             avatarUrl,
-		Description:        req.Description,
-		ClusterType:        req.ClusterType,
-		Environment:        req.Environment,
-		Region:             req.Region,
-		Zone:               req.Zone,
-		Datacenter:         req.Datacenter,
-		Provider:           req.Provider,
-		IsManaged:          req.IsManaged,
-		NodeLb:             req.NodeLb,
-		MasterLb:           req.MasterLb,
-		IngressDomain:      req.IngressDomain,
+		// 基本信息
+		Name:          req.Name,
+		Avatar:        avatarUrl,
+		Description:   req.Description,
+		ClusterType:   req.ClusterType,
+		Environment:   req.Environment,
+		Region:        req.Region,
+		Zone:          req.Zone,
+		Datacenter:    req.Datacenter,
+		Provider:      req.Provider,
+		IsManaged:     req.IsManaged,
+		NodeLb:        req.NodeLb,
+		MasterLb:      req.MasterLb,
+		IngressDomain: req.IngressDomain,
+		// 认证信息
 		AuthType:           req.AuthType,
 		ApiServerHost:      req.ApiServerHost,
 		KubeFile:           req.KubeFile,
@@ -123,6 +125,26 @@ func (l *AddClusterLogic) AddCluster(r *http.Request, req *types.AddClusterReque
 		InsecureSkipVerify: req.InsecureSkipVerify,
 		CreatedBy:          username,
 		UpdatedBy:          username,
+		// 费用配置
+		PriceConfigId:    req.PriceConfigId,
+		BillingStartTime: req.BillingStartTime,
+		// Prometheus 配置
+		EnablePrometheus:             req.EnablePrometheus == 1,
+		PrometheusUrl:                req.PrometheusUrl,
+		PrometheusPort:               req.PrometheusPort,
+		PrometheusProtocol:           req.PrometheusProtocol,
+		PrometheusAuthEnabled:        req.PrometheusAuthEnabled,
+		PrometheusAuthType:           req.PrometheusAuthType,
+		PrometheusUsername:           req.PrometheusUsername,
+		PrometheusPassword:           req.PrometheusPassword,
+		PrometheusToken:              req.PrometheusToken,
+		PrometheusAccessKey:          req.PrometheusAccessKey,
+		PrometheusAccessSecret:       req.PrometheusAccessSecret,
+		PrometheusTlsEnabled:         req.PrometheusTlsEnabled,
+		PrometheusInsecureSkipVerify: req.PrometheusInsecureSkipVerify,
+		PrometheusCaCert:             req.PrometheusCaCert,
+		PrometheusClientCert:         req.PrometheusClientCert,
+		PrometheusClientKey:          req.PrometheusClientKey,
 	}
 	_, err = l.svcCtx.ManagerRpc.ClusterAdd(l.ctx, rpcReq)
 	if err != nil {
