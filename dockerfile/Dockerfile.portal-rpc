@@ -36,5 +36,6 @@ COPY --from=builder /build/application/portal-rpc/etc/private.key /app/etc/priva
 COPY --from=builder /build/application/portal-rpc/etc/public.crt /app/etc/public.crt
 
 EXPOSE 30010
+USER root
 
 CMD ["/app/portal-rpc", "-f", "/app/etc/config.yaml"]

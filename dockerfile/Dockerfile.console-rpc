@@ -34,5 +34,6 @@ COPY --from=builder /app/console-rpc /app/console-rpc
 COPY --from=builder /build/application/console-rpc/etc/console.yaml /app/etc/config.yaml
 
 EXPOSE 30018
+USER root
 
 CMD ["/app/console-rpc", "-f", "/app/etc/config.yaml"]

@@ -35,5 +35,6 @@ COPY --from=builder /app/console-api /app/console-api
 COPY --from=builder /build/application/console-api/etc/console-api.yaml /app/etc/config.yaml
 
 EXPOSE 8818
+USER root
 
 CMD ["/app/console-api", "-f", "/app/etc/config.yaml"]
