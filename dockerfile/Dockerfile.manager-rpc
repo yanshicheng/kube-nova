@@ -34,5 +34,6 @@ COPY --from=builder /app/manager-rpc /app/manager-rpc
 COPY --from=builder /build/application/manager-rpc/etc/manager.yaml /app/etc/config.yaml
 
 EXPOSE 30011
+USER root
 
 CMD ["/app/manager-rpc", "-f", "/app/etc/config.yaml"]

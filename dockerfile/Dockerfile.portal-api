@@ -34,5 +34,6 @@ COPY --from=builder /app/portal-api /app/portal-api
 COPY --from=builder /build/application/portal-api/etc/portal-api.yaml /app/etc/config.yaml
 
 EXPOSE 8810
+USER root
 
 CMD ["/app/portal-api", "-f", "/app/etc/config.yaml"]

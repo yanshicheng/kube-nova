@@ -34,5 +34,6 @@ COPY --from=builder /app/workload-api /app/workload-api
 COPY --from=builder /build/application/workload-api/etc/workload-api.yaml /app/etc/config.yaml
 
 EXPOSE 8812
+USER root
 
 CMD ["/app/workload-api", "-f", "/app/etc/config.yaml"]
