@@ -34,5 +34,6 @@ COPY --from=builder /app/manager-api /app/manager-api
 COPY --from=builder /build/application/manager-api/etc/manager-api.yaml /app/etc/config.yaml
 
 EXPOSE 8811
+USER root
 
 CMD ["/app/manager-api", "-f", "/app/etc/config.yaml"]
