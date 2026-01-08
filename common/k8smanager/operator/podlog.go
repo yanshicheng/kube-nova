@@ -50,14 +50,12 @@ func (p *podOperator) GetLogs(namespace, name, container string, opts *corev1.Po
 	// 设置容器名称
 	opts.Container = container
 
-	// 🔥 修复：只有在非 Follow 模式且 TailLines 为 nil 时才设置默认值
 	if opts.TailLines == nil && !opts.Follow {
 		tailLines := int64(DefaultTailLines)
 		opts.TailLines = &tailLines
 		p.log.Debugf("设置默认尾部行数: %d", tailLines)
 	}
 
-	// 🔥 修复：如果明确设置了 TailLines=0，则表示获取全部日志，将其设为 nil
 	if opts.TailLines != nil && *opts.TailLines == 0 {
 		p.log.Info("TailLines=0，获取全部日志")
 		opts.TailLines = nil
@@ -116,7 +114,6 @@ func (p *podOperator) GetLogsWithFollow(namespace, name, container string, opts 
 		p.log.Debugf("设置起始时间点: %v", opts.SinceTime)
 	}
 
-	// 🔥 修复：正确处理 TailLines 参数
 	if opts.TailLines != nil {
 		if *opts.TailLines > 0 {
 			podLogOpts.TailLines = opts.TailLines
@@ -700,7 +697,5 @@ func (p *podOperator) ExportLogsToFile(
 	p.log.Infof("导出日志到文件: namespace=%s, pod=%s, container=%s, file=%s",
 		namespace, name, container, filePath)
 
-	// 这个方法需要文件系统访问，在实际使用时可能需要调整
-	// 这里只提供接口定义
 	return fmt.Errorf("ExportLogsToFile: 未实现")
 }

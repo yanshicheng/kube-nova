@@ -319,8 +319,8 @@ message CreateProjectReq {
   string registryUuid = 1;
   string projectName = 2;
   bool isPublic = 3;
-  int64 storageLimit = 4;           // 🔧 改为 int64
-  string storageUnit = 7;           // 🆕 新增：支持 MB、GB、TB，默认为 GB
+  int64 storageLimit = 4;           //  改为 int64
+  string storageUnit = 7;           //  新增：支持 MB、GB、TB，默认为 GB
   uint64 appProjectId = 5;          // 可选：创建时直接绑定到应用项目
   string clusterUuid = 6;           // 可选：与 appProjectId 配合使用
 }
@@ -333,8 +333,8 @@ message UpdateProjectReq {
   string registryUuid = 1;
   string projectName = 2;
   bool isPublic = 3;
-  int64 storageLimit = 4;           // 🔧 改为 int64
-  string storageUnit = 6;           // 🆕 新增：支持 MB、GB、TB，默认为 GB
+  int64 storageLimit = 4;           //  改为 int64
+  string storageUnit = 6;           //  新增：支持 MB、GB、TB，默认为 GB
 }
 
 message UpdateProjectResp {
@@ -624,8 +624,8 @@ message GetProjectQuotaResp {
 message UpdateProjectQuotaReq {
   string registryUuid = 1;
   string projectName = 2;
-  int64 storageLimit = 3;           // ✅ 已经是 int64
-  string storageUnit = 5;           // ✅ 已有：支持 MB、GB、TB，默认为 GB
+  int64 storageLimit = 3;
+  string storageUnit = 5;
   int64 countLimit = 4;
 }
 

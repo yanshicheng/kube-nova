@@ -35,7 +35,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		panic(err)
 	}
 
-	// 初始化 Redis - 修复：c.Cache 是结构体，不是数组
 	rdb := redis.MustNewRedis(c.Cache)
 
 	// 自定义拦截器

@@ -63,7 +63,6 @@ func (l *UpdateProjectQuotaLogic) UpdateProjectQuota(in *pb.UpdateProjectQuotaRe
 		return nil, errorx.Msg("获取仓库客户端失败")
 	}
 
-	// 🔧 修复：将 int64 + storageUnit 转换为字节数
 	storageLimit, err := l.convertStorageToBytes(in.StorageLimit, in.StorageUnit)
 	if err != nil {
 		return nil, errorx.Msg("存储大小格式错误: " + err.Error())

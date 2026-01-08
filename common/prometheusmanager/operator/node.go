@@ -104,10 +104,8 @@ func (n *NodeOperatorImpl) executeParallelRangeQueries(start, end time.Time, ste
 	return nil
 }
 
-// ==================== 综合查询（优化版）====================
-
 func (n *NodeOperatorImpl) GetNodeMetrics(nodeName string, timeRange *types.TimeRange) (*types.NodeMetrics, error) {
-	n.log.Infof("📊 查询节点综合指标: node=%s", nodeName)
+	n.log.Infof(" 查询节点综合指标: node=%s", nodeName)
 
 	metrics := &types.NodeMetrics{
 		NodeName:  nodeName,
@@ -177,10 +175,8 @@ func (n *NodeOperatorImpl) GetNodeMetrics(nodeName string, timeRange *types.Time
 	return metrics, nil
 }
 
-// ==================== CPU 查询（优化版）====================
-
 func (n *NodeOperatorImpl) GetNodeCPU(nodeName string, timeRange *types.TimeRange) (*types.NodeCPUMetrics, error) {
-	n.log.Infof("📊 查询节点 CPU: node=%s", nodeName)
+	n.log.Infof(" 查询节点 CPU: node=%s", nodeName)
 
 	metrics := &types.NodeCPUMetrics{}
 	window := n.calculateRateWindow(timeRange)
@@ -371,14 +367,12 @@ func (n *NodeOperatorImpl) GetNodeCPU(nodeName string, timeRange *types.TimeRang
 		}
 	}
 
-	n.log.Infof("✅ 节点 CPU 指标查询完成: node=%s, usage=%.2f%%", nodeName, metrics.Current.UsagePercent)
+	n.log.Infof(" 节点 CPU 指标查询完成: node=%s, usage=%.2f%%", nodeName, metrics.Current.UsagePercent)
 	return metrics, nil
 }
 
-// ==================== 内存查询（优化版）====================
-
 func (n *NodeOperatorImpl) GetNodeMemory(nodeName string, timeRange *types.TimeRange) (*types.NodeMemoryMetrics, error) {
-	n.log.Infof("📊 查询节点内存: node=%s", nodeName)
+	n.log.Infof(" 查询节点内存: node=%s", nodeName)
 
 	metrics := &types.NodeMemoryMetrics{}
 	window := n.calculateRateWindow(timeRange)
@@ -541,14 +535,12 @@ func (n *NodeOperatorImpl) GetNodeMemory(nodeName string, timeRange *types.TimeR
 		}
 	}
 
-	n.log.Infof("✅ 节点内存指标查询完成: node=%s, usage=%.2f%%", nodeName, metrics.Current.UsagePercent)
+	n.log.Infof(" 节点内存指标查询完成: node=%s, usage=%.2f%%", nodeName, metrics.Current.UsagePercent)
 	return metrics, nil
 }
 
-// ==================== 磁盘查询（优化版）====================
-
 func (n *NodeOperatorImpl) GetNodeDisk(nodeName string, timeRange *types.TimeRange) (*types.NodeDiskMetrics, error) {
-	n.log.Infof("📊 查询节点磁盘: node=%s", nodeName)
+	n.log.Infof(" 查询节点磁盘: node=%s", nodeName)
 
 	metrics := &types.NodeDiskMetrics{}
 	var wg sync.WaitGroup
@@ -574,13 +566,13 @@ func (n *NodeOperatorImpl) GetNodeDisk(nodeName string, timeRange *types.TimeRan
 
 	wg.Wait()
 
-	n.log.Infof("✅ 节点磁盘指标查询完成: node=%s, filesystems=%d, devices=%d",
+	n.log.Infof(" 节点磁盘指标查询完成: node=%s, filesystems=%d, devices=%d",
 		nodeName, len(metrics.Filesystems), len(metrics.Devices))
 	return metrics, nil
 }
 
 func (n *NodeOperatorImpl) GetNodeFilesystems(nodeName string, timeRange *types.TimeRange) ([]types.NodeFilesystemMetrics, error) {
-	n.log.Infof("📊 查询节点文件系统: node=%s", nodeName)
+	n.log.Infof(" 查询节点文件系统: node=%s", nodeName)
 
 	// 分别查询各个指标
 	var (
@@ -726,12 +718,12 @@ func (n *NodeOperatorImpl) GetNodeFilesystems(nodeName string, timeRange *types.
 		filesystems = append(filesystems, *fs)
 	}
 
-	n.log.Infof("✅ 节点文件系统查询完成: node=%s, count=%d", nodeName, len(filesystems))
+	n.log.Infof(" 节点文件系统查询完成: node=%s, count=%d", nodeName, len(filesystems))
 	return filesystems, nil
 }
 
 func (n *NodeOperatorImpl) GetNodeDiskDevices(nodeName string, timeRange *types.TimeRange) ([]types.NodeDiskDeviceMetrics, error) {
-	n.log.Infof("📊 查询节点磁盘设备: node=%s", nodeName)
+	n.log.Infof(" 查询节点磁盘设备: node=%s", nodeName)
 
 	window := n.calculateRateWindow(timeRange)
 
@@ -934,14 +926,12 @@ func (n *NodeOperatorImpl) GetNodeDiskDevices(nodeName string, timeRange *types.
 		devices = append(devices, *dev)
 	}
 
-	n.log.Infof("✅ 节点磁盘设备查询完成: node=%s, count=%d", nodeName, len(devices))
+	n.log.Infof(" 节点磁盘设备查询完成: node=%s, count=%d", nodeName, len(devices))
 	return devices, nil
 }
 
-// ==================== 网络查询（优化版）====================
-
 func (n *NodeOperatorImpl) GetNodeNetwork(nodeName string, timeRange *types.TimeRange) (*types.NodeNetworkMetrics, error) {
-	n.log.Infof("📊 查询节点网络: node=%s", nodeName)
+	n.log.Infof(" 查询节点网络: node=%s", nodeName)
 
 	metrics := &types.NodeNetworkMetrics{}
 	var wg sync.WaitGroup
@@ -967,12 +957,12 @@ func (n *NodeOperatorImpl) GetNodeNetwork(nodeName string, timeRange *types.Time
 
 	wg.Wait()
 
-	n.log.Infof("✅ 节点网络指标查询完成: node=%s, interfaces=%d", nodeName, len(metrics.Interfaces))
+	n.log.Infof(" 节点网络指标查询完成: node=%s, interfaces=%d", nodeName, len(metrics.Interfaces))
 	return metrics, nil
 }
 
 func (n *NodeOperatorImpl) GetNodeNetworkInterfaces(nodeName string, timeRange *types.TimeRange) ([]types.NodeNetworkInterfaceMetrics, error) {
-	n.log.Infof("📊 查询节点网络接口: node=%s", nodeName)
+	n.log.Infof(" 查询节点网络接口: node=%s", nodeName)
 
 	window := n.calculateRateWindow(timeRange)
 
@@ -1209,12 +1199,12 @@ func (n *NodeOperatorImpl) GetNodeNetworkInterfaces(nodeName string, timeRange *
 		interfaces = append(interfaces, *iface)
 	}
 
-	n.log.Infof("✅ 节点网络接口查询完成: node=%s, count=%d", nodeName, len(interfaces))
+	n.log.Infof(" 节点网络接口查询完成: node=%s, count=%d", nodeName, len(interfaces))
 	return interfaces, nil
 }
 
 func (n *NodeOperatorImpl) GetNodeTCP(nodeName string, timeRange *types.TimeRange) (*types.NodeTCPMetrics, error) {
-	n.log.Infof("📊 查询节点 TCP: node=%s", nodeName)
+	n.log.Infof(" 查询节点 TCP: node=%s", nodeName)
 
 	metrics := &types.NodeTCPMetrics{}
 	window := n.calculateRateWindow(timeRange)
@@ -1320,14 +1310,12 @@ func (n *NodeOperatorImpl) GetNodeTCP(nodeName string, timeRange *types.TimeRang
 		wg.Wait()
 	}
 
-	n.log.Infof("✅ 节点 TCP 指标查询完成: node=%s, established=%d", nodeName, metrics.Current.EstablishedConnections)
+	n.log.Infof(" 节点 TCP 指标查询完成: node=%s, established=%d", nodeName, metrics.Current.EstablishedConnections)
 	return metrics, nil
 }
 
-// ==================== K8s 状态（优化版）====================
-
 func (n *NodeOperatorImpl) GetNodeK8sStatus(nodeName string, timeRange *types.TimeRange) (*types.NodeK8sStatus, error) {
-	n.log.Infof("📊 查询节点 K8s 状态: node=%s", nodeName)
+	n.log.Infof(" 查询节点 K8s 状态: node=%s", nodeName)
 
 	status := &types.NodeK8sStatus{}
 	var wg sync.WaitGroup
@@ -1389,7 +1377,7 @@ func (n *NodeOperatorImpl) GetNodeK8sStatus(nodeName string, timeRange *types.Ti
 	status.Taints = []types.NodeTaint{}
 	status.Annotations = make(map[string]string)
 
-	n.log.Infof("✅ 节点 K8s 状态查询完成: node=%s", nodeName)
+	n.log.Infof(" 节点 K8s 状态查询完成: node=%s", nodeName)
 	return status, nil
 }
 
@@ -1640,10 +1628,8 @@ func (n *NodeOperatorImpl) GetNodeKubelet(nodeName string, timeRange *types.Time
 	return metrics, nil
 }
 
-// ==================== 系统查询（优化版）====================
-
 func (n *NodeOperatorImpl) GetNodeSystem(nodeName string, timeRange *types.TimeRange) (*types.NodeSystemMetrics, error) {
-	n.log.Infof("📊 查询节点系统指标: node=%s", nodeName)
+	n.log.Infof(" 查询节点系统指标: node=%s", nodeName)
 
 	metrics := &types.NodeSystemMetrics{}
 
@@ -1721,15 +1707,12 @@ func (n *NodeOperatorImpl) GetNodeSystem(nodeName string, timeRange *types.TimeR
 		}
 	}
 
-	n.log.Infof("✅ 节点系统指标查询完成: node=%s", nodeName)
+	n.log.Infof(" 节点系统指标查询完成: node=%s", nodeName)
 	return metrics, nil
 }
 
-// ==================== Pod 查询（优化版）====================
-// ==================== Pod 查询（修复版 v2）====================
-
 func (n *NodeOperatorImpl) GetNodePods(nodeName string, timeRange *types.TimeRange) (*types.NodePodMetrics, error) {
-	n.log.Infof("📊 查询节点 Pod: node=%s", nodeName)
+	n.log.Infof(" 查询节点 Pod: node=%s", nodeName)
 
 	metrics := &types.NodePodMetrics{
 		NodeName: nodeName,
@@ -1822,7 +1805,7 @@ func (n *NodeOperatorImpl) GetNodePods(nodeName string, timeRange *types.TimeRan
 
 	n.executeParallelQueries(tasks)
 
-	// Pod 列表 - 使用批量查询优化
+	// Pod 列表
 	podListQuery := fmt.Sprintf(`kube_pod_info{node="%s"}`, nodeName)
 	podListResults, err := n.query(podListQuery, nil)
 	if err == nil && len(podListResults) > 0 {
@@ -1916,7 +1899,7 @@ func (n *NodeOperatorImpl) GetNodePods(nodeName string, timeRange *types.TimeRan
 		}
 	}
 
-	n.log.Infof("✅ 节点 Pod 查询完成: node=%s, total=%d, running=%d, pending=%d, failed=%d",
+	n.log.Infof(" 节点 Pod 查询完成: node=%s, total=%d, running=%d, pending=%d, failed=%d",
 		nodeName, metrics.TotalPods, metrics.RunningPods, metrics.PendingPods, metrics.FailedPods)
 	return metrics, nil
 }
@@ -1924,7 +1907,7 @@ func (n *NodeOperatorImpl) GetNodePods(nodeName string, timeRange *types.TimeRan
 // ==================== 对比和排行 ====================
 
 func (n *NodeOperatorImpl) CompareNodes(nodeNames []string, timeRange *types.TimeRange) (*types.NodeComparison, error) {
-	n.log.Infof("📊 对比节点: nodes=%v", nodeNames)
+	n.log.Infof(" 对比节点: nodes=%v", nodeNames)
 
 	comparison := &types.NodeComparison{
 		Timestamp: time.Now(),
@@ -1987,12 +1970,12 @@ func (n *NodeOperatorImpl) CompareNodes(nodeNames []string, timeRange *types.Tim
 
 	wg.Wait()
 
-	n.log.Infof("✅ 节点对比完成: count=%d", len(comparison.Nodes))
+	n.log.Infof(" 节点对比完成: count=%d", len(comparison.Nodes))
 	return comparison, nil
 }
 
 func (n *NodeOperatorImpl) GetNodeRanking(limit int, timeRange *types.TimeRange) (*types.NodeRanking, error) {
-	n.log.Infof("📊 查询节点排行: limit=%d", limit)
+	n.log.Infof(" 查询节点排行: limit=%d", limit)
 
 	ranking := &types.NodeRanking{}
 	window := n.calculateRateWindow(timeRange)
@@ -2087,12 +2070,12 @@ func (n *NodeOperatorImpl) GetNodeRanking(limit int, timeRange *types.TimeRange)
 
 	wg.Wait()
 
-	n.log.Infof("✅ 节点排行查询完成")
+	n.log.Infof(" 节点排行查询完成")
 	return ranking, nil
 }
 
 func (n *NodeOperatorImpl) ListNodesMetrics(timeRange *types.TimeRange) ([]types.NodeMetrics, error) {
-	n.log.Info("📊 列出所有节点指标")
+	n.log.Info(" 列出所有节点指标")
 
 	// 获取所有节点
 	nodesQuery := `kube_node_info`
@@ -2124,12 +2107,12 @@ func (n *NodeOperatorImpl) ListNodesMetrics(timeRange *types.TimeRange) ([]types
 
 	wg.Wait()
 
-	n.log.Infof("✅ 列出所有节点指标完成: count=%d", len(nodeMetrics))
+	n.log.Infof(" 列出所有节点指标完成: count=%d", len(nodeMetrics))
 	return nodeMetrics, nil
 }
 
 func (n *NodeOperatorImpl) GetNodeNetworkInterface(nodeName string, interfaceName string, timeRange *types.TimeRange) (*types.NodeNetworkInterfaceMetrics, error) {
-	n.log.Infof("📊 查询节点指定网络接口: node=%s, interface=%s", nodeName, interfaceName)
+	n.log.Infof(" 查询节点指定网络接口: node=%s, interface=%s", nodeName, interfaceName)
 
 	ifMetrics := &types.NodeNetworkInterfaceMetrics{
 		InterfaceName: interfaceName,
@@ -2276,7 +2259,7 @@ func (n *NodeOperatorImpl) GetNodeNetworkInterface(nodeName string, interfaceNam
 		}
 	}
 
-	n.log.Infof("✅ 节点网络接口查询完成: node=%s, interface=%s", nodeName, interfaceName)
+	n.log.Infof(" 节点网络接口查询完成: node=%s, interface=%s", nodeName, interfaceName)
 	return ifMetrics, nil
 }
 

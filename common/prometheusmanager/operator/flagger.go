@@ -28,7 +28,7 @@ func NewFlaggerOperator(ctx context.Context, base *BaseOperator) types.FlaggerOp
 
 // GetFlaggerMetrics 获取 Flagger 综合指标
 func (f *FlaggerOperator) GetFlaggerMetrics(timeRange *types.TimeRange) (*types.FlaggerMetrics, error) {
-	f.log.Infof("📊 查询 Flagger 综合指标")
+	f.log.Infof(" 查询 Flagger 综合指标")
 
 	metrics := &types.FlaggerMetrics{
 		Timestamp: time.Now(),
@@ -65,7 +65,7 @@ func (f *FlaggerOperator) GetFlaggerMetrics(timeRange *types.TimeRange) (*types.
 
 // GetCanaryMetrics 获取单个 Canary 指标
 func (f *FlaggerOperator) GetCanaryMetrics(namespace, name string, timeRange *types.TimeRange) (*types.CanaryMetrics, error) {
-	f.log.Infof("📊 查询 Canary: namespace=%s, name=%s", namespace, name)
+	f.log.Infof(" 查询 Canary: namespace=%s, name=%s", namespace, name)
 
 	metrics := &types.CanaryMetrics{
 		Name:           name,

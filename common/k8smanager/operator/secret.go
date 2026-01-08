@@ -417,8 +417,6 @@ func (s *secretOperator) CreateBasicAuthSecret(namespace, name, username, passwo
 }
 
 // GetUsage 获取 Secret 的使用情况
-// 注意: 此方法目前使用 API 调用获取各种工作负载，因为没有传入对应的 informer lister
-// 优化建议: 如果需要提升性能，可以在创建 operator 时传入 Deployment/StatefulSet 等的 lister
 func (s *secretOperator) GetUsage(namespace, name string) (*types.SecretUsageResponse, error) {
 	// 首先获取 Secret 本身，使用 informer（如果可用）
 	secret, err := s.Get(namespace, name)

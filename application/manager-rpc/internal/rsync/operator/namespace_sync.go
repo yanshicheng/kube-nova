@@ -139,75 +139,168 @@ func (s *ClusterResourceSync) syncSingleNamespace(ctx context.Context, cluster *
 	return s.handleNamespaceWithoutAnnotation(ctx, cluster, ns.Name, operator)
 }
 
+// ==================== 有注解分支
+
 // handleNamespaceWithAnnotation 处理有项目注解的 Namespace
 func (s *ClusterResourceSync) handleNamespaceWithAnnotation(ctx context.Context, cluster *model.OnecCluster, nsName string, projectUUID string, operator string) (bool, error) {
 	s.Logger.WithContext(ctx).Infof("处理有注解的 Namespace: %s, projectUUID: %s", nsName, projectUUID)
 
-	// 1. 查询项目是否存在
-	project, err := s.ProjectModel.FindOneByUuid(ctx, projectUUID)
+	// ========== 第一层：确保项目存在 ==========
+	project, err := s.ensureProjectExists(ctx, projectUUID, operator)
 	if err != nil {
-		s.Logger.WithContext(ctx).Errorf("查询项目失败, projectUUID: %s, error: %v", projectUUID, err)
-		// 项目不存在，归到默认项目，同时更新注解
-		return s.assignNamespaceToDefaultProject(ctx, cluster.Uuid, nsName, operator)
+		return false, fmt.Errorf("确保项目存在失败: %v", err)
 	}
+	s.Logger.WithContext(ctx).Infof("项目已就绪: id=%d, uuid=%s, name=%s", project.Id, project.Uuid, project.Name)
 
-	// 2. 检查项目是否绑定了该集群
-	projectCluster, err := s.ProjectClusterResourceModel.FindOneByClusterUuidProjectId(ctx, cluster.Uuid, project.Id)
+	// ========== 第二层：确保项目-集群绑定存在 ==========
+	projectCluster, err := s.ensureProjectClusterBindingExists(ctx, project.Id, cluster.Uuid, operator)
 	if err != nil {
-		s.Logger.WithContext(ctx).Errorf("项目未绑定集群, projectId: %d, clusterUuid: %s", project.Id, cluster.Uuid)
-		// 项目未绑定集群，归到默认项目，同时更新注解
-		return s.assignNamespaceToDefaultProject(ctx, cluster.Uuid, nsName, operator)
+		return false, fmt.Errorf("确保项目-集群绑定存在失败: %v", err)
 	}
+	s.Logger.WithContext(ctx).Infof("项目-集群绑定已就绪: id=%d, projectId=%d, clusterUuid=%s", projectCluster.Id, projectCluster.ProjectId, projectCluster.ClusterUuid)
 
-	// 3. 检查 workspace 是否存在
-	existingWorkspace, err := s.ProjectWorkspaceModel.FindOneByProjectClusterIdNamespace(ctx, projectCluster.Id, nsName)
-	if err == nil {
-		// workspace 已存在，更新状态
-		if existingWorkspace.Status != 1 {
-			existingWorkspace.Status = 1
-			existingWorkspace.UpdatedAt = time.Now()
-			existingWorkspace.UpdatedBy = operator
-			if err := s.ProjectWorkspaceModel.Update(ctx, existingWorkspace); err != nil {
-				s.Logger.WithContext(ctx).Errorf("更新 Workspace 状态失败: %v", err)
-			}
-		}
-		return false, nil
-	}
-
-	// 4. workspace 不存在，创建新的
-	s.Logger.WithContext(ctx).Infof("创建新的 Workspace: %s", nsName)
-
-	err = s.createWorkspace(ctx, projectCluster.Id, cluster.Uuid, nsName, operator)
+	// ========== 第三层：确保 Workspace 存在 ==========
+	isNew, err := s.ensureWorkspaceExists(ctx, projectCluster.Id, cluster.Uuid, nsName, operator)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("确保 Workspace 存在失败: %v", err)
 	}
 
-	// 5. 删除其他项目下的该 namespace 记录（硬删除）
+	// ========== 清理其他项目的关联记录 ==========
 	if err := s.deleteNamespaceFromOtherProjects(ctx, cluster.Uuid, nsName, project.Id); err != nil {
 		s.Logger.WithContext(ctx).Errorf("删除其他项目的 Namespace 记录失败: %v", err)
+		// 不返回错误，继续执行
 	}
 
-	return true, nil
+	return isNew, nil
 }
+
+// ensureProjectExists 确保项目存在（恢复软删除或创建新项目）
+func (s *ClusterResourceSync) ensureProjectExists(ctx context.Context, projectUUID string, operator string) (*model.OnecProject, error) {
+	// 1. 先查询项目（包含软删除的）
+	project, err := s.ProjectModel.FindOneByUuidIncludeDeleted(ctx, projectUUID)
+
+	if err == nil {
+		// 项目存在
+		if project.IsDeleted == 1 {
+			// 软删除状态，恢复它
+			s.Logger.WithContext(ctx).Infof("恢复软删除的项目: id=%d, uuid=%s", project.Id, projectUUID)
+			if err := s.ProjectModel.RestoreSoftDeleted(ctx, project.Id, operator); err != nil {
+				return nil, fmt.Errorf("恢复项目失败: %v", err)
+			}
+			project.IsDeleted = 0
+		}
+		return project, nil
+	}
+
+	// 2. 项目不存在，创建新项目
+	s.Logger.WithContext(ctx).Infof("创建新项目: uuid=%s", projectUUID)
+
+	// 生成项目名称：取 UUID 前 8 位作为标识
+	projectName := fmt.Sprintf("自动创建项目-%s", projectUUID)
+	if len(projectUUID) > 8 {
+		projectName = fmt.Sprintf("自动创建项目-%s", projectUUID[:8])
+	}
+
+	newProject, err := s.ProjectModel.CreateWithUuid(ctx, projectUUID, projectName, operator)
+	if err != nil {
+		return nil, fmt.Errorf("创建项目失败: %v", err)
+	}
+
+	s.Logger.WithContext(ctx).Infof("项目创建成功: id=%d, uuid=%s, name=%s", newProject.Id, newProject.Uuid, newProject.Name)
+	return newProject, nil
+}
+
+// ensureProjectClusterBindingExists 确保项目-集群绑定存在（恢复软删除或创建新绑定）
+func (s *ClusterResourceSync) ensureProjectClusterBindingExists(ctx context.Context, projectId uint64, clusterUuid string, operator string) (*model.OnecProjectCluster, error) {
+	// 1. 先查询绑定（包含软删除的）
+	binding, err := s.ProjectClusterResourceModel.FindOneByClusterUuidProjectIdIncludeDeleted(ctx, clusterUuid, projectId)
+
+	if err == nil {
+		// 绑定存在
+		if binding.IsDeleted == 1 {
+			// 软删除状态，恢复它
+			s.Logger.WithContext(ctx).Infof("恢复软删除的项目-集群绑定: id=%d, projectId=%d, clusterUuid=%s", binding.Id, projectId, clusterUuid)
+			if err := s.ProjectClusterResourceModel.RestoreSoftDeleted(ctx, binding.Id, operator); err != nil {
+				return nil, fmt.Errorf("恢复项目-集群绑定失败: %v", err)
+			}
+			binding.IsDeleted = 0
+		}
+		return binding, nil
+	}
+
+	// 2. 绑定不存在，创建新绑定
+	s.Logger.WithContext(ctx).Infof("创建项目-集群绑定: projectId=%d, clusterUuid=%s", projectId, clusterUuid)
+	return s.createProjectClusterBinding(ctx, clusterUuid, projectId, operator)
+}
+
+// ensureWorkspaceExists 确保 Workspace 存在（恢复软删除或创建新 Workspace）
+func (s *ClusterResourceSync) ensureWorkspaceExists(ctx context.Context, projectClusterId uint64, clusterUuid string, nsName string, operator string) (bool, error) {
+	// 1. 先查询 Workspace（包含软删除的）
+	workspace, err := s.ProjectWorkspaceModel.FindOneByProjectClusterIdNamespaceIncludeDeleted(ctx, projectClusterId, nsName)
+
+	if err == nil {
+		// Workspace 存在
+		needUpdate := false
+
+		if workspace.IsDeleted == 1 {
+			// 软删除状态，恢复它
+			s.Logger.WithContext(ctx).Infof("恢复软删除的 Workspace: id=%d, namespace=%s", workspace.Id, nsName)
+			if err := s.ProjectWorkspaceModel.RestoreAndUpdateStatus(ctx, workspace.Id, 1, operator); err != nil {
+				return false, fmt.Errorf("恢复 Workspace 失败: %v", err)
+			}
+			return false, nil // 恢复不算新建
+		}
+
+		if workspace.Status != 1 {
+			workspace.Status = 1
+			needUpdate = true
+		}
+
+		if needUpdate {
+			workspace.UpdatedAt = time.Now()
+			workspace.UpdatedBy = operator
+			if err := s.ProjectWorkspaceModel.Update(ctx, workspace); err != nil {
+				return false, fmt.Errorf("更新 Workspace 失败: %v", err)
+			}
+		}
+
+		return false, nil // 不是新建
+	}
+
+	// 2. Workspace 不存在，创建新的
+	s.Logger.WithContext(ctx).Infof("创建新的 Workspace: namespace=%s, projectClusterId=%d", nsName, projectClusterId)
+	return true, s.createWorkspace(ctx, projectClusterId, clusterUuid, nsName, operator)
+}
+
+// ==================== 无注解分支 ====================
 
 // handleNamespaceWithoutAnnotation 处理没有项目注解的 Namespace
 func (s *ClusterResourceSync) handleNamespaceWithoutAnnotation(ctx context.Context, cluster *model.OnecCluster, nsName string, operator string) (bool, error) {
 	s.Logger.WithContext(ctx).Infof("处理无注解的 Namespace: %s", nsName)
 
-	// 1. 查询该 namespace 是否在数据库中
-	query := "cluster_uuid = ? AND namespace = ?"
-	workspaces, err := s.ProjectWorkspaceModel.SearchNoPage(ctx, "", false, query, cluster.Uuid, nsName)
+	// 1. 查询该 namespace 在数据库中的所有记录（包含软删除，用于判断归属）
+	workspaces, err := s.ProjectWorkspaceModel.FindAllByClusterUuidNamespaceIncludeDeleted(ctx, cluster.Uuid, nsName)
 
-	if err != nil || len(workspaces) == 0 {
-		// 不存在任何记录，归到默认项目
+	// 过滤出未删除的记录
+	var activeWorkspaces []*model.OnecProjectWorkspace
+	if err == nil && len(workspaces) > 0 {
+		for _, ws := range workspaces {
+			if ws.IsDeleted == 0 {
+				activeWorkspaces = append(activeWorkspaces, ws)
+			}
+		}
+	}
+
+	if len(activeWorkspaces) == 0 {
+		// 不存在任何有效记录，归到默认项目
 		s.Logger.WithContext(ctx).Infof("Namespace 不在任何项目下，归到默认项目: %s", nsName)
 		return s.assignNamespaceToDefaultProject(ctx, cluster.Uuid, nsName, operator)
 	}
 
-	if len(workspaces) == 1 {
+	if len(activeWorkspaces) == 1 {
 		// 只存在于一个项目，更新状态并设置注解
 		s.Logger.WithContext(ctx).Infof("Namespace 存在于一个项目下，更新注解: %s", nsName)
-		workspace := workspaces[0]
+		workspace := activeWorkspaces[0]
 		if workspace.Status != 1 {
 			workspace.Status = 1
 			workspace.UpdatedAt = time.Now()
@@ -220,8 +313,8 @@ func (s *ClusterResourceSync) handleNamespaceWithoutAnnotation(ctx context.Conte
 	}
 
 	// 存在于多个项目，解决冲突
-	s.Logger.WithContext(ctx).Infof("Namespace 存在于多个项目下(%d个)，保留最近创建的: %s", len(workspaces), nsName)
-	return false, s.resolveMultipleProjectConflict(ctx, cluster.Uuid, nsName, workspaces, operator)
+	s.Logger.WithContext(ctx).Infof("Namespace 存在于多个项目下(%d个)，保留最近创建的: %s", len(activeWorkspaces), nsName)
+	return false, s.resolveMultipleProjectConflict(ctx, cluster.Uuid, nsName, activeWorkspaces, operator)
 }
 
 // assignNamespaceToDefaultProject 将 Namespace 分配到默认项目
@@ -233,44 +326,26 @@ func (s *ClusterResourceSync) assignNamespaceToDefaultProject(ctx context.Contex
 		return false, fmt.Errorf("查询默认项目失败: %v", err)
 	}
 
-	// 2. 查询或创建项目集群绑定
-	projectCluster, err := s.ProjectClusterResourceModel.FindOneByClusterUuidProjectId(ctx, clusterUUID, defaultProject.Id)
+	// 2. 确保项目-集群绑定存在
+	projectCluster, err := s.ensureProjectClusterBindingExists(ctx, defaultProject.Id, clusterUUID, operator)
 	if err != nil {
-		s.Logger.WithContext(ctx).Infof("默认项目未绑定集群，创建绑定")
-		projectCluster, err = s.createProjectClusterBinding(ctx, clusterUUID, defaultProject.Id, operator)
-		if err != nil {
-			return false, fmt.Errorf("创建项目集群绑定失败: %v", err)
-		}
+		return false, fmt.Errorf("确保项目-集群绑定存在失败: %v", err)
 	}
 
-	// 3. 创建 workspace
-	if err := s.createWorkspace(ctx, projectCluster.Id, clusterUUID, nsName, operator); err != nil {
+	// 3. 确保 Workspace 存在
+	isNew, err := s.ensureWorkspaceExists(ctx, projectCluster.Id, clusterUUID, nsName, operator)
+	if err != nil {
 		return false, err
 	}
 
 	// 4. 更新 namespace 注解
-	return true, s.updateNamespaceAnnotationWithUUID(ctx, clusterUUID, nsName, defaultProject.Uuid)
+	return isNew, s.updateNamespaceAnnotationWithUUID(ctx, clusterUUID, nsName, defaultProject.Uuid)
 }
+
+// ==================== 辅助方法 ====================
 
 // createWorkspace 创建 Workspace 记录
 func (s *ClusterResourceSync) createWorkspace(ctx context.Context, projectClusterId uint64, clusterUuid string, nsName string, operator string) error {
-	// 1. 检查是否已存在
-	existingWorkspace, err := s.ProjectWorkspaceModel.FindOneByProjectClusterIdNamespace(ctx, projectClusterId, nsName)
-	if err == nil {
-		// 已存在，更新状态
-		if existingWorkspace.Status != 1 {
-			existingWorkspace.Status = 1
-			existingWorkspace.UpdatedAt = time.Now()
-			existingWorkspace.UpdatedBy = operator
-			if err := s.ProjectWorkspaceModel.Update(ctx, existingWorkspace); err != nil {
-				s.Logger.WithContext(ctx).Errorf("更新已存在的 Workspace 状态失败: %v", err)
-			}
-		}
-		s.Logger.WithContext(ctx).Infof("Workspace 已存在，已更新状态: %s", nsName)
-		return nil
-	}
-
-	// 2. 创建新的 workspace
 	workspace := &model.OnecProjectWorkspace{
 		ProjectClusterId:                        projectClusterId,
 		ClusterUuid:                             clusterUuid,
@@ -323,7 +398,7 @@ func (s *ClusterResourceSync) createWorkspace(ctx context.Context, projectCluste
 		ContainerDefaultRequestEphemeralStorage: "0Mi",
 	}
 
-	_, err = s.ProjectWorkspaceModel.Insert(ctx, workspace)
+	_, err := s.ProjectWorkspaceModel.Insert(ctx, workspace)
 	if err != nil {
 		// 处理并发创建导致的重复键错误
 		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "1062") {
@@ -339,14 +414,7 @@ func (s *ClusterResourceSync) createWorkspace(ctx context.Context, projectCluste
 }
 
 // createProjectClusterBinding 创建项目集群绑定
-// createProjectClusterBinding 创建项目集群绑定
 func (s *ClusterResourceSync) createProjectClusterBinding(ctx context.Context, clusterUuid string, projectId uint64, operator string) (*model.OnecProjectCluster, error) {
-	// 验证集群是否存在
-	_, err := s.ClusterModel.FindOneByUuid(ctx, clusterUuid)
-	if err != nil {
-		return nil, fmt.Errorf("查询集群失败: %v", err)
-	}
-
 	projectCluster := &model.OnecProjectCluster{
 		ProjectId:                 projectId,
 		ClusterUuid:               clusterUuid,
@@ -404,9 +472,16 @@ func (s *ClusterResourceSync) createProjectClusterBinding(ctx context.Context, c
 		// 处理并发创建导致的重复键错误
 		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "1062") {
 			s.Logger.WithContext(ctx).Infof("项目集群绑定已存在（并发创建），重新查询: projectId=%d, clusterUuid=%s", projectId, clusterUuid)
-			existingBinding, findErr := s.ProjectClusterResourceModel.FindOneByClusterUuidProjectId(ctx, clusterUuid, projectId)
+			existingBinding, findErr := s.ProjectClusterResourceModel.FindOneByClusterUuidProjectIdIncludeDeleted(ctx, clusterUuid, projectId)
 			if findErr != nil {
 				return nil, fmt.Errorf("查询已存在的项目集群绑定失败: %v", findErr)
+			}
+			// 如果查到的是软删除状态，恢复它
+			if existingBinding.IsDeleted == 1 {
+				if err := s.ProjectClusterResourceModel.RestoreSoftDeleted(ctx, existingBinding.Id, operator); err != nil {
+					return nil, fmt.Errorf("恢复项目集群绑定失败: %v", err)
+				}
+				existingBinding.IsDeleted = 0
 			}
 			return existingBinding, nil
 		}
@@ -472,7 +547,6 @@ func (s *ClusterResourceSync) updateNamespaceAnnotationWithUUID(ctx context.Cont
 	}
 
 	s.Logger.WithContext(ctx).Infof("更新 Namespace 注解成功: %s -> %s", nsName, projectUUID)
-
 	return nil
 }
 
@@ -515,8 +589,8 @@ func (s *ClusterResourceSync) resolveMultipleProjectConflict(ctx context.Context
 
 // deleteNamespaceFromOtherProjects 删除该 Namespace 在其他项目下的记录（硬删除）
 func (s *ClusterResourceSync) deleteNamespaceFromOtherProjects(ctx context.Context, clusterUUID string, nsName string, keepProjectId uint64) error {
-	query := "cluster_uuid = ? AND namespace = ?"
-	workspaces, err := s.ProjectWorkspaceModel.SearchNoPage(ctx, "", false, query, clusterUUID, nsName)
+	// 查询所有记录（包含软删除的，以便彻底清理）
+	workspaces, err := s.ProjectWorkspaceModel.FindAllByClusterUuidNamespaceIncludeDeleted(ctx, clusterUUID, nsName)
 	if err != nil || len(workspaces) == 0 {
 		return nil
 	}
@@ -524,7 +598,8 @@ func (s *ClusterResourceSync) deleteNamespaceFromOtherProjects(ctx context.Conte
 	for _, ws := range workspaces {
 		projectCluster, err := s.ProjectClusterResourceModel.FindOne(ctx, ws.ProjectClusterId)
 		if err != nil {
-			s.Logger.WithContext(ctx).Errorf("查询项目集群关系失败: %v", err)
+			// 可能是软删除的绑定，尝试查询包含软删除的
+			s.Logger.WithContext(ctx).Debugf("查询项目集群关系失败(可能已删除): %v", err)
 			continue
 		}
 
@@ -540,7 +615,7 @@ func (s *ClusterResourceSync) deleteNamespaceFromOtherProjects(ctx context.Conte
 	return nil
 }
 
-// checkAndUpdateMissingNamespaces 检查并更新数据库中存在但 K8s 不存在的 Namespace，返回删除数量
+// checkAndUpdateMissingNamespaces 检查并更新数据库中存在但 K8s 不存在的 Namespace
 func (s *ClusterResourceSync) checkAndUpdateMissingNamespaces(ctx context.Context, clusterUUID string, k8sNamespaces []corev1.Namespace) (int, error) {
 	// 构建 K8s namespace 集合
 	k8sNsMap := make(map[string]bool, len(k8sNamespaces))
@@ -548,7 +623,7 @@ func (s *ClusterResourceSync) checkAndUpdateMissingNamespaces(ctx context.Contex
 		k8sNsMap[k8sNamespaces[i].Name] = true
 	}
 
-	// 查询数据库中该集群的所有 workspace
+	// 查询数据库中该集群的所有 workspace（只查未删除的）
 	query := "cluster_uuid = ?"
 	workspaces, err := s.ProjectWorkspaceModel.SearchNoPage(ctx, "", false, query, clusterUUID)
 	if err != nil {
@@ -557,7 +632,6 @@ func (s *ClusterResourceSync) checkAndUpdateMissingNamespaces(ctx context.Contex
 
 	s.Logger.WithContext(ctx).Infof("检查缺失的 Namespace: 数据库中有 %d 个 Workspace", len(workspaces))
 
-	var mu sync.Mutex
 	updateCount := 0
 
 	for _, ws := range workspaces {
@@ -571,16 +645,13 @@ func (s *ClusterResourceSync) checkAndUpdateMissingNamespaces(ctx context.Contex
 				if err := s.ProjectWorkspaceModel.Update(ctx, ws); err != nil {
 					s.Logger.WithContext(ctx).Errorf("更新 Workspace 状态失败: %v", err)
 				} else {
-					mu.Lock()
 					updateCount++
-					mu.Unlock()
 				}
 			}
 		}
 	}
 
 	s.Logger.WithContext(ctx).Infof("更新了 %d 个缺失 Namespace 的状态", updateCount)
-
 	return updateCount, nil
 }
 
@@ -620,7 +691,7 @@ func (s *ClusterResourceSync) SyncAllClusterNamespaces(ctx context.Context, oper
 
 			s.Logger.WithContext(ctx).Infof("开始同步集群 Namespace: id=%d, name=%s, uuid=%s", c.Id, c.Name, c.Uuid)
 
-			err := s.SyncClusterNamespaces(ctx, c.Uuid, operator, false) // 批量同步时不记录每个集群的日志
+			err := s.SyncClusterNamespaces(ctx, c.Uuid, operator, false)
 
 			mu.Lock()
 			if err != nil {

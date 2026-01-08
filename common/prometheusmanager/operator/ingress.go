@@ -29,7 +29,7 @@ func NewIngressOperator(ctx context.Context, base *BaseOperator) types.IngressOp
 
 // GetIngressMetrics 获取 Ingress 综合指标
 func (i *IngressOperator) GetIngressMetrics(namespace, ingressName string, timeRange *types.TimeRange) (*types.IngressMetrics, error) {
-	i.log.Infof("📊 查询 Ingress 指标: namespace=%s, ingress=%s", namespace, ingressName)
+	i.log.Infof(" 查询 Ingress 指标: namespace=%s, ingress=%s", namespace, ingressName)
 
 	metrics := &types.IngressMetrics{
 		Namespace:   namespace,
@@ -102,7 +102,7 @@ func (i *IngressOperator) GetIngressMetrics(namespace, ingressName string, timeR
 
 // GetControllerHealth 获取 Controller 健康状态
 func (i *IngressOperator) GetControllerHealth(timeRange *types.TimeRange) (*types.IngressControllerHealth, error) {
-	i.log.Infof("📊 查询 Ingress Controller 健康状态")
+	i.log.Infof(" 查询 Ingress Controller 健康状态")
 
 	health := &types.IngressControllerHealth{
 		ControllerName: "nginx-ingress-controller",
@@ -218,7 +218,7 @@ func (i *IngressOperator) GetControllerHealth(timeRange *types.TimeRange) (*type
 
 // GetIngressTraffic 获取流量指标
 func (i *IngressOperator) GetIngressTraffic(namespace, ingressName string, timeRange *types.TimeRange) (*types.IngressTrafficMetrics, error) {
-	i.log.Infof("📊 查询 Ingress 流量: namespace=%s, ingress=%s", namespace, ingressName)
+	i.log.Infof(" 查询 Ingress 流量: namespace=%s, ingress=%s", namespace, ingressName)
 
 	traffic := &types.IngressTrafficMetrics{
 		Trend:     []types.IngressTrafficDataPoint{},
@@ -426,7 +426,7 @@ func (i *IngressOperator) GetIngressTrafficByPath(path string, timeRange *types.
 
 // GetIngressPerformance 获取性能指标
 func (i *IngressOperator) GetIngressPerformance(namespace, ingressName string, timeRange *types.TimeRange) (*types.IngressPerformanceMetrics, error) {
-	i.log.Infof("📊 查询 Ingress 性能: namespace=%s, ingress=%s", namespace, ingressName)
+	i.log.Infof(" 查询 Ingress 性能: namespace=%s, ingress=%s", namespace, ingressName)
 
 	perf := &types.IngressPerformanceMetrics{
 		ByHost: []types.LatencyByDimension{},
@@ -595,7 +595,7 @@ func (i *IngressOperator) GetIngressLatencyByPath(path string, timeRange *types.
 
 // GetIngressErrors 获取错误指标
 func (i *IngressOperator) GetIngressErrors(namespace, ingressName string, timeRange *types.TimeRange) (*types.IngressErrorMetrics, error) {
-	i.log.Infof("📊 查询 Ingress 错误: namespace=%s, ingress=%s", namespace, ingressName)
+	i.log.Infof(" 查询 Ingress 错误: namespace=%s, ingress=%s", namespace, ingressName)
 
 	errors := &types.IngressErrorMetrics{
 		ByHost: []types.ErrorRateByDimension{},
@@ -749,7 +749,7 @@ func (i *IngressOperator) GetIngressStatusCodes(namespace, ingressName string, t
 
 // GetIngressBackends 获取后端指标
 func (i *IngressOperator) GetIngressBackends(namespace, ingressName string, timeRange *types.TimeRange) (*types.IngressBackendMetrics, error) {
-	i.log.Infof("📊 查询 Ingress 后端: namespace=%s, ingress=%s", namespace, ingressName)
+	i.log.Infof(" 查询 Ingress 后端: namespace=%s, ingress=%s", namespace, ingressName)
 
 	backends := &types.IngressBackendMetrics{
 		EndpointsByService: []types.ServiceEndpoints{},
@@ -804,7 +804,7 @@ func (i *IngressOperator) GetIngressBackends(namespace, ingressName string, time
 
 // GetIngressCertificates 获取证书指标
 func (i *IngressOperator) GetIngressCertificates(namespace, ingressName string) (*types.IngressCertificateMetrics, error) {
-	i.log.Infof("📊 查询 Ingress 证书: namespace=%s, ingress=%s", namespace, ingressName)
+	i.log.Infof(" 查询 Ingress 证书: namespace=%s, ingress=%s", namespace, ingressName)
 
 	certs := &types.IngressCertificateMetrics{
 		Certificates: []types.CertificateInfo{},

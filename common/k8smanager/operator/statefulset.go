@@ -1521,14 +1521,12 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 	buf.WriteString(fmt.Sprintf("Name:               %s\n", statefulSet.Name))
 	buf.WriteString(fmt.Sprintf("Namespace:          %s\n", statefulSet.Namespace))
 
-	// 修复：CreationTimestamp 可能为 Zero 值
 	if !statefulSet.CreationTimestamp.IsZero() {
 		buf.WriteString(fmt.Sprintf("CreationTimestamp:  %s\n", statefulSet.CreationTimestamp.Format(time.RFC1123)))
 	} else {
 		buf.WriteString("CreationTimestamp:  <unset>\n")
 	}
 
-	// 修复：Selector 可能为 nil
 	if statefulSet.Spec.Selector != nil {
 		buf.WriteString(fmt.Sprintf("Selector:           %s\n", metav1.FormatLabelSelector(statefulSet.Spec.Selector)))
 	} else {
@@ -1573,23 +1571,19 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 	buf.WriteString(fmt.Sprintf("Replicas:           %d desired | %d total\n", replicas, statefulSet.Status.Replicas))
 	buf.WriteString(fmt.Sprintf("Update Strategy:    %s\n", statefulSet.Spec.UpdateStrategy.Type))
 
-	// 修复：RollingUpdate 和 Partition 可能为 nil
 	if statefulSet.Spec.UpdateStrategy.RollingUpdate != nil && statefulSet.Spec.UpdateStrategy.RollingUpdate.Partition != nil {
 		buf.WriteString(fmt.Sprintf("  Partition:        %d\n", *statefulSet.Spec.UpdateStrategy.RollingUpdate.Partition))
 	}
 
-	// 修复：添加更多状态信息
 	buf.WriteString(fmt.Sprintf("Pods Status:        %d Running / %d Ready / %d Updated\n",
 		statefulSet.Status.Replicas,
 		statefulSet.Status.ReadyReplicas,
 		statefulSet.Status.UpdatedReplicas))
 
-	// 修复：ServiceName 可能为空
 	if statefulSet.Spec.ServiceName != "" {
 		buf.WriteString(fmt.Sprintf("Service Name:       %s\n", statefulSet.Spec.ServiceName))
 	}
 
-	// 修复：PodManagementPolicy 可能存在
 	if statefulSet.Spec.PodManagementPolicy != "" {
 		buf.WriteString(fmt.Sprintf("Pod Management Policy: %s\n", statefulSet.Spec.PodManagementPolicy))
 	}
@@ -1610,7 +1604,6 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 		}
 	}
 
-	// 修复：ServiceAccountName 可能为空
 	if statefulSet.Spec.Template.Spec.ServiceAccountName != "" {
 		buf.WriteString(fmt.Sprintf("  Service Account:  %s\n", statefulSet.Spec.Template.Spec.ServiceAccountName))
 	} else {
@@ -1630,7 +1623,6 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 				}
 			}
 
-			// 修复：检查 Limits 是否存在
 			if len(container.Resources.Limits) > 0 {
 				buf.WriteString("    Limits:\n")
 				if cpu := container.Resources.Limits.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1644,7 +1636,6 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 				}
 			}
 
-			// 修复：检查 Requests 是否存在
 			if len(container.Resources.Requests) > 0 {
 				buf.WriteString("    Requests:\n")
 				if cpu := container.Resources.Requests.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1658,7 +1649,6 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 				}
 			}
 
-			// 修复：Environment 详细处理
 			if len(container.Env) > 0 {
 				buf.WriteString("    Environment:\n")
 				for _, env := range container.Env {
@@ -1700,7 +1690,6 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 		buf.WriteString(fmt.Sprintf("   %s:\n", container.Name))
 		buf.WriteString(fmt.Sprintf("    Image:      %s\n", container.Image))
 
-		// 修复：ImagePullPolicy 可能有值
 		if container.ImagePullPolicy != "" {
 			buf.WriteString(fmt.Sprintf("    Image Pull Policy:  %s\n", container.ImagePullPolicy))
 		}
@@ -1708,14 +1697,12 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 		if len(container.Ports) > 0 {
 			for _, port := range container.Ports {
 				buf.WriteString(fmt.Sprintf("    Port:       %d/%s\n", port.ContainerPort, port.Protocol))
-				// 修复：显示端口名称
 				if port.Name != "" {
 					buf.WriteString(fmt.Sprintf("    Port Name:  %s\n", port.Name))
 				}
 			}
 		}
 
-		// 修复：检查 Limits 是否存在
 		if len(container.Resources.Limits) > 0 {
 			buf.WriteString("    Limits:\n")
 			if cpu := container.Resources.Limits.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1729,7 +1716,6 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 			}
 		}
 
-		// 修复：检查 Requests 是否存在
 		if len(container.Resources.Requests) > 0 {
 			buf.WriteString("    Requests:\n")
 			if cpu := container.Resources.Requests.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1743,7 +1729,6 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 			}
 		}
 
-		// 修复：添加 Probes 支持
 		if container.LivenessProbe != nil {
 			buf.WriteString(fmt.Sprintf("    Liveness:   %s\n", s.formatProbeForDescribe(container.LivenessProbe)))
 		}
@@ -1754,7 +1739,6 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 			buf.WriteString(fmt.Sprintf("    Startup:    %s\n", s.formatProbeForDescribe(container.StartupProbe)))
 		}
 
-		// 修复：Environment 详细处理
 		if len(container.Env) > 0 {
 			buf.WriteString("    Environment:\n")
 			for _, env := range container.Env {
@@ -1791,7 +1775,6 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 		}
 	}
 
-	// Volumes - 修复：增加更多 Volume 类型支持
 	buf.WriteString("  Volumes:\n")
 	if len(statefulSet.Spec.Template.Spec.Volumes) > 0 {
 		for _, vol := range statefulSet.Spec.Template.Spec.Volumes {
@@ -1834,20 +1817,17 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 		buf.WriteString("   <none>\n")
 	}
 
-	// Volume Claim Templates - 修复：完善错误处理
 	if len(statefulSet.Spec.VolumeClaimTemplates) > 0 {
 		buf.WriteString("Volume Claim Templates:\n")
 		for _, vct := range statefulSet.Spec.VolumeClaimTemplates {
 			buf.WriteString(fmt.Sprintf("  Name:          %s\n", vct.Name))
 
-			// 修复：StorageClassName 可能为 nil
 			if vct.Spec.StorageClassName != nil && *vct.Spec.StorageClassName != "" {
 				buf.WriteString(fmt.Sprintf("  StorageClass:  %s\n", *vct.Spec.StorageClassName))
 			} else {
 				buf.WriteString("  StorageClass:  <default>\n")
 			}
 
-			// 修复：Labels 可能存在
 			if len(vct.Labels) > 0 {
 				buf.WriteString("  Labels:        ")
 				first := true
@@ -1860,7 +1840,6 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 				}
 			}
 
-			// 修复：AccessModes 可能存在
 			if len(vct.Spec.AccessModes) > 0 {
 				buf.WriteString("  Access Modes:  ")
 				for i, mode := range vct.Spec.AccessModes {
@@ -1907,7 +1886,6 @@ func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error
 		for i := 0; i < limit; i++ {
 			event := events[i]
 
-			// 修复：时间戳可能为 0
 			var ageStr string
 			if event.LastTimestamp > 0 {
 				age := time.Since(time.UnixMilli(event.LastTimestamp)).Round(time.Second)

@@ -25,7 +25,6 @@ func NewUpdateProjectLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Upd
 }
 
 func (l *UpdateProjectLogic) UpdateProject(req *types.UpdateProjectRequest) (resp string, err error) {
-	// 🔧 修复：设置默认单位
 	storageUnit := req.StorageUnit
 	if storageUnit == "" {
 		storageUnit = "GB" // 默认为 GB

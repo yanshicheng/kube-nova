@@ -32,7 +32,7 @@ type LogsOptions struct {
 	SinceSeconds                 *int64       // 获取多少秒内的日志
 	SinceTime                    *metav1.Time // 从某个时间点开始的日志
 	Timestamps                   bool         // 是否包含时间戳
-	TailLines                    *int64       // 🔥 尾部行数，nil=全部，0=全部，>0=指定行数
+	TailLines                    *int64       // nil=全部，0=全部，>0=指定行数
 	LimitBytes                   *int64       // 限制字节数
 	InsecureSkipTLSVerifyBackend bool         // 跳过TLS验证
 }
@@ -65,5 +65,5 @@ type LogStreamOptions struct {
 	Follow     bool   // 是否跟踪
 	Previous   bool   // 是否获取之前的日志
 	Timestamps bool   // 是否包含时间戳
-	TailLines  *int64 // 🔥 尾部行数，nil=全部，0=全部，>0=指定行数
+	TailLines  *int64 // 尾部行数，nil=全部，0=全部，>0=指定行数
 }

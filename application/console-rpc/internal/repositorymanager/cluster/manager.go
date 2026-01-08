@@ -244,7 +244,6 @@ func (m *HarborManager) SearchImagesInRepository(uuid, imageName string) ([]type
 	return results, nil
 }
 
-// SearchImagesGlobal 全局搜索镜像（跨所有 Harbor）- 修复版本
 func (m *HarborManager) SearchImagesGlobal(imageName string) ([]types.ImageSearchResult, error) {
 	m.log.Infof("开始全局搜索镜像: %s", imageName)
 

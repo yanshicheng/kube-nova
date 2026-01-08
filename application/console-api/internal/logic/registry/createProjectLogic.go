@@ -25,7 +25,6 @@ func NewCreateProjectLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cre
 }
 
 func (l *CreateProjectLogic) CreateProject(req *types.CreateProjectRequest) (resp string, err error) {
-	// 🔧 修复：设置默认单位
 	storageUnit := req.StorageUnit
 	if storageUnit == "" {
 		storageUnit = "GB" // 默认为 GB

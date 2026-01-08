@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/common/utils"
 	"github.com/zeromicro/go-zero/core/stores/cache"
@@ -102,6 +103,12 @@ type (
 		SyncAllProjectClusters(ctx context.Context, projectId uint64) error
 		// GetProjectResourceSummary 获取项目的资源汇总统计
 		GetProjectResourceSummary(ctx context.Context, projectId uint64) (*ProjectResourceSummary, error)
+		// FindOneByUuidIncludeDeleted 根据UUID查询项目（包含软删除的记录）
+		FindOneByUuidIncludeDeleted(ctx context.Context, uuid string) (*OnecProject, error)
+		// RestoreSoftDeleted 恢复软删除的项目
+		RestoreSoftDeleted(ctx context.Context, id uint64, operator string) error
+		// CreateWithUuid 使用指定的UUID创建项目
+		CreateWithUuid(ctx context.Context, uuid string, name string, operator string) (*OnecProject, error)
 	}
 
 	customOnecProjectModel struct {
@@ -114,6 +121,73 @@ func NewOnecProjectModel(conn sqlx.SqlConn, c cache.CacheConf, opts ...cache.Opt
 	return &customOnecProjectModel{
 		defaultOnecProjectModel: newOnecProjectModel(conn, c, opts...),
 	}
+}
+
+// FindOneByUuidIncludeDeleted 根据UUID查询项目（包含软删除的记录）
+func (m *customOnecProjectModel) FindOneByUuidIncludeDeleted(ctx context.Context, uuid string) (*OnecProject, error) {
+	var resp OnecProject
+	query := fmt.Sprintf("select %s from %s where `uuid` = ? limit 1", onecProjectRows, m.table)
+	err := m.QueryRowNoCacheCtx(ctx, &resp, query, uuid)
+	switch err {
+	case nil:
+		return &resp, nil
+	case sqlx.ErrNotFound:
+		return nil, ErrNotFound
+	default:
+		return nil, err
+	}
+}
+
+// RestoreSoftDeleted 恢复软删除的项目
+func (m *customOnecProjectModel) RestoreSoftDeleted(ctx context.Context, id uint64, operator string) error {
+	// 先查询获取 UUID 用于清除缓存（不带 is_deleted 条件）
+	var project OnecProject
+	query := fmt.Sprintf("select %s from %s where `id` = ? limit 1", onecProjectRows, m.table)
+	err := m.QueryRowNoCacheCtx(ctx, &project, query, id)
+	if err != nil {
+		return err
+	}
+
+	ikubeopsOnecProjectIdKey := fmt.Sprintf("%s%v", cacheIkubeopsOnecProjectIdPrefix, id)
+	ikubeopsOnecProjectUuidKey := fmt.Sprintf("%s%v", cacheIkubeopsOnecProjectUuidPrefix, project.Uuid)
+
+	_, err = m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
+		updateQuery := fmt.Sprintf("update %s set `is_deleted` = 0, `updated_by` = ?, `updated_at` = NOW() where `id` = ?", m.table)
+		return conn.ExecCtx(ctx, updateQuery, operator, id)
+	}, ikubeopsOnecProjectIdKey, ikubeopsOnecProjectUuidKey)
+
+	return err
+}
+
+// CreateWithUuid 使用指定的UUID创建项目
+func (m *customOnecProjectModel) CreateWithUuid(ctx context.Context, uuid string, name string, operator string) (*OnecProject, error) {
+	project := &OnecProject{
+		Name:        name,
+		Uuid:        uuid,
+		IsSystem:    0,
+		Description: fmt.Sprintf("从 Namespace 注解自动创建的项目: %s", uuid),
+		CreatedBy:   operator,
+		UpdatedBy:   operator,
+		IsDeleted:   0,
+	}
+
+	result, err := m.Insert(ctx, project)
+	if err != nil {
+		// 处理并发创建导致的重复键错误
+		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "1062") {
+			// 重新查询返回已存在的记录
+			return m.FindOneByUuidIncludeDeleted(ctx, uuid)
+		}
+		return nil, fmt.Errorf("创建项目失败: %v", err)
+	}
+
+	insertId, err := result.LastInsertId()
+	if err != nil {
+		return nil, fmt.Errorf("获取插入ID失败: %v", err)
+	}
+	project.Id = uint64(insertId)
+
+	return project, nil
 }
 
 // ========== 项目基础统计方法 ==========

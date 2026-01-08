@@ -956,21 +956,17 @@ func (p *podOperator) convertPodToPodDetailInfo(pod *corev1.Pod) types.PodDetail
 }
 
 // getPodStatus 完整的 Pod 状态判断逻辑
-// getPodStatus 完整的 Pod 状态判断逻辑（方法版本）
 func (p *podOperator) getPodStatus(pod *corev1.Pod) string {
-	// 🔥 直接调用核心逻辑
 	return getPodStatusCore(pod)
 }
 
 // hasPodReadyCondition 检查 Pod 是否处于 Ready 状态（方法版本）
 func (p *podOperator) hasPodReadyCondition(conditions []corev1.PodCondition) bool {
-	// 🔥 调用静态版本
 	return hasPodReadyConditionStatic(conditions)
 }
 
 // normalizeStatus 标准化状态字符串
 func (p *podOperator) normalizeStatus(status string) string {
-	// 🔥 调用静态版本
 	return normalizeStatusStatic(status)
 }
 
@@ -1255,7 +1251,7 @@ func (p *podOperator) getPodsBySelector(namespace, labelSelector string) ([]*cor
 
 	var pods []*corev1.Pod
 
-	// ✅ 优先使用 Informer
+	//  优先使用 Informer
 	if p.useInformer && p.podLister != nil {
 		p.log.Debug("使用Informer通过标签选择器获取Pods")
 		pods, err = p.podLister.Pods(namespace).List(selector)
@@ -1677,7 +1673,7 @@ func (p *podOperator) convertToPodInfo(pod *corev1.Pod) types.PodDetailInfo {
 	info := types.PodDetailInfo{
 		Name:         pod.Name,
 		Namespace:    pod.Namespace,
-		Status:       p.getPodStatus(pod), // 🔥 修复：使用 getPodStatus
+		Status:       p.getPodStatus(pod),
 		Node:         pod.Spec.NodeName,
 		PodIP:        pod.Status.PodIP,
 		Labels:       pod.Labels,
@@ -2131,7 +2127,6 @@ func (p *podOperator) GetContainerByName(namespace, podName, containerName strin
 
 // FormatPodStatus 格式化 Pod 状态为可读字符串（导出函数）
 func FormatPodStatus(pod *corev1.Pod) string {
-	// 🔥 直接调用核心逻辑
 	return getPodStatusCore(pod)
 }
 
@@ -2199,7 +2194,7 @@ func getPodStatusCore(pod *corev1.Pod) string {
 		break
 	}
 
-	// 6. 🔥 检查普通容器状态 - 优先显示错误状态
+	// 6.  检查普通容器状态 - 优先显示错误状态
 	if !initializing {
 		hasRunning := false
 		hasWaiting := false
@@ -2207,9 +2202,9 @@ func getPodStatusCore(pod *corev1.Pod) string {
 		var waitingReason string
 		var terminatedReason string
 
-		// 🔥 第一遍遍历：收集所有容器状态，优先级：OOMKilled > CrashLoopBackOff > 其他错误
+		//  第一遍遍历：收集所有容器状态，优先级：OOMKilled > CrashLoopBackOff > 其他错误
 		for _, container := range pod.Status.ContainerStatuses {
-			// 🔥 检查 OOMKilled（最高优先级）
+			//  检查 OOMKilled（最高优先级）
 			if container.State.Terminated != nil && container.State.Terminated.Reason == "OOMKilled" {
 				return "OOMKilled"
 			}
@@ -2221,7 +2216,7 @@ func getPodStatusCore(pod *corev1.Pod) string {
 				}
 			}
 
-			// 🔥 检查 Waiting 状态
+			//  检查 Waiting 状态
 			if container.State.Waiting != nil && container.State.Waiting.Reason != "" {
 				hasWaiting = true
 				if waitingReason == "" ||
@@ -2232,7 +2227,7 @@ func getPodStatusCore(pod *corev1.Pod) string {
 				}
 			}
 
-			// 🔥 检查 Terminated 状态
+			//  检查 Terminated 状态
 			if container.State.Terminated != nil {
 				hasTerminated = true
 				if terminatedReason == "" {
@@ -2246,13 +2241,13 @@ func getPodStatusCore(pod *corev1.Pod) string {
 				}
 			}
 
-			// 🔥 检查 Running 状态
+			//  检查 Running 状态
 			if container.State.Running != nil {
 				hasRunning = true
 			}
 		}
 
-		// 🔥 第二步：按优先级决定状态
+		//  第二步：按优先级决定状态
 		// 优先级：Waiting > Terminated > Running
 		if hasWaiting {
 			reason = waitingReason
@@ -2267,7 +2262,7 @@ func getPodStatusCore(pod *corev1.Pod) string {
 					reason = "NotReady"
 				}
 			} else if pod.Status.Phase == corev1.PodRunning {
-				// 🔥 额外检查：即使所有容器都在 Running，也要检查 Ready 状态
+				//  额外检查：即使所有容器都在 Running，也要检查 Ready 状态
 				if !hasPodReadyConditionStatic(pod.Status.Conditions) {
 					reason = "NotReady"
 				} else {
@@ -2399,7 +2394,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 
 	buf.WriteString(fmt.Sprintf("Service Account:  %s\n", pod.Spec.ServiceAccountName))
 
-	// 修复：NodeName 可能为空
 	if pod.Spec.NodeName != "" {
 		buf.WriteString(fmt.Sprintf("Node:         %s\n", pod.Spec.NodeName))
 	} else {
@@ -2410,7 +2404,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 		buf.WriteString(fmt.Sprintf("Nominated Node:   %s\n", pod.Status.NominatedNodeName))
 	}
 
-	// 修复：StartTime 可能为 nil（Pending 状态的 Pod）
 	if pod.Status.StartTime != nil {
 		buf.WriteString(fmt.Sprintf("Start Time:   %s\n", pod.Status.StartTime.Format(time.RFC1123)))
 	} else {
@@ -2456,14 +2449,12 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 		buf.WriteString(fmt.Sprintf("Message:      %s\n", pod.Status.Message))
 	}
 
-	// 修复：PodIP 可能为空
 	if pod.Status.PodIP != "" {
 		buf.WriteString(fmt.Sprintf("IP:           %s\n", pod.Status.PodIP))
 	} else {
 		buf.WriteString("IP:           \n")
 	}
 
-	// 修复：PodIPs 可能为空
 	buf.WriteString("IPs:          ")
 	if len(pod.Status.PodIPs) > 0 {
 		buf.WriteString("\n")
@@ -2486,7 +2477,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 		for i, container := range pod.Spec.InitContainers {
 			buf.WriteString(fmt.Sprintf("  %s:\n", container.Name))
 
-			// 修复：访问数组前检查长度
 			if i < len(pod.Status.InitContainerStatuses) {
 				buf.WriteString(fmt.Sprintf("    Container ID:   %s\n", pod.Status.InitContainerStatuses[i].ContainerID))
 			} else {
@@ -2495,14 +2485,12 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 
 			buf.WriteString(fmt.Sprintf("    Image:          %s\n", container.Image))
 
-			// 修复：访问数组前检查长度
 			if i < len(pod.Status.InitContainerStatuses) {
 				buf.WriteString(fmt.Sprintf("    Image ID:       %s\n", pod.Status.InitContainerStatuses[i].ImageID))
 			} else {
 				buf.WriteString("    Image ID:       \n")
 			}
 
-			// 修复：Ports 可能为空
 			if len(container.Ports) > 0 {
 				buf.WriteString("    Port:       ")
 				for j, port := range container.Ports {
@@ -2531,7 +2519,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 				buf.WriteString("    Host Port:  <none>\n")
 			}
 
-			// 修复：Command 可能为空
 			if len(container.Command) > 0 {
 				buf.WriteString("    Command:\n")
 				for _, cmd := range container.Command {
@@ -2539,11 +2526,9 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 				}
 			}
 
-			// 修复：State 访问前检查
 			if i < len(pod.Status.InitContainerStatuses) {
 				cs := pod.Status.InitContainerStatuses[i]
 
-				// 修复：检查各个 State 是否为 nil
 				if cs.State.Running != nil {
 					buf.WriteString("    State:          Running\n")
 					if !cs.State.Running.StartedAt.IsZero() {
@@ -2571,7 +2556,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 				buf.WriteString(fmt.Sprintf("    Restart Count:  %d\n", cs.RestartCount))
 			}
 
-			// 修复：Limits 可能为空
 			if len(container.Resources.Limits) > 0 {
 				buf.WriteString("    Limits:\n")
 				if cpu := container.Resources.Limits.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -2585,7 +2569,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 				}
 			}
 
-			// 修复：Requests 可能为空
 			if len(container.Resources.Requests) > 0 {
 				buf.WriteString("    Requests:\n")
 				if cpu := container.Resources.Requests.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -2604,7 +2587,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 				buf.WriteString("    Environment:\n")
 				for _, env := range container.Env {
 					if env.ValueFrom != nil {
-						// 修复：检查各种 ValueFrom 类型
 						if env.ValueFrom.FieldRef != nil {
 							buf.WriteString(fmt.Sprintf("      %s:   (%s)\n",
 								env.Name, env.ValueFrom.FieldRef.FieldPath))
@@ -2647,7 +2629,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 	for i, container := range pod.Spec.Containers {
 		buf.WriteString(fmt.Sprintf("  %s:\n", container.Name))
 
-		// 修复：访问数组前检查长度
 		if i < len(pod.Status.ContainerStatuses) {
 			buf.WriteString(fmt.Sprintf("    Container ID:  %s\n", pod.Status.ContainerStatuses[i].ContainerID))
 		} else {
@@ -2656,14 +2637,12 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 
 		buf.WriteString(fmt.Sprintf("    Image:         %s\n", container.Image))
 
-		// 修复：访问数组前检查长度
 		if i < len(pod.Status.ContainerStatuses) {
 			buf.WriteString(fmt.Sprintf("    Image ID:      %s\n", pod.Status.ContainerStatuses[i].ImageID))
 		} else {
 			buf.WriteString("    Image ID:      \n")
 		}
 
-		// 修复：Ports 可能为空
 		if len(container.Ports) > 0 {
 			buf.WriteString("    Port:          ")
 			for j, port := range container.Ports {
@@ -2692,7 +2671,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 			buf.WriteString("    Host Port:     <none>\n")
 		}
 
-		// 修复：Command 可能为空
 		if len(container.Command) > 0 {
 			buf.WriteString("    Command:\n")
 			for _, cmd := range container.Command {
@@ -2700,11 +2678,9 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 			}
 		}
 
-		// 修复：State 访问前检查
 		if i < len(pod.Status.ContainerStatuses) {
 			cs := pod.Status.ContainerStatuses[i]
 
-			// 修复：检查各个 State 是否为 nil
 			if cs.State.Running != nil {
 				buf.WriteString("    State:          Running\n")
 				if !cs.State.Running.StartedAt.IsZero() {
@@ -2728,7 +2704,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 				}
 			}
 
-			// Last State - 修复：检查是否为 nil
 			if cs.LastTerminationState.Terminated != nil {
 				buf.WriteString("    Last State:     Terminated\n")
 				buf.WriteString(fmt.Sprintf("      Reason:       %s\n", cs.LastTerminationState.Terminated.Reason))
@@ -2745,7 +2720,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 			buf.WriteString(fmt.Sprintf("    Restart Count:  %d\n", cs.RestartCount))
 		}
 
-		// 修复：Limits 可能为空
 		if len(container.Resources.Limits) > 0 {
 			buf.WriteString("    Limits:\n")
 			if cpu := container.Resources.Limits.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -2759,7 +2733,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 			}
 		}
 
-		// 修复：Requests 可能为空
 		if len(container.Resources.Requests) > 0 {
 			buf.WriteString("    Requests:\n")
 			if cpu := container.Resources.Requests.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -2773,7 +2746,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 			}
 		}
 
-		// 修复：Probes 可能为 nil
 		if container.LivenessProbe != nil {
 			buf.WriteString(fmt.Sprintf("    Liveness:       %s\n", p.formatProbeForDescribe(container.LivenessProbe)))
 		}
@@ -2789,7 +2761,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 			buf.WriteString("    Environment:\n")
 			for _, env := range container.Env {
 				if env.ValueFrom != nil {
-					// 修复：检查各种 ValueFrom 类型
 					if env.ValueFrom.FieldRef != nil {
 						buf.WriteString(fmt.Sprintf("      %s:   (%s)\n",
 							env.Name, env.ValueFrom.FieldRef.FieldPath))
@@ -2845,7 +2816,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 		for _, vol := range pod.Spec.Volumes {
 			buf.WriteString(fmt.Sprintf("  %s:\n", vol.Name))
 
-			// 修复：检查各种 Volume 类型
 			if vol.ConfigMap != nil {
 				buf.WriteString("    Type:       ConfigMap (a volume populated by a ConfigMap)\n")
 				buf.WriteString(fmt.Sprintf("    Name:       %s\n", vol.ConfigMap.Name))
@@ -2936,7 +2906,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 				buf.WriteString("                 ")
 			}
 
-			// 修复：Key 可能为空
 			if tol.Key != "" {
 				buf.WriteString(tol.Key)
 			}
@@ -2977,7 +2946,6 @@ func (p *podOperator) GetDescribe(namespace, name string) (string, error) {
 		for i := 0; i < limit; i++ {
 			event := events[i]
 
-			// 修复：时间戳可能为 0
 			var ageStr string
 			if event.LastTimestamp > 0 {
 				age := time.Since(time.UnixMilli(event.LastTimestamp)).Round(time.Second)
@@ -3011,7 +2979,6 @@ func (p *podOperator) formatProbeForDescribe(probe *corev1.Probe) string {
 
 	var parts []string
 
-	// 修复：检查各种 Probe 类型
 	if probe.HTTPGet != nil {
 		host := probe.HTTPGet.Host
 		if host == "" {
@@ -3035,7 +3002,6 @@ func (p *podOperator) formatProbeForDescribe(probe *corev1.Probe) string {
 	parts = append(parts, fmt.Sprintf("timeout=%ds", probe.TimeoutSeconds))
 	parts = append(parts, fmt.Sprintf("period=%ds", probe.PeriodSeconds))
 
-	// 修复：添加成功和失败阈值
 	if probe.SuccessThreshold > 0 {
 		parts = append(parts, fmt.Sprintf("success=%d", probe.SuccessThreshold))
 	}
