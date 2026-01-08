@@ -1492,14 +1492,12 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 	buf.WriteString(fmt.Sprintf("Name:           %s\n", daemonSet.Name))
 	buf.WriteString(fmt.Sprintf("Namespace:      %s\n", daemonSet.Namespace))
 
-	// 修复：Selector 可能为 nil
 	if daemonSet.Spec.Selector != nil {
 		buf.WriteString(fmt.Sprintf("Selector:       %s\n", metav1.FormatLabelSelector(daemonSet.Spec.Selector)))
 	} else {
 		buf.WriteString("Selector:       <none>\n")
 	}
 
-	// 修复：NodeSelector 显示优化
 	buf.WriteString("Node-Selector:  ")
 	if len(daemonSet.Spec.Template.Spec.NodeSelector) == 0 {
 		buf.WriteString("<none>\n")
@@ -1551,14 +1549,12 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 	buf.WriteString(fmt.Sprintf("Number of Nodes Scheduled with Available Pods: %d\n", daemonSet.Status.NumberAvailable))
 	buf.WriteString(fmt.Sprintf("Number of Nodes Misscheduled: %d\n", daemonSet.Status.NumberMisscheduled))
 
-	// 修复：添加 Pods Status 信息
 	buf.WriteString(fmt.Sprintf("Pods Status:  %d Running / %d Ready / %d Updated / %d Unavailable\n",
 		daemonSet.Status.CurrentNumberScheduled,
 		daemonSet.Status.NumberReady,
 		daemonSet.Status.UpdatedNumberScheduled,
 		daemonSet.Status.NumberUnavailable))
 
-	// 修复：添加 Update Strategy 信息
 	if daemonSet.Spec.UpdateStrategy.Type != "" {
 		buf.WriteString(fmt.Sprintf("Update Strategy:  %s\n", daemonSet.Spec.UpdateStrategy.Type))
 		if daemonSet.Spec.UpdateStrategy.RollingUpdate != nil {
@@ -1573,12 +1569,10 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 		}
 	}
 
-	// 修复：添加 MinReadySeconds
 	if daemonSet.Spec.MinReadySeconds > 0 {
 		buf.WriteString(fmt.Sprintf("Min Ready Seconds:  %d\n", daemonSet.Spec.MinReadySeconds))
 	}
 
-	// ========== Pod Template ==========
 	buf.WriteString("Pod Template:\n")
 	buf.WriteString("  Labels:  ")
 	if len(daemonSet.Spec.Template.Labels) == 0 {
@@ -1594,7 +1588,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 		}
 	}
 
-	// 修复：Annotations 可能存在
 	if len(daemonSet.Spec.Template.Annotations) > 0 {
 		buf.WriteString("  Annotations:  ")
 		first := true
@@ -1607,7 +1600,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 		}
 	}
 
-	// 修复：ServiceAccountName 可能为空
 	if daemonSet.Spec.Template.Spec.ServiceAccountName != "" {
 		buf.WriteString(fmt.Sprintf("  Service Account:  %s\n", daemonSet.Spec.Template.Spec.ServiceAccountName))
 	} else {
@@ -1621,12 +1613,10 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 			buf.WriteString(fmt.Sprintf("   %s:\n", container.Name))
 			buf.WriteString(fmt.Sprintf("    Image:      %s\n", container.Image))
 
-			// 修复：ImagePullPolicy
 			if container.ImagePullPolicy != "" {
 				buf.WriteString(fmt.Sprintf("    Image Pull Policy:  %s\n", container.ImagePullPolicy))
 			}
 
-			// 修复：Ports 可能为空
 			if len(container.Ports) > 0 {
 				for _, port := range container.Ports {
 					buf.WriteString(fmt.Sprintf("    Port:       %d/%s\n", port.ContainerPort, port.Protocol))
@@ -1636,7 +1626,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 				}
 			}
 
-			// 修复：检查 Limits 是否存在
 			if len(container.Resources.Limits) > 0 {
 				buf.WriteString("    Limits:\n")
 				if cpu := container.Resources.Limits.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1650,7 +1639,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 				}
 			}
 
-			// 修复：检查 Requests 是否存在
 			if len(container.Resources.Requests) > 0 {
 				buf.WriteString("    Requests:\n")
 				if cpu := container.Resources.Requests.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1664,7 +1652,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 				}
 			}
 
-			// 修复：Environment 详细处理
 			if len(container.Env) > 0 {
 				buf.WriteString("    Environment:\n")
 				for _, env := range container.Env {
@@ -1692,12 +1679,10 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 		buf.WriteString(fmt.Sprintf("   %s:\n", container.Name))
 		buf.WriteString(fmt.Sprintf("    Image:      %s\n", container.Image))
 
-		// 修复：ImagePullPolicy
 		if container.ImagePullPolicy != "" {
 			buf.WriteString(fmt.Sprintf("    Image Pull Policy:  %s\n", container.ImagePullPolicy))
 		}
 
-		// 修复：Ports 可能为空，添加 HostPort 显示
 		if len(container.Ports) > 0 {
 			for _, port := range container.Ports {
 				buf.WriteString(fmt.Sprintf("    Port:       %d/%s\n", port.ContainerPort, port.Protocol))
@@ -1707,7 +1692,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 			}
 		}
 
-		// 修复：Command 和 Args
 		if len(container.Command) > 0 {
 			buf.WriteString("    Command:\n")
 			for _, cmd := range container.Command {
@@ -1722,7 +1706,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 			}
 		}
 
-		// 修复：检查 Limits 是否存在
 		if len(container.Resources.Limits) > 0 {
 			buf.WriteString("    Limits:\n")
 			if cpu := container.Resources.Limits.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1736,7 +1719,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 			}
 		}
 
-		// 修复：检查 Requests 是否存在
 		if len(container.Resources.Requests) > 0 {
 			buf.WriteString("    Requests:\n")
 			if cpu := container.Resources.Requests.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1750,7 +1732,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 			}
 		}
 
-		// 修复：添加 Probes 支持
 		if container.LivenessProbe != nil {
 			buf.WriteString(fmt.Sprintf("    Liveness:   %s\n", d.formatProbeForDescribe(container.LivenessProbe)))
 		}
@@ -1761,7 +1742,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 			buf.WriteString(fmt.Sprintf("    Startup:    %s\n", d.formatProbeForDescribe(container.StartupProbe)))
 		}
 
-		// 修复：Environment 详细处理
 		if len(container.Env) > 0 {
 			buf.WriteString("    Environment:\n")
 			for _, env := range container.Env {
@@ -1782,7 +1762,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 		}
 	}
 
-	// Volumes - 修复：增加更多 Volume 类型支持
 	buf.WriteString("  Volumes:\n")
 	if len(daemonSet.Spec.Template.Spec.Volumes) > 0 {
 		for _, vol := range daemonSet.Spec.Template.Spec.Volumes {
@@ -1825,7 +1804,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 		buf.WriteString("   <none>\n")
 	}
 
-	// 修复：添加 Tolerations 显示
 	if len(daemonSet.Spec.Template.Spec.Tolerations) > 0 {
 		buf.WriteString("  Tolerations:\n")
 		for _, tol := range daemonSet.Spec.Template.Spec.Tolerations {
@@ -1850,7 +1828,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 		}
 	}
 
-	// 修复：添加 Conditions
 	if len(daemonSet.Status.Conditions) > 0 {
 		buf.WriteString("Conditions:\n")
 		buf.WriteString("  Type           Status  Reason\n")
@@ -1876,7 +1853,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 		for i := 0; i < limit; i++ {
 			event := events[i]
 
-			// 修复：时间戳可能为 0
 			var ageStr string
 			if event.LastTimestamp > 0 {
 				age := time.Since(time.UnixMilli(event.LastTimestamp)).Round(time.Second)
@@ -1895,7 +1871,6 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 	return buf.String(), nil
 }
 
-// 修复：添加 Environment 格式化辅助函数
 func (d *daemonSetOperator) formatEnvironment(buf *strings.Builder, env corev1.EnvVar, indent string) {
 	if env.ValueFrom != nil {
 		if env.ValueFrom.FieldRef != nil {
@@ -1925,7 +1900,6 @@ func (d *daemonSetOperator) formatEnvironment(buf *strings.Builder, env corev1.E
 	}
 }
 
-// 修复：添加 Probe 格式化辅助函数
 func (d *daemonSetOperator) formatProbeForDescribe(probe *corev1.Probe) string {
 	if probe == nil {
 		return ""

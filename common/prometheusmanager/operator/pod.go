@@ -31,7 +31,7 @@ func NewPodOperator(ctx context.Context, base *BaseOperator) types.PodOperator {
 
 // GetCPUUsage 获取 Pod CPU 使用情况
 func (p *PodOperatorImpl) GetCPUUsage(namespace, pod string, timeRange *types.TimeRange) (*types.PodCPUMetrics, error) {
-	p.log.Infof("📊 查询 Pod CPU: namespace=%s, pod=%s", namespace, pod)
+	p.log.Infof(" 查询 Pod CPU: namespace=%s, pod=%s", namespace, pod)
 
 	metrics := &types.PodCPUMetrics{
 		Namespace: namespace,
@@ -140,7 +140,7 @@ func (p *PodOperatorImpl) GetCPUUsage(namespace, pod string, timeRange *types.Ti
 
 // GetCPUUsageByContainer 获取容器 CPU 使用情况
 func (p *PodOperatorImpl) GetCPUUsageByContainer(namespace, pod, container string, timeRange *types.TimeRange) (*types.ContainerCPUMetrics, error) {
-	p.log.Infof("📊 查询容器 CPU: namespace=%s, pod=%s, container=%s", namespace, pod, container)
+	p.log.Infof(" 查询容器 CPU: namespace=%s, pod=%s, container=%s", namespace, pod, container)
 
 	metrics := &types.ContainerCPUMetrics{
 		Namespace:     namespace,
@@ -315,7 +315,7 @@ func (p *PodOperatorImpl) GetCPUThrottling(namespace, pod string, timeRange *typ
 
 // GetMemoryUsage 获取 Pod 内存使用情况
 func (p *PodOperatorImpl) GetMemoryUsage(namespace, pod string, timeRange *types.TimeRange) (*types.PodMemoryMetrics, error) {
-	p.log.Infof("📊 查询 Pod 内存: namespace=%s, pod=%s", namespace, pod)
+	p.log.Infof(" 查询 Pod 内存: namespace=%s, pod=%s", namespace, pod)
 
 	metrics := &types.PodMemoryMetrics{
 		Namespace: namespace,
@@ -436,7 +436,7 @@ func (p *PodOperatorImpl) GetMemoryUsage(namespace, pod string, timeRange *types
 
 // GetMemoryUsageByContainer 获取容器内存使用情况
 func (p *PodOperatorImpl) GetMemoryUsageByContainer(namespace, pod, container string, timeRange *types.TimeRange) (*types.ContainerMemoryMetrics, error) {
-	p.log.Infof("📊 查询容器内存: namespace=%s, pod=%s, container=%s", namespace, pod, container)
+	p.log.Infof(" 查询容器内存: namespace=%s, pod=%s, container=%s", namespace, pod, container)
 
 	metrics := &types.ContainerMemoryMetrics{
 		Namespace:     namespace,
@@ -1481,9 +1481,7 @@ func (p *PodOperatorImpl) GetPodAge(namespace, pod string) (*types.PodAgeMetrics
 	return metrics, nil
 }
 
-// ==================== 综合查询方法（优化版）====================
-
-// GetPodOverview 获取 Pod 综合概览 - 并发优化
+// GetPodOverview 获取 Pod 综合概览
 func (p *PodOperatorImpl) GetPodOverview(namespace, pod string, timeRange *types.TimeRange) (*types.PodOverview, error) {
 	overview := &types.PodOverview{
 		Namespace: namespace,
@@ -1553,9 +1551,9 @@ func (p *PodOperatorImpl) GetPodOverview(namespace, pod string, timeRange *types
 	return overview, nil
 }
 
-// ListPodsMetrics 列出命名空间下所有 Pod 的指标 - 批量优化
+// ListPodsMetrics 列出命名空间下所有 Pod 的指标
 func (p *PodOperatorImpl) ListPodsMetrics(namespace string, timeRange *types.TimeRange) ([]types.PodOverview, error) {
-	p.log.Infof("📊 批量查询命名空间 Pod: namespace=%s", namespace)
+	p.log.Infof(" 批量查询命名空间 Pod: namespace=%s", namespace)
 
 	// 获取所有 Pod
 	podsQuery := fmt.Sprintf(`kube_pod_info{namespace="%s"}`, namespace)
@@ -1591,7 +1589,7 @@ func (p *PodOperatorImpl) ListPodsMetrics(namespace string, timeRange *types.Tim
 
 	wg.Wait()
 
-	p.log.Infof("✅ 批量查询完成: namespace=%s, count=%d", namespace, len(overviews))
+	p.log.Infof(" 批量查询完成: namespace=%s, count=%d", namespace, len(overviews))
 	return overviews, nil
 }
 

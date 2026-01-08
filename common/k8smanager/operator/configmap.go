@@ -574,7 +574,7 @@ func (c *configMapOperator) Get(namespace, name string) (*corev1.ConfigMap, erro
 		return nil, fmt.Errorf("获取ConfigMap失败")
 	}
 
-	// ✅ 手动注入 TypeMeta
+	//  手动注入 TypeMeta
 	cm.TypeMeta = metav1.TypeMeta{
 		Kind:       "ConfigMap",
 		APIVersion: "v1",
@@ -589,7 +589,7 @@ func (c *configMapOperator) GetYaml(namespace, name string) (string, error) {
 		return "", err
 	}
 
-	// ✅ 确保有 TypeMeta
+	//  确保有 TypeMeta
 	cm.TypeMeta = metav1.TypeMeta{
 		Kind:       "ConfigMap",
 		APIVersion: "v1",

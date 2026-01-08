@@ -785,7 +785,7 @@ func (n *namespaceOperator) CreateOrUpdateResourceQuota(req *types.ResourceQuota
 		resourceQuota.Spec.Hard[corev1.ResourceServicesNodePorts] = *resource.NewQuantity(req.NodePortsAllocated, resource.DecimalSI)
 	}
 
-	// ✅ 设置工作负载配额（使用 count/ 前缀）
+	//  设置工作负载配额（使用 count/ 前缀）
 	if req.DeploymentsAllocated > 0 {
 		resourceQuota.Spec.Hard["count/deployments.apps"] = *resource.NewQuantity(req.DeploymentsAllocated, resource.DecimalSI)
 	}
@@ -865,7 +865,7 @@ func (n *namespaceOperator) CreateOrUpdateLimitRange(req *types.LimitRangeReques
 		},
 	}
 
-	// ✅ Pod 级别限制
+	//  Pod 级别限制
 	podLimits := corev1.LimitRangeItem{
 		Type: corev1.LimitTypePod,
 		Max:  corev1.ResourceList{},

@@ -151,7 +151,6 @@ func (l *ClusterUpdateAuthInfoLogic) ClusterUpdateAuthInfo(in *pb.ClusterUpdateA
 	return &pb.ClusterUpdateAuthInfoResp{}, nil
 }
 
-// ClusterUpdateAuthInfoAndTest 更换集群认证信息并测试（优化版本）
 func (l *ClusterUpdateAuthInfoLogic) ClusterUpdateAuthInfoAndTest(in *pb.ClusterUpdateAuthInfoReq, clusterUuid string) error {
 	l.Infof("开始测试新的认证配置，集群 UUID: %s", clusterUuid)
 

@@ -8,7 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// getWorkloadResourceSummary 获取工作负载资源摘要的通用实现（优化版）
+// getWorkloadResourceSummary 获取工作负载资源摘要的通用实现
 // 适用于 Deployment、StatefulSet、DaemonSet、CronJob
 func getWorkloadResourceSummary(
 	namespace string,
@@ -38,7 +38,7 @@ func getWorkloadResourceSummary(
 	summary.PodCount = len(pods)
 	summary.AbnormalPodCount = countAbnormalPodsForWorkload(pods)
 
-	// 2. 优化：智能查询关联的 Service（优先使用 app 标签）
+	// 2. 优化：智能查询关联的 Service
 	services, isAppSelector, err := getRelatedServicesForWorkloadOptimized(namespace, selectorLabels, svcOp)
 	if err != nil {
 		return nil, fmt.Errorf("获取关联 Service 失败: %v", err)
@@ -50,7 +50,7 @@ func getWorkloadResourceSummary(
 	// 3. 处理 Service 信息
 	processServiceInfoForWorkload(services, domainSuffix, nodeLb, summary)
 
-	// 4. 优化：只查询与 Service 相关的 Ingress（避免超时）
+	// 4. 优化：只查询与 Service 相关的 Ingress
 	ingresses, err := getRelatedIngressesForWorkloadOptimized(namespace, services, ingressOp)
 	if err != nil {
 		// 记录警告但不中断流程
@@ -127,7 +127,7 @@ func getRelatedServicesForWorkloadOptimized(
 	return result, isAppSelector, nil
 }
 
-// getRelatedIngressesForWorkloadOptimized 获取与 Service 相关联的 Ingress（优化版，避免超时）
+// getRelatedIngressesForWorkloadOptimized 获取与 Service 相关联的 Ingress
 func getRelatedIngressesForWorkloadOptimized(
 	namespace string,
 	services []types.ServiceInfo,
@@ -151,7 +151,6 @@ func getRelatedIngressesForWorkloadOptimized(
 	}
 
 	// 过滤出引用了这些 Service 的 Ingress
-	// 关键优化：直接从 IngressInfo 中提取信息，避免再次调用 GetDetail
 	relatedIngresses := make([]types.IngressInfo, 0)
 
 	for _, ingress := range ingressList.Items {
@@ -260,7 +259,6 @@ func processServiceInfoForWorkload(
 		// 解析端口信息
 		ports := parseServicePortsForWorkload(svc.Ports)
 
-		// 关键修复：所有类型的 Service 都应该添加内部访问地址（只要有 ClusterIP）
 		if svc.ClusterIP != "" && svc.ClusterIP != "None" {
 			for _, port := range ports {
 				if domainSuffix != "" {

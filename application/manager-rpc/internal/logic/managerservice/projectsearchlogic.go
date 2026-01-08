@@ -56,7 +56,6 @@ func (l *ProjectSearchLogic) ProjectSearch(in *pb.SearchOnecProjectReq) (*pb.Sea
 	// 执行搜索
 	projects, total, err := l.svcCtx.OnecProjectModel.Search(l.ctx, in.OrderStr, in.IsAsc, in.Page, in.PageSize, queryStr, args...)
 	if err != nil {
-		// 修复：检查是否为 ErrNotFound，如果是则返回空结果而不是错误
 		if errors.Is(err, model.ErrNotFound) {
 			return &pb.SearchOnecProjectResp{
 				Data:  []*pb.ProjectInfo{},

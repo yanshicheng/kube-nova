@@ -78,10 +78,8 @@ func (c *ClusterOperator) executeParallelRangeQueries(start, end time.Time, step
 	wg.Wait()
 }
 
-// ==================== 综合查询（优化版）====================
-
 func (c *ClusterOperator) GetClusterOverview(timeRange *types.TimeRange) (*types.ClusterOverview, error) {
-	c.log.Infof("📊 查询集群概览")
+	c.log.Infof(" 查询集群概览")
 
 	overview := &types.ClusterOverview{
 		ClusterName: "kubernetes-cluster",
@@ -147,11 +145,9 @@ func (c *ClusterOperator) GetClusterOverview(timeRange *types.TimeRange) (*types
 
 	wg.Wait()
 
-	c.log.Infof("✅ 集群概览查询完成")
+	c.log.Infof("集群概览查询完成")
 	return overview, nil
 }
-
-// ==================== 资源查询（优化版）====================
 
 func (c *ClusterOperator) GetClusterResources(timeRange *types.TimeRange) (*types.ClusterResourceMetrics, error) {
 	resources := &types.ClusterResourceMetrics{}
@@ -439,8 +435,6 @@ func (c *ClusterOperator) GetClusterMemoryMetrics(timeRange *types.TimeRange) (*
 
 	return memory, nil
 }
-
-// ==================== 节点查询（优化版）====================
 
 func (c *ClusterOperator) GetClusterNodes(timeRange *types.TimeRange) (*types.ClusterNodeMetrics, error) {
 	nodes := &types.ClusterNodeMetrics{
@@ -779,8 +773,6 @@ func (c *ClusterOperator) getDetailedNodeListOptimized(timeRange *types.TimeRang
 	return nodeList, nil
 }
 
-// ==================== 控制平面查询（优化版）====================
-
 func (c *ClusterOperator) getControlPlaneMetrics(timeRange *types.TimeRange) (*types.ClusterControlPlaneMetrics, error) {
 	controlPlane := &types.ClusterControlPlaneMetrics{}
 
@@ -834,7 +826,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 	}
 
 	window := c.calculateRateWindow(timeRange)
-	c.log.Infof("📊 开始查询 API Server 指标 (window: %s)", window)
+	c.log.Infof(" 开始查询 API Server 指标 (window: %s)", window)
 
 	// ==================== 基础指标和延迟 ====================
 	tasks := []clusterQueryTask{
@@ -844,7 +836,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					apiServer.RequestsPerSecond = results[0].Value
-					c.log.Infof("✅ API Server QPS: %.2f req/s", apiServer.RequestsPerSecond)
+					c.log.Infof("API Server QPS: %.2f req/s", apiServer.RequestsPerSecond)
 				}
 				return nil
 			},
@@ -855,7 +847,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					apiServer.ErrorRate = results[0].Value
-					c.log.Infof("✅ API Server Error Rate: %.2f%%", apiServer.ErrorRate*100)
+					c.log.Infof("API Server Error Rate: %.2f%%", apiServer.ErrorRate*100)
 				}
 				return nil
 			},
@@ -866,7 +858,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					apiServer.P50Latency = results[0].Value
-					c.log.Infof("✅ API Server P50 Latency: %.4f s", apiServer.P50Latency)
+					c.log.Infof("API Server P50 Latency: %.4f s", apiServer.P50Latency)
 				}
 				return nil
 			},
@@ -877,7 +869,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					apiServer.P95Latency = results[0].Value
-					c.log.Infof("✅ API Server P95 Latency: %.4f s", apiServer.P95Latency)
+					c.log.Infof("API Server P95 Latency: %.4f s", apiServer.P95Latency)
 				}
 				return nil
 			},
@@ -888,7 +880,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					apiServer.P99Latency = results[0].Value
-					c.log.Infof("✅ API Server P99 Latency: %.4f s", apiServer.P99Latency)
+					c.log.Infof("API Server P99 Latency: %.4f s", apiServer.P99Latency)
 				}
 				return nil
 			},
@@ -901,7 +893,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					apiServer.CurrentInflightRequests = int64(results[0].Value)
-					c.log.Infof("✅ Current Inflight Requests: %d", apiServer.CurrentInflightRequests)
+					c.log.Infof("Current Inflight Requests: %d", apiServer.CurrentInflightRequests)
 				}
 				return nil
 			},
@@ -932,7 +924,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					apiServer.LongRunningRequests = int64(results[0].Value)
-					c.log.Infof("✅ Long Running Requests: %d", apiServer.LongRunningRequests)
+					c.log.Infof("Long Running Requests: %d", apiServer.LongRunningRequests)
 				}
 				return nil
 			},
@@ -943,7 +935,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					apiServer.WatchCount = int64(results[0].Value)
-					c.log.Infof("✅ Watch Count: %d", apiServer.WatchCount)
+					c.log.Infof("Watch Count: %d", apiServer.WatchCount)
 				}
 				return nil
 			},
@@ -986,7 +978,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					apiServer.WebhookDurationSeconds = results[0].Value
-					c.log.Infof("✅ Webhook Duration P99: %.4f s", apiServer.WebhookDurationSeconds)
+					c.log.Infof("Webhook Duration P99: %.4f s", apiServer.WebhookDurationSeconds)
 				}
 				return nil
 			},
@@ -1098,7 +1090,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 			step = c.calculateStep(timeRange.Start, timeRange.End)
 		}
 
-		c.log.Infof("📊 查询 API Server 趋势数据: start=%s, end=%s, step=%s",
+		c.log.Infof(" 查询 API Server 趋势数据: start=%s, end=%s, step=%s",
 			timeRange.Start.Format("2006-01-02 15:04:05"),
 			timeRange.End.Format("2006-01-02 15:04:05"),
 			step)
@@ -1190,16 +1182,13 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 		}
 
 		c.executeParallelRangeQueries(timeRange.Start, timeRange.End, step, rangeTasks)
-		c.log.Infof("📈 API Server 趋势数据查询完成，共 %d 个数据点", len(apiServer.Trend))
+		c.log.Infof(" API Server 趋势数据查询完成，共 %d 个数据点", len(apiServer.Trend))
 	}
 
 	return apiServer, nil
 }
 
-// ==================== Scheduler 优化 ====================
-
-// GetSchedulerMetrics 获取 Scheduler 指标（优化版）
-// GetSchedulerMetrics 获取 Scheduler 指标（完善版）
+// GetSchedulerMetrics 获取 Scheduler 指标
 func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*types.SchedulerMetrics, error) {
 	scheduler := &types.SchedulerMetrics{
 		FailureReasons: types.ScheduleFailureReasons{},
@@ -1208,7 +1197,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 	}
 	window := c.calculateRateWindow(timeRange)
 
-	c.log.Infof("📊 开始查询 Scheduler 指标 (window: %s)", window)
+	c.log.Infof(" 开始查询 Scheduler 指标 (window: %s)", window)
 
 	// ==================== 尝试多种指标版本 ====================
 	// 不同 Kubernetes 版本的指标名称可能不同
@@ -1235,7 +1224,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.ScheduleAttempts = results[0].Value
-					c.log.Infof("✅ Schedule Attempts: %.2f/s", scheduler.ScheduleAttempts)
+					c.log.Infof("Schedule Attempts: %.2f/s", scheduler.ScheduleAttempts)
 				}
 				return nil
 			},
@@ -1245,7 +1234,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			query: func() string {
 				for _, q := range successRateQueries {
 					if result, err := c.query(q, nil); err == nil && len(result) > 0 {
-						c.log.Infof("✅ 使用 Success Rate 查询: %s", q)
+						c.log.Infof("使用 Success Rate 查询: %s", q)
 						return q
 					}
 				}
@@ -1254,10 +1243,10 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.ScheduleSuccessRate = results[0].Value
-					c.log.Infof("✅ Schedule Success Rate: %.2f%%", scheduler.ScheduleSuccessRate*100)
+					c.log.Infof("Schedule Success Rate: %.2f%%", scheduler.ScheduleSuccessRate*100)
 				} else {
 					scheduler.ScheduleSuccessRate = 1.0
-					c.log.Errorf("⚠️  无法获取 Success Rate，使用默认值 100%%")
+					c.log.Errorf("  无法获取 Success Rate，使用默认值 100%%")
 				}
 				return nil
 			},
@@ -1268,7 +1257,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.PendingPods = int64(results[0].Value)
-					c.log.Infof("✅ Pending Pods: %d", scheduler.PendingPods)
+					c.log.Infof("Pending Pods: %d", scheduler.PendingPods)
 				}
 				return nil
 			},
@@ -1279,7 +1268,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.UnschedulablePods = int64(results[0].Value)
-					c.log.Infof("✅ Unschedulable Pods: %d", scheduler.UnschedulablePods)
+					c.log.Infof("Unschedulable Pods: %d", scheduler.UnschedulablePods)
 				}
 				return nil
 			},
@@ -1299,7 +1288,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.P50ScheduleLatency = results[0].Value
-					c.log.Infof("✅ Schedule P50 Latency: %.4f s", scheduler.P50ScheduleLatency)
+					c.log.Infof("Schedule P50 Latency: %.4f s", scheduler.P50ScheduleLatency)
 				}
 				return nil
 			},
@@ -1309,7 +1298,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			query: func() string {
 				for _, q := range latencyQueries {
 					if result, err := c.query(q, nil); err == nil && len(result) > 0 {
-						c.log.Infof("✅ 使用 Latency 查询: %s", q)
+						c.log.Infof("使用 Latency 查询: %s", q)
 						return q
 					}
 				}
@@ -1318,7 +1307,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.P95ScheduleLatency = results[0].Value
-					c.log.Infof("✅ Schedule P95 Latency: %.4f s", scheduler.P95ScheduleLatency)
+					c.log.Infof("Schedule P95 Latency: %.4f s", scheduler.P95ScheduleLatency)
 				}
 				return nil
 			},
@@ -1336,7 +1325,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.P99ScheduleLatency = results[0].Value
-					c.log.Infof("✅ Schedule P99 Latency: %.4f s", scheduler.P99ScheduleLatency)
+					c.log.Infof("Schedule P99 Latency: %.4f s", scheduler.P99ScheduleLatency)
 				}
 				return nil
 			},
@@ -1347,7 +1336,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.BindingLatency = results[0].Value
-					c.log.Infof("✅ Binding Latency P99: %.4f s", scheduler.BindingLatency)
+					c.log.Infof("Binding Latency P99: %.4f s", scheduler.BindingLatency)
 				}
 				return nil
 			},
@@ -1370,7 +1359,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.FailedScheduling = int64(results[0].Value)
-					c.log.Infof("✅ Failed Scheduling: %d", scheduler.FailedScheduling)
+					c.log.Infof("Failed Scheduling: %d", scheduler.FailedScheduling)
 				}
 				return nil
 			},
@@ -1381,7 +1370,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.PreemptionAttempts = int64(results[0].Value)
-					c.log.Infof("✅ Preemption Attempts: %d", scheduler.PreemptionAttempts)
+					c.log.Infof("Preemption Attempts: %d", scheduler.PreemptionAttempts)
 				}
 				return nil
 			},
@@ -1404,7 +1393,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.SchedulingQueueLength = int64(results[0].Value)
-					c.log.Infof("✅ Scheduling Queue Length: %d", scheduler.SchedulingQueueLength)
+					c.log.Infof("Scheduling Queue Length: %d", scheduler.SchedulingQueueLength)
 				}
 				return nil
 			},
@@ -1437,7 +1426,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.PluginLatency.FilterLatency = results[0].Value
-					c.log.Infof("✅ Filter Plugin Latency P99: %.4f s", scheduler.PluginLatency.FilterLatency)
+					c.log.Infof("Filter Plugin Latency P99: %.4f s", scheduler.PluginLatency.FilterLatency)
 				}
 				return nil
 			},
@@ -1448,7 +1437,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.PluginLatency.ScoreLatency = results[0].Value
-					c.log.Infof("✅ Score Plugin Latency P99: %.4f s", scheduler.PluginLatency.ScoreLatency)
+					c.log.Infof("Score Plugin Latency P99: %.4f s", scheduler.PluginLatency.ScoreLatency)
 				}
 				return nil
 			},
@@ -1487,7 +1476,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			step = c.calculateStep(timeRange.Start, timeRange.End)
 		}
 
-		c.log.Infof("📊 查询 Scheduler 趋势数据: start=%s, end=%s, step=%s",
+		c.log.Infof(" 查询 Scheduler 趋势数据: start=%s, end=%s, step=%s",
 			timeRange.Start.Format("2006-01-02 15:04:05"),
 			timeRange.End.Format("2006-01-02 15:04:05"),
 			step)
@@ -1580,7 +1569,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 		}
 
 		c.executeParallelRangeQueries(timeRange.Start, timeRange.End, step, rangeTasks)
-		c.log.Infof("📈 Scheduler 趋势数据查询完成，共 %d 个数据点", len(scheduler.Trend))
+		c.log.Infof(" Scheduler 趋势数据查询完成，共 %d 个数据点", len(scheduler.Trend))
 	}
 
 	return scheduler, nil
@@ -1605,7 +1594,7 @@ func (c *ClusterOperator) getScheduleFailureReasons(scheduler *types.SchedulerMe
 		"NoNodesAvailable": `sum(kube_pod_status_unschedulable)`,
 	}
 
-	c.log.Infof("📊 查询调度失败原因分类")
+	c.log.Infof(" 查询调度失败原因分类")
 
 	tasks := []clusterQueryTask{}
 	for name, query := range reasonQueries {
@@ -1634,7 +1623,7 @@ func (c *ClusterOperator) getScheduleFailureReasons(scheduler *types.SchedulerMe
 						scheduler.FailureReasons.NoNodesAvailable = count
 					}
 					if count > 0 {
-						c.log.Infof("✅ Failure Reason [%s]: %d", reasonName, count)
+						c.log.Infof("Failure Reason [%s]: %d", reasonName, count)
 					}
 				}
 				return nil
@@ -1646,7 +1635,7 @@ func (c *ClusterOperator) getScheduleFailureReasons(scheduler *types.SchedulerMe
 
 	// 如果主要查询都失败，尝试备用查询
 	if scheduler.FailureReasons.InsufficientCPU == 0 && scheduler.FailureReasons.NoNodesAvailable == 0 {
-		c.log.Errorf("⚠️  调度失败原因指标不可用，尝试备用查询")
+		c.log.Errorf("  调度失败原因指标不可用，尝试备用查询")
 		for name, query := range backupQueries {
 			if results, err := c.query(query, nil); err == nil && len(results) > 0 {
 				count := int64(results[0].Value)
@@ -1658,9 +1647,6 @@ func (c *ClusterOperator) getScheduleFailureReasons(scheduler *types.SchedulerMe
 	}
 }
 
-// ==================== Controller Manager 优化 ====================
-
-// GetControllerManagerMetrics 获取 Controller Manager 指标（修复版）
 func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange) (*types.ControllerManagerMetrics, error) {
 	cm := &types.ControllerManagerMetrics{
 		QueueLatency:     types.QueueLatencyMetrics{},
@@ -1670,13 +1656,13 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 	}
 	window := c.calculateRateWindow(timeRange)
 
-	c.log.Infof("📊 开始查询 Controller Manager 指标 (window: %s)", window)
+	c.log.Infof("开始查询 Controller Manager 指标 (window: %s)", window)
 
 	// 先查询所有可用的workqueue名称
 	allWorkqueueQuery := `workqueue_depth`
 	allWorkqueues, err := c.query(allWorkqueueQuery, nil)
 	if err != nil {
-		c.log.Errorf("⚠️  无法查询 workqueue_depth: %v", err)
+		c.log.Errorf("无法查询 workqueue_depth: %v", err)
 	}
 
 	// 提取所有可用的 name 标签
@@ -1687,7 +1673,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 				availableNames[name] += result.Value
 			}
 		}
-		c.log.Infof("✅ 发现的 workqueue 名称:")
+		c.log.Infof("发现的 workqueue 名称:")
 		for name, depth := range availableNames {
 			c.log.Infof("  - %s: %.0f", name, depth)
 		}
@@ -1701,7 +1687,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.IsLeader = results[0].Value > 0
-					c.log.Infof("✅ Controller Manager Is Leader: %v", cm.IsLeader)
+					c.log.Infof("Controller Manager Is Leader: %v", cm.IsLeader)
 				}
 				return nil
 			},
@@ -1713,7 +1699,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 				if len(results) > 0 {
 					cm.LeaderChanges = int64(results[0].Value)
 					if cm.LeaderChanges > 0 {
-						c.log.Infof("⚠️  Leader Changes (1h): %d", cm.LeaderChanges)
+						c.log.Infof("  Leader Changes (1h): %d", cm.LeaderChanges)
 					}
 				}
 				return nil
@@ -1727,7 +1713,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.DeploymentQueueDepth = int64(results[0].Value)
-					c.log.Infof("✅ Deployment Queue Depth: %d", cm.DeploymentQueueDepth)
+					c.log.Infof("Deployment Queue Depth: %d", cm.DeploymentQueueDepth)
 				}
 				return nil
 			},
@@ -1738,7 +1724,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.ReplicaSetQueueDepth = int64(results[0].Value)
-					c.log.Infof("✅ ReplicaSet Queue Depth: %d", cm.ReplicaSetQueueDepth)
+					c.log.Infof("ReplicaSet Queue Depth: %d", cm.ReplicaSetQueueDepth)
 				}
 				return nil
 			},
@@ -1749,7 +1735,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.StatefulSetQueueDepth = int64(results[0].Value)
-					c.log.Infof("✅ StatefulSet Queue Depth: %d", cm.StatefulSetQueueDepth)
+					c.log.Infof("StatefulSet Queue Depth: %d", cm.StatefulSetQueueDepth)
 				}
 				return nil
 			},
@@ -1760,7 +1746,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.DaemonSetQueueDepth = int64(results[0].Value)
-					c.log.Infof("✅ DaemonSet Queue Depth: %d", cm.DaemonSetQueueDepth)
+					c.log.Infof("DaemonSet Queue Depth: %d", cm.DaemonSetQueueDepth)
 				}
 				return nil
 			},
@@ -1771,7 +1757,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.JobQueueDepth = int64(results[0].Value)
-					c.log.Infof("✅ Job Queue Depth: %d", cm.JobQueueDepth)
+					c.log.Infof("Job Queue Depth: %d", cm.JobQueueDepth)
 				}
 				return nil
 			},
@@ -1782,7 +1768,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.NodeQueueDepth = int64(results[0].Value)
-					c.log.Infof("✅ Node Queue Depth: %d", cm.NodeQueueDepth)
+					c.log.Infof("Node Queue Depth: %d", cm.NodeQueueDepth)
 				}
 				return nil
 			},
@@ -1793,7 +1779,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.ServiceQueueDepth = int64(results[0].Value)
-					c.log.Infof("✅ Service Queue Depth: %d", cm.ServiceQueueDepth)
+					c.log.Infof("Service Queue Depth: %d", cm.ServiceQueueDepth)
 				}
 				return nil
 			},
@@ -1804,7 +1790,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.EndpointQueueDepth = int64(results[0].Value)
-					c.log.Infof("✅ Endpoint Queue Depth: %d", cm.EndpointQueueDepth)
+					c.log.Infof("Endpoint Queue Depth: %d", cm.EndpointQueueDepth)
 				}
 				return nil
 			},
@@ -1817,7 +1803,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.QueueLatency.QueueDuration = results[0].Value
-					c.log.Infof("✅ Queue Duration P99: %.4f s", cm.QueueLatency.QueueDuration)
+					c.log.Infof("Queue Duration P99: %.4f s", cm.QueueLatency.QueueDuration)
 				}
 				return nil
 			},
@@ -1828,7 +1814,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.QueueLatency.WorkDuration = results[0].Value
-					c.log.Infof("✅ Work Duration P99: %.4f s", cm.QueueLatency.WorkDuration)
+					c.log.Infof("Work Duration P99: %.4f s", cm.QueueLatency.WorkDuration)
 				}
 				return nil
 			},
@@ -1841,7 +1827,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.WorkQueueMetrics.AddsRate = results[0].Value
-					c.log.Infof("✅ Workqueue Adds Rate: %.2f items/s", cm.WorkQueueMetrics.AddsRate)
+					c.log.Infof("Workqueue Adds Rate: %.2f items/s", cm.WorkQueueMetrics.AddsRate)
 				}
 				return nil
 			},
@@ -1852,7 +1838,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.WorkQueueMetrics.DepthTotal = int64(results[0].Value)
-					c.log.Infof("✅ Total Queue Depth: %d", cm.WorkQueueMetrics.DepthTotal)
+					c.log.Infof("Total Queue Depth: %d", cm.WorkQueueMetrics.DepthTotal)
 				}
 				return nil
 			},
@@ -1874,7 +1860,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 				if len(results) > 0 {
 					cm.WorkQueueMetrics.LongestRunning = results[0].Value
 					if cm.WorkQueueMetrics.LongestRunning > 60 {
-						c.log.Errorf("⚠️  Longest Running Work: %.2f s", cm.WorkQueueMetrics.LongestRunning)
+						c.log.Errorf("  Longest Running Work: %.2f s", cm.WorkQueueMetrics.LongestRunning)
 					}
 				}
 				return nil
@@ -1887,7 +1873,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 				if len(results) > 0 {
 					cm.WorkQueueMetrics.RetriesRate = results[0].Value
 					cm.RetryRate = results[0].Value
-					c.log.Infof("✅ Retry Rate: %.2f items/s", cm.RetryRate)
+					c.log.Infof("Retry Rate: %.2f items/s", cm.RetryRate)
 				}
 				return nil
 			},
@@ -1901,7 +1887,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 				if len(results) > 0 {
 					cm.TotalSyncErrors = int64(results[0].Value)
 					if cm.TotalSyncErrors > 0 {
-						c.log.Infof("⚠️  Total Sync Errors: %d", cm.TotalSyncErrors)
+						c.log.Infof("Total Sync Errors: %d", cm.TotalSyncErrors)
 					}
 				}
 				return nil
@@ -1921,7 +1907,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 			step = c.calculateStep(timeRange.Start, timeRange.End)
 		}
 
-		c.log.Infof("📊 查询 Controller Manager 趋势数据: start=%s, end=%s, step=%s",
+		c.log.Infof(" 查询 Controller Manager 趋势数据: start=%s, end=%s, step=%s",
 			timeRange.Start.Format("2006-01-02 15:04:05"),
 			timeRange.End.Format("2006-01-02 15:04:05"),
 			step)
@@ -1937,7 +1923,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 				if len(results) > 0 && len(results[0].Values) > 0 {
 					mu.Lock()
 					defer mu.Unlock()
-					c.log.Infof("✅ 总队列趋势: %d 个数据点", len(results[0].Values))
+					c.log.Infof("总队列趋势: %d 个数据点", len(results[0].Values))
 					cm.Trend = make([]types.ControllerManagerDataPoint, len(results[0].Values))
 					for i, v := range results[0].Values {
 						cm.Trend[i] = types.ControllerManagerDataPoint{
@@ -1960,7 +1946,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 					if len(results) > 0 && len(results[0].Values) > 0 {
 						mu.Lock()
 						defer mu.Unlock()
-						c.log.Infof("✅ Deployment 趋势: %d 个数据点", len(results[0].Values))
+						c.log.Infof("Deployment 趋势: %d 个数据点", len(results[0].Values))
 						for i, v := range results[0].Values {
 							if i < len(cm.Trend) {
 								cm.Trend[i].DeploymentQueueDepth = int64(v.Value)
@@ -1982,7 +1968,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 					if len(results) > 0 && len(results[0].Values) > 0 {
 						mu.Lock()
 						defer mu.Unlock()
-						c.log.Infof("✅ ReplicaSet 趋势: %d 个数据点", len(results[0].Values))
+						c.log.Infof("ReplicaSet 趋势: %d 个数据点", len(results[0].Values))
 						for i, v := range results[0].Values {
 							if i < len(cm.Trend) {
 								cm.Trend[i].ReplicaSetQueueDepth = int64(v.Value)
@@ -2004,7 +1990,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 					if len(results) > 0 && len(results[0].Values) > 0 {
 						mu.Lock()
 						defer mu.Unlock()
-						c.log.Infof("✅ StatefulSet 趋势: %d 个数据点", len(results[0].Values))
+						c.log.Infof("StatefulSet 趋势: %d 个数据点", len(results[0].Values))
 						for i, v := range results[0].Values {
 							if i < len(cm.Trend) {
 								cm.Trend[i].StatefulSetQueueDepth = int64(v.Value)
@@ -2024,7 +2010,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 				if len(results) > 0 && len(results[0].Values) > 0 {
 					mu.Lock()
 					defer mu.Unlock()
-					c.log.Infof("✅ 重试率趋势: %d 个数据点", len(results[0].Values))
+					c.log.Infof("重试率趋势: %d 个数据点", len(results[0].Values))
 					for i, v := range results[0].Values {
 						if i < len(cm.Trend) {
 							cm.Trend[i].RetryRate = v.Value
@@ -2036,7 +2022,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 		})
 
 		c.executeParallelRangeQueries(timeRange.Start, timeRange.End, step, rangeTasks)
-		c.log.Infof("📈 Controller Manager 趋势数据查询完成，共 %d 个数据点", len(cm.Trend))
+		c.log.Infof(" Controller Manager 趋势数据查询完成，共 %d 个数据点", len(cm.Trend))
 	}
 
 	return cm, nil
@@ -2045,7 +2031,7 @@ func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange
 // findWorkqueueQuery 智能查找workqueue查询
 func (c *ClusterOperator) findWorkqueueQuery(availableNames map[string]float64, keywords []string) string {
 	if len(availableNames) == 0 {
-		c.log.Errorf("⚠️  没有可用的 workqueue")
+		c.log.Errorf("  没有可用的 workqueue")
 		return ""
 	}
 
@@ -2054,7 +2040,7 @@ func (c *ClusterOperator) findWorkqueueQuery(availableNames map[string]float64, 
 		for name := range availableNames {
 			if strings.EqualFold(name, keyword) {
 				query := fmt.Sprintf(`sum(workqueue_depth{name="%s"})`, name)
-				c.log.Infof("✅ 精确匹配 [%s] -> %s", keyword, name)
+				c.log.Infof("精确匹配 [%s] -> %s", keyword, name)
 				return query
 			}
 		}
@@ -2076,20 +2062,20 @@ func (c *ClusterOperator) findWorkqueueQuery(availableNames map[string]float64, 
 	}
 	if bestMatch != "" {
 		query := fmt.Sprintf(`sum(workqueue_depth{name="%s"})`, bestMatch)
-		c.log.Infof("✅ 包含匹配 %v -> %s", keywords, bestMatch)
+		c.log.Infof("包含匹配 %v -> %s", keywords, bestMatch)
 		return query
 	}
 
 	// 策略3：正则匹配（最后手段）
 	pattern := strings.Join(keywords, "|")
 	query := fmt.Sprintf(`sum(workqueue_depth{name=~"(?i).*(%s).*"})`, pattern)
-	c.log.Errorf("⚠️  使用正则匹配 %v: %s", keywords, query)
+	c.log.Errorf("  使用正则匹配 %v: %s", keywords, query)
 	return query
 }
 
 // getReconcileLatency 获取控制器协调延迟
 func (c *ClusterOperator) getReconcileLatency(cm *types.ControllerManagerMetrics, window string, availableNames map[string]float64) {
-	c.log.Infof("📊 查询控制器协调延迟")
+	c.log.Infof(" 查询控制器协调延迟")
 
 	tasks := []clusterQueryTask{
 		{
@@ -2098,7 +2084,7 @@ func (c *ClusterOperator) getReconcileLatency(cm *types.ControllerManagerMetrics
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.ReconcileLatency.DeploymentP99 = results[0].Value
-					c.log.Infof("✅ Deployment Reconcile P99: %.4f s", cm.ReconcileLatency.DeploymentP99)
+					c.log.Infof("Deployment Reconcile P99: %.4f s", cm.ReconcileLatency.DeploymentP99)
 				}
 				return nil
 			},
@@ -2109,7 +2095,7 @@ func (c *ClusterOperator) getReconcileLatency(cm *types.ControllerManagerMetrics
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.ReconcileLatency.ReplicaSetP99 = results[0].Value
-					c.log.Infof("✅ ReplicaSet Reconcile P99: %.4f s", cm.ReconcileLatency.ReplicaSetP99)
+					c.log.Infof("ReplicaSet Reconcile P99: %.4f s", cm.ReconcileLatency.ReplicaSetP99)
 				}
 				return nil
 			},
@@ -2120,7 +2106,7 @@ func (c *ClusterOperator) getReconcileLatency(cm *types.ControllerManagerMetrics
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.ReconcileLatency.StatefulSetP99 = results[0].Value
-					c.log.Infof("✅ StatefulSet Reconcile P99: %.4f s", cm.ReconcileLatency.StatefulSetP99)
+					c.log.Infof("StatefulSet Reconcile P99: %.4f s", cm.ReconcileLatency.StatefulSetP99)
 				}
 				return nil
 			},
@@ -2131,7 +2117,7 @@ func (c *ClusterOperator) getReconcileLatency(cm *types.ControllerManagerMetrics
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.ReconcileLatency.DaemonSetP99 = results[0].Value
-					c.log.Infof("✅ DaemonSet Reconcile P99: %.4f s", cm.ReconcileLatency.DaemonSetP99)
+					c.log.Infof("DaemonSet Reconcile P99: %.4f s", cm.ReconcileLatency.DaemonSetP99)
 				}
 				return nil
 			},
@@ -2142,7 +2128,7 @@ func (c *ClusterOperator) getReconcileLatency(cm *types.ControllerManagerMetrics
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					cm.ReconcileLatency.JobP99 = results[0].Value
-					c.log.Infof("✅ Job Reconcile P99: %.4f s", cm.ReconcileLatency.JobP99)
+					c.log.Infof("Job Reconcile P99: %.4f s", cm.ReconcileLatency.JobP99)
 				}
 				return nil
 			},
@@ -2159,7 +2145,7 @@ func (c *ClusterOperator) buildReconcileQuery(availableNames map[string]float64,
 		query := fmt.Sprintf(`histogram_quantile(0.99, sum(rate(controller_runtime_reconcile_time_seconds_bucket{controller=~"(?i).*%s.*"}[%s])) by (le))`, keyword, window)
 		results, err := c.query(query, nil)
 		if err == nil && len(results) > 0 {
-			c.log.Infof("✅ 使用 controller_runtime 指标: %s", keyword)
+			c.log.Infof("使用 controller_runtime 指标: %s", keyword)
 			return query
 		}
 	}
@@ -2180,12 +2166,12 @@ func (c *ClusterOperator) buildReconcileQuery(availableNames map[string]float64,
 
 	if matchedName != "" {
 		query := fmt.Sprintf(`histogram_quantile(0.99, sum(rate(workqueue_work_duration_seconds_bucket{name="%s"}[%s])) by (le))`, matchedName, window)
-		c.log.Infof("✅ 使用 workqueue_work_duration: %s", matchedName)
+		c.log.Infof("使用 workqueue_work_duration: %s", matchedName)
 		return query
 	}
 
 	// 最后降级
-	c.log.Errorf("⚠️  无法构建 reconcile 查询: %v", keywords)
+	c.log.Errorf("  无法构建 reconcile 查询: %v", keywords)
 	return fmt.Sprintf(`histogram_quantile(0.99, sum(rate(workqueue_work_duration_seconds_bucket[%s])) by (le))`, window)
 }
 
@@ -2225,7 +2211,7 @@ func (c *ClusterOperator) diagnoseWorkqueueMetrics() *WorkqueueInfo {
 			info.available = true
 			info.metricName = metric
 			info.allMetrics = results
-			c.log.Infof("✅ 找到可用指标: %s (共 %d 个时序)", metric, len(results))
+			c.log.Infof("找到可用指标: %s (共 %d 个时序)", metric, len(results))
 			break
 		}
 	}
@@ -2239,7 +2225,7 @@ func (c *ClusterOperator) diagnoseWorkqueueMetrics() *WorkqueueInfo {
 	for _, result := range results {
 		name, ok := result.Metric["name"]
 		if !ok {
-			c.log.Errorf("⚠️  发现没有name标签的指标: %+v", result.Metric)
+			c.log.Errorf("  发现没有name标签的指标: %+v", result.Metric)
 			continue
 		}
 		info.nameMap[name] += result.Value
@@ -2261,7 +2247,7 @@ func (c *ClusterOperator) diagnoseWorkqueueMetrics() *WorkqueueInfo {
 	for _, keyword := range keywords {
 		if matched := c.findBestMatch(info.nameMap, keyword); matched != "" {
 			info.matchedQueries[keyword] = matched
-			c.log.Infof("  ✅ %s -> %s", keyword, matched)
+			c.log.Infof("  %s -> %s", keyword, matched)
 		} else {
 			c.log.Errorf("  ❌ %s 未匹配到任何队列", keyword)
 		}
@@ -2342,7 +2328,7 @@ func (c *ClusterOperator) findBestMatch(nameMap map[string]float64, keyword stri
 // buildWorkqueueQueryV2 构建workqueue查询（改进版）
 func (c *ClusterOperator) buildWorkqueueQueryV2(info *WorkqueueInfo, keywords []string) (string, bool) {
 	if !info.available {
-		c.log.Errorf("⚠️  workqueue 指标不可用")
+		c.log.Errorf("  workqueue 指标不可用")
 		return "", false
 	}
 
@@ -2358,7 +2344,7 @@ func (c *ClusterOperator) buildWorkqueueQueryV2(info *WorkqueueInfo, keywords []
 	for _, keyword := range keywords {
 		if matched := c.findBestMatch(info.nameMap, keyword); matched != "" {
 			query := fmt.Sprintf(`sum(%s{name="%s"})`, info.metricName, matched)
-			c.log.Infof("✅ 动态匹配 %s -> %s", keyword, matched)
+			c.log.Infof("动态匹配 %s -> %s", keyword, matched)
 			return query, true
 		}
 	}
@@ -2366,7 +2352,7 @@ func (c *ClusterOperator) buildWorkqueueQueryV2(info *WorkqueueInfo, keywords []
 	// 最后降级：正则匹配
 	pattern := strings.Join(keywords, "|")
 	query := fmt.Sprintf(`sum(%s{name=~"(?i).*(%s).*"})`, info.metricName, pattern)
-	c.log.Errorf("⚠️  使用正则匹配: %s", query)
+	c.log.Errorf("  使用正则匹配: %s", query)
 
 	// 验证正则查询是否有结果
 	if results, err := c.query(query, nil); err == nil && len(results) > 0 {
@@ -2382,18 +2368,18 @@ func (c *ClusterOperator) selectAvailableQuery(queries []string) string {
 		results, err := c.query(query, nil)
 		if err == nil && len(results) > 0 {
 			if i > 0 {
-				c.log.Infof("✅ 使用备选查询[%d]: %s", i, query)
+				c.log.Infof("使用备选查询[%d]: %s", i, query)
 			}
 			return query
 		}
 	}
-	c.log.Errorf("⚠️  所有查询都不可用，使用第一个: %s", queries[0])
+	c.log.Errorf("  所有查询都不可用，使用第一个: %s", queries[0])
 	return queries[0]
 }
 
 // getReconcileLatencyV2 获取控制器协调延迟（改进版）
 func (c *ClusterOperator) getReconcileLatencyV2(cm *types.ControllerManagerMetrics, window string, info *WorkqueueInfo) {
-	c.log.Infof("📊 查询控制器协调延迟")
+	c.log.Infof(" 查询控制器协调延迟")
 
 	// 控制器配置
 	configs := []struct {
@@ -2421,7 +2407,7 @@ func (c *ClusterOperator) getReconcileLatencyV2(cm *types.ControllerManagerMetri
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					*target = results[0].Value
-					c.log.Infof("✅ %s Reconcile P99: %.4f s", name, *target)
+					c.log.Infof("%s Reconcile P99: %.4f s", name, *target)
 				}
 				return nil
 			},
@@ -2464,7 +2450,7 @@ func (c *ClusterOperator) queryControllerManagerTrendV2(cm *types.ControllerMana
 		step = c.calculateStep(timeRange.Start, timeRange.End)
 	}
 
-	c.log.Infof("📊 查询 Controller Manager 趋势数据: start=%s, end=%s, step=%s",
+	c.log.Infof(" 查询 Controller Manager 趋势数据: start=%s, end=%s, step=%s",
 		timeRange.Start.Format("2006-01-02 15:04:05"),
 		timeRange.End.Format("2006-01-02 15:04:05"),
 		step)
@@ -2574,9 +2560,9 @@ func (c *ClusterOperator) queryControllerManagerTrendV2(cm *types.ControllerMana
 
 	if len(rangeTasks) > 0 {
 		c.executeParallelRangeQueries(timeRange.Start, timeRange.End, step, rangeTasks)
-		c.log.Infof("📈 Controller Manager 趋势数据查询完成，共 %d 个数据点", len(cm.Trend))
+		c.log.Infof(" Controller Manager 趋势数据查询完成，共 %d 个数据点", len(cm.Trend))
 	} else {
-		c.log.Errorf("⚠️  无法构建趋势查询，跳过")
+		c.log.Errorf("  无法构建趋势查询，跳过")
 	}
 }
 
@@ -2667,7 +2653,7 @@ func (c *ClusterOperator) DiagnoseControllerManagerMetrics() map[string]interfac
 	}
 	diagnosis["suggestions"] = suggestions
 
-	c.log.Infof("✅ 诊断完成，建议: %v", suggestions)
+	c.log.Infof("诊断完成，建议: %v", suggestions)
 	return diagnosis
 }
 
@@ -2703,7 +2689,7 @@ func (c *ClusterOperator) buildWorkqueueQuery(workqueueMap map[string]bool, keyw
 	for _, keyword := range keywords {
 		for name := range workqueueMap {
 			if strings.EqualFold(name, keyword) {
-				c.log.Infof("✅ 精确匹配 workqueue: %s", name)
+				c.log.Infof("精确匹配 workqueue: %s", name)
 				return fmt.Sprintf(`sum(workqueue_depth{name="%s"})`, name)
 			}
 		}
@@ -2725,7 +2711,7 @@ func (c *ClusterOperator) buildWorkqueueQuery(workqueueMap map[string]bool, keyw
 		}
 	}
 	if bestMatch != "" {
-		c.log.Infof("✅ 包含匹配 workqueue: %s", bestMatch)
+		c.log.Infof("包含匹配 workqueue: %s", bestMatch)
 		return fmt.Sprintf(`sum(workqueue_depth{name="%s"})`, bestMatch)
 	}
 
@@ -2734,7 +2720,7 @@ func (c *ClusterOperator) buildWorkqueueQuery(workqueueMap map[string]bool, keyw
 		suffix := keyword + "_controller"
 		for name := range workqueueMap {
 			if strings.HasSuffix(strings.ToLower(name), strings.ToLower(suffix)) {
-				c.log.Infof("✅ 后缀匹配 workqueue: %s", name)
+				c.log.Infof("后缀匹配 workqueue: %s", name)
 				return fmt.Sprintf(`sum(workqueue_depth{name="%s"})`, name)
 			}
 		}
@@ -2743,7 +2729,7 @@ func (c *ClusterOperator) buildWorkqueueQuery(workqueueMap map[string]bool, keyw
 	// 策略4：正则匹配（最后手段）
 	pattern := strings.Join(keywords, "|")
 	query := fmt.Sprintf(`sum(workqueue_depth{name=~"(?i).*(%s).*"})`, pattern)
-	c.log.Errorf("⚠️  使用正则匹配: %s", query)
+	c.log.Errorf("  使用正则匹配: %s", query)
 	return query
 }
 
@@ -2754,7 +2740,7 @@ func (c *ClusterOperator) queryControllerManagerTrend(cm *types.ControllerManage
 		step = c.calculateStep(timeRange.Start, timeRange.End)
 	}
 
-	c.log.Infof("📊 查询 Controller Manager 趋势数据: start=%s, end=%s, step=%s",
+	c.log.Infof(" 查询 Controller Manager 趋势数据: start=%s, end=%s, step=%s",
 		timeRange.Start.Format("2006-01-02 15:04:05"),
 		timeRange.End.Format("2006-01-02 15:04:05"),
 		step)
@@ -2814,17 +2800,15 @@ func (c *ClusterOperator) queryControllerManagerTrend(cm *types.ControllerManage
 	}
 
 	c.executeParallelRangeQueries(timeRange.Start, timeRange.End, step, rangeTasks)
-	c.log.Infof("📈 Controller Manager 趋势数据查询完成，共 %d 个数据点", len(cm.Trend))
+	c.log.Infof(" Controller Manager 趋势数据查询完成，共 %d 个数据点", len(cm.Trend))
 }
-
-// ==================== Etcd 优化 ====================
 
 // GetEtcdMetrics 获取 Etcd 指标
 func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.EtcdMetrics, error) {
 	etcd := &types.EtcdMetrics{Trend: []types.EtcdDataPoint{}}
 	window := c.calculateRateWindow(timeRange)
 
-	c.log.Infof("📊 开始查询 Etcd 指标 (window: %s)", window)
+	c.log.Infof(" 开始查询 Etcd 指标 (window: %s)", window)
 
 	// ==================== 集群状态 ====================
 	tasks := []clusterQueryTask{
@@ -2834,9 +2818,9 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.HasLeader = results[0].Value > 0
-					c.log.Infof("✅ Etcd HasLeader: %v", etcd.HasLeader)
+					c.log.Infof("Etcd HasLeader: %v", etcd.HasLeader)
 				} else {
-					c.log.Errorf("⚠️  etcd_server_has_leader 指标不存在")
+					c.log.Errorf("  etcd_server_has_leader 指标不存在")
 				}
 				return nil
 			},
@@ -2847,7 +2831,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.LeaderChanges = int64(results[0].Value)
-					c.log.Infof("✅ Etcd Leader Changes (1h): %d", etcd.LeaderChanges)
+					c.log.Infof("Etcd Leader Changes (1h): %d", etcd.LeaderChanges)
 				}
 				return nil
 			},
@@ -2858,7 +2842,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.MemberCount = int64(results[0].Value)
-					c.log.Infof("✅ Etcd Member Count: %d", etcd.MemberCount)
+					c.log.Infof("Etcd Member Count: %d", etcd.MemberCount)
 				}
 				return nil
 			},
@@ -2881,7 +2865,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.DBSizeBytes = int64(results[0].Value)
-					c.log.Infof("✅ Etcd DB Size: %d bytes (%.2f MB)",
+					c.log.Infof("Etcd DB Size: %d bytes (%.2f MB)",
 						etcd.DBSizeBytes, float64(etcd.DBSizeBytes)/1024/1024)
 				}
 				return nil
@@ -2903,7 +2887,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.DBSizeLimit = int64(results[0].Value)
-					c.log.Infof("✅ Etcd DB Size Limit: %d bytes (%.2f GB)",
+					c.log.Infof("Etcd DB Size Limit: %d bytes (%.2f GB)",
 						etcd.DBSizeLimit, float64(etcd.DBSizeLimit)/1024/1024/1024)
 				}
 				return nil
@@ -2915,7 +2899,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.KeyTotal = int64(results[0].Value)
-					c.log.Infof("✅ Etcd Key Total: %d", etcd.KeyTotal)
+					c.log.Infof("Etcd Key Total: %d", etcd.KeyTotal)
 				}
 				return nil
 			},
@@ -2928,7 +2912,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.CommitLatency = results[0].Value
-					c.log.Infof("✅ Etcd Commit Latency P99: %.4f s (%.2f ms)",
+					c.log.Infof("Etcd Commit Latency P99: %.4f s (%.2f ms)",
 						etcd.CommitLatency, etcd.CommitLatency*1000)
 				}
 				return nil
@@ -2940,7 +2924,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.WALFsyncLatency = results[0].Value
-					c.log.Infof("✅ Etcd WAL Fsync Latency P99: %.4f s (%.2f ms)",
+					c.log.Infof("Etcd WAL Fsync Latency P99: %.4f s (%.2f ms)",
 						etcd.WALFsyncLatency, etcd.WALFsyncLatency*1000)
 				}
 				return nil
@@ -2952,7 +2936,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.ApplyLatency = results[0].Value
-					c.log.Infof("✅ Etcd Apply Latency P99: %.4f s", etcd.ApplyLatency)
+					c.log.Infof("Etcd Apply Latency P99: %.4f s", etcd.ApplyLatency)
 				}
 				return nil
 			},
@@ -2985,7 +2969,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.PeerRTT = results[0].Value
-					c.log.Infof("✅ Etcd Peer RTT P99: %.4f s (%.2f ms)",
+					c.log.Infof("Etcd Peer RTT P99: %.4f s (%.2f ms)",
 						etcd.PeerRTT, etcd.PeerRTT*1000)
 				}
 				return nil
@@ -2997,7 +2981,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.NetworkSendRate = results[0].Value
-					c.log.Infof("✅ Etcd Network Send Rate: %.2f bytes/s", etcd.NetworkSendRate)
+					c.log.Infof("Etcd Network Send Rate: %.2f bytes/s", etcd.NetworkSendRate)
 				}
 				return nil
 			},
@@ -3008,7 +2992,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.NetworkRecvRate = results[0].Value
-					c.log.Infof("✅ Etcd Network Recv Rate: %.2f bytes/s", etcd.NetworkRecvRate)
+					c.log.Infof("Etcd Network Recv Rate: %.2f bytes/s", etcd.NetworkRecvRate)
 				}
 				return nil
 			},
@@ -3021,7 +3005,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.ProposalsFailed = int64(results[0].Value)
-					c.log.Infof("✅ Etcd Proposals Failed: %d", etcd.ProposalsFailed)
+					c.log.Infof("Etcd Proposals Failed: %d", etcd.ProposalsFailed)
 				}
 				return nil
 			},
@@ -3032,7 +3016,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.ProposalsPending = int64(results[0].Value)
-					c.log.Infof("✅ Etcd Proposals Pending: %d", etcd.ProposalsPending)
+					c.log.Infof("Etcd Proposals Pending: %d", etcd.ProposalsPending)
 				}
 				return nil
 			},
@@ -3065,7 +3049,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.GetRate = results[0].Value
-					c.log.Infof("✅ Etcd Get Rate: %.2f ops/s", etcd.GetRate)
+					c.log.Infof("Etcd Get Rate: %.2f ops/s", etcd.GetRate)
 				}
 				return nil
 			},
@@ -3076,7 +3060,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.PutRate = results[0].Value
-					c.log.Infof("✅ Etcd Put Rate: %.2f ops/s", etcd.PutRate)
+					c.log.Infof("Etcd Put Rate: %.2f ops/s", etcd.PutRate)
 				}
 				return nil
 			},
@@ -3087,7 +3071,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					etcd.DeleteRate = results[0].Value
-					c.log.Infof("✅ Etcd Delete Rate: %.2f ops/s", etcd.DeleteRate)
+					c.log.Infof("Etcd Delete Rate: %.2f ops/s", etcd.DeleteRate)
 				}
 				return nil
 			},
@@ -3101,7 +3085,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 				if len(results) > 0 {
 					etcd.SlowApplies = int64(results[0].Value)
 					if etcd.SlowApplies > 0 {
-						c.log.Errorf("⚠️  Etcd Slow Applies: %d", etcd.SlowApplies)
+						c.log.Errorf("  Etcd Slow Applies: %d", etcd.SlowApplies)
 					}
 				}
 				return nil
@@ -3114,7 +3098,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 				if len(results) > 0 && results[0].Value > 0 {
 					etcd.SlowCommits = int64(results[0].Value)
 					if etcd.SlowCommits > 0 {
-						c.log.Errorf("⚠️  Etcd Slow Commits: %d", etcd.SlowCommits)
+						c.log.Errorf("  Etcd Slow Commits: %d", etcd.SlowCommits)
 					}
 				}
 				return nil
@@ -3131,7 +3115,7 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 			step = c.calculateStep(timeRange.Start, timeRange.End)
 		}
 
-		c.log.Infof("📊 查询 Etcd 趋势数据: start=%s, end=%s, step=%s",
+		c.log.Infof(" 查询 Etcd 趋势数据: start=%s, end=%s, step=%s",
 			timeRange.Start.Format("2006-01-02 15:04:05"),
 			timeRange.End.Format("2006-01-02 15:04:05"),
 			step)
@@ -3239,13 +3223,11 @@ func (c *ClusterOperator) GetEtcdMetrics(timeRange *types.TimeRange) (*types.Etc
 		}
 
 		c.executeParallelRangeQueries(timeRange.Start, timeRange.End, step, rangeTasks)
-		c.log.Infof("📈 Etcd 趋势数据查询完成，共 %d 个数据点", len(etcd.Trend))
+		c.log.Infof(" Etcd 趋势数据查询完成，共 %d 个数据点", len(etcd.Trend))
 	}
 
 	return etcd, nil
 }
-
-// ==================== 工作负载查询（优化版）====================
 
 func (c *ClusterOperator) GetClusterWorkloads(timeRange *types.TimeRange) (*types.ClusterWorkloadMetrics, error) {
 	workloads := &types.ClusterWorkloadMetrics{}
@@ -3506,7 +3488,7 @@ func (c *ClusterOperator) GetClusterNetwork(timeRange *types.TimeRange) (*types.
 			step = c.calculateStep(timeRange.Start, timeRange.End)
 		}
 
-		c.log.Infof("📊 查询网络流量趋势: start=%s, end=%s, step=%s, window=%s",
+		c.log.Infof(" 查询网络流量趋势: start=%s, end=%s, step=%s, window=%s",
 			timeRange.Start.Format(time.RFC3339),
 			timeRange.End.Format(time.RFC3339),
 			step,
@@ -3522,7 +3504,7 @@ func (c *ClusterOperator) GetClusterNetwork(timeRange *types.TimeRange) (*types.
 						mu.Lock()
 						defer mu.Unlock()
 
-						c.log.Infof("✅ 入流量趋势数据点数: %d", len(results[0].Values))
+						c.log.Infof("入流量趋势数据点数: %d", len(results[0].Values))
 
 						// 初始化 Trend 数组
 						network.Trend = make([]types.ClusterNetworkDataPoint, len(results[0].Values))
@@ -3533,7 +3515,7 @@ func (c *ClusterOperator) GetClusterNetwork(timeRange *types.TimeRange) (*types.
 							}
 						}
 					} else {
-						c.log.Errorf("⚠️  入流量趋势数据为空")
+						c.log.Errorf("  入流量趋势数据为空")
 					}
 					return nil
 				},
@@ -3546,7 +3528,7 @@ func (c *ClusterOperator) GetClusterNetwork(timeRange *types.TimeRange) (*types.
 						mu.Lock()
 						defer mu.Unlock()
 
-						c.log.Infof("✅ 出流量趋势数据点数: %d", len(results[0].Values))
+						c.log.Infof("出流量趋势数据点数: %d", len(results[0].Values))
 
 						// 将出流量数据填充到已有的 Trend 数组中
 						for i, v := range results[0].Values {
@@ -3555,7 +3537,7 @@ func (c *ClusterOperator) GetClusterNetwork(timeRange *types.TimeRange) (*types.
 							}
 						}
 					} else {
-						c.log.Errorf("⚠️  出流量趋势数据为空")
+						c.log.Errorf("  出流量趋势数据为空")
 					}
 					return nil
 				},
@@ -3564,9 +3546,9 @@ func (c *ClusterOperator) GetClusterNetwork(timeRange *types.TimeRange) (*types.
 
 		c.executeParallelRangeQueries(timeRange.Start, timeRange.End, step, rangeTasks)
 
-		c.log.Infof("📈 网络流量趋势数据查询完成，共 %d 个数据点", len(network.Trend))
+		c.log.Infof(" 网络流量趋势数据查询完成，共 %d 个数据点", len(network.Trend))
 	} else {
-		c.log.Errorf("⚠️  未提供时间范围，跳过趋势数据查询")
+		c.log.Errorf("  未提供时间范围，跳过趋势数据查询")
 	}
 
 	return network, nil
@@ -3575,11 +3557,10 @@ func (c *ClusterOperator) GetClusterNetwork(timeRange *types.TimeRange) (*types.
 func (c *ClusterOperator) GetClusterStorage() (*types.ClusterStorageMetrics, error) {
 	storage := &types.ClusterStorageMetrics{StorageClasses: []types.StorageClassUsage{}}
 
-	// ✅ 修复：使用 sum() 统计状态指标
 	tasks := []clusterQueryTask{
 		{
 			name: "pv_total",
-			// ✅ 方案1：使用 sum 统计所有状态
+			// 方案1：使用 sum 统计所有状态
 			query: `sum(kube_persistentvolume_status_phase)`,
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
@@ -3590,7 +3571,7 @@ func (c *ClusterOperator) GetClusterStorage() (*types.ClusterStorageMetrics, err
 		},
 		{
 			name: "pv_bound",
-			// ✅ 使用 sum 而不是 count
+			// 使用 sum 而不是 count
 			query: `sum(kube_persistentvolume_status_phase{phase="Bound"})`,
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
@@ -3631,7 +3612,7 @@ func (c *ClusterOperator) GetClusterStorage() (*types.ClusterStorageMetrics, err
 		},
 		{
 			name: "pvc_total",
-			// ✅ 使用 sum 统计所有状态
+			// 使用 sum 统计所有状态
 			query: `sum(kube_persistentvolumeclaim_status_phase)`,
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {

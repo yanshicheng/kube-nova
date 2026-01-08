@@ -200,7 +200,6 @@ func (c *clusterClient) initOperators() {
 			c.vpaInformerFactory, // 使用 VPA InformerFactory
 		)
 
-		// ========== 修复 Flagger 初始化 ==========
 		c.flagger = operator.NewFlaggerOperatorWithInformer(
 			c.ctx,
 			c.flaggerClientset,       // 使用 Flagger 专用 clientset

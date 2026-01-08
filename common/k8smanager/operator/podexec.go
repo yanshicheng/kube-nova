@@ -237,7 +237,6 @@ func (p *podOperator) ExecCommandWithTimeout(
 	}
 }
 
-// ExecInteractiveShell 创建交互式 Shell 会话（修复版本）
 func (p *podOperator) ExecInteractiveShell(
 	ctx context.Context,
 	namespace, name, container string,

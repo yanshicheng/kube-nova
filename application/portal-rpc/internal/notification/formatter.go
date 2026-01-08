@@ -534,7 +534,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;l
 </div>`,
 		color, color, color, emoji, f.PortalName, now, projectDisplay, opts.ClusterName, strings.ToUpper(opts.Severity), summary.FiringCount, summary.ResolvedCount)
 
-	// 告警详情 - 优化展示，支持滚动查看
 	if summary.FiringCount > 0 {
 		body += `<div class="section"><div class="section-title">🚨 告警详情</div><div class="alert-list">`
 

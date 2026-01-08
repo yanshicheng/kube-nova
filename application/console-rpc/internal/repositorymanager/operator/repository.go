@@ -24,7 +24,6 @@ func NewRepositoryOperator(ctx context.Context, base *BaseOperator) types.Reposi
 	}
 }
 
-// List 列出仓库 - 优化版本：使用 Harbor API 的原生分页和排序
 func (r *RepositoryOperatorImpl) List(projectName string, req types.ListRequest) (*types.ListRepositoryResponse, error) {
 	r.log.Infof("列出仓库: project=%s, search=%s, page=%d, pageSize=%d",
 		projectName, req.Search, req.Page, req.PageSize)

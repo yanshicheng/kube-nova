@@ -93,7 +93,7 @@ func (s *MessagePushService) PushBatchMessages(ctx context.Context, msgs []*Site
 		return nil
 	}
 
-	// 按用户分组（优化：同一用户的多条消息合并发布）
+	// 按用户分组
 	userMessages := make(map[uint64][]*SiteMessageData)
 	for _, msg := range msgs {
 		userMessages[msg.UserID] = append(userMessages[msg.UserID], msg)

@@ -235,7 +235,6 @@ func (m *customOnecClusterModel) SyncClusterResourceByResourceId(ctx context.Con
 		return fmt.Errorf("查询集群资源记录失败: %v", err)
 	}
 
-	// 3. 构造更新 SQL（修复：使用正确的字段对应关系）
 	updateQuery := `
 		UPDATE onec_cluster_resource SET
 			cpu_allocated_total = ?,
@@ -255,7 +254,6 @@ func (m *customOnecClusterModel) SyncClusterResourceByResourceId(ctx context.Con
 	cacheKeyId := fmt.Sprintf("cache:ikubeops:onecClusterResource:id:%v",
 		clusterResourceId)
 
-	// 5. 执行更新操作并清除缓存（修复：使用正确的统计字段）
 	_, err = m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
 		return conn.ExecCtx(ctx, updateQuery,
 			stats.CpuLimitTotal,     // cpu_allocated_total = 所有项目 cpu_limit 总和

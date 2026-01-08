@@ -1098,7 +1098,7 @@ func (c *cronJobOperator) GetJobHistory(namespace, name string) (*types.CronJobH
 		// 判断 Job 是否属于该 CronJob - 使用多种通用方式
 		belongsToCronJob := false
 
-		// 🔥 方式1：通过 OwnerReferences（标准方式，K8s 自动创建的 Job）
+		//  方式1：通过 OwnerReferences（标准方式，K8s 自动创建的 Job）
 		for _, owner := range job.OwnerReferences {
 			if owner.Kind == "CronJob" && owner.Name == cronJob.Name && owner.UID == cronJob.UID {
 				belongsToCronJob = true
@@ -1106,7 +1106,7 @@ func (c *cronJobOperator) GetJobHistory(namespace, name string) (*types.CronJobH
 			}
 		}
 
-		// 🔥 方式2：通过 Job 名称前缀匹配（通用方式，适用于手动触发或其他方式创建的 Job）
+		//  方式2：通过 Job 名称前缀匹配（通用方式，适用于手动触发或其他方式创建的 Job）
 		// Job 名称格式：{cronjob-name}-* 或 {cronjob-name}*
 		if !belongsToCronJob {
 			// 检查 Job 名称是否以 CronJob 名称开头
@@ -1237,7 +1237,7 @@ func (c *cronJobOperator) TriggerOnce(namespace, name string) error {
 				"cronjob.kubernetes.io/instantiate": "manual",
 				"manual-trigger-time":               time.Now().Format(time.RFC3339),
 			},
-			// 🔥 添加 OwnerReferences，让 Job 归属于 CronJob
+			//  添加 OwnerReferences，让 Job 归属于 CronJob
 			OwnerReferences: []metav1.OwnerReference{
 				{
 					APIVersion: "batch/v1",
@@ -1623,7 +1623,6 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 
 	buf.WriteString(fmt.Sprintf("Schedule:                      %s\n", cronJob.Spec.Schedule))
 
-	// 修复：TimeZone 可能为 nil
 	if cronJob.Spec.TimeZone != nil && *cronJob.Spec.TimeZone != "" {
 		buf.WriteString(fmt.Sprintf("Time Zone:                     %s\n", *cronJob.Spec.TimeZone))
 	}
@@ -1636,33 +1635,33 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 	}
 	buf.WriteString(fmt.Sprintf("Suspend:                       %v\n", suspend))
 
-	// 修复：SuccessfulJobsHistoryLimit 可能为 nil
+	// SuccessfulJobsHistoryLimit 可能为 nil
 	if cronJob.Spec.SuccessfulJobsHistoryLimit != nil {
 		buf.WriteString(fmt.Sprintf("Successful Job History Limit:  %d\n", *cronJob.Spec.SuccessfulJobsHistoryLimit))
 	} else {
 		buf.WriteString("Successful Job History Limit:  3 (default)\n")
 	}
 
-	// 修复：FailedJobsHistoryLimit 可能为 nil
+	// FailedJobsHistoryLimit 可能为 nil
 	if cronJob.Spec.FailedJobsHistoryLimit != nil {
 		buf.WriteString(fmt.Sprintf("Failed Job History Limit:      %d\n", *cronJob.Spec.FailedJobsHistoryLimit))
 	} else {
 		buf.WriteString("Failed Job History Limit:      1 (default)\n")
 	}
 
-	// 修复：StartingDeadlineSeconds 可能为 nil
+	// StartingDeadlineSeconds 可能为 nil
 	if cronJob.Spec.StartingDeadlineSeconds != nil {
 		buf.WriteString(fmt.Sprintf("Starting Deadline Seconds:     %d\n", *cronJob.Spec.StartingDeadlineSeconds))
 	}
 
-	// 修复：LastScheduleTime 可能为 nil
+	// LastScheduleTime 可能为 nil
 	if cronJob.Status.LastScheduleTime != nil {
 		buf.WriteString(fmt.Sprintf("Last Schedule Time:            %s\n", cronJob.Status.LastScheduleTime.Format(time.RFC1123)))
 	} else {
 		buf.WriteString("Last Schedule Time:            <none>\n")
 	}
 
-	// 修复：LastSuccessfulTime 可能为 nil
+	// LastSuccessfulTime 可能为 nil
 	if cronJob.Status.LastSuccessfulTime != nil {
 		buf.WriteString(fmt.Sprintf("Last Successful Time:          %s\n", cronJob.Status.LastSuccessfulTime.Format(time.RFC1123)))
 	} else {
@@ -1671,7 +1670,7 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 
 	buf.WriteString(fmt.Sprintf("Active Jobs:                   %d\n", len(cronJob.Status.Active)))
 
-	// 修复：显示 Active Jobs 列表
+	// 显示 Active Jobs 列表
 	if len(cronJob.Status.Active) > 0 {
 		buf.WriteString("Active Job References:\n")
 		for _, ref := range cronJob.Status.Active {
@@ -1696,7 +1695,7 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 		}
 	}
 
-	// 修复：添加 Annotations 支持
+	// 添加 Annotations 支持
 	if len(cronJob.Spec.JobTemplate.Annotations) > 0 {
 		buf.WriteString("    Annotations:  ")
 		first := true
@@ -1725,19 +1724,16 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 	buf.WriteString(fmt.Sprintf("    Parallelism:  %d\n", parallelism))
 	buf.WriteString(fmt.Sprintf("    Completions:  %d\n", completions))
 
-	// 修复：BackoffLimit 可能为 nil
 	if jobSpec.BackoffLimit != nil {
 		buf.WriteString(fmt.Sprintf("    Backoff Limit:  %d\n", *jobSpec.BackoffLimit))
 	} else {
 		buf.WriteString("    Backoff Limit:  6 (default)\n")
 	}
 
-	// 修复：添加 ActiveDeadlineSeconds
 	if jobSpec.ActiveDeadlineSeconds != nil {
 		buf.WriteString(fmt.Sprintf("    Active Deadline Seconds:  %d\n", *jobSpec.ActiveDeadlineSeconds))
 	}
 
-	// 修复：添加 CompletionMode
 	if jobSpec.CompletionMode != nil {
 		buf.WriteString(fmt.Sprintf("    Completion Mode:  %s\n", *jobSpec.CompletionMode))
 	}
@@ -1758,14 +1754,12 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 		}
 	}
 
-	// 修复：ServiceAccountName 可能为空
 	if jobSpec.Template.Spec.ServiceAccountName != "" {
 		buf.WriteString(fmt.Sprintf("      Service Account:  %s\n", jobSpec.Template.Spec.ServiceAccountName))
 	} else {
 		buf.WriteString("      Service Account:  default\n")
 	}
 
-	// 修复：添加 RestartPolicy
 	if jobSpec.Template.Spec.RestartPolicy != "" {
 		buf.WriteString(fmt.Sprintf("      Restart Policy:   %s\n", jobSpec.Template.Spec.RestartPolicy))
 	}
@@ -1777,7 +1771,6 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 			buf.WriteString(fmt.Sprintf("       %s:\n", container.Name))
 			buf.WriteString(fmt.Sprintf("        Image:      %s\n", container.Image))
 
-			// 修复：ImagePullPolicy
 			if container.ImagePullPolicy != "" {
 				buf.WriteString(fmt.Sprintf("        Image Pull Policy:  %s\n", container.ImagePullPolicy))
 			}
@@ -1788,7 +1781,6 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 				}
 			}
 
-			// 修复：检查 Limits 是否存在
 			if len(container.Resources.Limits) > 0 {
 				buf.WriteString("        Limits:\n")
 				if cpu := container.Resources.Limits.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1802,7 +1794,6 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 				}
 			}
 
-			// 修复：检查 Requests 是否存在
 			if len(container.Resources.Requests) > 0 {
 				buf.WriteString("        Requests:\n")
 				if cpu := container.Resources.Requests.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1816,7 +1807,7 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 				}
 			}
 
-			// 修复：Environment 详细处理
+			// Environment 详细处理
 			if len(container.Env) > 0 {
 				buf.WriteString("        Environment:\n")
 				for _, env := range container.Env {
@@ -1844,7 +1835,7 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 		buf.WriteString(fmt.Sprintf("       %s:\n", container.Name))
 		buf.WriteString(fmt.Sprintf("        Image:      %s\n", container.Image))
 
-		// 修复：ImagePullPolicy
+		// ImagePullPolicy
 		if container.ImagePullPolicy != "" {
 			buf.WriteString(fmt.Sprintf("        Image Pull Policy:  %s\n", container.ImagePullPolicy))
 		}
@@ -1855,7 +1846,7 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 			}
 		}
 
-		// 修复：Command 和 Args
+		// Command 和 Args
 		if len(container.Command) > 0 {
 			buf.WriteString("        Command:\n")
 			for _, cmd := range container.Command {
@@ -1870,7 +1861,7 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 			}
 		}
 
-		// 修复：检查 Limits 是否存在
+		// 检查 Limits 是否存在
 		if len(container.Resources.Limits) > 0 {
 			buf.WriteString("        Limits:\n")
 			if cpu := container.Resources.Limits.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1884,7 +1875,7 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 			}
 		}
 
-		// 修复：检查 Requests 是否存在
+		// 检查 Requests 是否存在
 		if len(container.Resources.Requests) > 0 {
 			buf.WriteString("        Requests:\n")
 			if cpu := container.Resources.Requests.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1898,7 +1889,7 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 			}
 		}
 
-		// 修复：添加 Probes 支持
+		// 添加 Probes 支持
 		if container.LivenessProbe != nil {
 			buf.WriteString(fmt.Sprintf("        Liveness:   %s\n", c.formatProbeForDescribe(container.LivenessProbe)))
 		}
@@ -1909,7 +1900,7 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 			buf.WriteString(fmt.Sprintf("        Startup:    %s\n", c.formatProbeForDescribe(container.StartupProbe)))
 		}
 
-		// 修复：Environment 详细处理
+		// Environment 详细处理
 		if len(container.Env) > 0 {
 			buf.WriteString("        Environment:\n")
 			for _, env := range container.Env {
@@ -1930,7 +1921,7 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 		}
 	}
 
-	// Volumes - 修复：增加更多 Volume 类型支持
+	// Volumes - 增加更多 Volume 类型支持
 	buf.WriteString("      Volumes:\n")
 	if len(jobSpec.Template.Spec.Volumes) > 0 {
 		for _, vol := range jobSpec.Template.Spec.Volumes {
@@ -1988,7 +1979,7 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 		for i := 0; i < limit; i++ {
 			event := events[i]
 
-			// 修复：时间戳可能为 0
+			// 时间戳可能为 0
 			var ageStr string
 			if event.LastTimestamp > 0 {
 				age := time.Since(time.UnixMilli(event.LastTimestamp)).Round(time.Second)
@@ -2007,7 +1998,7 @@ func (c *cronJobOperator) GetDescribe(namespace, name string) (string, error) {
 	return buf.String(), nil
 }
 
-// 修复：添加 Environment 格式化辅助函数
+// 添加 Environment 格式化辅助函数
 func (c *cronJobOperator) formatEnvironment(buf *strings.Builder, env corev1.EnvVar, indent string) {
 	if env.ValueFrom != nil {
 		if env.ValueFrom.FieldRef != nil {
@@ -2037,7 +2028,7 @@ func (c *cronJobOperator) formatEnvironment(buf *strings.Builder, env corev1.Env
 	}
 }
 
-// 修复：添加 Probe 格式化辅助函数
+// 添加 Probe 格式化辅助函数
 func (c *cronJobOperator) formatProbeForDescribe(probe *corev1.Probe) string {
 	if probe == nil {
 		return ""

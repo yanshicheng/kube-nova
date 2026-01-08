@@ -569,7 +569,6 @@ func convertBackend(backend *networkingv1.IngressBackend) types.IngressBackendIn
 	}
 
 	if backend.Resource != nil {
-		// 修复1: 处理 APIGroup 指针
 		apiGroup := ""
 		if backend.Resource.APIGroup != nil {
 			apiGroup = *backend.Resource.APIGroup
@@ -606,7 +605,6 @@ func convertTLS(tls []networkingv1.IngressTLS) []types.IngressTLSInfo {
 }
 
 // convertLoadBalancerStatus 转换负载均衡器状态
-// 修复2: 修改参数类型为 networkingv1.IngressLoadBalancerStatus
 func convertLoadBalancerStatus(lb networkingv1.IngressLoadBalancerStatus) types.IngressLoadBalancerInfo {
 	ingresses := make([]types.IngressLoadBalancerIngress, len(lb.Ingress))
 	for i, ing := range lb.Ingress {
@@ -727,7 +725,6 @@ func (i *ingressOperator) getBackendStatus(namespace string, rules []types.Ingre
 			// 获取 Service 信息
 			var err error
 
-			// 修复3: 使用 _ 忽略未使用的变量
 			if i.useInformer && i.serviceLister != nil {
 				_, err = i.serviceLister.Services(namespace).Get(serviceName)
 			} else {
