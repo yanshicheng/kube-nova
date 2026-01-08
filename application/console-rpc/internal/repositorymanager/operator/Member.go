@@ -24,7 +24,6 @@ func NewMemberOperator(ctx context.Context, base *BaseOperator) types.MemberOper
 	}
 }
 
-// List 列出项目成员 - 优化版本：使用 Harbor API 的原生分页
 func (m *MemberOperatorImpl) List(projectNameOrID string, req types.ListRequest) (*types.ListProjectMemberResponse, error) {
 	m.log.Infof("列出项目成员: project=%s, search=%s, page=%d, pageSize=%d",
 		projectNameOrID, req.Search, req.Page, req.PageSize)

@@ -28,7 +28,7 @@ func NewAlertNotifyLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Alert
 
 // AlertNotify 告警通知统一入口
 func (l *AlertNotifyLogic) AlertNotify(in *pb.AlertNotifyReq) (*pb.AlertNotifyResp, error) {
-	logx.Infof("📢 收到告警通知请求: type=%s, userIds=%v, title=%s",
+	logx.Infof(" 收到告警通知请求: type=%s, userIds=%v, title=%s",
 		in.AlertType, in.UserIds, in.Title)
 
 	switch in.AlertType {

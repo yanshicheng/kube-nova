@@ -25,9 +25,9 @@ func NewNamespaceOperator(ctx context.Context, base *BaseOperator) types.Namespa
 	}
 }
 
-// GetNamespaceMetrics 获取 Namespace 综合指标（并发优化）
+// GetNamespaceMetrics 获取 Namespace 综合指标
 func (ns *NamespaceOperatorImpl) GetNamespaceMetrics(namespace string, timeRange *types.TimeRange) (*types.NamespaceMetrics, error) {
-	ns.log.Infof("📊 查询 Namespace 综合指标: namespace=%s", namespace)
+	ns.log.Infof(" 查询 Namespace 综合指标: namespace=%s", namespace)
 
 	metrics := &types.NamespaceMetrics{
 		Namespace: namespace,
@@ -238,7 +238,7 @@ func (ns *NamespaceOperatorImpl) GetNamespaceCPU(namespace string, timeRange *ty
 				step = ns.calculateStep(timeRange.Start, timeRange.End)
 			}
 
-			// 🔥 趋势查询也使用正确的指标
+			//  趋势查询也使用正确的指标
 			var trendQuery string
 			switch cpuMetricType {
 			case "user_system":
@@ -376,11 +376,9 @@ func (ns *NamespaceOperatorImpl) detectCPUMetricType(namespace, window string) s
 	return "standard"
 }
 
-// ==================== 内存查询（优化版）====================
-
-// GetNamespaceMemory 获取 Namespace 内存指标（优化版）
+// GetNamespaceMemory 获取 Namespace 内存指标
 func (ns *NamespaceOperatorImpl) GetNamespaceMemory(namespace string, timeRange *types.TimeRange) (*types.NamespaceMemoryMetrics, error) {
-	ns.log.Infof("📊 查询 Namespace 内存: namespace=%s", namespace)
+	ns.log.Infof(" 查询 Namespace 内存: namespace=%s", namespace)
 
 	metrics := &types.NamespaceMemoryMetrics{}
 
@@ -519,13 +517,11 @@ func (ns *NamespaceOperatorImpl) GetNamespaceMemory(namespace string, timeRange 
 
 	wg.Wait()
 
-	ns.log.Infof("✅ Namespace 内存查询完成: namespace=%s, usage=%d bytes", namespace, metrics.Current.WorkingSetBytes)
+	ns.log.Infof(" Namespace 内存查询完成: namespace=%s, usage=%d bytes", namespace, metrics.Current.WorkingSetBytes)
 	return metrics, nil
 }
 
-// ==================== 网络查询（优化版）====================
-
-// GetNamespaceNetwork 获取 Namespace 网络指标（优化版）
+// GetNamespaceNetwork 获取 Namespace 网络指标
 func (ns *NamespaceOperatorImpl) GetNamespaceNetwork(namespace string, timeRange *types.TimeRange) (*types.NamespaceNetworkMetrics, error) {
 
 	metrics := &types.NamespaceNetworkMetrics{}
@@ -710,7 +706,7 @@ func (ns *NamespaceOperatorImpl) GetNamespaceNetwork(namespace string, timeRange
 	return metrics, nil
 }
 
-// GetNamespaceQuota 获取 Namespace 配额（优化版）
+// GetNamespaceQuota 获取 Namespace 配额
 func (ns *NamespaceOperatorImpl) GetNamespaceQuota(namespace string) (*types.NamespaceQuotaMetrics, error) {
 
 	metrics := &types.NamespaceQuotaMetrics{}
@@ -847,7 +843,7 @@ func (ns *NamespaceOperatorImpl) GetNamespaceQuota(namespace string) (*types.Nam
 	return metrics, nil
 }
 
-// GetNamespaceWorkloads 获取 Namespace 工作负载（优化版）
+// GetNamespaceWorkloads 获取 Namespace 工作负载
 func (ns *NamespaceOperatorImpl) GetNamespaceWorkloads(namespace string, timeRange *types.TimeRange) (*types.NamespaceWorkloadMetrics, error) {
 
 	metrics := &types.NamespaceWorkloadMetrics{}
@@ -1015,7 +1011,6 @@ func (ns *NamespaceOperatorImpl) GetNamespaceWorkloads(namespace string, timeRan
 	return metrics, nil
 }
 
-// GetNamespacePods 获取 Namespace Pod 统计（修复版）
 func (ns *NamespaceOperatorImpl) GetNamespacePods(namespace string, timeRange *types.TimeRange) (*types.NamespacePodStatistics, error) {
 	stats := &types.NamespacePodStatistics{}
 
@@ -1146,7 +1141,7 @@ func (ns *NamespaceOperatorImpl) GetNamespacePods(namespace string, timeRange *t
 	return stats, nil
 }
 
-// GetNamespaceDeployments 获取 Namespace Deployment 统计（批量查询优化）
+// GetNamespaceDeployments 获取 Namespace Deployment 统计
 func (ns *NamespaceOperatorImpl) GetNamespaceDeployments(namespace string) (*types.NamespaceDeploymentStatistics, error) {
 	stats := &types.NamespaceDeploymentStatistics{}
 
@@ -1179,7 +1174,7 @@ func (ns *NamespaceOperatorImpl) GetNamespaceDeployments(namespace string) (*typ
 	return stats, nil
 }
 
-// GetNamespaceServices 获取 Namespace Service 统计（批量查询优化）
+// GetNamespaceServices 获取 Namespace Service 统计
 func (ns *NamespaceOperatorImpl) GetNamespaceServices(namespace string) (*types.NamespaceServiceStatistics, error) {
 	stats := &types.NamespaceServiceStatistics{}
 
@@ -1215,9 +1210,8 @@ func (ns *NamespaceOperatorImpl) GetNamespaceServices(namespace string) (*types.
 	return stats, nil
 }
 
-// GetNamespaceStorage 获取 Namespace 存储（修复版）
 func (ns *NamespaceOperatorImpl) GetNamespaceStorage(namespace string) (*types.NamespaceStorageMetrics, error) {
-	ns.log.Infof("📊 查询 Namespace 存储: namespace=%s", namespace)
+	ns.log.Infof(" 查询 Namespace 存储: namespace=%s", namespace)
 
 	metrics := &types.NamespaceStorageMetrics{}
 
@@ -1286,7 +1280,6 @@ func (ns *NamespaceOperatorImpl) GetNamespaceStorage(namespace string) (*types.N
 	return metrics, nil
 }
 
-// GetNamespaceConfig 获取 Namespace 配置（修复版）
 func (ns *NamespaceOperatorImpl) GetNamespaceConfig(namespace string) (*types.NamespaceConfigMetrics, error) {
 
 	metrics := &types.NamespaceConfigMetrics{}
@@ -1454,7 +1447,6 @@ func (ns *NamespaceOperatorImpl) diagnoseCPUMetrics(namespace string) {
 	ns.log.Infof("=== CPU 指标诊断结束 ===")
 }
 
-// GetTopContainersByCPU 获取 CPU 使用 Top N Containers（终极修复版）
 func (ns *NamespaceOperatorImpl) GetTopContainersByCPU(namespace string, limit int, timeRange *types.TimeRange) ([]types.ContainerResourceRanking, error) {
 	if limit <= 0 {
 		limit = 10
@@ -1582,9 +1574,9 @@ func (ns *NamespaceOperatorImpl) GetTopContainersByMemory(namespace string, limi
 	return rankings, nil
 }
 
-// CompareNamespaces 对比多个 Namespace（并发优化）
+// CompareNamespaces 对比多个 Namespace
 func (ns *NamespaceOperatorImpl) CompareNamespaces(namespaces []string, timeRange *types.TimeRange) (*types.NamespaceComparison, error) {
-	ns.log.Infof("📊 对比 Namespace: namespaces=%v", namespaces)
+	ns.log.Infof(" 对比 Namespace: namespaces=%v", namespaces)
 
 	comparison := &types.NamespaceComparison{
 		Timestamp:  time.Now(),
@@ -1644,7 +1636,7 @@ func (ns *NamespaceOperatorImpl) CompareNamespaces(namespaces []string, timeRang
 
 // ==================== 辅助方法 ====================
 
-// batchQuery 批量查询多个指标（优化版）
+// batchQuery 批量查询多个指标
 func (ns *NamespaceOperatorImpl) batchQuery(queries map[string]string) map[string][]types.InstantQueryResult {
 	results := make(map[string][]types.InstantQueryResult)
 	var mu sync.Mutex

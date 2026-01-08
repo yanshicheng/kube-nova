@@ -36,7 +36,6 @@ func parsePublicStatus(metadata map[string]string) bool {
 	return publicStr == "true" || publicStr == "1"
 }
 
-// List 列出项目 - 优化版本：使用 Harbor API 的原生分页和排序
 func (p *ProjectOperatorImpl) List(req types.ListRequest) (*types.ListProjectResponse, error) {
 	p.log.Infof("列出项目: search=%s, page=%d, pageSize=%d, sortBy=%s, sortDesc=%v",
 		req.Search, req.Page, req.PageSize, req.SortBy, req.SortDesc)

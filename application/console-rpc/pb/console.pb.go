@@ -3178,8 +3178,8 @@ type CreateProjectReq struct {
 	RegistryUuid string `protobuf:"bytes,1,opt,name=registryUuid,proto3" json:"registryUuid,omitempty"`
 	ProjectName  string `protobuf:"bytes,2,opt,name=projectName,proto3" json:"projectName,omitempty"`
 	IsPublic     bool   `protobuf:"varint,3,opt,name=isPublic,proto3" json:"isPublic,omitempty"`
-	StorageLimit int64  `protobuf:"varint,4,opt,name=storageLimit,proto3" json:"storageLimit,omitempty"` // 🔧 改为 int64
-	StorageUnit  string `protobuf:"bytes,7,opt,name=storageUnit,proto3" json:"storageUnit,omitempty"`    // 🆕 新增：支持 MB、GB、TB，默认为 GB
+	StorageLimit int64  `protobuf:"varint,4,opt,name=storageLimit,proto3" json:"storageLimit,omitempty"` //  改为 int64
+	StorageUnit  string `protobuf:"bytes,7,opt,name=storageUnit,proto3" json:"storageUnit,omitempty"`    // 新增：支持 MB、GB、TB，默认为 GB
 	AppProjectId uint64 `protobuf:"varint,5,opt,name=appProjectId,proto3" json:"appProjectId,omitempty"` // 可选：创建时直接绑定到应用项目
 	ClusterUuid  string `protobuf:"bytes,6,opt,name=clusterUuid,proto3" json:"clusterUuid,omitempty"`    // 可选：与 appProjectId 配合使用
 }
@@ -3328,8 +3328,8 @@ type UpdateProjectReq struct {
 	RegistryUuid string `protobuf:"bytes,1,opt,name=registryUuid,proto3" json:"registryUuid,omitempty"`
 	ProjectName  string `protobuf:"bytes,2,opt,name=projectName,proto3" json:"projectName,omitempty"`
 	IsPublic     bool   `protobuf:"varint,3,opt,name=isPublic,proto3" json:"isPublic,omitempty"`
-	StorageLimit int64  `protobuf:"varint,4,opt,name=storageLimit,proto3" json:"storageLimit,omitempty"` // 🔧 改为 int64
-	StorageUnit  string `protobuf:"bytes,6,opt,name=storageUnit,proto3" json:"storageUnit,omitempty"`    // 🆕 新增：支持 MB、GB、TB，默认为 GB
+	StorageLimit int64  `protobuf:"varint,4,opt,name=storageLimit,proto3" json:"storageLimit,omitempty"` //  改为 int64
+	StorageUnit  string `protobuf:"bytes,6,opt,name=storageUnit,proto3" json:"storageUnit,omitempty"`    //  新增：支持 MB、GB、TB，默认为 GB
 }
 
 func (x *UpdateProjectReq) Reset() {
@@ -6384,8 +6384,8 @@ type UpdateProjectQuotaReq struct {
 
 	RegistryUuid string `protobuf:"bytes,1,opt,name=registryUuid,proto3" json:"registryUuid,omitempty"`
 	ProjectName  string `protobuf:"bytes,2,opt,name=projectName,proto3" json:"projectName,omitempty"`
-	StorageLimit int64  `protobuf:"varint,3,opt,name=storageLimit,proto3" json:"storageLimit,omitempty"` // ✅ 已经是 int64
-	StorageUnit  string `protobuf:"bytes,5,opt,name=storageUnit,proto3" json:"storageUnit,omitempty"`    // ✅ 已有：支持 MB、GB、TB，默认为 GB
+	StorageLimit int64  `protobuf:"varint,3,opt,name=storageLimit,proto3" json:"storageLimit,omitempty"` //  已经是 int64
+	StorageUnit  string `protobuf:"bytes,5,opt,name=storageUnit,proto3" json:"storageUnit,omitempty"`    //  已有：支持 MB、GB、TB，默认为 GB
 	CountLimit   int64  `protobuf:"varint,4,opt,name=countLimit,proto3" json:"countLimit,omitempty"`
 }
 

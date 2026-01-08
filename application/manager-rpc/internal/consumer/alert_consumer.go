@@ -95,7 +95,7 @@ func (c *AlertConsumer) Start(ctx context.Context) error {
 		go c.work(i)
 	}
 
-	logx.Info("✅ 告警消费者启动完成")
+	logx.Info(" 告警消费者启动完成")
 	return nil
 }
 
@@ -104,7 +104,7 @@ func (c *AlertConsumer) Stop() error {
 	logx.Info("🛑 停止告警消费者...")
 	c.cancel()
 	c.wg.Wait()
-	logx.Info("✅ 告警消费者已停止")
+	logx.Info(" 告警消费者已停止")
 	return nil
 }
 
@@ -177,11 +177,11 @@ func (c *AlertConsumer) consume(workerID int) error {
 		return err
 	}
 
-	logx.Infof("✅ Worker[%d] 消息处理成功: messageId=%s, total=%d, success=%d, failed=%d, elapsed=%dms",
+	logx.Infof(" Worker[%d] 消息处理成功: messageId=%s, total=%d, success=%d, failed=%d, elapsed=%dms",
 		workerID, msg.MessageID, result.TotalCount, result.SuccessCount, result.FailedCount, elapsed.Milliseconds())
 
 	if result.FailedCount > 0 {
-		logx.Errorf("⚠️  Worker[%d] 部分告警处理失败: messageId=%s, failed=%v",
+		logx.Errorf("  Worker[%d] 部分告警处理失败: messageId=%s, failed=%v",
 			workerID, msg.MessageID, result.FailedAlerts)
 	}
 
@@ -197,12 +197,12 @@ func (c *AlertConsumer) processMessage(workerID int, msg *WebhookMessage) (*Proc
 		FailedAlerts: make([]string, 0),
 	}
 
-	// 🔥 收集成功保存的告警实例
+	//  收集成功保存的告警实例
 	alertInstances := make([]*AlertInstance, 0, len(msg.Webhook.Alerts))
 
 	// 遍历所有告警并入库
 	for _, alert := range msg.Webhook.Alerts {
-		// 🔥 saveAlert 返回 AlertInstance
+		//  saveAlert 返回 AlertInstance
 		alertInstance, err := c.saveAlert(&alert, msg.Webhook)
 		if err != nil {
 			logx.Errorf("❌ Worker[%d] 保存告警失败: fingerprint=%s, error=%v",
@@ -212,7 +212,7 @@ func (c *AlertConsumer) processMessage(workerID int, msg *WebhookMessage) (*Proc
 			continue
 		}
 
-		// 🔥 收集成功的告警实例
+		//  收集成功的告警实例
 		alertInstances = append(alertInstances, alertInstance)
 		result.SuccessCount++
 	}
@@ -221,7 +221,7 @@ func (c *AlertConsumer) processMessage(workerID int, msg *WebhookMessage) (*Proc
 		return result, fmt.Errorf("部分告警保存失败: %d/%d", result.FailedCount, result.TotalCount)
 	}
 
-	// 🔥 所有告警都入库成功后，调用通知接口
+	//  所有告警都入库成功后，调用通知接口
 	c.sendNotification(workerID, msg, alertInstances)
 
 	return result, nil
@@ -245,20 +245,20 @@ func (c *AlertConsumer) sendNotification(workerID int, msg *WebhookMessage, aler
 	}
 
 	// 输出统计信息
-	logx.Infof("📢 Worker[%d] 告警统计: messageId=%s, receiver=%s",
+	logx.Infof(" Worker[%d] 告警统计: messageId=%s, receiver=%s",
 		workerID, msg.MessageID, msg.Webhook.Receiver)
-	logx.Infof("📊 总告警数: %d | 🔥 告警: %d | ✅ 恢复: %d",
+	logx.Infof(" 总告警数: %d |  告警: %d |  恢复: %d",
 		totalAlerts, firingCount, resolvedCount)
 
 	if len(severityStats) > 0 {
-		logx.Infof("📈 按级别统计:")
+		logx.Infof(" 按级别统计:")
 		for severity, count := range severityStats {
 			emoji := getSeverityEmoji(severity)
 			logx.Infof("   %s %s: %d", emoji, severity, count)
 		}
 	}
 
-	// 🔥 过滤 firing 状态的告警（resolved 由 Manager 内部处理）
+	//  过滤 firing 状态的告警（resolved 由 Manager 内部处理）
 	firingAlerts := make([]*AlertInstance, 0)
 	for _, alert := range alertInstances {
 		if alert.Status == "firing" {
@@ -271,7 +271,7 @@ func (c *AlertConsumer) sendNotification(workerID int, msg *WebhookMessage, aler
 		return
 	}
 
-	// 🔥 序列化告警数据为 JSON
+	//  序列化告警数据为 JSON
 	alertData, err := json.Marshal(firingAlerts)
 	if err != nil {
 		logx.Errorf("❌ Worker[%d] 序列化告警数据失败: %v", workerID, err)
@@ -280,13 +280,13 @@ func (c *AlertConsumer) sendNotification(workerID int, msg *WebhookMessage, aler
 
 	logx.Infof("📦 Worker[%d] 准备发送 %d 条 firing 告警通知", workerID, len(firingAlerts))
 
-	// 🔥 调用 RPC 发送通知
+	//  调用 RPC 发送通知
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	_, err = c.deps.AlertRpc.AlertNotify(ctx, &pb.AlertNotifyReq{
-		AlertType: "prometheus",      // 🔥 告警类型
-		AlertData: string(alertData), // 🔥 告警数据 JSON 字符串
+		AlertType: "prometheus",      //  告警类型
+		AlertData: string(alertData), //  告警数据 JSON 字符串
 		// UserIds 和 Title 在 prometheus 类型中不需要
 	})
 
@@ -296,7 +296,7 @@ func (c *AlertConsumer) sendNotification(workerID int, msg *WebhookMessage, aler
 		return
 	}
 
-	logx.Infof("✅ Worker[%d] 告警通知RPC调用成功: messageId=%s, count=%d",
+	logx.Infof(" Worker[%d] 告警通知RPC调用成功: messageId=%s, count=%d",
 		workerID, msg.MessageID, len(firingAlerts))
 }
 
@@ -430,11 +430,11 @@ func (c *AlertConsumer) saveAlert(alert *Alert, webhook *AlertmanagerWebhook) (*
 		if status == "resolved" && endsAt.Valid {
 			existInstance.ResolvedAt = endsAt
 			existInstance.Duration = uint64(endsAt.Time.Sub(existInstance.StartsAt).Seconds())
-			logx.Infof("✅ 告警已恢复: fingerprint=%s, duration=%ds", fingerprint, existInstance.Duration)
+			logx.Infof(" 告警已恢复: fingerprint=%s, duration=%ds", fingerprint, existInstance.Duration)
 		} else if status == "firing" {
 			currentDuration := uint64(time.Now().Sub(existInstance.StartsAt).Seconds())
 			existInstance.Duration = currentDuration
-			logx.Infof("🔥 告警持续中: fingerprint=%s, duration=%ds", fingerprint, currentDuration)
+			logx.Infof(" 告警持续中: fingerprint=%s, duration=%ds", fingerprint, currentDuration)
 		}
 
 		if err := c.deps.AlertInstancesModel.Update(ctx, existInstance); err != nil {
@@ -477,7 +477,7 @@ func (c *AlertConsumer) saveAlert(alert *Alert, webhook *AlertmanagerWebhook) (*
 		IsDeleted:         0,
 	}
 
-	// ✅ 新记录的 Duration 计算
+	//  新记录的 Duration 计算
 	if status == "resolved" && endsAt.Valid {
 		newInstance.ResolvedAt = endsAt
 		newInstance.Duration = uint64(endsAt.Time.Sub(startsAt).Seconds())
@@ -497,7 +497,7 @@ func (c *AlertConsumer) saveAlert(alert *Alert, webhook *AlertmanagerWebhook) (*
 		logx.Infof("✨ 创建告警: fingerprint=%s, status=%s, id=%d, duration=%ds",
 			fingerprint, status, newInstance.Id, newInstance.Duration)
 	} else {
-		logx.Errorf("⚠️  获取新插入告警ID失败: %v, fingerprint=%s", err, fingerprint)
+		logx.Errorf("  获取新插入告警ID失败: %v, fingerprint=%s", err, fingerprint)
 	}
 
 	// 返回 AlertInstance
@@ -535,8 +535,8 @@ func (c *AlertConsumer) buildAlertInstance(dbInstance *model.AlertInstances, lab
 		AlertName:      dbInstance.AlertName,
 		Severity:       dbInstance.Severity,
 		Status:         dbInstance.Status,
-		Labels:         labels,      // 🔥 直接使用传入的 map
-		Annotations:    annotations, // 🔥 直接使用传入的 map
+		Labels:         labels,      //  直接使用传入的 map
+		Annotations:    annotations, //  直接使用传入的 map
 		GeneratorURL:   dbInstance.GeneratorUrl,
 		StartsAt:       dbInstance.StartsAt,
 		EndsAt:         endsAt,

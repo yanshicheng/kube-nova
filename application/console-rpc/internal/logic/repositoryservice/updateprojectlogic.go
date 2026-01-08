@@ -63,7 +63,6 @@ func (l *UpdateProjectLogic) UpdateProject(in *pb.UpdateProjectReq) (*pb.UpdateP
 		return nil, errorx.Msg("获取仓库客户端失败")
 	}
 
-	// 🔧 修复：将 int64 + storageUnit 转换为字节数
 	var storageLimit int64 = -1 // 默认 -1 表示无限制
 	if in.StorageLimit != 0 {
 		storageLimit, err = l.convertStorageToBytes(in.StorageLimit, in.StorageUnit)

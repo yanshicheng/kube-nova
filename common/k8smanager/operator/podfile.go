@@ -32,8 +32,6 @@ const (
 	capabilityCacheDuration = 30 * time.Minute
 )
 
-// ========== 命令能力检测系统（优化版）==========
-
 // commandCapabilities 存储容器命令能力信息
 type commandCapabilities struct {
 	// 基础命令可用性
@@ -95,7 +93,7 @@ func getContainerKey(namespace, podName, container string) string {
 	return fmt.Sprintf("%s/%s/%s", namespace, podName, container)
 }
 
-// detectCommandCapabilities 探测容器命令能力（优化版 - 单次exec批量检测）
+// detectCommandCapabilities 探测容器命令能力
 func (p *podOperator) detectCommandCapabilities(ctx context.Context, namespace, podName, container string) (*commandCapabilities, error) {
 	logger := logx.WithContext(ctx)
 	containerKey := getContainerKey(namespace, podName, container)
@@ -648,7 +646,6 @@ func (p *podOperator) parseFindOutput(output, basePath string, opts *types.FileL
 		// 规范化路径
 		fullPath := filepath.Clean(fields[0])
 
-		// 跳过目录本身（关键修复！）
 		if fullPath == basePath {
 			continue
 		}
@@ -983,7 +980,6 @@ func (p *podOperator) parseListOutput(output string, basePath string) ([]types.F
 		// 规范化路径
 		fullPath = filepath.Clean(fullPath)
 
-		// 跳过目录本身（关键修复！）
 		if fullPath == basePath {
 			continue
 		}

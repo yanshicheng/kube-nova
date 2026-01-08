@@ -1572,7 +1572,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 	buf.WriteString(fmt.Sprintf("Name:                   %s\n", deployment.Name))
 	buf.WriteString(fmt.Sprintf("Namespace:              %s\n", deployment.Namespace))
 
-	// 修复：CreationTimestamp 可能为 Zero 值
 	if !deployment.CreationTimestamp.IsZero() {
 		buf.WriteString(fmt.Sprintf("CreationTimestamp:      %s\n", deployment.CreationTimestamp.Format(time.RFC1123)))
 	} else {
@@ -1609,7 +1608,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		}
 	}
 
-	// Selector - 修复：可能为 nil
 	buf.WriteString("Selector:               ")
 	if deployment.Spec.Selector != nil && len(deployment.Spec.Selector.MatchLabels) > 0 {
 		first := true
@@ -1631,7 +1629,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		replicas = *deployment.Spec.Replicas
 	}
 
-	// 修复：计算 unavailable 时避免负数
 	unavailable := replicas - deployment.Status.AvailableReplicas
 	if unavailable < 0 {
 		unavailable = 0
@@ -1649,9 +1646,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 	buf.WriteString(fmt.Sprintf("StrategyType:           %s\n", deployment.Spec.Strategy.Type))
 	buf.WriteString(fmt.Sprintf("MinReadySeconds:        %d\n", deployment.Spec.MinReadySeconds))
 
-	// 修复：RollingUpdate 可能为 nil
 	if deployment.Spec.Strategy.RollingUpdate != nil {
-		// 修复：MaxUnavailable 和 MaxSurge 可能为 nil
 		maxUnavailable := "25%"
 		maxSurge := "25%"
 
@@ -1666,7 +1661,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 			maxUnavailable, maxSurge))
 	}
 
-	// 修复：添加 RevisionHistoryLimit
 	if deployment.Spec.RevisionHistoryLimit != nil {
 		buf.WriteString(fmt.Sprintf("Revision History Limit: %d\n", *deployment.Spec.RevisionHistoryLimit))
 	}
@@ -1689,7 +1683,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		}
 	}
 
-	// 修复：Annotations 可能存在
 	if len(deployment.Spec.Template.Annotations) > 0 {
 		buf.WriteString("  Annotations:  ")
 		first := true
@@ -1702,7 +1695,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		}
 	}
 
-	// 修复：ServiceAccountName 可能为空
 	if deployment.Spec.Template.Spec.ServiceAccountName != "" {
 		buf.WriteString(fmt.Sprintf("  Service Account:  %s\n", deployment.Spec.Template.Spec.ServiceAccountName))
 	} else {
@@ -1725,7 +1717,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 				}
 			}
 
-			// 修复：Limits 检查
 			if len(container.Resources.Limits) > 0 {
 				buf.WriteString("    Limits:\n")
 				if cpu := container.Resources.Limits.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1736,7 +1727,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 				}
 			}
 
-			// 修复：Requests 检查
 			if len(container.Resources.Requests) > 0 {
 				buf.WriteString("    Requests:\n")
 				if cpu := container.Resources.Requests.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1775,7 +1765,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		buf.WriteString(fmt.Sprintf("   %s:\n", container.Name))
 		buf.WriteString(fmt.Sprintf("    Image:      %s\n", container.Image))
 
-		// 修复：ImagePullPolicy 可能有值
 		if container.ImagePullPolicy != "" {
 			buf.WriteString(fmt.Sprintf("    Image Pull Policy:  %s\n", container.ImagePullPolicy))
 		}
@@ -1784,7 +1773,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		if len(container.Ports) > 0 {
 			for _, port := range container.Ports {
 				buf.WriteString(fmt.Sprintf("    Port:       %d/%s\n", port.ContainerPort, port.Protocol))
-				// 修复：HostPort 可能为 0
 				if port.HostPort > 0 {
 					buf.WriteString(fmt.Sprintf("    Host Port:  %d/%s\n", port.HostPort, port.Protocol))
 				} else {
@@ -1796,7 +1784,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 			buf.WriteString("    Host Port:  <none>\n")
 		}
 
-		// 修复：Command 和 Args 可能存在
 		if len(container.Command) > 0 {
 			buf.WriteString("    Command:\n")
 			for _, cmd := range container.Command {
@@ -1811,7 +1798,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 			}
 		}
 
-		// Limits - 修复：检查是否存在
 		buf.WriteString("    Limits:\n")
 		if len(container.Resources.Limits) > 0 {
 			if cpu := container.Resources.Limits.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1827,7 +1813,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 			buf.WriteString("      <none>\n")
 		}
 
-		// Requests - 修复：检查是否存在
 		buf.WriteString("    Requests:\n")
 		if len(container.Resources.Requests) > 0 {
 			if cpu := container.Resources.Requests.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1843,7 +1828,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 			buf.WriteString("      <none>\n")
 		}
 
-		// Liveness Probe - 修复：可能为 nil
 		buf.WriteString("    Liveness:   ")
 		if container.LivenessProbe != nil {
 			buf.WriteString(d.formatProbe(container.LivenessProbe))
@@ -1852,7 +1836,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		}
 		buf.WriteString("\n")
 
-		// Readiness Probe - 修复：可能为 nil
 		buf.WriteString("    Readiness:  ")
 		if container.ReadinessProbe != nil {
 			buf.WriteString(d.formatProbe(container.ReadinessProbe))
@@ -1861,7 +1844,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		}
 		buf.WriteString("\n")
 
-		// 修复：添加 Startup Probe 支持
 		if container.StartupProbe != nil {
 			buf.WriteString("    Startup:    ")
 			buf.WriteString(d.formatProbe(container.StartupProbe))
@@ -1895,7 +1877,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		}
 	}
 
-	// Volumes - 修复：增加更多类型支持
 	buf.WriteString("  Volumes:\n")
 	if len(deployment.Spec.Template.Spec.Volumes) > 0 {
 		for _, vol := range deployment.Spec.Template.Spec.Volumes {
@@ -2021,7 +2002,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		for i := 0; i < limit; i++ {
 			event := events[i]
 
-			// 修复：时间戳可能为 0
 			var ageStr string
 			if event.LastTimestamp > 0 {
 				age := time.Since(time.UnixMilli(event.LastTimestamp)).Round(time.Second)
@@ -2045,7 +2025,6 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 	return buf.String(), nil
 }
 
-// 修复：添加 Environment 格式化辅助函数
 func (d *deploymentOperator) formatEnvironment(buf *strings.Builder, env corev1.EnvVar) {
 	if env.ValueFrom != nil {
 		if env.ValueFrom.ConfigMapKeyRef != nil {

@@ -1462,7 +1462,6 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 	buf.WriteString(fmt.Sprintf("Name:           %s\n", job.Name))
 	buf.WriteString(fmt.Sprintf("Namespace:      %s\n", job.Namespace))
 
-	// 修复：Selector 可能为 nil
 	if job.Spec.Selector != nil {
 		buf.WriteString(fmt.Sprintf("Selector:       %s\n", metav1.FormatLabelSelector(job.Spec.Selector)))
 	} else {
@@ -1518,24 +1517,20 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 	buf.WriteString(fmt.Sprintf("Parallelism:    %d\n", parallelism))
 	buf.WriteString(fmt.Sprintf("Completions:    %d\n", completions))
 
-	// 修复：BackoffLimit 可能为 nil
 	if job.Spec.BackoffLimit != nil {
 		buf.WriteString(fmt.Sprintf("Backoff Limit:  %d\n", *job.Spec.BackoffLimit))
 	}
 
-	// 修复：StartTime 可能为 nil（Job 未开始）
 	if job.Status.StartTime != nil {
 		buf.WriteString(fmt.Sprintf("Start Time:     %s\n", job.Status.StartTime.Format(time.RFC1123)))
 	} else {
 		buf.WriteString("Start Time:     <unset>\n")
 	}
 
-	// 修复：CompletionTime 可能为 nil（Job 未完成）
 	if job.Status.CompletionTime != nil {
 		buf.WriteString(fmt.Sprintf("Completed At:   %s\n", job.Status.CompletionTime.Format(time.RFC1123)))
 	}
 
-	// 修复：ActiveDeadlineSeconds 可能为 nil
 	if job.Spec.ActiveDeadlineSeconds != nil {
 		buf.WriteString(fmt.Sprintf("Active Deadline Seconds:  %d\n", *job.Spec.ActiveDeadlineSeconds))
 	}
@@ -1543,7 +1538,6 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 	buf.WriteString(fmt.Sprintf("Pods Statuses:  %d Active / %d Succeeded / %d Failed\n",
 		job.Status.Active, job.Status.Succeeded, job.Status.Failed))
 
-	// 修复：CompletionMode 在新版本 K8s 中可能存在
 	if job.Spec.CompletionMode != nil {
 		buf.WriteString(fmt.Sprintf("Completion Mode:  %s\n", *job.Spec.CompletionMode))
 	}
@@ -1564,7 +1558,6 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 		}
 	}
 
-	// 修复：ServiceAccountName 可能为空
 	if job.Spec.Template.Spec.ServiceAccountName != "" {
 		buf.WriteString(fmt.Sprintf("  Service Account:  %s\n", job.Spec.Template.Spec.ServiceAccountName))
 	} else {
@@ -1578,19 +1571,16 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 			buf.WriteString(fmt.Sprintf("   %s:\n", container.Name))
 			buf.WriteString(fmt.Sprintf("    Image:      %s\n", container.Image))
 
-			// 修复：ImagePullPolicy 可能有值
 			if container.ImagePullPolicy != "" {
 				buf.WriteString(fmt.Sprintf("    Image Pull Policy:  %s\n", container.ImagePullPolicy))
 			}
 
-			// 修复：Ports 可能为空
 			if len(container.Ports) > 0 {
 				for _, port := range container.Ports {
 					buf.WriteString(fmt.Sprintf("    Port:       %d/%s\n", port.ContainerPort, port.Protocol))
 				}
 			}
 
-			// 修复：检查 Limits 是否存在
 			if len(container.Resources.Limits) > 0 {
 				buf.WriteString("    Limits:\n")
 				if cpu := container.Resources.Limits.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1604,7 +1594,6 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 				}
 			}
 
-			// 修复：检查 Requests 是否存在
 			if len(container.Resources.Requests) > 0 {
 				buf.WriteString("    Requests:\n")
 				if cpu := container.Resources.Requests.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1618,7 +1607,6 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 				}
 			}
 
-			// 修复：Environment 详细处理
 			if len(container.Env) > 0 {
 				buf.WriteString("    Environment:\n")
 				for _, env := range container.Env {
@@ -1662,19 +1650,16 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 		buf.WriteString(fmt.Sprintf("   %s:\n", container.Name))
 		buf.WriteString(fmt.Sprintf("    Image:      %s\n", container.Image))
 
-		// 修复：ImagePullPolicy 可能有值
 		if container.ImagePullPolicy != "" {
 			buf.WriteString(fmt.Sprintf("    Image Pull Policy:  %s\n", container.ImagePullPolicy))
 		}
 
-		// 修复：Ports 可能为空
 		if len(container.Ports) > 0 {
 			for _, port := range container.Ports {
 				buf.WriteString(fmt.Sprintf("    Port:       %d/%s\n", port.ContainerPort, port.Protocol))
 			}
 		}
 
-		// 修复：Command 和 Args 可能存在
 		if len(container.Command) > 0 {
 			buf.WriteString("    Command:\n")
 			for _, cmd := range container.Command {
@@ -1689,7 +1674,6 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 			}
 		}
 
-		// 修复：检查 Limits 是否存在
 		if len(container.Resources.Limits) > 0 {
 			buf.WriteString("    Limits:\n")
 			if cpu := container.Resources.Limits.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1703,7 +1687,6 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 			}
 		}
 
-		// 修复：检查 Requests 是否存在
 		if len(container.Resources.Requests) > 0 {
 			buf.WriteString("    Requests:\n")
 			if cpu := container.Resources.Requests.Cpu(); cpu != nil && !cpu.IsZero() {
@@ -1717,7 +1700,6 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 			}
 		}
 
-		// 修复：Probes 可能存在
 		if container.LivenessProbe != nil {
 			buf.WriteString(fmt.Sprintf("    Liveness:   %s\n", j.formatProbeForDescribe(container.LivenessProbe)))
 		}
@@ -1728,7 +1710,6 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 			buf.WriteString(fmt.Sprintf("    Startup:    %s\n", j.formatProbeForDescribe(container.StartupProbe)))
 		}
 
-		// 修复：Environment 详细处理
 		if len(container.Env) > 0 {
 			buf.WriteString("    Environment:\n")
 			for _, env := range container.Env {
@@ -1765,7 +1746,6 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 		}
 	}
 
-	// Volumes - 修复：增加更多 Volume 类型支持
 	buf.WriteString("  Volumes:\n")
 	if len(job.Spec.Template.Spec.Volumes) > 0 {
 		for _, vol := range job.Spec.Template.Spec.Volumes {
@@ -1808,7 +1788,6 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 		buf.WriteString("   <none>\n")
 	}
 
-	// 修复：RestartPolicy 可能存在
 	if job.Spec.Template.Spec.RestartPolicy != "" {
 		buf.WriteString(fmt.Sprintf("  Restart Policy:  %s\n", job.Spec.Template.Spec.RestartPolicy))
 	}
@@ -1828,7 +1807,6 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 		for i := 0; i < limit; i++ {
 			event := events[i]
 
-			// 修复：时间戳可能为 0
 			var ageStr string
 			if event.LastTimestamp > 0 {
 				age := time.Since(time.UnixMilli(event.LastTimestamp)).Round(time.Second)
@@ -1847,7 +1825,6 @@ func (j *jobOperator) GetDescribe(namespace, name string) (string, error) {
 	return buf.String(), nil
 }
 
-// 修复：添加 Probe 格式化辅助函数
 func (j *jobOperator) formatProbeForDescribe(probe *corev1.Probe) string {
 	if probe == nil {
 		return ""

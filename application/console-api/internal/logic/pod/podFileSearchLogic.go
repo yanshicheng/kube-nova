@@ -64,7 +64,6 @@ func (l *PodFileSearchLogic) PodFileSearch(req *types.PodFileSearchReq) (resp *t
 		searchPath = "/"
 	}
 
-	// 6. 解析时间范围（修复：使用 time.Time 而不是 metav1.Time）
 	var modifiedAfter, modifiedBefore *time.Time
 	if req.ModifiedAfter != "" {
 		t, err := time.Parse(time.RFC3339, req.ModifiedAfter)

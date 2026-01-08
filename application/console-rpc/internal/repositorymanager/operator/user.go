@@ -23,7 +23,6 @@ func NewUserOperator(ctx context.Context, base *BaseOperator) types.UserOperator
 	}
 }
 
-// List 列出所有用户 - 优化版本：使用 Harbor API 的原生分页
 func (u *UserOperatorImpl) List(req types.ListRequest) (*types.ListUserResponse, error) {
 	u.log.Infof("列出用户: search=%s, page=%d, pageSize=%d", req.Search, req.Page, req.PageSize)
 
@@ -98,7 +97,6 @@ func (u *UserOperatorImpl) Get(userID int64) (*types.HarborUser, error) {
 	return &user, nil
 }
 
-// GetByUsername 通过用户名获取用户 - 优化版本
 func (u *UserOperatorImpl) GetByUsername(username string) (*types.HarborUser, error) {
 	u.log.Infof("通过用户名获取用户: username=%s", username)
 

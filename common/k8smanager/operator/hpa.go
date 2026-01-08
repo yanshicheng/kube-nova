@@ -166,7 +166,7 @@ func (h *hpaOperator) GetYaml(namespace, name string) (string, error) {
 		return "", fmt.Errorf("HPA %s/%s 不存在", namespace, name)
 	}
 
-	// ✅ 确保有 TypeMeta（Get 方法已经注入了，这里再确保一次）
+	//  确保有 TypeMeta（Get 方法已经注入了，这里再确保一次）
 	hpa.TypeMeta = metav1.TypeMeta{
 		Kind:       "HorizontalPodAutoscaler",
 		APIVersion: "autoscaling/v2",
@@ -686,7 +686,7 @@ func (v *vpaOperator) GetYaml(namespace, name string) (string, error) {
 		return "", fmt.Errorf("VPA %s/%s 不存在", namespace, name)
 	}
 
-	// ✅ 确保有 TypeMeta
+	//  确保有 TypeMeta
 	vpa.TypeMeta = metav1.TypeMeta{
 		Kind:       "VerticalPodAutoscaler",
 		APIVersion: "autoscaling.k8s.io/v1",
@@ -957,7 +957,7 @@ func (v *vpaOperator) GetByTargetRef(namespace string, targetRef types.TargetRef
 
 		if vpaTargetRef.Kind == targetRef.Kind && vpaTargetRef.Name == targetRef.Name {
 			if targetRef.APIVersion == "" || vpaTargetRef.APIVersion == targetRef.APIVersion {
-				// ✅ 手动注入 TypeMeta
+				//  手动注入 TypeMeta
 				vpa.TypeMeta = metav1.TypeMeta{
 					Kind:       "VerticalPodAutoscaler",
 					APIVersion: "autoscaling.k8s.io/v1",

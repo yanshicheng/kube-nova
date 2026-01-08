@@ -213,7 +213,7 @@ func (f *flaggerOperator) GetYaml(namespace, name string) (string, error) {
 		return "", fmt.Errorf("Canary %s/%s 不存在", namespace, name)
 	}
 
-	// ✅ 确保有 TypeMeta
+	//  确保有 TypeMeta
 	canary.TypeMeta = metav1.TypeMeta{
 		Kind:       "Canary",
 		APIVersion: "flagger.app/v1beta1",
@@ -598,7 +598,7 @@ func (f *flaggerOperator) GetByAutoscalerRef(namespace string, apiVersion string
 			if ref.APIVersion == apiVersion &&
 				ref.Kind == kind &&
 				ref.Name == name {
-				// ✅ 手动注入 TypeMeta
+				//  手动注入 TypeMeta
 				canary.TypeMeta = metav1.TypeMeta{
 					Kind:       "Canary",
 					APIVersion: "flagger.app/v1beta1",

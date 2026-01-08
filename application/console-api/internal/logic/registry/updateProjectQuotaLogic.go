@@ -26,7 +26,6 @@ func NewUpdateProjectQuotaLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 }
 
 func (l *UpdateProjectQuotaLogic) UpdateProjectQuota(req *types.UpdateProjectQuotaRequest) (resp string, err error) {
-	// 🔧 修复：设置默认单位
 	storageUnit := req.StorageUnit
 	if storageUnit == "" {
 		storageUnit = "GB" // 默认为 GB

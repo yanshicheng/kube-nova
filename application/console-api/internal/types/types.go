@@ -821,7 +821,7 @@ type CreateProjectRequest struct {
 	ProjectName  string `json:"projectName" validate:"required,min=2,max=255"`
 	IsPublic     bool   `json:"isPublic"`
 	StorageLimit int64  `json:"storageLimit,optional" validate:"min=-1"`
-	StorageUnit  string `json:"storageUnit,optional,default=GB" validate:"omitempty,oneof=B KB MB GB TB"` // 🆕 新增
+	StorageUnit  string `json:"storageUnit,optional,default=GB" validate:"omitempty,oneof=B KB MB GB TB"`
 	AppProjectId uint64 `json:"appProjectId,optional"`
 	ClusterUuid  string `json:"clusterUuid,optional"`
 }
@@ -4998,7 +4998,7 @@ type UpdateProjectQuotaRequest struct {
 	RegistryUuid string `json:"registryUuid" validate:"required"`
 	ProjectName  string `path:"projectName" validate:"required"`
 	StorageLimit int64  `json:"storageLimit" validate:"min=-1"`
-	StorageUnit  string `json:"storageUnit,optional,default=GB" validate:"omitempty,oneof=B KB MB GB TB"` // 🆕 新增
+	StorageUnit  string `json:"storageUnit,optional,default=GB" validate:"omitempty,oneof=B KB MB GB TB"`
 	CountLimit   int64  `json:"countLimit, optional" validate:"min=-1"`
 }
 
@@ -5010,7 +5010,7 @@ type UpdateProjectRequest struct {
 	ProjectName  string `path:"projectName" validate:"required"`
 	IsPublic     bool   `json:"isPublic"`
 	StorageLimit int64  `json:"storageLimit,optional" validate:"min=-1"`
-	StorageUnit  string `json:"storageUnit,optional,default=GB" validate:"omitempty,oneof=B KB MB GB TB"` // 🆕 新增
+	StorageUnit  string `json:"storageUnit,optional,default=GB" validate:"omitempty,oneof=B KB MB GB TB"`
 }
 
 type UpdateProjectResponse struct {

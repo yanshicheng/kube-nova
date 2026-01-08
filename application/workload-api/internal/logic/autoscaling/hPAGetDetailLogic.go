@@ -326,7 +326,6 @@ func (l *HPAGetDetailLogic) convertConditions(conditions []k8stypes.HPACondition
 	return result
 }
 
-// 转换 HPABehavior（关键修复：返回非指针类型）
 func (l *HPAGetDetailLogic) convertHPABehavior(behavior *k8stypes.HPABehavior) types.HPABehavior {
 	result := types.HPABehavior{}
 
