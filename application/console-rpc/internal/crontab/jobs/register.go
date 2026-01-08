@@ -41,12 +41,6 @@ func (r *JobRegistry) RegisterAll() int {
 func (r *JobRegistry) getAllJobs() []crontab.Job {
 	return []crontab.Job{
 		// 定时任务在此加载
-
-		// 账单生成任务
-		NewBillingGenerateJob(r.svcCtx),
-
-		// 集群全量数据同步任务
-		NewClusterFullDataSyncJob(r.svcCtx),
 	}
 }
 

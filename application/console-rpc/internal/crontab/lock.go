@@ -48,7 +48,7 @@ func NewRedisDistributedLock(client *redis.Redis, nodeID string) *RedisDistribut
 // TryLock 尝试获取分布式锁
 func (l *RedisDistributedLock) TryLock(ctx context.Context, jobName string, ttl time.Duration) (bool, func(), error) {
 	key := l.buildLockKey(jobName)
-	expireSeconds := int(ttl.Seconds())
+	expireSeconds := int(ttl.Seconds()) // 转换为秒
 	// 最小锁过期时间 如果传入的锁过期时间小于最小锁过期时间，则使用最小锁过期时间
 	if expireSeconds < minLockExpire {
 		expireSeconds = defaultLockExpire
