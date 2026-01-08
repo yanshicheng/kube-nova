@@ -200,9 +200,12 @@ func (l *GetTokenLogic) recordLoginFailure(user *model.SysUser) error {
 	return nil
 }
 
-// 禁用账号（可以根据具体业务实现，例如更新数据库状态）
+// 禁用账号
 func (l *GetTokenLogic) disableUsername(user *model.SysUser) error {
-	// 示例实现：将账号设置为禁用状态
+	// 增加处理 演示环境不禁用账号
+	if l.svcCtx.Config.DemoMode == true {
+		return nil
+	}
 	user.Status = 0
 	err := l.svcCtx.SysUser.Update(l.ctx, user)
 	if err != nil {
@@ -224,7 +227,7 @@ func (l *GetTokenLogic) recordLoginLog(userId uint64, username string, loginStat
 	loginLog := &model.SysLoginLog{
 		UserId:      userId,
 		Username:    username,
-		LoginStatus: loginStatus, // 0-失败, 1-成功
+		LoginStatus: loginStatus,
 		IpAddress:   ipAddress,
 		UserAgent:   userAgent,
 		LoginTime:   time.Now(),
@@ -238,38 +241,37 @@ func (l *GetTokenLogic) recordLoginLog(userId uint64, username string, loginStat
 	}
 }
 
-// 从 context 中获取客户端 IP
 func (l *GetTokenLogic) getClientIPFromCtx() string {
 	// 从 gRPC metadata 中获取
 	if md, ok := metadata.FromIncomingContext(l.ctx); ok {
 		// 优先从 x-real-ip 获取
 		if ips := md.Get("x-real-ip"); len(ips) > 0 && ips[0] != "" {
+			l.Logger.Infof("获取客户端真实 x-real-ip: %s", ips)
 			return ips[0]
 		}
 		// 从 x-forwarded-for 获取
 		if ips := md.Get("x-forwarded-for"); len(ips) > 0 && ips[0] != "" {
+			l.Logger.Infof("获取客户端真实 x-forwarded-for: %s", ips)
 			return ips[0]
 		}
 	}
 
 	// 从 context Value 中获取
 	if ip, ok := l.ctx.Value("clientIP").(string); ok && ip != "" {
+		l.Logger.Infof("获取客户端真实 clientIP: %s", ip)
 		return ip
 	}
 
 	return "unknown"
 }
 
-// 从 context 中获取 UserAgent
 func (l *GetTokenLogic) getUserAgentFromCtx() string {
-	// 从 gRPC metadata 中获取（使用自定义 key，避免被 gRPC 覆盖）
 	if md, ok := metadata.FromIncomingContext(l.ctx); ok {
 		if uas := md.Get("x-user-agent"); len(uas) > 0 && uas[0] != "" {
 			return uas[0]
 		}
 	}
 
-	// 从 context Value 中获取
 	if ua, ok := l.ctx.Value("userAgent").(string); ok && ua != "" {
 		return ua
 	}

@@ -24,6 +24,7 @@ func NewGetClusterStorageLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 }
 
 func (l *GetClusterStorageLogic) GetClusterStorage(req *types.GetClusterStorageRequest) (resp *types.GetClusterStorageResponse, err error) {
+	l.Info("进入存储查询接口")
 	client, err := l.svcCtx.PrometheusManager.Get(req.ClusterUuid)
 	if err != nil {
 		l.Errorf("获取 Prometheus 客户端失败: %v", err)

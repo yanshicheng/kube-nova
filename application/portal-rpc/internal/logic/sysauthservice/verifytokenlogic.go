@@ -54,7 +54,6 @@ func (l *VerifyTokenLogic) VerifyToken(in *pb.VerifyTokenRequest) (*pb.VerifyTok
 			ErrorMessage: "token 已经被禁用，请联系管理员处理!",
 		}, nil
 	}
-	// 判断token是否一致, in.Token 是否包含 key 中的内容
 
 	if "Bearer "+key != in.Token {
 		return &pb.VerifyTokenResponse{
