@@ -1,0 +1,213 @@
+================================================================================
+                                NOTICE / 声明
+================================================================================
+
+Kube-Nova
+Copyright 2025-2026 YanShicheng (yanshicheng)
+版权所有 2025-2026 YanShicheng (yanshicheng)
+
+================================================================================
+PROJECT INFORMATION / 项目信息
+================================================================================
+
+[EN] Kube-Nova is an enterprise-grade Kubernetes multi-cluster management 
+     platform, providing multi-tenancy isolation, unified monitoring, 
+     alerting, and canary deployment capabilities.
+
+[中] Kube-Nova 是一个企业级 Kubernetes 多集群管理平台，提供多租户隔离、
+     统一监控、告警中心、灰度发布等企业级能力。
+
+Project Homepage / 项目主页   : https://www.ikubeops.com
+GitHub Repository / 代码仓库 : https://github.com/yanshicheng/kube-nova
+Gitee Mirror / Gitee 镜像    : https://gitee.com/ikubeops/kube-nova
+Documentation / 部署文档     : https://www.ikubeops.com
+
+Author / 作者                : YanShicheng
+Email / 邮箱                 : ikubeops@gmail.com
+
+================================================================================
+LICENSE / 许可证
+================================================================================
+
+[EN] Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+
+[中] 本项目基于 Apache License 2.0 许可证开源。
+     除非适用法律要求或书面同意，否则本软件按"原样"提供，
+     不附带任何明示或暗示的保证或条件。
+     详细条款请参阅许可证原文。
+
+================================================================================
+THIRD-PARTY SOFTWARE LICENSES / 第三方软件许可证
+================================================================================
+
+[EN] This project includes or depends on the following third-party software.
+     We are grateful to these open source projects and their contributors.
+
+[中] 本项目使用了以下第三方开源软件，我们对这些项目及其贡献者表示感谢。
+
+--------------------------------------------------------------------------------
+1. Go-Zero Framework
+--------------------------------------------------------------------------------
+   Homepage / 主页    : https://go-zero.dev/
+   License / 许可证   : MIT License
+   Copyright          : Copyright (c) 2020 �� <kevinwan@zeromicro.io>
+
+    MIT License
+
+    Copyright (c) 2022 zeromicro
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+--------------------------------------------------------------------------------
+2. Art Design Pro (Vue Admin Framework)
+--------------------------------------------------------------------------------
+   Homepage / 主页    : https://www.artd.pro/
+   License / 许可证   : MIT License
+   Copyright          : Copyright (c) Art Design Pro Authors
+
+   MIT License
+
+   Copyright (c) 2025 SuperManTT
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy
+   of this software and associated documentation files (the "Software"), to deal
+   in the Software without restriction, including without limitation the rights
+   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all
+   copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+--------------------------------------------------------------------------------
+3. Kubernetes Client-Go
+--------------------------------------------------------------------------------
+   Homepage / 主页    : https://github.com/kubernetes/client-go
+   License / 许可证   : Apache License 2.0
+   Copyright          : Copyright The Kubernetes Authors
+
+--------------------------------------------------------------------------------
+4. Casbin (Authorization Library)
+--------------------------------------------------------------------------------
+   Homepage / 主页    : https://casbin.org/
+   License / 许可证   : Apache License 2.0
+   Copyright          : Copyright The Casbin Authors
+
+--------------------------------------------------------------------------------
+5. Vue.js
+--------------------------------------------------------------------------------
+   Homepage / 主页    : https://vuejs.org/
+   License / 许可证   : MIT License
+   Copyright          : Copyright (c) 2014-present Evan You
+
+   [Same MIT License terms as above / 许可证条款同上]
+
+--------------------------------------------------------------------------------
+[EN] For a complete list of dependencies, please refer to:
+     - Backend: go.mod file
+     - Frontend: package.json file
+
+[中] 完整的依赖列表请参阅：
+     - 后端依赖：go.mod 文件
+     - 前端依赖：package.json 文件
+--------------------------------------------------------------------------------
+
+================================================================================
+TRADEMARKS / 商标声明
+================================================================================
+
+[EN] "Kube-Nova" and the Kube-Nova logo are trademarks of YanShicheng.
+     "Kubernetes" is a registered trademark of The Linux Foundation.
+     All other trademarks are the property of their respective owners.
+
+[中] "Kube-Nova" 及 Kube-Nova 标识是 YanShicheng 的商标。
+     "Kubernetes" 是 Linux 基金会的注册商标。
+     其他商标均为其各自所有者的财产。
+
+================================================================================
+ATTRIBUTION REQUIREMENTS / 署名要求
+================================================================================
+
+[EN] If you use, modify, or distribute this software, you must:
+     1. Retain this NOTICE file in your distribution
+     2. Retain the LICENSE file (Apache License 2.0)
+     3. Clearly indicate any modifications you have made
+     4. Include appropriate attribution in your documentation:
+        
+        "This product includes Kube-Nova 
+         (https://github.com/yanshicheng/kube-nova),
+         developed by YanShicheng."
+
+[中] 如果您使用、修改或分发本软件，您必须：
+     1. 在您的分发版本中保留本 NOTICE 文件
+     2. 保留 LICENSE 文件（Apache License 2.0）
+     3. 清晰地标注您所做的任何修改
+     4. 在您的文档中包含适当的署名：
+        
+        "本产品使用了 Kube-Nova 
+         (https://github.com/yanshicheng/kube-nova)，
+         由 YanShicheng 开发。"
+
+================================================================================
+DISCLAIMER / 免责声明
+================================================================================
+
+[EN] THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESSED OR IMPLIED WARRANTIES,
+     INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+     AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+     THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+     INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES.
+
+[中] 本软件按"原样"提供，不提供任何明示或暗示的保证，包括但不限于对适销性
+     和特定用途适用性的暗示保证。在任何情况下，作者或版权持有人均不对任何
+     直接、间接、附带、特殊、惩戒性或后果性损害承担责任。
+
+================================================================================
+CONTACT / 联系方式
+================================================================================
+
+[EN] For questions about licensing, commercial use, or contributions:
+[中] 如有许可证、商业使用或贡献相关问题，请联系：
+
+     Email  : ikubeops@gmail.com
+     GitHub : https://github.com/yanshicheng
+     WeChat : https://wiki-images.yanshicheng.com/common/kube-nova-wechat.png
+
+================================================================================
+                          Thank you for using Kube-Nova!
+                            感谢您使用 Kube-Nova！
+================================================================================

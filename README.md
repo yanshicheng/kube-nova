@@ -1,4 +1,4 @@
-<p align="center">   <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">   <img src="https://img.shields.io/badge/Go-1.25.5-00ADD8?logo=go&logoColor=white" alt="Go">   <img src="https://img.shields.io/badge/Gozero-v1.9.4-1E88E5" alt="Gozero">   <img src="https://img.shields.io/badge/Vue-3.x-4FC08D?logo=vue.js&logoColor=white" alt="Vue">   <img src="https://img.shields.io/badge/Kubernetes-1.21+-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes">   <br/>   <img src="https://img.shields.io/badge/MySQL-8.0+-4479A1?logo=mysql&logoColor=white" alt="MySQL">   <img src="https://img.shields.io/badge/Redis-7.0+-DC382D?logo=redis&logoColor=white" alt="Redis">   <a target="_blank" href="https://github.com/yanshicheng/kube-nova">     <img src="https://img.shields.io/github/stars/yanshicheng/kube-nova?style=social" alt="GitHub Stars">   </a> </p> <p align="center">   <b>企业级 Kubernetes 多集群管理平台</b> </p> <p align="center">   <a href="https://www.ikubeops.com"><b>🌐 在线演示</b></a> |   <a href="https://www.cnblogs.com/yanshicheng/articles/19363328"><b>📖 部署文档</b></a> |   <a href="https://wiki-images.yanshicheng.com/common/kube-nova-wechat.png"><b>💬 加入我们</b></a> </p>
+<p align="center">   <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">   <img src="https://img.shields.io/badge/Go-1.25.5-00ADD8?logo=go&logoColor=white" alt="Go">   <img src="https://img.shields.io/badge/Gozero-v1.9.4-1E88E5" alt="Gozero">   <img src="https://img.shields.io/badge/Vue-3.x-4FC08D?logo=vue.js&logoColor=white" alt="Vue">   <img src="https://img.shields.io/badge/Kubernetes-1.21+-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes">   <br/>   <img src="https://img.shields.io/badge/MySQL-8.0+-4479A1?logo=mysql&logoColor=white" alt="MySQL">   <img src="https://img.shields.io/badge/Redis-7.0+-DC382D?logo=redis&logoColor=white" alt="Redis">   <a target="_blank" href="https://github.com/yanshicheng/kube-nova">     <img src="https://img.shields.io/github/stars/yanshicheng/kube-nova?style=social" alt="GitHub Stars">   </a> </p> <p align="center">   <b>企业级 Kubernetes 多集群管理平台</b> </p> <p align="center">   <a href="https://kube-nova.ikubeops.com"><b>🌐 在线演示</b></a> |   <a href="https://www.ikubeops.com"><b>📖 部署文档</b></a> |   <a href="https://wiki-images.yanshicheng.com/common/kube-nova-wechat.png"><b>💬 加入我们</b></a> </p>
 
 ------
 
@@ -18,13 +18,15 @@ Kube-Nova 是一个企业级 Kubernetes 多集群管理平台，以**项目为�
 ### 🎯 核心亮点
 
 - 🏢 **多租户隔离** - 三级资源隔离架构，支持 CPU/内存/GPU 超分配置
-- 🌐 **多集群管理** - 统一管理多个 K8s 集群，支持多种认证方式
-- 📊 **五维监控** - Pod/Node/Namespace/Cluster/Ingress 全方位监控
-- 🔔 **智能告警** - 8 种通知渠道，支持告警分组、分级路由
-- 🚀 **灰度发布** - 基于 Flagger 的自动化金丝雀部署
+- ☸️ **多集群管理** - 统一管理多个 K8s 集群，支持多种认证方式
+- 📄 **YAML 支持** - 平台所有资源均支持 YAML 导入，表单与 YAML 无缝转换
+- ⛵ **Istio 智能运维** - 服务网格可视化管理，流量治理、熔断限流、链路追踪一站式配置
+- 📊 **五维监控** - Pod/Node/Namespace/Cluster/Ingress/Istio 全方位监控
+- 🔔 **智能告警** - 支持 微信、钉钉、飞书、邮件、站内信等多种通知渠道，支持告警分组、分级路由
+- 🚀 **灰度发布** - 自动化金丝雀部署，蓝绿部署等
 - 📦 **镜像管理** - Harbor 多仓库统一管理
 - 🔍 **完整审计** - 四级审计日志（集群/项目/工作空间/应用）
-- 🛠️ **Pod 运维** - 日志查看、交互终端、文件管理
+- 🐳 **Pod 运维** - 日志查看、交互终端、文件管理、全方位 Pod 运维支持
 
 ------
 
@@ -32,9 +34,9 @@ Kube-Nova 是一个企业级 Kubernetes 多集群管理平台，以**项目为�
 
 ### 后端技术栈
 
-- **语言**: Go 1.25.5
-- **框架**: [Gozero](https://go-zero.dev/) v1.9.3（微服务框架）
-- **数据库**: MySQL 8.x
+- **语言**: Go 
+- **框架**: [Gozero](https://go-zero.dev/) （微服务框架）
+- **数据库**: MySQL
 - **缓存**: Redis
 - **架构**: 微服务 RPC 架构
 
@@ -82,7 +84,7 @@ kube-nova/
 - Kubernetes 1.21+
 - MySQL 8.0+
 - Redis 7.0+
-- Go 1.25.5+（仅开发环境）
+- Go 1.25.5+ 
 
 ### 📚 部署文档
 
@@ -155,7 +157,7 @@ kube-nova/
 - HPA：基于多种指标（CPU/内存/自定义）
 - VPA：自动资源推荐和调整
 
-**8. 灰度发布（Flagger）**
+**8. 灰度发布**
 
 - 金丝雀发布流程控制
 - 指标分析和自动回滚
@@ -271,7 +273,7 @@ kube-nova/
 
 ## 🔗 相关链接
 
-- 🌐 [在线演示](https://www.ikubeops.com/)
+- 🌐 [在线演示](https://kube-nova.ikubeops.com/)
 - 📖 [Gozero 框架](https://go-zero.dev/)
 - 🎨 [Art Design Pro](https://www.artd.pro/docs/zh/)
 
