@@ -33,17 +33,14 @@ func (l *ProjectOneClusterResourceLogic) ProjectOneClusterResource(req *types.Sy
 		username = "system"
 	}
 	// 启动 go 协程
-	go func() {
-		ctx := context.Background()
-		_, err = l.svcCtx.ManagerRpc.ProjectClusterSync(ctx, &pb.ProjectClusterSyncReq{
-			Id:       req.Id,
-			Operator: username,
-		})
-		if err != nil {
-			l.Errorf("同步项目集群资源使用量失败: %v", err)
-			return
-		}
-	}()
+	_, err = l.svcCtx.ManagerRpc.ProjectClusterSync(l.ctx, &pb.ProjectClusterSyncReq{
+		Id:       req.Id,
+		Operator: username,
+	})
+	if err != nil {
+		l.Errorf("同步项目集群资源使用量失败: %v", err)
+		return
+	}
 
 	return "正在异步同步", nil
 }

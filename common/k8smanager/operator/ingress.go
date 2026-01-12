@@ -70,7 +70,7 @@ func (i *ingressOperator) Create(ingress *networkingv1.Ingress) (*networkingv1.I
 	if ingress == nil || ingress.Name == "" || ingress.Namespace == "" {
 		return nil, fmt.Errorf("Ingress对象、名称和命名空间不能为空")
 	}
-
+	injectCommonAnnotations(ingress)
 	created, err := i.client.NetworkingV1().Ingresses(ingress.Namespace).Create(i.ctx, ingress, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建Ingress失败: %v", err)

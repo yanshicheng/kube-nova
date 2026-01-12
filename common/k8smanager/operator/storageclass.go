@@ -73,7 +73,7 @@ func (s *storageClassOperator) Create(sc *storagev1.StorageClass) (*storagev1.St
 	if sc == nil || sc.Name == "" {
 		return nil, fmt.Errorf("StorageClass对象和名称不能为空")
 	}
-
+	injectCommonAnnotations(sc)
 	created, err := s.client.StorageV1().StorageClasses().Create(s.ctx, sc, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建StorageClass失败: %v", err)

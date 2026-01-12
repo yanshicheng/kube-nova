@@ -132,14 +132,15 @@ type Tag struct {
 
 // Quota 配额
 type Quota struct {
-	ID           int64        `json:"id"`
-	Ref          QuotaRef     `json:"ref"`
-	Hard         ResourceList `json:"hard"`
-	Used         ResourceList `json:"used"`
-	CreationTime time.Time    `json:"creation_time"`
-	UpdateTime   time.Time    `json:"update_time"`
+	ID        int64        `json:"id"`
+	Ref       *QuotaRef    `json:"ref,omitempty"`
+	Hard      ResourceList `json:"hard"`
+	Used      ResourceList `json:"used"`
+	CreatedAt time.Time    `json:"creation_time"`
+	UpdatedAt time.Time    `json:"update_time"`
 }
 
+// QuotaRef 配额引用信息
 type QuotaRef struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`

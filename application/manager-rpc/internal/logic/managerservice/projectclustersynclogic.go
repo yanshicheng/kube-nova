@@ -33,33 +33,32 @@ func (l *ProjectClusterSyncLogic) ProjectClusterSync(in *pb.ProjectClusterSyncRe
 		l.Errorf("项目集群配额ID不能为空")
 		return nil, errorx.Msg("项目集群配额ID不能为空")
 	}
+
 	projectResource, err := l.svcCtx.OnecProjectClusterModel.FindOne(l.ctx, in.Id)
 	if err != nil {
 		l.Errorf("查询项目集群配额失败，ID: %d, 错误: %v", in.Id, err)
 		return nil, errorx.Msg("项目集群配额不存在")
 	}
 
-	// 查询项目集群配额
-	//projectCluster, err := l.svcCtx.OnecProjectClusterModel.FindOne(l.ctx, in.Id)
-	//if err != nil {
-	//	l.Errorf("查询项目集群配额失败，ID: %d, 错误: %v", in.Id, err)
-	//	return nil, errorx.Msg("项目集群配额不存在")
-	//}
+	projectId := projectResource.ProjectId
+	resourceId := in.Id
+	svcCtx := l.svcCtx
 
-	// 查询该项目集群下的所有工作空间
-	//workspaces, err := l.svcCtx.OnecProjectWorkspaceModel.SearchNoPage(l.ctx, "", true, "project_cluster_id = ?", in.Id)
-	//if err != nil {
-	//	l.Errorf("查询工作空间失败，项目集群ID: %d, 错误: %v", in.Id, err)
-	//	return nil, errorx.Msg("查询工作空间失败")
-	//}
+	go func() {
+		ctx := context.Background()
+		logger := logx.WithContext(ctx)
 
-	// 同步项目资源信息
-	err = l.svcCtx.OnecProjectModel.SyncAllProjectClusters(l.ctx, projectResource.ProjectId)
-	if err != nil {
-		l.Errorf("同步项目集群配额失败，ID: %d, 错误: %v", in.Id, err)
-		return nil, errorx.Msg("同步项目集群配额失败")
-	}
-	l.Logger.Infof("同步项目集群配额成功，ID: %d", in.Id)
+		logger.Infof("开始异步同步项目集群配额 [ID:%d]", resourceId)
+
+		err := svcCtx.OnecProjectModel.SyncAllProjectClusters(ctx, projectId)
+		if err != nil {
+			logger.Errorf("同步项目集群配额失败，ID: %d, 错误: %v", resourceId, err)
+			return
+		}
+
+		logger.Infof("项目集群配额同步成功，ID: %d", resourceId)
+	}()
+
 	return &pb.ProjectClusterSyncResp{}, nil
 }
 

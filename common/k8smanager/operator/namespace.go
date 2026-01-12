@@ -327,7 +327,7 @@ func (n *namespaceOperator) Create(namespace *corev1.Namespace) (*corev1.Namespa
 	}
 
 	n.log.Infof("开始创建Namespace: %s", namespace.Name)
-
+	injectCommonAnnotations(namespace)
 	// 执行创建
 	createdNamespace, err := n.client.CoreV1().
 		Namespaces().

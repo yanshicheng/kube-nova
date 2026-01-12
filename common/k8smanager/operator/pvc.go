@@ -70,6 +70,7 @@ func (p *pvcOperator) Create(pvc *corev1.PersistentVolumeClaim) error {
 	if _, err := p.Get(pvc.Namespace, pvc.Name); err == nil {
 		return fmt.Errorf("PVC %s/%s 已经存在", pvc.Namespace, pvc.Name)
 	}
+	injectCommonAnnotations(pvc)
 	_, err := p.client.CoreV1().PersistentVolumeClaims(pvc.Namespace).Create(p.ctx, pvc, metav1.CreateOptions{})
 	return err
 }

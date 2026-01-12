@@ -23,12 +23,17 @@ func NewQuotaOperator(ctx context.Context, base *BaseOperator) types.QuotaOperat
 	}
 }
 
+// List 列出配额
+// refType: 引用类型，如 "project"
+// refID: 引用 ID，如项目 ID
 func (q *QuotaOperatorImpl) List(refType, refID string) ([]types.Quota, error) {
 	q.log.Infof("列出配额: refType=%s, refID=%s", refType, refID)
 
 	params := map[string]string{}
+
+	// Harbor 2.0 API 使用 "reference" 作为过滤参数名
 	if refType != "" {
-		params["reference_type"] = refType
+		params["reference"] = refType
 	}
 	if refID != "" {
 		params["reference_id"] = refID
@@ -45,6 +50,7 @@ func (q *QuotaOperatorImpl) List(refType, refID string) ([]types.Quota, error) {
 	return quotas, nil
 }
 
+// Get 获取单个配额详情
 func (q *QuotaOperatorImpl) Get(id int64) (*types.Quota, error) {
 	q.log.Infof("获取配额: id=%d", id)
 
@@ -55,34 +61,46 @@ func (q *QuotaOperatorImpl) Get(id int64) (*types.Quota, error) {
 		return nil, err
 	}
 
-	q.log.Infof("获取配额成功: id=%d", id)
+	q.log.Infof("获取配额成功: id=%d, storage=%d/%d", id, quota.Used.Storage, quota.Hard.Storage)
 	return &quota, nil
 }
 
+// Update 更新配额
 func (q *QuotaOperatorImpl) Update(id int64, hard types.ResourceList) error {
 	q.log.Infof("更新配额: id=%d, storage=%d, count=%d", id, hard.Storage, hard.Count)
 
-	// 构建 hard 配额对象，只包含需要设置的字段
-	hardMap := make(map[string]int64)
+	// 构建 hard 配额对象
+	// 使用 interface{} 类型以支持不同的值类型
+	hardMap := make(map[string]interface{})
 
-	// Storage 配额：-1 表示无限制
+	// Storage 配额处理：
+	// -1 表示无限制，正数表示具体限制值
+	// 只要不是默认的 0 值就应该更新
 	if hard.Storage != 0 {
 		hardMap["storage"] = hard.Storage
-		q.log.Infof("设置 storage 配额: %d", hard.Storage)
+		if hard.Storage == -1 {
+			q.log.Infof("设置 storage 配额为无限制")
+		} else {
+			q.log.Infof("设置 storage 配额: %d 字节 (%s)", hard.Storage, FormatBytes(hard.Storage))
+		}
 	}
 
-	// Count 配额：某些 Harbor 版本不支持，需要条件性包含
-	// 只有在明确设置且不为 0 时才包含
+	// Count 配额处理：
+	// 某些 Harbor 版本可能不支持 count 配额
+	// -1 表示无限制，正数表示具体限制值
 	if hard.Count != 0 {
-		// 先尝试获取当前配额，检查是否支持 count
-		currentQuota, err := q.Get(id)
-		if err == nil && currentQuota.Hard.Count != 0 {
-			// 如果当前配额有 count 字段，说明支持
-			hardMap["count"] = hard.Count
-			q.log.Infof("设置 count 配额: %d", hard.Count)
+		hardMap["count"] = hard.Count
+		if hard.Count == -1 {
+			q.log.Infof("设置 count 配额为无限制")
 		} else {
-			q.log.Errorf("Harbor 可能不支持 count 配额，跳过设置")
+			q.log.Infof("设置 count 配额: %d", hard.Count)
 		}
+	}
+
+	// 如果没有要更新的字段，直接返回
+	if len(hardMap) == 0 {
+		q.log.Infof("没有需要更新的配额字段")
+		return nil
 	}
 
 	body := map[string]interface{}{
@@ -91,8 +109,11 @@ func (q *QuotaOperatorImpl) Update(id int64, hard types.ResourceList) error {
 
 	path := fmt.Sprintf("/api/v2.0/quotas/%d", id)
 
+	q.log.Debugf("更新配额请求: path=%s, body=%+v", path, body)
+
 	if err := q.doRequest("PUT", path, body, nil); err != nil {
-		return err
+		q.log.Errorf("更新配额失败: %v", err)
+		return fmt.Errorf("更新配额失败: %w", err)
 	}
 
 	q.log.Infof("更新配额成功: id=%d", id)
@@ -125,9 +146,19 @@ func (q *QuotaOperatorImpl) GetByProject(projectName string) (*types.Quota, erro
 		return nil, fmt.Errorf("项目配额不存在")
 	}
 
-	q.log.Infof("获取项目配额成功: storage=%d/%d, count=%d/%d",
-		quotas[0].Used.Storage, quotas[0].Hard.Storage,
-		quotas[0].Used.Count, quotas[0].Hard.Count)
+	// 遍历查找匹配的配额（以防 API 返回多个）
+	for _, quota := range quotas {
+		if quota.Ref != nil && quota.Ref.ID == project.ProjectID {
+			q.log.Infof("获取项目配额成功: quotaID=%d, storage=%d/%d, count=%d/%d",
+				quota.ID, quota.Used.Storage, quota.Hard.Storage,
+				quota.Used.Count, quota.Hard.Count)
+			return &quota, nil
+		}
+	}
+
+	// 如果没找到精确匹配的，返回第一个（保持向后兼容）
+	q.log.Infof("获取项目配额成功（使用首个结果）: quotaID=%d, storage=%d/%d",
+		quotas[0].ID, quotas[0].Used.Storage, quotas[0].Hard.Storage)
 
 	return &quotas[0], nil
 }
@@ -137,11 +168,14 @@ func (q *QuotaOperatorImpl) UpdateByProject(projectName string, hard types.Resou
 	q.log.Infof("更新项目配额: project=%s, storage=%d, count=%d",
 		projectName, hard.Storage, hard.Count)
 
-	// 1. 先获取配额 ID
+	// 1. 先获取配额信息（包含配额 ID）
 	quota, err := q.GetByProject(projectName)
 	if err != nil {
 		return err
 	}
+
+	q.log.Infof("找到项目配额: quotaID=%d, 当前 storage=%d/%d",
+		quota.ID, quota.Used.Storage, quota.Hard.Storage)
 
 	// 2. 更新配额
 	if err := q.Update(quota.ID, hard); err != nil {

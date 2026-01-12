@@ -63,7 +63,7 @@ func DefaultClientOptions() ClientOptions {
 }
 
 // validateConfig 验证配置
-func validateConfig(config Config) error {
+func validateConfig(config *Config) error {
 	logx.Infof("验证集群配置文件... %v", config)
 	if config.ID == "" {
 		return fmt.Errorf("集群 ID 不能为空")
@@ -88,18 +88,23 @@ func validateConfig(config Config) error {
 		return fmt.Errorf("不支持的认证类型: %s", config.AuthType)
 	}
 
-	// 设置默认值
+	// 设置默认值（现在可以正确修改原始 config）
+	defaults := DefaultClientOptions()
+
 	if config.Options.QPS <= 0 {
-		config.Options.QPS = 100
+		config.Options.QPS = defaults.QPS
 	}
 	if config.Options.Burst <= 0 {
-		config.Options.Burst = 200
+		config.Options.Burst = defaults.Burst
 	}
 	if config.Options.ResyncPeriod == 0 {
-		config.Options.ResyncPeriod = 10 * time.Minute
+		config.Options.ResyncPeriod = defaults.ResyncPeriod
 	}
 	if config.Options.Timeout == 0 {
-		config.Options.Timeout = 30 * time.Second
+		config.Options.Timeout = defaults.Timeout
+	}
+	if config.Options.MaxConcurrentRequests <= 0 {
+		config.Options.MaxConcurrentRequests = defaults.MaxConcurrentRequests
 	}
 
 	return nil

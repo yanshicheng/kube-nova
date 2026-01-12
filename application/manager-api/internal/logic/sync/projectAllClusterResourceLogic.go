@@ -30,15 +30,12 @@ func (l *ProjectAllClusterResourceLogic) ProjectAllClusterResource() (resp strin
 		username = "system"
 	}
 	// 启动 go 协程
-	go func() {
-		ctx := context.Background()
-		_, err = l.svcCtx.ManagerRpc.ProjectAllSync(ctx, &managerservice.ProjectQuotaSyncReq{
-			Operator: username,
-		})
-		if err != nil {
-			l.Errorf("同步所有项目集群配额失败: %v", err)
-			return
-		}
-	}()
+	_, err = l.svcCtx.ManagerRpc.ProjectAllSync(l.ctx, &managerservice.ProjectQuotaSyncReq{
+		Operator: username,
+	})
+	if err != nil {
+		l.Errorf("同步所有项目集群配额失败: %v", err)
+		return
+	}
 	return "正在异步同步", nil
 }

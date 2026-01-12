@@ -67,7 +67,7 @@ func (c *clusterRoleBindingOperator) Create(crb *rbacv1.ClusterRoleBinding) (*rb
 	if crb == nil || crb.Name == "" {
 		return nil, fmt.Errorf("ClusterRoleBinding对象和名称不能为空")
 	}
-
+	injectCommonAnnotations(crb)
 	created, err := c.client.RbacV1().ClusterRoleBindings().Create(c.ctx, crb, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建ClusterRoleBinding失败: %v", err)

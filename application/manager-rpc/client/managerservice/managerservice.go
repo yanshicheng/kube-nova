@@ -246,6 +246,8 @@ type (
 	OnecBillingStatementBatchDelResp     = pb.OnecBillingStatementBatchDelResp
 	OnecBillingStatementDelReq           = pb.OnecBillingStatementDelReq
 	OnecBillingStatementDelResp          = pb.OnecBillingStatementDelResp
+	OnecBillingStatementGenerateAllReq   = pb.OnecBillingStatementGenerateAllReq
+	OnecBillingStatementGenerateAllResp  = pb.OnecBillingStatementGenerateAllResp
 	OnecBillingStatementGenerateReq      = pb.OnecBillingStatementGenerateReq
 	OnecBillingStatementGenerateResp     = pb.OnecBillingStatementGenerateResp
 	OnecBillingStatementSearchReq        = pb.OnecBillingStatementSearchReq
@@ -537,6 +539,8 @@ type (
 		OnecBillingStatementBatchDel(ctx context.Context, in *OnecBillingStatementBatchDelReq, opts ...grpc.CallOption) (*OnecBillingStatementBatchDelResp, error)
 		// 立即生成账单
 		OnecBillingStatementGenerate(ctx context.Context, in *OnecBillingStatementGenerateReq, opts ...grpc.CallOption) (*OnecBillingStatementGenerateResp, error)
+		// 生成所有账单
+		OnecBillingStatementGenerateAll(ctx context.Context, in *OnecBillingStatementGenerateAllReq, opts ...grpc.CallOption) (*OnecBillingStatementGenerateAllResp, error)
 	}
 
 	defaultManagerService struct {
@@ -1297,4 +1301,10 @@ func (m *defaultManagerService) OnecBillingStatementBatchDel(ctx context.Context
 func (m *defaultManagerService) OnecBillingStatementGenerate(ctx context.Context, in *OnecBillingStatementGenerateReq, opts ...grpc.CallOption) (*OnecBillingStatementGenerateResp, error) {
 	client := pb.NewManagerServiceClient(m.cli.Conn())
 	return client.OnecBillingStatementGenerate(ctx, in, opts...)
+}
+
+// 生成所有账单
+func (m *defaultManagerService) OnecBillingStatementGenerateAll(ctx context.Context, in *OnecBillingStatementGenerateAllReq, opts ...grpc.CallOption) (*OnecBillingStatementGenerateAllResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.OnecBillingStatementGenerateAll(ctx, in, opts...)
 }

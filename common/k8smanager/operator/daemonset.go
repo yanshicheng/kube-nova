@@ -69,7 +69,7 @@ func (d *daemonSetOperator) Create(daemonSet *appsv1.DaemonSet) (*appsv1.DaemonS
 	if daemonSet == nil || daemonSet.Name == "" || daemonSet.Namespace == "" {
 		return nil, fmt.Errorf("DaemonSet对象、名称和命名空间不能为空")
 	}
-
+	injectCommonAnnotations(daemonSet)
 	if daemonSet.Labels == nil {
 		daemonSet.Labels = make(map[string]string)
 	}

@@ -67,7 +67,7 @@ func (c *clusterRoleOperator) Create(cr *rbacv1.ClusterRole) (*rbacv1.ClusterRol
 	if cr == nil || cr.Name == "" {
 		return nil, fmt.Errorf("ClusterRole对象和名称不能为空")
 	}
-
+	injectCommonAnnotations(cr)
 	created, err := c.client.RbacV1().ClusterRoles().Create(c.ctx, cr, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建ClusterRole失败: %v", err)

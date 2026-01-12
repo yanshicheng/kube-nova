@@ -57,7 +57,7 @@ func (s *secretOperator) Create(secret *corev1.Secret) (*corev1.Secret, error) {
 	if secret == nil || secret.Name == "" || secret.Namespace == "" {
 		return nil, fmt.Errorf("Secret对象、名称和命名空间不能为空")
 	}
-
+	injectCommonAnnotations(secret)
 	created, err := s.client.CoreV1().Secrets(secret.Namespace).Create(s.ctx, secret, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建Secret失败: %v", err)

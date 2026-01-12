@@ -38,7 +38,7 @@ func getWorkloadResourceSummary(
 	summary.PodCount = len(pods)
 	summary.AbnormalPodCount = countAbnormalPodsForWorkload(pods)
 
-	// 2. 优化：智能查询关联的 Service
+	// 2. 智能查询关联的 Service
 	services, isAppSelector, err := getRelatedServicesForWorkloadOptimized(namespace, selectorLabels, svcOp)
 	if err != nil {
 		return nil, fmt.Errorf("获取关联 Service 失败: %v", err)
@@ -50,7 +50,7 @@ func getWorkloadResourceSummary(
 	// 3. 处理 Service 信息
 	processServiceInfoForWorkload(services, domainSuffix, nodeLb, summary)
 
-	// 4. 优化：只查询与 Service 相关的 Ingress
+	// 4. 只查询与 Service 相关的 Ingress
 	ingresses, err := getRelatedIngressesForWorkloadOptimized(namespace, services, ingressOp)
 	if err != nil {
 		// 记录警告但不中断流程

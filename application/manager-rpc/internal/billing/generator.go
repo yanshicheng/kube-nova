@@ -16,6 +16,9 @@ import (
 // 不计费配置ID（系统内置，id=1 表示不计费）
 const NoBillingPriceConfigId = 1
 
+// 系统内置项目ID（id=3 是系统内置项目，不生成账单）
+const SystemProjectId = 3
+
 // Generator 账单生成器
 type Generator struct {
 	ctx                       context.Context
@@ -68,6 +71,11 @@ func (g *Generator) generateStatementNo() string {
 // isNoBillingConfig 判断是否为不计费配置
 func (g *Generator) isNoBillingConfig(priceConfigId uint64) bool {
 	return priceConfigId == NoBillingPriceConfigId
+}
+
+// isSystemProject 判断是否为系统内置项目
+func (g *Generator) isSystemProject(projectId uint64) bool {
+	return projectId == SystemProjectId
 }
 
 // getPriceConfigForProjectCluster 获取项目集群的价格配置
@@ -395,6 +403,13 @@ func (g *Generator) generateSingleStatement(
 	projectCluster *model.OnecProjectCluster,
 	option *GenerateOption,
 ) error {
+	// 【新增】检查是否为系统内置项目（project_id = 3），系统项目不生成账单
+	if g.isSystemProject(projectCluster.ProjectId) {
+		g.logger.Infof("项目为系统内置项目，跳过账单生成, projectId: %d, clusterUuid: %s",
+			projectCluster.ProjectId, projectCluster.ClusterUuid)
+		return nil
+	}
+
 	// 获取价格配置（如果项目集群没有绑定，会自动基于集群默认配置创建）
 	bindingInfo, priceConfig, err := g.getPriceConfigForProjectCluster(
 		projectCluster.ClusterUuid,
@@ -602,6 +617,12 @@ func (g *Generator) GenerateByProject(projectId uint64, option *GenerateOption) 
 		FailedItems: make([]string, 0),
 	}
 
+	// 【新增】检查是否为系统内置项目
+	if g.isSystemProject(projectId) {
+		g.logger.Infof("项目为系统内置项目，跳过账单生成, projectId: %d", projectId)
+		return result, nil
+	}
+
 	// 查询该项目关联的所有集群
 	projectClusters, err := g.projectClusterModel.SearchNoPage(
 		g.ctx, "", true,
@@ -747,6 +768,12 @@ func (g *Generator) GenerateByProjectCluster(projectClusterId uint64, option *Ge
 // GenerateByClusterAndProject 根据集群UUID和项目ID生成单个账单
 func (g *Generator) GenerateByClusterAndProject(clusterUuid string, projectId uint64, option *GenerateOption) error {
 	g.logger.Infof("开始生成项目集群账单, clusterUuid: %s, projectId: %d", clusterUuid, projectId)
+
+	// 【新增】检查是否为系统内置项目
+	if g.isSystemProject(projectId) {
+		g.logger.Infof("项目为系统内置项目，跳过账单生成, projectId: %d, clusterUuid: %s", projectId, clusterUuid)
+		return nil
+	}
 
 	projectCluster, err := g.projectClusterModel.FindOneByClusterUuidProjectId(g.ctx, clusterUuid, projectId)
 	if err != nil {

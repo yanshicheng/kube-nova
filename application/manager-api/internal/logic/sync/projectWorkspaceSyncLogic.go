@@ -31,19 +31,16 @@ func (l *ProjectWorkspaceSyncLogic) ProjectWorkspaceSync(req *types.SyncRequest)
 		username = "system"
 	}
 
-	go func() {
-		ctx := context.Background()
-		_, err = l.svcCtx.ManagerRpc.ProjectWorkspaceSync(ctx, &pb.ProjectWorkspaceSyncReq{
-			Id:       req.Id,
-			Operator: username,
-		})
+	_, err = l.svcCtx.ManagerRpc.ProjectWorkspaceSync(l.ctx, &pb.ProjectWorkspaceSyncReq{
+		Id:       req.Id,
+		Operator: username,
+	})
 
-		if err != nil {
-			l.Errorf("同步项目工作空间状态失败: %v", err)
-			return
-		}
+	if err != nil {
+		l.Errorf("同步项目工作空间状态失败: %v", err)
+		return
+	}
 
-		l.Infof("项目工作空间状态同步成功, ID: %d", req.Id)
-	}()
+	l.Infof("项目工作空间状态同步成功, ID: %d", req.Id)
 	return "项目工作空间状态同步成功", nil
 }
