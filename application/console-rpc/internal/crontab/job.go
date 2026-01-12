@@ -167,5 +167,5 @@ func (j *BaseJob) AllowConcurrent() bool     { return j.allowConcurrent }
 func (j *BaseJob) Hooks() JobHooks           { return j.hooks }
 
 func (j *BaseJob) Execute(ctx context.Context) error {
-	return nil // 子类必须重写
+	return nil
 }

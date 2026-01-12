@@ -3,6 +3,7 @@ package managerservicelogic
 import (
 	"context"
 
+	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/billing"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/pb"
 
@@ -25,7 +26,18 @@ func NewOnecBillingStatementGenerateLogic(ctx context.Context, svcCtx *svc.Servi
 
 // 立即生成账单
 func (l *OnecBillingStatementGenerateLogic) OnecBillingStatementGenerate(in *pb.OnecBillingStatementGenerateReq) (*pb.OnecBillingStatementGenerateResp, error) {
-	// todo: add your logic here and delete this line
-
+	// 立即触发账单生成
+	err := l.svcCtx.BillingService.GenerateByClusterAndProject(
+		l.ctx, in.ClusterUuid,
+		in.ProjectId,
+		&billing.GenerateOption{
+			CreatedBy:     in.UserName,
+			StatementType: billing.StatementTypeConfigChange,
+		})
+	if err != nil {
+		l.Errorf("生成账单失败, :%v", err)
+		return nil, err
+	}
+	l.Infof("生成账单成功")
 	return &pb.OnecBillingStatementGenerateResp{}, nil
 }

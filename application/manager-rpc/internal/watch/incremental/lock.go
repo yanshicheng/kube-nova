@@ -17,7 +17,6 @@ const (
 )
 
 // RedisDistributedLock Redis 分布式锁实现
-// 用于在多副本环境下协调事件处理，确保同一事件只被一个副本处理
 type RedisDistributedLock struct {
 	client *redis.Redis
 	nodeID string
@@ -32,10 +31,6 @@ func NewRedisDistributedLock(client *redis.Redis, nodeID string) *RedisDistribut
 }
 
 // TryLock 尝试获取分布式锁
-// 返回值：
-//   - acquired: 是否成功获取锁
-//   - release: 释放锁的函数（只有在 acquired=true 时才有效）
-//   - err: 错误信息
 func (l *RedisDistributedLock) TryLock(ctx context.Context, key string, ttl time.Duration) (bool, func(), error) {
 	lockKey := l.buildLockKey(key)
 	expireSeconds := int(ttl.Seconds())
@@ -56,7 +51,6 @@ func (l *RedisDistributedLock) TryLock(ctx context.Context, key string, ttl time
 	}
 
 	release := func() {
-		// 使用 Background context 确保即使原 context 取消也能释放锁
 		releaseCtx := context.Background()
 		if _, err := lock.ReleaseCtx(releaseCtx); err != nil {
 			logx.Errorf("[DistributedLock] 释放锁失败, key=%s, error=%v", key, err)
@@ -86,11 +80,10 @@ func (l *RedisDistributedLock) buildLockKey(key string) string {
 }
 
 // LockWithAutoRenew 带自动续期的分布式锁
-// 适用于处理时间可能超过锁 TTL 的场景，会在后台自动续期
 type LockWithAutoRenew struct {
 	client       *redis.Redis
 	nodeID       string
-	renewalRatio float64 // 续期比例，默认 0.5，即在 TTL 的一半时间时续期
+	renewalRatio float64
 }
 
 // NewLockWithAutoRenew 创建带自动续期的分布式锁
@@ -122,7 +115,7 @@ func (l *LockWithAutoRenew) TryLock(ctx context.Context, key string, ttl time.Du
 		return false, nil, nil
 	}
 
-	// 启动自动续期 goroutine
+	// 启动自动续期
 	renewCtx, cancelRenew := context.WithCancel(context.Background())
 	renewInterval := time.Duration(float64(ttl) * l.renewalRatio)
 	var renewFailCount int32
@@ -142,20 +135,15 @@ func (l *LockWithAutoRenew) TryLock(ctx context.Context, key string, ttl time.Du
 						logx.Errorf("[DistributedLock] 续期连续失败3次，停止续期, key=%s", key)
 						return
 					}
-					logx.Errorf("[DistributedLock] 续期失败(%d/3), key=%s, error=%v",
-						atomic.LoadInt32(&renewFailCount), key, err)
 					continue
 				}
 				atomic.StoreInt32(&renewFailCount, 0)
-				logx.Debugf("[DistributedLock] 续期成功, key=%s, ttl=%ds", key, expireSeconds)
 			}
 		}
 	}()
 
 	release := func() {
-		// 先停止续期
 		cancelRenew()
-		// 再释放锁
 		releaseCtx := context.Background()
 		if _, err := lock.ReleaseCtx(releaseCtx); err != nil {
 			logx.Errorf("[DistributedLock] 释放锁失败, key=%s, error=%v", key, err)
@@ -185,7 +173,6 @@ func (l *LockWithAutoRenew) buildLockKey(key string) string {
 }
 
 // NoopLocker 空操作锁（单副本或测试环境使用）
-// 所有锁操作都直接返回成功，不进行实际加锁
 type NoopLocker struct {
 	nodeID string
 }

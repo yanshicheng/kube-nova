@@ -8,9 +8,12 @@ import (
 	"github.com/yanshicheng/kube-nova/application/console-rpc/internal/model/repository"
 	repository2 "github.com/yanshicheng/kube-nova/application/console-rpc/internal/model/repository"
 	"github.com/yanshicheng/kube-nova/application/console-rpc/internal/repositorymanager/cluster"
+	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
+	"github.com/yanshicheng/kube-nova/common/interceptors"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type ServiceContext struct {
@@ -20,6 +23,7 @@ type ServiceContext struct {
 	ContainerRegistryModel      repository.ContainerRegistryModel
 	RepositoryClusterModel      repository2.RegistryClusterModel
 	RegistryProjectBindingModel repository2.RegistryProjectBindingModel
+	ManagerRpc                  managerservice.ManagerService
 
 	// 定时任务管理器
 	CronManager *crontab.Manager
@@ -38,7 +42,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 
 	// 创建 Redis 客户端
 	rds := redis.MustNewRedis(c.Cache)
-
+	managerRpc := zrpc.MustNewClient(c.ManagerRpc,
+		zrpc.WithUnaryClientInterceptor(interceptors.ClientMetadataInterceptor()),
+		zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor()),
+	)
 	// 创建 ServiceContext
 	svcCtx := &ServiceContext{
 		Config:                      c,
@@ -47,7 +54,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		ContainerRegistryModel:      repository.NewContainerRegistryModel(sqlx.NewMysql(c.Mysql.DataSource), c.DBCache),
 		RepositoryClusterModel:      repository2.NewRegistryClusterModel(sqlx.NewMysql(c.Mysql.DataSource), c.DBCache),
 		RegistryProjectBindingModel: repository2.NewRegistryProjectBindingModel(sqlx.NewMysql(c.Mysql.DataSource), c.DBCache),
-	}
+		ManagerRpc:                  managerservice.NewManagerService(managerRpc)}
 
 	// 初始化定时任务管理器（只创建 Manager，不注册 jobs）
 	svcCtx.CronManager = initCronManager(rds)

@@ -6,134 +6,32 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/yanshicheng/kube-nova/common/utils"
 	"github.com/zeromicro/go-zero/core/logx"
-	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/model"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/rsync/operator"
 )
 
 const (
-	// AnnotationApplicationEn 应用英文名注解
-	AnnotationApplicationEn = "ikubeops.com/application-en"
-	// AnnotationApplication 应用中文名注解
-	AnnotationApplication = "ikubeops.com/application"
-	// AnnotationVersion 版本号注解
+	// AnnotationVersion 版本注解
 	AnnotationVersion = "ikubeops.com/version"
-	// AnnotationVersionRole 版本角色注解
+	// AnnotationVersionRole 版本角色注解（用户可通过此注解显式指定角色）
 	AnnotationVersionRole = "ikubeops.com/version-role"
 
-	// DefaultVersionRole 默认版本角色
 	DefaultVersionRole = "stable"
-	// DefaultVersion 默认版本号
-	DefaultVersion = "v1"
-
-	// AnnotationDeletedBy API 删除标记注解 Key（用于 Workload 资源）
-	AnnotationDeletedBy = "kube-nova.io/deleted-by"
-	// AnnotationDeleteTime API 删除时间注解 Key
-	AnnotationDeleteTime = "kube-nova.io/delete-time"
-	// DeletedByAPI API 删除标记值
-	DeletedByAPI = "api"
-
-	// VersionStatusNormal 版本状态：正常
-	VersionStatusNormal int64 = 1
-	// VersionStatusAbnormal 版本状态：异常
-	VersionStatusAbnormal int64 = 0
+	DefaultVersion     = "v1"
 )
 
-// CalculateDeploymentStatus 计算 Deployment 的健康状态
-// 正常条件：ReadyReplicas >= Spec.Replicas 且 AvailableReplicas >= Spec.Replicas
-func CalculateDeploymentStatus(deploy *appsv1.Deployment) int64 {
-	if deploy.Spec.Replicas == nil {
-		return VersionStatusNormal
-	}
-
-	desired := *deploy.Spec.Replicas
-
-	if desired == 0 {
-		return VersionStatusNormal
-	}
-
-	if deploy.Status.ReadyReplicas >= desired &&
-		deploy.Status.AvailableReplicas >= desired {
-		return VersionStatusNormal
-	}
-
-	return VersionStatusAbnormal
-}
-
-// CalculateStatefulSetStatus 计算 StatefulSet 的健康状态
-func CalculateStatefulSetStatus(sts *appsv1.StatefulSet) int64 {
-	if sts.Spec.Replicas == nil {
-		return VersionStatusNormal
-	}
-
-	desired := *sts.Spec.Replicas
-
-	if desired == 0 {
-		return VersionStatusNormal
-	}
-
-	if sts.Status.ReadyReplicas >= desired {
-		return VersionStatusNormal
-	}
-
-	return VersionStatusAbnormal
-}
-
-// CalculateDaemonSetStatus 计算 DaemonSet 的健康状态
-func CalculateDaemonSetStatus(ds *appsv1.DaemonSet) int64 {
-	desired := ds.Status.DesiredNumberScheduled
-
-	if desired == 0 {
-		return VersionStatusNormal
-	}
-
-	if ds.Status.NumberReady >= desired {
-		return VersionStatusNormal
-	}
-
-	return VersionStatusAbnormal
-}
-
-// CalculateCronJobStatus 计算 CronJob 的健康状态
-func CalculateCronJobStatus(cj *batchv1.CronJob) int64 {
-	return VersionStatusNormal
-}
-
-// SyncResult 同步结果，用于标识是否有实际变更
-type SyncResult struct {
-	ApplicationCreated  bool     // 应用是否新创建
-	ApplicationRestored bool     // 应用是否从软删除恢复
-	ApplicationUpdated  bool     // 应用是否有更新（如 NameCn 变更）
-	VersionCreated      bool     // 版本是否新创建
-	VersionRestored     bool     // 版本是否从软删除恢复
-	VersionUpdated      bool     // 版本是否有更新
-	ChangeDetails       []string // 变更详情
-}
-
-// HasChange 判断是否有实际变更
-func (r *SyncResult) HasChange() bool {
-	return r.ApplicationCreated || r.ApplicationRestored || r.ApplicationUpdated ||
-		r.VersionCreated || r.VersionRestored || r.VersionUpdated
-}
-
-// AddChangeDetail 添加变更详情
-func (r *SyncResult) AddChangeDetail(detail string) {
-	r.ChangeDetails = append(r.ChangeDetails, detail)
-}
-
-// syncWorkloadToDatabase 同步工作负载到数据库
-func (h *DefaultEventHandler) syncWorkloadToDatabase(ctx context.Context, clusterUUID, namespace, resourceName, resourceType string, labels, annotations map[string]string, status int64) error {
+func (h *DefaultEventHandler) syncWorkloadToDatabase(ctx context.Context, clusterUUID, namespace, name, resourceType string, labels, annotations map[string]string) error {
 	logger := logx.WithContext(ctx)
 
-	// Step 1: 查询工作空间
 	workspaces, err := h.svcCtx.ProjectWorkspaceModel.FindAllByClusterUuidNamespaceIncludeDeleted(ctx, clusterUUID, namespace)
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
 		return fmt.Errorf("查询工作空间失败: %v", err)
 	}
 
+	// 找到未删除的工作空间
 	var workspace *model.OnecProjectWorkspace
 	for _, ws := range workspaces {
 		if ws.IsDeleted == 0 {
@@ -143,234 +41,79 @@ func (h *DefaultEventHandler) syncWorkloadToDatabase(ctx context.Context, cluste
 	}
 
 	if workspace == nil {
+		// 工作空间不存在，说明该 namespace 不在平台管理范围内，跳过
 		logger.Debugf("[Workload-SYNC] 未找到对应的工作空间，跳过: ClusterUUID=%s, Namespace=%s", clusterUUID, namespace)
 		return nil
-	}
-
-	// Step 2: 从注解确定应用的 NameEn 和 NameCn
-	appNameEn, appNameCn := h.determineAppNames(resourceName, annotations)
-
-	// Step 3: 确定版本角色
-	versionRole := h.determineVersionRole(resourceName, labels, annotations, clusterUUID, namespace, ctx, logger)
-
-	logger.Debugf("[Workload-SYNC] 处理资源: resourceName=%s, type=%s, appNameEn=%s, appNameCn=%s, role=%s, status=%d",
-		resourceName, resourceType, appNameEn, appNameCn, versionRole, status)
-
-	// 初始化同步结果
-	syncResult := &SyncResult{}
-
-	// Step 4: 确保应用存在
-	application, err := h.ensureApplication(ctx, workspace.Id, appNameEn, appNameCn, resourceType, syncResult)
-	if err != nil {
-		return fmt.Errorf("确保应用存在失败: %v", err)
-	}
-
-	// Step 5: 确保版本存在
-	err = h.ensureVersion(ctx, application.Id, resourceName, versionRole, annotations, status, syncResult)
-	if err != nil {
-		return fmt.Errorf("确保版本存在失败: %v", err)
-	}
-
-	// Step 6: 只有在有实际变更时才创建审计日志
-	if !syncResult.HasChange() {
-		logger.Debugf("[Workload-SYNC] 无实际变更，跳过审计日志: ClusterUUID=%s, Namespace=%s, ResourceName=%s",
-			clusterUUID, namespace, resourceName)
-		return nil
-	}
-
-	logger.Infof("[Workload-SYNC] 同步成功: ClusterUUID=%s, Namespace=%s, ResourceName=%s, AppNameEn=%s, AppID=%d, Status=%d, Changes=%v",
-		clusterUUID, namespace, resourceName, appNameEn, application.Id, status, syncResult.ChangeDetails)
-
-	// 创建审计日志
-	projectId, projectName := h.getProjectInfo(ctx, workspace.ProjectClusterId)
-	actionDetail := h.buildSyncAuditDetail(resourceType, appNameEn, resourceName, status, syncResult)
-
-	h.createAuditLog(ctx, &AuditLogInfo{
-		ClusterName:     h.getClusterName(ctx, clusterUUID),
-		ClusterUuid:     clusterUUID,
-		ProjectId:       projectId,
-		ProjectName:     projectName,
-		WorkspaceId:     workspace.Id,
-		WorkspaceName:   workspace.Name,
-		ApplicationId:   application.Id,
-		ApplicationName: application.NameEn,
-		Title:           "应用版本同步",
-		ActionDetail:    actionDetail,
-		Status:          1,
-	})
-
-	return nil
-}
-
-// buildSyncAuditDetail 根据同步结果构建审计日志详情
-func (h *DefaultEventHandler) buildSyncAuditDetail(resourceType, appNameEn, resourceName string, status int64, syncResult *SyncResult) string {
-	var actions []string
-
-	if syncResult.ApplicationCreated {
-		actions = append(actions, "创建应用")
-	}
-	if syncResult.ApplicationRestored {
-		actions = append(actions, "恢复应用")
-	}
-	if syncResult.ApplicationUpdated {
-		actions = append(actions, "更新应用")
-	}
-	if syncResult.VersionCreated {
-		actions = append(actions, "创建版本")
-	}
-	if syncResult.VersionRestored {
-		actions = append(actions, "恢复版本")
-	}
-	if syncResult.VersionUpdated {
-		actions = append(actions, "更新版本")
-	}
-
-	actionStr := strings.Join(actions, "+")
-
-	// 如果有详细变更信息，附加到后面
-	if len(syncResult.ChangeDetails) > 0 {
-		detailStr := strings.Join(syncResult.ChangeDetails, ", ")
-		return fmt.Sprintf("从 K8s %s 自动同步(%s): %s/%s, 状态: %d, 详情: %s",
-			resourceType, actionStr, appNameEn, resourceName, status, detailStr)
-	}
-
-	return fmt.Sprintf("从 K8s %s 自动同步(%s): %s/%s, 状态: %d", resourceType, actionStr, appNameEn, resourceName, status)
-}
-
-// updateWorkloadStatus 更新工作负载状态（用于 UPDATE 事件）
-func (h *DefaultEventHandler) updateWorkloadStatus(ctx context.Context, clusterUUID, namespace, resourceName, resourceType string, newStatus int64) error {
-	logger := logx.WithContext(ctx)
-
-	// Step 1: 查询工作空间
-	workspaces, err := h.svcCtx.ProjectWorkspaceModel.FindAllByClusterUuidNamespaceIncludeDeleted(ctx, clusterUUID, namespace)
-	if err != nil && !errors.Is(err, model.ErrNotFound) {
-		return fmt.Errorf("查询工作空间失败: %v", err)
-	}
-
-	var workspace *model.OnecProjectWorkspace
-	for _, ws := range workspaces {
-		if ws.IsDeleted == 0 {
-			workspace = ws
-			break
-		}
-	}
-
-	if workspace == nil {
-		logger.Debugf("[Workload-STATUS] 未找到对应的工作空间，跳过: ClusterUUID=%s, Namespace=%s", clusterUUID, namespace)
-		return nil
-	}
-
-	// Step 2: 查找版本记录
-	application, version, err := h.findApplicationAndVersionByResourceName(ctx, workspace.Id, resourceName, resourceType)
-	if err != nil {
-		if errors.Is(err, model.ErrNotFound) {
-			logger.Debugf("[Workload-STATUS] 版本不存在，跳过状态更新: WorkspaceID=%d, ResourceName=%s",
-				workspace.Id, resourceName)
-			return nil
-		}
-		return fmt.Errorf("查询应用和版本失败: %v", err)
-	}
-
-	if application == nil || version == nil {
-		logger.Debugf("[Workload-STATUS] 应用或版本不存在，跳过: WorkspaceID=%d, ResourceName=%s",
-			workspace.Id, resourceName)
-		return nil
-	}
-
-	// Step 3: 检查状态是否变化
-	if version.Status == newStatus {
-		logger.Debugf("[Workload-STATUS] 状态未变化，跳过: VersionID=%d, Status=%d",
-			version.Id, newStatus)
-		return nil
-	}
-
-	// Step 4: 更新状态
-	oldStatus := version.Status
-	version.Status = newStatus
-	version.UpdatedBy = SystemOperator
-
-	if err := h.svcCtx.ProjectVersion.Update(ctx, version); err != nil {
-		return fmt.Errorf("更新版本状态失败: %v", err)
-	}
-
-	logger.Infof("[Workload-STATUS] 状态更新成功: VersionID=%d, ResourceName=%s, Status: %d -> %d",
-		version.Id, resourceName, oldStatus, newStatus)
-
-	return nil
-}
-
-// determineAppNames 从注解确定应用的 NameEn 和 NameCn
-func (h *DefaultEventHandler) determineAppNames(resourceName string, annotations map[string]string) (appNameEn, appNameCn string) {
-	appNameEn = resourceName
-	appNameCn = resourceName
-
-	if annotations == nil {
-		return appNameEn, appNameCn
-	}
-
-	if nameEn, ok := annotations[AnnotationApplicationEn]; ok && nameEn != "" {
-		appNameEn = nameEn
-		appNameCn = nameEn
-	}
-
-	if nameCn, ok := annotations[AnnotationApplication]; ok && nameCn != "" {
-		appNameCn = nameCn
-	}
-
-	return appNameEn, appNameCn
-}
-
-// determineVersionRole 确定版本角色
-func (h *DefaultEventHandler) determineVersionRole(resourceName string, labels, annotations map[string]string, clusterUUID, namespace string, ctx context.Context, logger logx.Logger) string {
-	if annotations != nil {
-		if role, ok := annotations[AnnotationVersionRole]; ok && role != "" {
-			return role
-		}
 	}
 
 	var flaggerHelper *operator.FlaggerHelper
 	if h.svcCtx.K8sManager != nil {
 		k8sClient, err := h.svcCtx.K8sManager.GetCluster(ctx, clusterUUID)
 		if err != nil {
-			logger.Debugf("[Workload-SYNC] 获取 K8s 客户端失败，使用默认角色: %v", err)
+			logger.Errorf("[Workload-SYNC] 获取 K8s 客户端失败，降级为普通资源处理: %v", err)
+			// 获取客户端失败，降级处理
 		} else {
 			flaggerHelper = operator.NewFlaggerHelper(k8sClient)
 		}
 	}
 
+	flaggerAvailable := false
 	if flaggerHelper != nil {
-		flaggerAvailable := flaggerHelper.CheckFlaggerCRD(ctx)
+		flaggerAvailable = flaggerHelper.CheckFlaggerCRD(ctx)
 		if flaggerAvailable {
+			// 加载该命名空间的所有 Canary 策略
 			if err := flaggerHelper.LoadNamespaceCanaries(ctx, namespace); err != nil {
-				logger.Debugf("[Workload-SYNC] 加载 Flagger Canary 失败: %v", err)
-			}
-			resourceKind := resourceTypeToKind(strings.ToLower(resourceName))
-			flaggerInfo := flaggerHelper.IdentifyResource(resourceName, resourceKind, labels, annotations)
-			if flaggerInfo != nil && flaggerInfo.VersionRole != "" {
-				return flaggerInfo.VersionRole
+				logger.Infof("[Workload-SYNC] 加载 Flagger Canary 失败，继续处理: %v", err)
+				// 加载失败不影响后续处理
 			}
 		}
 	}
 
-	if strings.HasSuffix(resourceName, "-primary") || strings.HasSuffix(resourceName, "-canary") {
-		return operator.VersionRoleStable
+	logger.Debugf("[Workload-SYNC] Flagger 状态: available=%v, clusterUUID=%s, namespace=%s",
+		flaggerAvailable, clusterUUID, namespace)
+
+	// 将 resourceType 转换为 Kind 格式（Deployment, StatefulSet 等）
+	resourceKind := resourceTypeToKind(resourceType)
+
+	var flaggerInfo *operator.FlaggerResourceInfo
+	if flaggerHelper != nil && flaggerAvailable {
+		flaggerInfo = flaggerHelper.IdentifyResource(name, resourceKind, labels, annotations)
+	} else {
+		flaggerInfo = identifyFlaggerResourceByNaming(name, annotations)
 	}
 
-	return DefaultVersionRole
+	appName := flaggerInfo.OriginalAppName
+
+	// 用户可通过注解指定应用的中文名（不影响 appName）
+	appNameCn := appName
+	if annotations != nil {
+		if customName, ok := annotations[utils.AnnotationApplicationName]; ok && customName != "" {
+			appNameCn = customName
+		}
+	}
+
+	logger.Infof("[Workload-SYNC] 处理资源: resourceName=%s, type=%s, isFlagger=%v, role=%s, appName=%s, flaggerAvailable=%v",
+		name, resourceType, flaggerInfo.IsFlaggerManaged, flaggerInfo.VersionRole, appName, flaggerAvailable)
+
+	application, err := h.ensureApplication(ctx, workspace.Id, appName, appNameCn, resourceType)
+	if err != nil {
+		return fmt.Errorf("确保应用存在失败: %v", err)
+	}
+
+	err = h.ensureVersion(ctx, application.Id, name, flaggerInfo.VersionRole, annotations)
+	if err != nil {
+		return fmt.Errorf("确保版本存在失败: %v", err)
+	}
+
+	logger.Infof("[Workload-SYNC] 同步成功: ClusterUUID=%s, Namespace=%s, ResourceName=%s, AppName=%s, AppID=%d, Role=%s",
+		clusterUUID, namespace, name, appName, application.Id, flaggerInfo.VersionRole)
+
+	return nil
 }
 
-// deleteWorkloadFromDatabase 从数据库删除工作负载（硬删除）
-func (h *DefaultEventHandler) deleteWorkloadFromDatabase(ctx context.Context, clusterUUID, namespace, resourceName, resourceType string, annotations map[string]string) error {
+// deleteWorkloadFromDatabase 从数据库删除工作负载（软删除版本）
+func (h *DefaultEventHandler) deleteWorkloadFromDatabase(ctx context.Context, clusterUUID, namespace, name, resourceType string) error {
 	logger := logx.WithContext(ctx)
-
-	// 检查是否是 API 触发的删除
-	if annotations != nil {
-		if deletedBy, ok := annotations[AnnotationDeletedBy]; ok && deletedBy == DeletedByAPI {
-			logger.Infof("[Workload-DELETE] 检测到 API 删除标记，跳过 Watch 处理: ClusterUUID=%s, Namespace=%s, ResourceName=%s",
-				clusterUUID, namespace, resourceName)
-			return nil
-		}
-	}
 
 	workspaces, err := h.svcCtx.ProjectWorkspaceModel.FindAllByClusterUuidNamespaceIncludeDeleted(ctx, clusterUUID, namespace)
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
@@ -390,81 +133,70 @@ func (h *DefaultEventHandler) deleteWorkloadFromDatabase(ctx context.Context, cl
 		return nil
 	}
 
-	application, version, err := h.findApplicationAndVersionByResourceName(ctx, workspace.Id, resourceName, resourceType)
+	flaggerInfo := identifyFlaggerResourceByNaming(name, nil)
+	appName := flaggerInfo.OriginalAppName
+
+	application, err := h.svcCtx.ProjectApplication.FindOneByWorkspaceIdNameEnResourceType(ctx, workspace.Id, appName, resourceType)
 	if err != nil {
 		if errors.Is(err, model.ErrNotFound) {
-			logger.Debugf("[Workload-DELETE] 版本不存在，跳过: WorkspaceID=%d, ResourceName=%s, Type=%s",
-				workspace.Id, resourceName, resourceType)
+			logger.Debugf("[Workload-DELETE] 应用不存在，跳过: WorkspaceID=%d, AppName=%s, Type=%s",
+				workspace.Id, appName, resourceType)
 			return nil
 		}
-		return fmt.Errorf("查询应用和版本失败: %v", err)
+		return fmt.Errorf("查询应用失败: %v", err)
 	}
 
-	if application == nil || version == nil {
-		logger.Debugf("[Workload-DELETE] 应用或版本不存在，跳过: WorkspaceID=%d, ResourceName=%s",
-			workspace.Id, resourceName)
-		return nil
-	}
-
-	if err := h.svcCtx.ProjectVersion.Delete(ctx, version.Id); err != nil {
-		return fmt.Errorf("硬删除版本失败: %v", err)
-	}
-
-	logger.Infof("[Workload-DELETE] 硬删除版本成功: VersionID=%d, AppID=%d, ResourceName=%s",
-		version.Id, application.Id, resourceName)
-
-	remainingVersions, err := h.svcCtx.ProjectVersion.FindAllByApplicationId(ctx, application.Id)
-	if err != nil && !errors.Is(err, model.ErrNotFound) {
-		logger.Errorf("[Workload-DELETE] 查询剩余版本失败: %v", err)
-	}
-
-	if len(remainingVersions) == 0 {
-		if err := h.svcCtx.ProjectApplication.Delete(ctx, application.Id); err != nil {
-			logger.Errorf("[Workload-DELETE] 硬删除应用失败: %v", err)
-		} else {
-			logger.Infof("[Workload-DELETE] 硬删除应用成功（无剩余版本）: AppID=%d, AppName=%s", application.Id, application.NameEn)
+	version, err := h.svcCtx.ProjectVersion.FindOneByApplicationIdResourceName(ctx, application.Id, name)
+	if err != nil {
+		if errors.Is(err, model.ErrNotFound) {
+			// 版本不存在，可能已经通过平台删除，跳过
+			logger.Debugf("[Workload-DELETE] 版本不存在，跳过: AppID=%d, ResourceName=%s", application.Id, name)
+			return nil
 		}
+		return fmt.Errorf("查询版本失败: %v", err)
 	}
 
-	projectId, projectName := h.getProjectInfo(ctx, workspace.ProjectClusterId)
-	h.createAuditLog(ctx, &AuditLogInfo{
-		ClusterName:     h.getClusterName(ctx, clusterUUID),
-		ClusterUuid:     clusterUUID,
-		ProjectId:       projectId,
-		ProjectName:     projectName,
-		WorkspaceId:     workspace.Id,
-		WorkspaceName:   workspace.Name,
-		ApplicationId:   application.Id,
-		ApplicationName: application.NameEn,
-		Title:           "应用版本删除",
-		ActionDetail:    fmt.Sprintf("从 K8s %s 删除事件触发硬删除版本: %s/%s", resourceType, application.NameEn, resourceName),
-		Status:          1,
-	})
+	// 软删除版本
+	if err := h.svcCtx.ProjectVersion.DeleteSoft(ctx, version.Id); err != nil {
+		return fmt.Errorf("软删除版本失败: %v", err)
+	}
+
+	logger.Infof("[Workload-DELETE] 软删除版本成功: VersionID=%d, AppID=%d, ResourceName=%s",
+		version.Id, application.Id, name)
 
 	return nil
 }
 
-// findApplicationAndVersionByResourceName 通过 resourceName 查找应用和版本
-func (h *DefaultEventHandler) findApplicationAndVersionByResourceName(ctx context.Context, workspaceId uint64, resourceName, resourceType string) (*model.OnecProjectApplication, *model.OnecProjectVersion, error) {
-	apps, err := h.svcCtx.ProjectApplication.SearchNoPage(ctx, "", false, "`workspace_id` = ? AND `resource_type` = ?", workspaceId, resourceType)
-	if err != nil {
-		if errors.Is(err, model.ErrNotFound) {
-			return nil, nil, model.ErrNotFound
-		}
-		return nil, nil, err
+// identifyFlaggerResourceByNaming 通过命名规则识别 Flagger 资源（简化版）
+func identifyFlaggerResourceByNaming(resourceName string, annotations map[string]string) *operator.FlaggerResourceInfo {
+	info := &operator.FlaggerResourceInfo{
+		IsFlaggerManaged: false,
+		OriginalAppName:  resourceName,
+		VersionRole:      operator.VersionRoleStable, // 默认是 stable
 	}
 
-	for _, app := range apps {
-		version, err := h.svcCtx.ProjectVersion.FindOneByApplicationIdResourceNameIncludeDeleted(ctx, app.Id, resourceName)
-		if err == nil {
-			return app, version, nil
-		}
-		if !errors.Is(err, model.ErrNotFound) {
-			return nil, nil, err
+	// 通过命名规则检测可能的 Flagger 资源
+	originalName := resourceName
+
+	if strings.HasSuffix(resourceName, "-primary") {
+		originalName = strings.TrimSuffix(resourceName, "-primary")
+		info.IsFlaggerManaged = true
+		info.OriginalAppName = originalName
+		info.VersionRole = operator.VersionRoleStable
+	} else if strings.HasSuffix(resourceName, "-canary") {
+		originalName = strings.TrimSuffix(resourceName, "-canary")
+		info.IsFlaggerManaged = true
+		info.OriginalAppName = originalName
+		info.VersionRole = operator.VersionRoleStable
+	}
+
+	if annotations != nil {
+		if role, ok := annotations[AnnotationVersionRole]; ok && role != "" {
+			info.VersionRole = role
 		}
 	}
 
-	return nil, nil, model.ErrNotFound
+	return info
 }
 
 // resourceTypeToKind 将资源类型转换为 Kind 格式
@@ -483,53 +215,12 @@ func resourceTypeToKind(resourceType string) string {
 	}
 }
 
-// ensureApplication 确保应用存在，不存在则创建，软删除则恢复
-func (h *DefaultEventHandler) ensureApplication(ctx context.Context, workspaceId uint64, nameEn, nameCn, resourceType string, syncResult *SyncResult) (*model.OnecProjectApplication, error) {
-	logger := logx.WithContext(ctx)
-
-	application, err := h.svcCtx.ProjectApplication.FindOneByWorkspaceIdNameEnResourceTypeIncludeDeleted(ctx, workspaceId, nameEn, resourceType)
+// ensureApplication 确保应用存在，不存在则创建
+func (h *DefaultEventHandler) ensureApplication(ctx context.Context, workspaceId uint64, nameEn, nameCn, resourceType string) (*model.OnecProjectApplication, error) {
+	// 查找已存在的应用
+	application, err := h.svcCtx.ProjectApplication.FindOneByWorkspaceIdNameEnResourceType(ctx, workspaceId, nameEn, resourceType)
 	if err == nil {
-		if application.IsDeleted == 0 {
-			// 未删除，检查是否需要更新 NameCn
-			if application.NameCn != nameCn {
-				oldNameCn := application.NameCn
-				application.NameCn = nameCn
-				application.UpdatedBy = SystemOperator
-				if err := h.svcCtx.ProjectApplication.Update(ctx, application); err != nil {
-					logger.Errorf("[Application-UPDATE] 更新应用中文名失败: %v", err)
-				} else {
-					// 【修复】NameCn 变更也记录
-					syncResult.ApplicationUpdated = true
-					syncResult.AddChangeDetail(fmt.Sprintf("应用中文名: %s -> %s", oldNameCn, nameCn))
-					logger.Infof("[Application-UPDATE] 更新应用中文名成功: ID=%d, NameCn: %s -> %s",
-						application.Id, oldNameCn, nameCn)
-				}
-			}
-			return application, nil
-		}
-
-		// 软删除状态，恢复
-		logger.Infof("[Application-RESTORE] 恢复软删除的应用: ID=%d, NameEn=%s", application.Id, nameEn)
-		if err := h.svcCtx.ProjectApplication.RestoreSoftDeleted(ctx, application.Id, SystemOperator); err != nil {
-			return nil, fmt.Errorf("恢复应用失败: %v", err)
-		}
-
-		syncResult.ApplicationRestored = true
-		syncResult.AddChangeDetail("恢复软删除应用")
-
-		application, err = h.svcCtx.ProjectApplication.FindOneByWorkspaceIdNameEnResourceType(ctx, workspaceId, nameEn, resourceType)
-		if err != nil {
-			return nil, fmt.Errorf("查询恢复后的应用失败: %v", err)
-		}
-
-		if application.NameCn != nameCn {
-			application.NameCn = nameCn
-			application.UpdatedBy = SystemOperator
-			if err := h.svcCtx.ProjectApplication.Update(ctx, application); err != nil {
-				logger.Errorf("[Application-UPDATE] 更新恢复后的应用中文名失败: %v", err)
-			}
-		}
-
+		// 应用已存在，直接返回
 		return application, nil
 	}
 
@@ -537,6 +228,7 @@ func (h *DefaultEventHandler) ensureApplication(ctx context.Context, workspaceId
 		return nil, fmt.Errorf("查询应用失败: %v", err)
 	}
 
+	// 应用不存在，创建新应用
 	newApp := &model.OnecProjectApplication{
 		WorkspaceId:  workspaceId,
 		NameCn:       nameCn,
@@ -550,7 +242,9 @@ func (h *DefaultEventHandler) ensureApplication(ctx context.Context, workspaceId
 
 	result, err := h.svcCtx.ProjectApplication.Insert(ctx, newApp)
 	if err != nil {
+		// 处理并发创建的重复键错误
 		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "1062") {
+			// 重新查询返回已存在的记录
 			return h.svcCtx.ProjectApplication.FindOneByWorkspaceIdNameEnResourceType(ctx, workspaceId, nameEn, resourceType)
 		}
 		return nil, fmt.Errorf("创建应用失败: %v", err)
@@ -562,97 +256,47 @@ func (h *DefaultEventHandler) ensureApplication(ctx context.Context, workspaceId
 	}
 	newApp.Id = uint64(insertId)
 
-	syncResult.ApplicationCreated = true
-	syncResult.AddChangeDetail("创建新应用")
-
-	logger.Infof("[Application-CREATE] 创建应用成功: ID=%d, WorkspaceID=%d, NameEn=%s, NameCn=%s, Type=%s",
-		newApp.Id, workspaceId, nameEn, nameCn, resourceType)
+	logx.WithContext(ctx).Infof("[Application-CREATE] 创建应用成功: ID=%d, WorkspaceID=%d, NameEn=%s, Type=%s",
+		newApp.Id, workspaceId, nameEn, resourceType)
 
 	return newApp, nil
 }
 
-// ensureVersion 确保版本存在，不存在则创建，软删除则恢复
-func (h *DefaultEventHandler) ensureVersion(ctx context.Context, applicationId uint64, resourceName, versionRole string, annotations map[string]string, status int64, syncResult *SyncResult) error {
-	logger := logx.WithContext(ctx)
-
-	existingVersion, err := h.svcCtx.ProjectVersion.FindOneByApplicationIdResourceNameIncludeDeleted(ctx, applicationId, resourceName)
+// ensureVersion 确保版本存在，不存在则创建
+func (h *DefaultEventHandler) ensureVersion(ctx context.Context, applicationId uint64, resourceName, versionRole string, annotations map[string]string) error {
+	// 查找已存在的版本（通过 resource_name）
+	existingVersion, err := h.svcCtx.ProjectVersion.FindOneByApplicationIdResourceName(ctx, applicationId, resourceName)
 	if err == nil {
-		if existingVersion.IsDeleted == 0 {
-			// 未删除，检查是否需要更新
-			var changes []string
+		// 版本已存在，检查是否需要更新
+		changed := false
 
-			if existingVersion.Status != status {
-				changes = append(changes, fmt.Sprintf("状态: %d -> %d", existingVersion.Status, status))
-				existingVersion.Status = status
-			}
-
-			if existingVersion.VersionRole != versionRole {
-				changes = append(changes, fmt.Sprintf("角色: %s -> %s", existingVersion.VersionRole, versionRole))
-				existingVersion.VersionRole = versionRole
-			}
-
-			if annotations != nil {
-				if v, ok := annotations[AnnotationVersion]; ok && v != "" && existingVersion.Version != v {
-					changes = append(changes, fmt.Sprintf("版本号: %s -> %s", existingVersion.Version, v))
-					existingVersion.Version = v
-				}
-			}
-
-			if existingVersion.ParentAppName != "" {
-				changes = append(changes, "清除ParentAppName")
-				existingVersion.ParentAppName = ""
-			}
-
-			if len(changes) > 0 {
-				existingVersion.UpdatedBy = SystemOperator
-				if err := h.svcCtx.ProjectVersion.Update(ctx, existingVersion); err != nil {
-					return fmt.Errorf("更新版本失败: %v", err)
-				}
-				syncResult.VersionUpdated = true
-				for _, c := range changes {
-					syncResult.AddChangeDetail(c)
-				}
-				logger.Infof("[Version-UPDATE] 版本已更新: VersionID=%d, Changes=%v", existingVersion.Id, changes)
-			} else {
-				logger.Debugf("[Version-NOCHANGE] 版本无变化，跳过: VersionID=%d, Role=%s, Status=%d",
-					existingVersion.Id, versionRole, status)
-			}
-			return nil
+		// 更新状态为存在
+		if existingVersion.Status != 1 {
+			existingVersion.Status = 1
+			changed = true
 		}
 
-		// 软删除状态，恢复
-		logger.Infof("[Version-RESTORE] 恢复软删除的版本: ID=%d, ResourceName=%s", existingVersion.Id, resourceName)
-		if err := h.svcCtx.ProjectVersion.RestoreSoftDeleted(ctx, existingVersion.Id, SystemOperator); err != nil {
-			return fmt.Errorf("恢复版本失败: %v", err)
-		}
-
-		syncResult.VersionRestored = true
-		syncResult.AddChangeDetail("恢复软删除版本")
-
-		needUpdate := false
+		// 更新版本角色
 		if existingVersion.VersionRole != versionRole {
+			logx.WithContext(ctx).Infof("[Version-UPDATE] 更新版本角色: %s -> %s, VersionID=%d",
+				existingVersion.VersionRole, versionRole, existingVersion.Id)
 			existingVersion.VersionRole = versionRole
-			needUpdate = true
-		}
-		if existingVersion.Status != status {
-			existingVersion.Status = status
-			needUpdate = true
-		}
-		if annotations != nil {
-			if v, ok := annotations[AnnotationVersion]; ok && v != "" && existingVersion.Version != v {
-				existingVersion.Version = v
-				needUpdate = true
-			}
+			changed = true
 		}
 
-		if needUpdate {
+		// 清空不再使用的 ParentAppName 字段
+		if existingVersion.ParentAppName != "" {
+			existingVersion.ParentAppName = ""
+			changed = true
+		}
+
+		if changed {
 			existingVersion.UpdatedBy = SystemOperator
-			existingVersion.IsDeleted = 0
 			if err := h.svcCtx.ProjectVersion.Update(ctx, existingVersion); err != nil {
-				logger.Errorf("[Version-RESTORE] 更新恢复后的版本失败: %v", err)
+				return fmt.Errorf("更新版本失败: %v", err)
 			}
+			logx.WithContext(ctx).Infof("[Version-UPDATE] 版本已更新: VersionID=%d, Role=%s", existingVersion.Id, versionRole)
 		}
-
 		return nil
 	}
 
@@ -660,6 +304,7 @@ func (h *DefaultEventHandler) ensureVersion(ctx context.Context, applicationId u
 		return fmt.Errorf("查询版本失败: %v", err)
 	}
 
+	// 版本不存在，创建新版本
 	version := DefaultVersion
 	if annotations != nil {
 		if v, ok := annotations[AnnotationVersion]; ok && v != "" {
@@ -672,26 +317,23 @@ func (h *DefaultEventHandler) ensureVersion(ctx context.Context, applicationId u
 		Version:       version,
 		VersionRole:   versionRole,
 		ResourceName:  resourceName,
-		ParentAppName: "",
+		ParentAppName: "", // 不再使用此字段
 		CreatedBy:     SystemOperator,
 		UpdatedBy:     SystemOperator,
 		IsDeleted:     0,
-		Status:        status,
+		Status:        1,
 	}
 
 	_, err = h.svcCtx.ProjectVersion.Insert(ctx, newVersion)
 	if err != nil {
 		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "1062") {
-			return nil
+			return nil // 已存在，忽略
 		}
 		return fmt.Errorf("创建版本失败: %v", err)
 	}
 
-	syncResult.VersionCreated = true
-	syncResult.AddChangeDetail("创建新版本")
-
-	logger.Infof("[Version-CREATE] 创建版本成功: AppID=%d, ResourceName=%s, Version=%s, Role=%s, Status=%d",
-		applicationId, resourceName, version, versionRole, status)
+	logx.WithContext(ctx).Infof("[Version-CREATE] 创建版本成功: AppID=%d, ResourceName=%s, Role=%s",
+		applicationId, resourceName, versionRole)
 
 	return nil
 }
