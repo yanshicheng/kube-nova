@@ -24,24 +24,20 @@ func NewClusterOneSyncLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cl
 }
 
 func (l *ClusterOneSyncLogic) ClusterOneSync(req *types.SyncClusterRequest) (resp string, err error) {
-	// 获取当前用户信息
 	username, ok := l.ctx.Value("username").(string)
 	if !ok || username == "" {
 		username = "system"
 	}
-	l.Infof("用户 [%s] 开始同步集群 [ID=%d]", username, req.Id)
+	l.Infof("用户 [%s] 请求同步集群 [ID=%d]", username, req.Id)
 
-	// 调用RPC同步集群
-	// 	启动 go 协程
-	go func() {
-		ctx := context.Background()
-		_, err = l.svcCtx.ManagerRpc.ClusterSync(ctx, &pb.SyncClusterReq{
-			Id:        req.Id,
-			UpdatedBy: username,
-		})
-		if err != nil {
-			l.Errorf("RPC调用同步集群失败: %v", err)
-		}
-	}()
-	return "集群正在同步成功", nil
+	_, err = l.svcCtx.ManagerRpc.ClusterSync(l.ctx, &pb.SyncClusterReq{
+		Id:        req.Id,
+		UpdatedBy: username,
+	})
+	if err != nil {
+		l.Errorf("提交同步请求失败: %v", err)
+		return "", err
+	}
+
+	return "集群同步任务已提交", nil
 }

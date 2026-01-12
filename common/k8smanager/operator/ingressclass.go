@@ -68,7 +68,7 @@ func (i *ingressClassOperator) Create(ic *networkingv1.IngressClass) (*networkin
 	if ic == nil || ic.Name == "" {
 		return nil, fmt.Errorf("IngressClass对象和名称不能为空")
 	}
-
+	injectCommonAnnotations(ic)
 	created, err := i.client.NetworkingV1().IngressClasses().Create(i.ctx, ic, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建IngressClass失败: %v", err)

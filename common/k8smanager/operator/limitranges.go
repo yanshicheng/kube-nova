@@ -55,7 +55,7 @@ func (l *limitRangeOperator) Create(limitRange *corev1.LimitRange) (*corev1.Limi
 	if limitRange == nil || limitRange.Name == "" || limitRange.Namespace == "" {
 		return nil, fmt.Errorf("LimitRange对象、名称和命名空间不能为空")
 	}
-
+	injectCommonAnnotations(limitRange)
 	created, err := l.client.CoreV1().LimitRanges(limitRange.Namespace).Create(l.ctx, limitRange, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建LimitRange失败: %v", err)

@@ -62,7 +62,7 @@ func (h *hpaOperator) Create(hpa *autoscalingv2.HorizontalPodAutoscaler) (*autos
 	if hpa == nil || hpa.Name == "" || hpa.Namespace == "" {
 		return nil, fmt.Errorf("HPA对象、名称和命名空间不能为空")
 	}
-
+	injectCommonAnnotations(hpa)
 	created, err := h.client.AutoscalingV2().HorizontalPodAutoscalers(hpa.Namespace).Create(h.ctx, hpa, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建HPA失败: %v", err)

@@ -57,7 +57,7 @@ func (p *probeOperator) Create(probe *monitoringv1.Probe) error {
 	if probe == nil || probe.Name == "" {
 		return fmt.Errorf("Probe 不能为空")
 	}
-
+	injectCommonAnnotations(probe)
 	// 判断是否已经存在
 	_, err := p.client.MonitoringV1().Probes(probe.Namespace).Get(p.ctx, probe.Name, metav1.GetOptions{})
 	if err == nil {

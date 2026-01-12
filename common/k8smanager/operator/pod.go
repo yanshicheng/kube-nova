@@ -393,7 +393,7 @@ func (p *podOperator) Create(pod *corev1.Pod) (*corev1.Pod, error) {
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
 	}
-
+	injectCommonAnnotations(pod)
 	createdPod, err := p.client.CoreV1().Pods(pod.Namespace).Create(p.ctx, pod, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建Pod失败: %v", err)

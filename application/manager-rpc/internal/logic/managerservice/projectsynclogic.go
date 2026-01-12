@@ -24,31 +24,40 @@ func NewProjectSyncLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Proje
 	}
 }
 
-// ProjectSync 同步项目数据（计算资源使用情况）
 func (l *ProjectSyncLogic) ProjectSync(in *pb.ProjectSyncReq) (*pb.ProjectSyncResp, error) {
-
-	// 查询项目是否存在
 	project, err := l.svcCtx.OnecProjectModel.FindOne(l.ctx, in.ProjectId)
 	if err != nil {
 		l.Logger.Errorf("查询项目失败，ID: %d, 错误: %v", in.ProjectId, err)
 		return nil, errorx.Msg("项目不存在")
 	}
 
-	// 查询项目下的所有集群配额
-	clusters, err := l.svcCtx.OnecProjectClusterModel.SearchNoPage(l.ctx, "", true, "project_id = ?", in.ProjectId)
-	if err != nil {
-		l.Logger.Errorf("查询项目集群配额失败，项目ID: %d, 错误: %v", in.ProjectId, err)
-		return nil, errorx.Msg("查询项目集群配额失败")
-	}
+	projectId := in.ProjectId
+	projectName := project.Name
+	svcCtx := l.svcCtx
 
-	for _, cluster := range clusters {
-		// 同步集群资源使用情况
-		if err := l.svcCtx.OnecProjectModel.SyncProjectClusterResourceAllocation(l.ctx, cluster.Id); err != nil {
-			l.Logger.Errorf("同步项目集群数据失败，项目集群ID: %d, 错误: %v", cluster.Id, err)
-			return nil, errorx.Msg("同步项目集群数据失败")
+	go func() {
+		ctx := context.Background()
+		logger := logx.WithContext(ctx)
+
+		logger.Infof("开始异步同步项目 [%s] 数据", projectName)
+
+		// 查询项目下的所有集群配额
+		clusters, err := svcCtx.OnecProjectClusterModel.SearchNoPage(ctx, "", true, "project_id = ?", projectId)
+		if err != nil {
+			logger.Errorf("查询项目集群配额失败，项目ID: %d, 错误: %v", projectId, err)
+			return
 		}
-	}
 
-	l.Logger.Infof("同步项目数据完成，项目: %s", project.Name)
+		for _, cluster := range clusters {
+			if err := svcCtx.OnecProjectModel.SyncProjectClusterResourceAllocation(ctx, cluster.Id); err != nil {
+				logger.Errorf("同步项目集群数据失败，项目集群ID: %d, 错误: %v", cluster.Id, err)
+				// 继续处理其他集群
+				continue
+			}
+		}
+
+		logger.Infof("项目 [%s] 数据同步完成", projectName)
+	}()
+
 	return &pb.ProjectSyncResp{}, nil
 }

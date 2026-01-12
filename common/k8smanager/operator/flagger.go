@@ -57,7 +57,7 @@ func (f *flaggerOperator) Create(canary *flaggerv1.Canary) (*flaggerv1.Canary, e
 	if canary == nil || canary.Name == "" || canary.Namespace == "" {
 		return nil, fmt.Errorf("Canary对象、名称和命名空间不能为空")
 	}
-
+	injectCommonAnnotations(canary)
 	created, err := f.client.FlaggerV1beta1().Canaries(canary.Namespace).Create(f.ctx, canary, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建Canary失败: %v", err)

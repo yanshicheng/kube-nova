@@ -16,6 +16,14 @@ const (
 	// ============ 操作信息 ============
 	AnnotationCreatedBy = "ikubeops.com/created-by" // 创建者
 	AnnotationUpdatedBy = "ikubeops.com/updated-by" // 更新者
+	// AnnotationManagedBy 标识资源管理者（可选，用于区分来源）
+	AnnotationManagedBy = "ikubeops.com/managed-by"
+
+	// ManagedByPlatform 平台管理标识值
+	ManagedByPlatform = "kube-nova"
+
+	// AnnotationDisplayName 工作空间显示名称
+	AnnotationDisplayName = "ikubeops.com/display-name"
 
 	// ============ 业务信息 ============
 	AnnotationDescription   = "ikubeops.com/description" // 描述

@@ -57,7 +57,7 @@ func (s *serviceOperator) Create(service *corev1.Service) (*corev1.Service, erro
 	if service == nil || service.Name == "" || service.Namespace == "" {
 		return nil, fmt.Errorf("Service对象、名称和命名空间不能为空")
 	}
-
+	injectCommonAnnotations(service)
 	created, err := s.client.CoreV1().Services(service.Namespace).Create(s.ctx, service, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建Service失败: %v", err)

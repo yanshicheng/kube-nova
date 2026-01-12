@@ -28,9 +28,9 @@ func NewUploadImageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Uploa
 	}
 }
 
-// 上传图片
+// UploadImage 上传图片
 func (l *UploadImageLogic) UploadImage(in *pb.UploadImageRequest) (*pb.UploadImageResponse, error) {
-	// 优化 MinIO 初始化检查
+	// MinIO 初始化检查
 	err := l.checkMinIO()
 	if err != nil {
 		l.Errorf("MinIO 检查失败: %v", err)
@@ -75,7 +75,6 @@ func (l *UploadImageLogic) checkMinIO() error {
 // 根据文件扩展名获取对应的 Content-Type
 func getContentType(ext string) string {
 	// 这里你可以根据不同的扩展名返回对应的 MIME 类型
-	// 例如：
 	switch ext {
 	case ".jpg", ".jpeg":
 		return "image/jpeg"

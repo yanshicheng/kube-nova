@@ -30,21 +30,15 @@ func (l *ProjectOneSyncLogic) ProjectOneSync(req *types.SyncRequest) (resp strin
 	if !ok || username == "" {
 		username = "system"
 	}
-	// go 协程
-	go func() {
-		// 调用RPC服务同步项目
-		ctx := context.Background()
-		_, err = l.svcCtx.ManagerRpc.ProjectSync(ctx, &pb.ProjectSyncReq{
-			ProjectId: req.Id,
-			Operator:  username,
-		})
+	_, err = l.svcCtx.ManagerRpc.ProjectSync(l.ctx, &pb.ProjectSyncReq{
+		ProjectId: req.Id,
+		Operator:  username,
+	})
 
-		if err != nil {
-			l.Errorf("同步项目失败: %v", err)
-			return
-		}
-
-	}()
+	if err != nil {
+		l.Errorf("同步项目失败: %v", err)
+		return
+	}
 
 	return "项目同步成功", nil
 }

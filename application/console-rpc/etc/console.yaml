@@ -59,3 +59,14 @@ DBCache:
     NonBlock: true # bool
     PingTimeout: 3s # default 1s
 
+
+
+ManagerRpc:
+  Endpoints:
+    - 127.0.0.1:30011
+  #  Etcd:
+  #    Hosts:
+  #      - 172.16.1.61:2379
+  #    Key: manager.portal-rpc
+  NonBlock: true
+  Timeout: 30000

@@ -69,7 +69,7 @@ func (d *deploymentOperator) Create(deployment *appsv1.Deployment) (*appsv1.Depl
 	if deployment == nil || deployment.Name == "" || deployment.Namespace == "" {
 		return nil, fmt.Errorf("Deployment对象、名称和命名空间不能为空")
 	}
-
+	injectCommonAnnotations(deployment)
 	if deployment.Labels == nil {
 		deployment.Labels = make(map[string]string)
 	}

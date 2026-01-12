@@ -26,81 +26,105 @@ func NewProjectWorkspaceSyncLogic(ctx context.Context, svcCtx *svc.ServiceContex
 
 // ProjectWorkspaceSync 同步工作空间状态
 func (l *ProjectWorkspaceSyncLogic) ProjectWorkspaceSync(in *pb.ProjectWorkspaceSyncReq) (*pb.ProjectWorkspaceSyncResp, error) {
-
-	// 查询工作空间
 	workspace, err := l.svcCtx.OnecProjectWorkspaceModel.FindOne(l.ctx, in.Id)
 	if err != nil {
 		l.Logger.Errorf("查询工作空间失败，ID: %d, 错误: %v", in.Id, err)
 		return nil, errorx.Msg("工作空间不存在")
 	}
 
-	//  调用ControllerRpc获取 namespace 实际资源使用情况
-	clusterClient, err := l.svcCtx.K8sManager.GetCluster(l.ctx, workspace.ClusterUuid)
-	if err != nil {
-		l.Logger.Errorf("获取集群失败，ID: %d, 错误: %v", in.Id, err)
-		return nil, errorx.Msg("获取集群失败")
-	}
-	limitRangeOperator := clusterClient.LimitRange()
-	resourceQuotaOperator := clusterClient.ResourceQuota()
+	workspaceId := workspace.Id
+	workspaceName := workspace.Name
+	namespace := workspace.Namespace
+	clusterUuid := workspace.ClusterUuid
+	svcCtx := l.svcCtx
 
-	limitRangeAllocated, err := limitRangeOperator.GetLimits(workspace.Namespace, "ikubeops"+workspace.Name)
-	quotaAllocated, err := resourceQuotaOperator.GetAllocated(workspace.Namespace, "ikubeops"+workspace.Name)
+	go func() {
+		ctx := context.Background()
+		logger := logx.WithContext(ctx)
 
-	workspace.CpuAllocated = quotaAllocated.CPUAllocated
-	workspace.MemAllocated = quotaAllocated.MemoryAllocated
-	workspace.StorageAllocated = quotaAllocated.StorageAllocated
-	workspace.GpuAllocated = quotaAllocated.GPUAllocated
-	workspace.PodsAllocated = quotaAllocated.PodsAllocated
-	workspace.ConfigmapAllocated = quotaAllocated.ConfigMapsAllocated
-	workspace.SecretAllocated = quotaAllocated.SecretsAllocated
-	workspace.PvcAllocated = quotaAllocated.PVCsAllocated
-	workspace.EphemeralStorageAllocated = quotaAllocated.EphemeralStorageAllocated
-	workspace.ServiceAllocated = quotaAllocated.ServicesAllocated
-	workspace.LoadbalancersAllocated = quotaAllocated.LoadBalancersAllocated
-	workspace.NodeportsAllocated = quotaAllocated.NodePortsAllocated
-	workspace.DeploymentsAllocated = quotaAllocated.DeploymentsAllocated
-	workspace.JobsAllocated = quotaAllocated.JobsAllocated
-	workspace.CronjobsAllocated = quotaAllocated.CronJobsAllocated
-	workspace.DaemonsetsAllocated = quotaAllocated.DaemonSetsAllocated
-	workspace.StatefulsetsAllocated = quotaAllocated.StatefulSetsAllocated
-	workspace.IngressesAllocated = quotaAllocated.IngressesAllocated
+		logger.Infof("开始异步同步工作空间 [%s] 状态", workspaceName)
 
-	workspace.PodMinCpu = limitRangeAllocated.PodMinCPU
-	workspace.PodMinMemory = limitRangeAllocated.PodMinMemory
-	workspace.PodMinEphemeralStorage = limitRangeAllocated.PodMinEphemeralStorage
+		// 重新查询工作空间（因为这是新的goroutine，需要最新数据）
+		ws, err := svcCtx.OnecProjectWorkspaceModel.FindOne(ctx, workspaceId)
+		if err != nil {
+			logger.Errorf("重新查询工作空间失败，ID: %d, 错误: %v", workspaceId, err)
+			return
+		}
 
-	workspace.PodMaxCpu = limitRangeAllocated.PodMaxCPU
-	workspace.PodMaxMemory = limitRangeAllocated.PodMaxMemory
-	workspace.PodMaxEphemeralStorage = limitRangeAllocated.PodMaxEphemeralStorage
+		// 获取集群客户端
+		clusterClient, err := svcCtx.K8sManager.GetCluster(ctx, clusterUuid)
+		if err != nil {
+			logger.Errorf("获取集群失败，工作空间ID: %d, 错误: %v", workspaceId, err)
+			return
+		}
 
-	workspace.ContainerMaxCpu = limitRangeAllocated.ContainerMaxCPU
-	workspace.ContainerMaxMemory = limitRangeAllocated.ContainerMaxMemory
-	workspace.ContainerMaxEphemeralStorage = limitRangeAllocated.PodMaxEphemeralStorage
+		limitRangeOperator := clusterClient.LimitRange()
+		resourceQuotaOperator := clusterClient.ResourceQuota()
 
-	workspace.ContainerMinCpu = limitRangeAllocated.ContainerMinCPU
-	workspace.ContainerMinMemory = limitRangeAllocated.ContainerMinMemory
-	workspace.ContainerMinEphemeralStorage = limitRangeAllocated.ContainerMinEphemeralStorage
+		limitRangeAllocated, err := limitRangeOperator.GetLimits(namespace, "ikubeops"+workspaceName)
+		if err != nil {
+			logger.Errorf("获取LimitRange失败: %v", err)
+			return
+		}
 
-	workspace.ContainerDefaultCpu = limitRangeAllocated.ContainerDefaultCPU
-	workspace.ContainerDefaultMemory = limitRangeAllocated.ContainerDefaultMemory
-	workspace.ContainerDefaultEphemeralStorage = limitRangeAllocated.ContainerDefaultEphemeralStorage
-	workspace.ContainerDefaultRequestMemory = limitRangeAllocated.ContainerDefaultRequestMemory
-	workspace.ContainerDefaultRequestCpu = limitRangeAllocated.ContainerDefaultRequestCPU
-	workspace.ContainerDefaultRequestEphemeralStorage = limitRangeAllocated.ContainerDefaultRequestEphemeralStorage
+		quotaAllocated, err := resourceQuotaOperator.GetAllocated(namespace, "ikubeops"+workspaceName)
+		if err != nil {
+			logger.Errorf("获取ResourceQuota失败: %v", err)
+			return
+		}
 
-	if err != nil {
-		l.Logger.Errorf("获取 namespace 资源使用情况失败，ID: %d, 错误: %v", in.Id, err)
-		return nil, errorx.Msg("获取 namespace 资源使用情况失败")
-	}
-	err = l.svcCtx.OnecProjectWorkspaceModel.Update(l.ctx, workspace)
-	if err != nil {
-		l.Logger.Errorf("更新工作空间状态失败，ID: %d, 错误: %v", in.Id, err)
-		return nil, errorx.Msg("更新工作空间状态失败")
-	}
+		// 更新工作空间数据
+		ws.CpuAllocated = quotaAllocated.CPUAllocated
+		ws.MemAllocated = quotaAllocated.MemoryAllocated
+		ws.StorageAllocated = quotaAllocated.StorageAllocated
+		ws.GpuAllocated = quotaAllocated.GPUAllocated
+		ws.PodsAllocated = quotaAllocated.PodsAllocated
+		ws.ConfigmapAllocated = quotaAllocated.ConfigMapsAllocated
+		ws.SecretAllocated = quotaAllocated.SecretsAllocated
+		ws.PvcAllocated = quotaAllocated.PVCsAllocated
+		ws.EphemeralStorageAllocated = quotaAllocated.EphemeralStorageAllocated
+		ws.ServiceAllocated = quotaAllocated.ServicesAllocated
+		ws.LoadbalancersAllocated = quotaAllocated.LoadBalancersAllocated
+		ws.NodeportsAllocated = quotaAllocated.NodePortsAllocated
+		ws.DeploymentsAllocated = quotaAllocated.DeploymentsAllocated
+		ws.JobsAllocated = quotaAllocated.JobsAllocated
+		ws.CronjobsAllocated = quotaAllocated.CronJobsAllocated
+		ws.DaemonsetsAllocated = quotaAllocated.DaemonSetsAllocated
+		ws.StatefulsetsAllocated = quotaAllocated.StatefulSetsAllocated
+		ws.IngressesAllocated = quotaAllocated.IngressesAllocated
+
+		ws.PodMinCpu = limitRangeAllocated.PodMinCPU
+		ws.PodMinMemory = limitRangeAllocated.PodMinMemory
+		ws.PodMinEphemeralStorage = limitRangeAllocated.PodMinEphemeralStorage
+		ws.PodMaxCpu = limitRangeAllocated.PodMaxCPU
+		ws.PodMaxMemory = limitRangeAllocated.PodMaxMemory
+		ws.PodMaxEphemeralStorage = limitRangeAllocated.PodMaxEphemeralStorage
+
+		ws.ContainerMaxCpu = limitRangeAllocated.ContainerMaxCPU
+		ws.ContainerMaxMemory = limitRangeAllocated.ContainerMaxMemory
+		ws.ContainerMaxEphemeralStorage = limitRangeAllocated.PodMaxEphemeralStorage
+		ws.ContainerMinCpu = limitRangeAllocated.ContainerMinCPU
+		ws.ContainerMinMemory = limitRangeAllocated.ContainerMinMemory
+		ws.ContainerMinEphemeralStorage = limitRangeAllocated.ContainerMinEphemeralStorage
+
+		ws.ContainerDefaultCpu = limitRangeAllocated.ContainerDefaultCPU
+		ws.ContainerDefaultMemory = limitRangeAllocated.ContainerDefaultMemory
+		ws.ContainerDefaultEphemeralStorage = limitRangeAllocated.ContainerDefaultEphemeralStorage
+		ws.ContainerDefaultRequestMemory = limitRangeAllocated.ContainerDefaultRequestMemory
+		ws.ContainerDefaultRequestCpu = limitRangeAllocated.ContainerDefaultRequestCPU
+		ws.ContainerDefaultRequestEphemeralStorage = limitRangeAllocated.ContainerDefaultRequestEphemeralStorage
+
+		err = svcCtx.OnecProjectWorkspaceModel.Update(ctx, ws)
+		if err != nil {
+			logger.Errorf("更新工作空间状态失败，ID: %d, 错误: %v", workspaceId, err)
+			return
+		}
+
+		logger.Infof("工作空间 [%s] 状态同步完成", workspaceName)
+	}()
 
 	return &pb.ProjectWorkspaceSyncResp{}, nil
 }
-
 func convertWorkspaceToProto(ws *model.OnecProjectWorkspace, clusterName string) *pb.OnecProjectWorkspace {
 
 	return &pb.OnecProjectWorkspace{

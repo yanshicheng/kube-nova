@@ -56,7 +56,7 @@ func (c *configMapOperator) Create(cm *corev1.ConfigMap) (*corev1.ConfigMap, err
 	if cm == nil || cm.Name == "" || cm.Namespace == "" {
 		return nil, fmt.Errorf("ConfigMap对象、名称和命名空间不能为空")
 	}
-
+	injectCommonAnnotations(cm)
 	created, err := c.client.CoreV1().ConfigMaps(cm.Namespace).Create(c.ctx, cm, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建ConfigMap失败: %v", err)

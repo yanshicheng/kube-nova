@@ -2673,6 +2673,15 @@ message OnecBillingStatementGenerateReq {
 
 message OnecBillingStatementGenerateResp {
 }
+// 生成所有账单请求
+message OnecBillingStatementGenerateAllReq {
+  string userName = 3;
+}
+
+// 生成所有账单响应
+message OnecBillingStatementGenerateAllResp {
+
+}
 service ManagerService {
   // //通过 clusterUuid 和 namespace 获取 详情信息
   rpc GetClusterNsDetail(GetClusterNsDetailReq) returns (GetClusterNsDetailResp);
@@ -2921,5 +2930,6 @@ service ManagerService {
   rpc OnecBillingStatementBatchDel(OnecBillingStatementBatchDelReq) returns (OnecBillingStatementBatchDelResp);
   // 立即生成账单
   rpc OnecBillingStatementGenerate(OnecBillingStatementGenerateReq) returns (OnecBillingStatementGenerateResp);
-
+  // 生成所有账单
+  rpc OnecBillingStatementGenerateAll(OnecBillingStatementGenerateAllReq) returns (OnecBillingStatementGenerateAllResp);
 }

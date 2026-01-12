@@ -65,7 +65,7 @@ func (c *cronJobOperator) Create(cronJob *batchv1.CronJob) (*batchv1.CronJob, er
 	if cronJob == nil || cronJob.Name == "" || cronJob.Namespace == "" {
 		return nil, fmt.Errorf("CronJob对象、名称和命名空间不能为空")
 	}
-
+	injectCommonAnnotations(cronJob)
 	if cronJob.Labels == nil {
 		cronJob.Labels = make(map[string]string)
 	}
