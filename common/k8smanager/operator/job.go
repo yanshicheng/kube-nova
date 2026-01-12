@@ -64,7 +64,7 @@ func (j *jobOperator) Create(job *batchv1.Job) (*batchv1.Job, error) {
 	if job == nil || job.Name == "" || job.Namespace == "" {
 		return nil, fmt.Errorf("Job对象、名称和命名空间不能为空")
 	}
-
+	injectCommonAnnotations(job)
 	if job.Labels == nil {
 		job.Labels = make(map[string]string)
 	}

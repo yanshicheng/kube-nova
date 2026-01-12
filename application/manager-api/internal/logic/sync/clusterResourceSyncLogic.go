@@ -30,17 +30,14 @@ func (l *ClusterResourceSyncLogic) ClusterResourceSync(req *types.SyncClusterRes
 		username = "system"
 	}
 	// 启动 go 协程
-	go func() {
-		ctx := context.Background()
-		_, err = l.svcCtx.ManagerRpc.ClusterResourceSync(ctx, &managerservice.ClusterResourceSyncReq{
-			Id:       req.Id,
-			Operator: username,
-		})
-		if err != nil {
-			l.Errorf("同步集群资源失败: %v", err)
-			return
-		}
-		l.Infof("集群资源同步成功, ID: %d", req.Id)
-	}()
+	_, err = l.svcCtx.ManagerRpc.ClusterResourceSync(l.ctx, &managerservice.ClusterResourceSyncReq{
+		Id:       req.Id,
+		Operator: username,
+	})
+	if err != nil {
+		l.Errorf("同步集群资源失败: %v", err)
+		return
+	}
+	l.Infof("集群资源同步成功, ID: %d", req.Id)
 	return "正在异步同步", nil
 }

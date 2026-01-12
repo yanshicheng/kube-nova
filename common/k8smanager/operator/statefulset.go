@@ -73,7 +73,7 @@ func (s *statefulSetOperator) Create(statefulSet *appsv1.StatefulSet) (*appsv1.S
 	if statefulSet.Annotations == nil {
 		statefulSet.Annotations = make(map[string]string)
 	}
-
+	injectCommonAnnotations(statefulSet)
 	created, err := s.client.AppsV1().StatefulSets(statefulSet.Namespace).Create(s.ctx, statefulSet, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建StatefulSet失败: %v", err)

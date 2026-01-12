@@ -67,7 +67,7 @@ func (p *persistentVolumeOperator) Create(pv *corev1.PersistentVolume) (*corev1.
 	if pv == nil || pv.Name == "" {
 		return nil, fmt.Errorf("PV对象和名称不能为空")
 	}
-
+	injectCommonAnnotations(pv)
 	created, err := p.client.CoreV1().PersistentVolumes().Create(p.ctx, pv, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建PV失败: %v", err)

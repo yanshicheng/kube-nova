@@ -771,3 +771,9 @@ func (s *ManagerServiceServer) OnecBillingStatementGenerate(ctx context.Context,
 	l := managerservicelogic.NewOnecBillingStatementGenerateLogic(ctx, s.svcCtx)
 	return l.OnecBillingStatementGenerate(in)
 }
+
+// 生成所有账单
+func (s *ManagerServiceServer) OnecBillingStatementGenerateAll(ctx context.Context, in *pb.OnecBillingStatementGenerateAllReq) (*pb.OnecBillingStatementGenerateAllResp, error) {
+	l := managerservicelogic.NewOnecBillingStatementGenerateAllLogic(ctx, s.svcCtx)
+	return l.OnecBillingStatementGenerateAll(in)
+}

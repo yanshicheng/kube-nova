@@ -70,6 +70,7 @@ func (r *roleBindingOperator) Create(rolebind *rbacv1.RoleBinding) error {
 	if _, err := r.Get(rolebind.Namespace, rolebind.Name); err == nil {
 		return fmt.Errorf("RoleBinding %s/%s 已经存在", rolebind.Namespace, rolebind.Name)
 	}
+	injectCommonAnnotations(rolebind)
 	_, err := r.client.RbacV1().RoleBindings(rolebind.Namespace).Create(r.ctx, rolebind, metav1.CreateOptions{})
 	return err
 }

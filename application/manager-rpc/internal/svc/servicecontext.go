@@ -3,6 +3,7 @@ package svc
 import (
 	"log"
 	"strings"
+	"time"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/billing"
@@ -11,6 +12,7 @@ import (
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/model"
 	syncOperator "github.com/yanshicheng/kube-nova/application/manager-rpc/internal/rsync/operator"
 	types3 "github.com/yanshicheng/kube-nova/application/manager-rpc/internal/rsync/types"
+	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/watch/incremental"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/alertservice"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/storageservice"
 	"github.com/yanshicheng/kube-nova/common/interceptors"
@@ -51,6 +53,9 @@ type ServiceContext struct {
 	AlertRpc                      alertservice.AlertService
 	// 消费者
 	AlertConsumer consumer.Consumer
+
+	// 增量同步管理器
+	IncrementalSyncManager *incremental.Manager
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -76,68 +81,90 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	managerRpc := zrpc.MustNewClient(managerRpcConf, zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor()))
 	alertRpc := zrpc.MustNewClient(c.PortalRpc, zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor()))
 
-	managerK8s := cluster.NewManager(managerservice.NewManagerService(managerRpc), redis.MustNewRedis(c.Cache))
+	// ==================== 初始化 Redis ====================
+	rds := redis.MustNewRedis(c.Cache)
+
+	// ==================== 初始化 Model ====================
+	clusterModel := model.NewOnecClusterModel(sqlConn, c.DBCache)
+	clusterNodeModel := model.NewOnecClusterNodeModel(sqlConn, c.DBCache)
+	clusterResourceModel := model.NewOnecClusterResourceModel(sqlConn, c.DBCache)
+	clusterNetworkModel := model.NewOnecClusterNetworkModel(sqlConn, c.DBCache)
+	projectModel := model.NewOnecProjectModel(sqlConn, c.DBCache)
+	projectClusterModel := model.NewOnecProjectClusterModel(sqlConn, c.DBCache)
+	projectWorkspaceModel := model.NewOnecProjectWorkspaceModel(sqlConn, c.DBCache)
+	projectApplicationModel := model.NewOnecProjectApplicationModel(sqlConn, c.DBCache)
+	projectVersionModel := model.NewOnecProjectVersionModel(sqlConn, c.DBCache)
+	projectAuditLogModel := model.NewOnecProjectAuditLogModel(sqlConn, c.DBCache)
+
+	// ==================== 初始化 K8s Manager ====================
+	k8sManager := cluster.NewManager(managerservice.NewManagerService(managerRpc), rds)
+
+	// ==================== 初始化资源同步 ====================
 	resourceSync := syncOperator.NewClusterResourceSync(syncOperator.ClusterResourceSyncConfig{
-		K8sManager:                  managerK8s,
-		ClusterModel:                model.NewOnecClusterModel(sqlConn, c.DBCache),
-		ClusterNodeModel:            model.NewOnecClusterNodeModel(sqlConn, c.DBCache),
-		ClusterResourceModel:        model.NewOnecClusterResourceModel(sqlConn, c.DBCache),
-		ClusterNetwork:              model.NewOnecClusterNetworkModel(sqlConn, c.DBCache),
-		ProjectModel:                model.NewOnecProjectModel(sqlConn, c.DBCache),
-		ProjectClusterResourceModel: model.NewOnecProjectClusterModel(sqlConn, c.DBCache),
-		ProjectWorkspaceModel:       model.NewOnecProjectWorkspaceModel(sqlConn, c.DBCache),
-		ProjectApplication:          model.NewOnecProjectApplicationModel(sqlConn, c.DBCache),
-		ProjectApplicationVersion:   model.NewOnecProjectVersionModel(sqlConn, c.DBCache),
-		ProjectAuditModel:           model.NewOnecProjectAuditLogModel(sqlConn, c.DBCache),
+		K8sManager:                  k8sManager,
+		ClusterModel:                clusterModel,
+		ClusterNodeModel:            clusterNodeModel,
+		ClusterResourceModel:        clusterResourceModel,
+		ClusterNetwork:              clusterNetworkModel,
+		ProjectModel:                projectModel,
+		ProjectClusterResourceModel: projectClusterModel,
+		ProjectWorkspaceModel:       projectWorkspaceModel,
+		ProjectApplication:          projectApplicationModel,
+		ProjectApplicationVersion:   projectVersionModel,
+		ProjectAuditModel:           projectAuditLogModel,
 	})
-	// 初始化账单服务
+
+	// ==================== 初始化账单服务 ====================
 	billingService := billing.NewService(billing.ServiceConfig{
-		ClusterModel:              model.NewOnecClusterModel(sqlConn, c.DBCache),
-		ProjectModel:              model.NewOnecProjectModel(sqlConn, c.DBCache),
-		ProjectClusterModel:       model.NewOnecProjectClusterModel(sqlConn, c.DBCache),
-		ProjectWorkspaceModel:     model.NewOnecProjectWorkspaceModel(sqlConn, c.DBCache),
-		ProjectApplicationModel:   model.NewOnecProjectApplicationModel(sqlConn, c.DBCache),
+		ClusterModel:              clusterModel,
+		ProjectModel:              projectModel,
+		ProjectClusterModel:       projectClusterModel,
+		ProjectWorkspaceModel:     projectWorkspaceModel,
+		ProjectApplicationModel:   projectApplicationModel,
 		BillingPriceConfigModel:   model.NewOnecBillingPriceConfigModel(sqlConn, c.DBCache),
 		BillingConfigBindingModel: model.NewOnecBillingConfigBindingModel(sqlConn, c.DBCache),
 		BillingStatementModel:     model.NewOnecBillingStatementModel(sqlConn, c.DBCache),
 	})
 
-	// 在你的 logic 或 handler 中调用
-	//err = billingService.GenerateByClusterAndProject(
-	//	context.Background(),
-	//	"94d2b889-f138-44b5-83d8-3bf28d3fcfb3",
-	//	4,
-	//	&billing.GenerateOption{
-	//		StatementType: billing.StatementTypeDaily,
-	//		CreatedBy:     "admin",
-	//	},
-	//)
-	//if err != nil {
-	//	log.Fatal("生成账单失败: %v", err)
-	//}
-	return &ServiceContext{
+	// ==================== 创建增量同步管理器 ====================
+	// 注意：这里只创建管理器，不设置 handler
+	// handler 需要在 setup.go 中设置，因为它需要引用 svcCtx
+	incrementalManager := incremental.NewManager(incremental.ManagerConfig{
+		NodeID:          "",  // 自动生成：hostname-pid
+		Redis:           rds, // 用于分布式锁和去重
+		K8sManager:      k8sManager,
+		ClusterModel:    clusterModel,
+		WorkerCount:     10,               // 并发处理数
+		EventBuffer:     2000,             // 事件缓冲区
+		DedupeWindow:    5 * time.Second,  // 去重窗口
+		LockTTL:         30 * time.Second, // 分布式锁 TTL
+		ProcessTimeout:  25 * time.Second, // 单事件处理超时
+		EnableAutoRenew: true,             // 启用锁自动续期
+	})
+
+	svcCtx := &ServiceContext{
 		Config: c,
-		Cache:  redis.MustNewRedis(c.Cache),
+		Cache:  rds,
 		//ControllerRpc:         controllerservice.NewControllerService(controllerRpc),
 		Storage:                       storageservice.NewStorageService(zrpc.MustNewClient(c.PortalRpc)),
-		OnecClusterModel:              model.NewOnecClusterModel(sqlConn, c.DBCache),
+		OnecClusterModel:              clusterModel,
 		OnecClusterAppModel:           model.NewOnecClusterAppModel(sqlConn, c.DBCache),
-		OnecClusterNodeModel:          model.NewOnecClusterNodeModel(sqlConn, c.DBCache),
+		OnecClusterNodeModel:          clusterNodeModel,
 		OnecClusterAuthModel:          model.NewOnecClusterAuthModel(sqlConn, c.DBCache),
-		OnecClusterNetworkModel:       model.NewOnecClusterNetworkModel(sqlConn, c.DBCache),
-		OnecClusterResourceModel:      model.NewOnecClusterResourceModel(sqlConn, c.DBCache),
-		OnecProjectModel:              model.NewOnecProjectModel(sqlConn, c.DBCache),
+		OnecClusterNetworkModel:       clusterNetworkModel,
+		OnecClusterResourceModel:      clusterResourceModel,
+		OnecProjectModel:              projectModel,
 		OnecProjectAdminModel:         model.NewOnecProjectAdminModel(sqlConn, c.DBCache),
-		OnecProjectClusterModel:       model.NewOnecProjectClusterModel(sqlConn, c.DBCache),
-		OnecProjectWorkspaceModel:     model.NewOnecProjectWorkspaceModel(sqlConn, c.DBCache),
-		OnecProjectApplication:        model.NewOnecProjectApplicationModel(sqlConn, c.DBCache),
-		OnecProjectVersion:            model.NewOnecProjectVersionModel(sqlConn, c.DBCache),
-		OnecProjectAuditLog:           model.NewOnecProjectAuditLogModel(sqlConn, c.DBCache),
+		OnecProjectClusterModel:       projectClusterModel,
+		OnecProjectWorkspaceModel:     projectWorkspaceModel,
+		OnecProjectApplication:        projectApplicationModel,
+		OnecProjectVersion:            projectVersionModel,
+		OnecProjectAuditLog:           projectAuditLogModel,
 		OnecBillingPriceConfigModel:   model.NewOnecBillingPriceConfigModel(sqlConn, c.DBCache),
 		OnecBillingStatementModel:     model.NewOnecBillingStatementModel(sqlConn, c.DBCache),
 		OnecBillingConfigBindingModel: model.NewOnecBillingConfigBindingModel(sqlConn, c.DBCache),
 		BillingService:                billingService,
-		K8sManager:                    managerK8s,
+		K8sManager:                    k8sManager,
 		SyncOperator:                  resourceSync,
 		AlertRuleGroupsModel:          model.NewAlertRuleGroupsModel(sqlConn, c.DBCache),
 		AlertRuleFilesModel:           model.NewAlertRuleFilesModel(sqlConn, c.DBCache),
@@ -145,6 +172,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		AlertRulesModel:               model.NewAlertRulesModel(sqlConn, c.DBCache),
 		AlertRpc:                      alertservice.NewAlertService(alertRpc),
 
-		// BookModel: models.NewBooksModel(sqlx.NewMysql(c.Mysql.DataSource), c.DBCache),
+		// 增量同步管理器
+		IncrementalSyncManager: incrementalManager,
 	}
+
+	return svcCtx
 }

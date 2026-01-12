@@ -57,7 +57,7 @@ func (p *prometheusRuleOperator) Create(rule *monitoringv1.PrometheusRule) error
 	if rule == nil || rule.Name == "" {
 		return fmt.Errorf("PrometheusRule 不能为空")
 	}
-
+	injectCommonAnnotations(rule)
 	// 判断是否已经存在
 	_, err := p.client.MonitoringV1().PrometheusRules(rule.Namespace).Get(p.ctx, rule.Name, metav1.GetOptions{})
 	if err == nil {

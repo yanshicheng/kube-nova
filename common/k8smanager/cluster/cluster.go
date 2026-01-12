@@ -71,7 +71,8 @@ func (c *clusterClient) GetClientSet() *kubernetes.Clientset {
 // NewClient  创建集群客户端
 func NewClient(config Config) (Client, error) {
 	// 验证集群配置
-	if err := validateConfig(config); err != nil {
+
+	if err := validateConfig(&config); err != nil {
 		logx.Errorf("集群配置文件验证失败: %w", err)
 		return nil, fmt.Errorf("集群配置文件验证失败: %w", err)
 	}

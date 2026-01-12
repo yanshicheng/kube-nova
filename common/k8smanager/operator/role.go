@@ -65,6 +65,7 @@ func (r *roleOperator) Create(role *rbacv1.Role) error {
 	if _, err := r.Get(role.Namespace, role.Name); err == nil {
 		return fmt.Errorf("Role %s/%s 已经存在", role.Namespace, role.Name)
 	}
+	injectCommonAnnotations(role)
 	_, err := r.client.RbacV1().Roles(role.Namespace).Create(r.ctx, role, metav1.CreateOptions{})
 	return err
 

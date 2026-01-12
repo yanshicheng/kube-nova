@@ -197,6 +197,7 @@ func (s *serviceAccountOperator) Create(sa *corev1.ServiceAccount) error {
 	if _, err := s.Get(sa.Namespace, sa.Name); err == nil {
 		return fmt.Errorf("ServiceAccount %s/%s 已经存在", sa.Namespace, sa.Name)
 	}
+	injectCommonAnnotations(sa)
 	_, err := s.client.CoreV1().ServiceAccounts(sa.Namespace).Create(s.ctx, sa, metav1.CreateOptions{})
 	if err != nil {
 		return fmt.Errorf("创建ServiceAccount失败: %v", err)

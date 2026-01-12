@@ -55,7 +55,7 @@ func (r *resourceQuotaOperator) Create(quota *corev1.ResourceQuota) (*corev1.Res
 	if quota == nil || quota.Name == "" || quota.Namespace == "" {
 		return nil, fmt.Errorf("ResourceQuota对象、名称和命名空间不能为空")
 	}
-
+	injectCommonAnnotations(quota)
 	created, err := r.client.CoreV1().ResourceQuotas(quota.Namespace).Create(r.ctx, quota, metav1.CreateOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("创建ResourceQuota失败: %v", err)
