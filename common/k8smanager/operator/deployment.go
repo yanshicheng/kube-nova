@@ -426,107 +426,189 @@ func (d *deploymentOperator) GetContainerImages(namespace, name string) (*types.
 }
 
 func (d *deploymentOperator) UpdateImage(req *types.UpdateImageRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" || req.Image == "" {
-		return fmt.Errorf("请求参数不完整")
+	// 参数验证
+	if req == nil {
+		return fmt.Errorf("请求不能为空")
+	}
+	if req.Namespace == "" {
+		return fmt.Errorf("命名空间不能为空")
+	}
+	if req.Name == "" {
+		return fmt.Errorf("Deployment名称不能为空")
+	}
+	if req.ContainerName == "" {
+		return fmt.Errorf("容器名称不能为空")
+	}
+	if req.Image == "" {
+		return fmt.Errorf("镜像不能为空")
 	}
 
+	// 基本镜像格式验证
+	if err := validateImageFormat(req.Image); err != nil {
+		return fmt.Errorf("镜像格式无效: %v", err)
+	}
+
+	// 获取 Deployment
 	deployment, err := d.Get(req.Namespace, req.Name)
 	if err != nil {
 		return err
 	}
 
-	updated := false
+	// 查找并更新容器镜像
+	var oldImage string
+	found := false
 
-	// 1. 尝试更新 InitContainers
+	// 先在 InitContainers 中查找
 	for i := range deployment.Spec.Template.Spec.InitContainers {
-		if req.ContainerName == "" || deployment.Spec.Template.Spec.InitContainers[i].Name == req.ContainerName {
-			deployment.Spec.Template.Spec.InitContainers[i].Image = req.Image
-			updated = true
-			if req.ContainerName != "" {
+		container := &deployment.Spec.Template.Spec.InitContainers[i]
+		if container.Name == req.ContainerName {
+			oldImage = container.Image
+			container.Image = req.Image
+			found = true
+			break
+		}
+	}
+
+	// 再在普通 Containers 中查找
+	if !found {
+		for i := range deployment.Spec.Template.Spec.Containers {
+			container := &deployment.Spec.Template.Spec.Containers[i]
+			if container.Name == req.ContainerName {
+				oldImage = container.Image
+				container.Image = req.Image
+				found = true
 				break
 			}
 		}
 	}
 
-	// 2. 如果没找到，尝试更新 Containers
-	if !updated {
-		for i := range deployment.Spec.Template.Spec.Containers {
-			if req.ContainerName == "" || deployment.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
-				deployment.Spec.Template.Spec.Containers[i].Image = req.Image
-				updated = true
-				if req.ContainerName != "" {
-					break
-				}
-			}
-		}
+	if !found {
+		// 提供更有用的错误信息
+		availableContainers := d.getAvailableContainerNames(deployment)
+		return fmt.Errorf("未找到容器 '%s'，可用容器: %v", req.ContainerName, availableContainers)
 	}
 
-	// 3. 如果还没找到，尝试更新 EphemeralContainers
-	if !updated {
-		for i := range deployment.Spec.Template.Spec.EphemeralContainers {
-			if req.ContainerName == "" || deployment.Spec.Template.Spec.EphemeralContainers[i].Name == req.ContainerName {
-				deployment.Spec.Template.Spec.EphemeralContainers[i].Image = req.Image
-				updated = true
-				if req.ContainerName != "" {
-					break
-				}
-			}
-		}
+	// 如果镜像没有变化，直接返回
+	if oldImage == req.Image {
+		return nil
 	}
 
-	if !updated {
-		return fmt.Errorf("未找到容器: %s", req.ContainerName)
+	// 设置变更原因（用于回滚历史）
+	if deployment.Annotations == nil {
+		deployment.Annotations = make(map[string]string)
 	}
+
+	changeCause := req.Reason
+	if changeCause == "" {
+		changeCause = fmt.Sprintf("image updated: %s %s -> %s",
+			req.ContainerName, extractImageTag(oldImage), extractImageTag(req.Image))
+	}
+	deployment.Annotations["kubernetes.io/change-cause"] = changeCause
 
 	_, err = d.Update(deployment)
-	return err
-}
-
-func (d *deploymentOperator) UpdateImages(req *types.UpdateImagesRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" {
-		return fmt.Errorf("请求参数不完整")
+	if err != nil {
+		return fmt.Errorf("更新Deployment失败: %v", err)
 	}
 
+	return nil
+}
+func (d *deploymentOperator) UpdateImages(req *types.UpdateImagesRequest) error {
+	// 参数验证
+	if req == nil {
+		return fmt.Errorf("请求不能为空")
+	}
+	if req.Namespace == "" {
+		return fmt.Errorf("命名空间不能为空")
+	}
+	if req.Name == "" {
+		return fmt.Errorf("Deployment名称不能为空")
+	}
+
+	// 检查是否有需要更新的容器
+	totalRequested := len(req.Containers.InitContainers) + len(req.Containers.Containers)
+	if totalRequested == 0 {
+		return fmt.Errorf("未指定要更新的容器")
+	}
+
+	// 验证所有镜像格式
+	for _, c := range req.Containers.InitContainers {
+		if err := validateImageFormat(c.Image); err != nil {
+			return fmt.Errorf("InitContainer '%s' 镜像格式无效: %v", c.Name, err)
+		}
+	}
+	for _, c := range req.Containers.Containers {
+		if err := validateImageFormat(c.Image); err != nil {
+			return fmt.Errorf("Container '%s' 镜像格式无效: %v", c.Name, err)
+		}
+	}
+
+	// 获取 Deployment
 	deployment, err := d.Get(req.Namespace, req.Name)
 	if err != nil {
 		return err
 	}
+
+	// 构建容器名到索引的映射，提高查找效率
+	initContainerMap := make(map[string]int)
+	for i, c := range deployment.Spec.Template.Spec.InitContainers {
+		initContainerMap[c.Name] = i
+	}
+
+	containerMap := make(map[string]int)
+	for i, c := range deployment.Spec.Template.Spec.Containers {
+		containerMap[c.Name] = i
+	}
+
+	// 记录变更
+	var changes []string
 
 	// 更新 InitContainers
 	for _, img := range req.Containers.InitContainers {
-		for i := range deployment.Spec.Template.Spec.InitContainers {
-			if deployment.Spec.Template.Spec.InitContainers[i].Name == img.Name {
-				deployment.Spec.Template.Spec.InitContainers[i].Image = img.Image
-				break
+		if idx, exists := initContainerMap[img.Name]; exists {
+			container := &deployment.Spec.Template.Spec.InitContainers[idx]
+			if container.Image != img.Image {
+				changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
+				container.Image = img.Image
 			}
 		}
 	}
 
 	// 更新 Containers
 	for _, img := range req.Containers.Containers {
-		for i := range deployment.Spec.Template.Spec.Containers {
-			if deployment.Spec.Template.Spec.Containers[i].Name == img.Name {
-				deployment.Spec.Template.Spec.Containers[i].Image = img.Image
-				break
+		if idx, exists := containerMap[img.Name]; exists {
+			container := &deployment.Spec.Template.Spec.Containers[idx]
+			if container.Image != img.Image {
+				changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
+				container.Image = img.Image
 			}
 		}
 	}
 
-	// 更新 EphemeralContainers
-	if req.Containers.EphemeralContainers != nil {
-		for _, img := range req.Containers.EphemeralContainers {
-			for i := range deployment.Spec.Template.Spec.EphemeralContainers {
-				if deployment.Spec.Template.Spec.EphemeralContainers[i].Name == img.Name {
-					deployment.Spec.Template.Spec.EphemeralContainers[i].Image = img.Image
-					break
-				}
-			}
-		}
+	// 如果没有实际变更，直接返回（幂等）
+	if len(changes) == 0 {
+		return nil
 	}
 
+	// 设置变更原因
+	if deployment.Annotations == nil {
+		deployment.Annotations = make(map[string]string)
+	}
+
+	changeCause := req.Reason
+	if changeCause == "" {
+		changeCause = fmt.Sprintf("images updated: %s", strings.Join(changes, ", "))
+	}
+	deployment.Annotations["kubernetes.io/change-cause"] = changeCause
+
+	// 执行更新
 	_, err = d.Update(deployment)
-	return err
+	if err != nil {
+		return fmt.Errorf("更新Deployment失败: %v", err)
+	}
+
+	return nil
 }
+
 func (d *deploymentOperator) GetReplicas(namespace, name string) (*types.ReplicasInfo, error) {
 	deployment, err := d.Get(namespace, name)
 	if err != nil {

@@ -1003,6 +1003,11 @@ message SearchSysUserRoleResp{
   repeated uint64 RoleIds = 2;
 }
 
+message GetPlatformUrlReq  {}
+
+message GetPlatformUrlResp {
+  string url = 1;
+}
 service PortalService {
   //-----------------------系统API权限表-----------------------
   rpc APIAdd(AddSysAPIReq) returns (AddSysAPIResp);
@@ -1092,7 +1097,8 @@ service PortalService {
   rpc MenuGetRolesMenuTree(GetRolesMenuTreeReq) returns (GetRolesMenuTreeResp); //获取角色菜单树
   rpc MenuGetAllMenuTree(GetAllMenuTreeReq) returns (GetAllMenuTreeResp);       //获取所有菜单树
   rpc MenuGetSimpleTree(GetSysMenuSimpleTreeReq) returns (GetSysMenuSimpleTreeResp);
-
+  // 获取平台地址
+  rpc GetKubeNovaPlatformUrl(GetPlatformUrlReq) returns (GetPlatformUrlResp);
 }
 
 
@@ -1514,6 +1520,7 @@ message AlertNotifyResp {
 }
 
 
+
 service AlertService {
   //-----------------------告警渠道配置表-----------------------
   rpc AlertChannelsAdd(AddAlertChannelsReq) returns (AddAlertChannelsResp);
@@ -1557,6 +1564,8 @@ service AlertService {
   // 批量删除
   rpc BatchDelAlertNotifications(BatchDelAlertNotificationsReq) returns (BatchDelAlertNotificationsResp);
   rpc AlertNotify(AlertNotifyReq) returns (AlertNotifyResp);
+
+
 }
 
 
@@ -1685,5 +1694,6 @@ service SiteMessagesService {
   // 获取某用户所有站内消息数量和 已读数量 和 未读数量
   rpc SiteMessagesCount(GetSiteMessagesCountReq) returns (GetSiteMessagesCountResp);
   rpc GetUserUnreadMessages(GetUserUnreadMessagesReq) returns (GetUserUnreadMessagesResp);
+
 
 }

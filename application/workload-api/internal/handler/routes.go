@@ -607,6 +607,18 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
 			[]rest.Route{
 				{
+					// 获取集群所有命名空间的 ConfigMap 名称列表
+					Method:  http.MethodGet,
+					Path:    "/:clusterUuid/:namespace/configmaps",
+					Handler: core.GetClusterConfigMapNamesHandler(serverCtx),
+				},
+				{
+					// 获取集群所有命名空间的 Secret 名称列表
+					Method:  http.MethodGet,
+					Path:    "/:clusterUuid/:namespace/secrets",
+					Handler: core.GetClusterSecretNamesHandler(serverCtx),
+				},
+				{
 					// 获取 ConfigMap 列表
 					Method:  http.MethodGet,
 					Path:    "/configmap",

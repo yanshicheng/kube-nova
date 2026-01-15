@@ -406,73 +406,189 @@ func (d *daemonSetOperator) GetContainerImages(namespace, name string) (*types.C
 	return result, nil
 }
 func (d *daemonSetOperator) UpdateImage(req *types.UpdateImageRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" || req.Image == "" {
-		return fmt.Errorf("请求参数不完整")
+	// 参数验证
+	if req == nil {
+		return fmt.Errorf("请求不能为空")
+	}
+	if req.Namespace == "" {
+		return fmt.Errorf("命名空间不能为空")
+	}
+	if req.Name == "" {
+		return fmt.Errorf("DaemonSet名称不能为空")
+	}
+	if req.ContainerName == "" {
+		return fmt.Errorf("容器名称不能为空")
+	}
+	if req.Image == "" {
+		return fmt.Errorf("镜像不能为空")
 	}
 
+	// 基本镜像格式验证
+	if err := validateImageFormat(req.Image); err != nil {
+		return fmt.Errorf("镜像格式无效: %v", err)
+	}
+
+	// 获取 DaemonSet
 	daemonSet, err := d.Get(req.Namespace, req.Name)
 	if err != nil {
 		return err
 	}
 
-	updateContainer := func(containers []corev1.Container) bool {
-		for i := range containers {
-			if req.ContainerName == "" || containers[i].Name == req.ContainerName {
-				containers[i].Image = req.Image
-				return true
+	// 查找并更新容器镜像
+	var oldImage string
+	found := false
+
+	// 先在 InitContainers 中查找
+	for i := range daemonSet.Spec.Template.Spec.InitContainers {
+		container := &daemonSet.Spec.Template.Spec.InitContainers[i]
+		if container.Name == req.ContainerName {
+			oldImage = container.Image
+			container.Image = req.Image
+			found = true
+			break
+		}
+	}
+
+	// 再在普通 Containers 中查找
+	if !found {
+		for i := range daemonSet.Spec.Template.Spec.Containers {
+			container := &daemonSet.Spec.Template.Spec.Containers[i]
+			if container.Name == req.ContainerName {
+				oldImage = container.Image
+				container.Image = req.Image
+				found = true
+				break
 			}
 		}
-		return false
 	}
 
-	updateEphemeralContainer := func(containers []corev1.EphemeralContainer) bool {
-		for i := range containers {
-			if req.ContainerName == "" || containers[i].Name == req.ContainerName {
-				containers[i].Image = req.Image
-				return true
+	// 最后在 EphemeralContainers 中查找
+	if !found {
+		for i := range daemonSet.Spec.Template.Spec.EphemeralContainers {
+			container := &daemonSet.Spec.Template.Spec.EphemeralContainers[i]
+			if container.Name == req.ContainerName {
+				oldImage = container.Image
+				container.Image = req.Image
+				found = true
+				break
 			}
 		}
-		return false
 	}
 
-	updated := updateContainer(daemonSet.Spec.Template.Spec.InitContainers) ||
-		updateContainer(daemonSet.Spec.Template.Spec.Containers) ||
-		updateEphemeralContainer(daemonSet.Spec.Template.Spec.EphemeralContainers)
-
-	if !updated {
-		return fmt.Errorf("未找到容器: %s", req.ContainerName)
+	if !found {
+		// 提供更有用的错误信息
+		availableContainers := d.getAvailableContainerNames(daemonSet)
+		return fmt.Errorf("未找到容器 '%s'，可用容器: %v", req.ContainerName, availableContainers)
 	}
+
+	// 如果镜像没有变化，直接返回（幂等）
+	if oldImage == req.Image {
+		return nil
+	}
+
+	// 设置变更原因（用于回滚历史）
+	if daemonSet.Annotations == nil {
+		daemonSet.Annotations = make(map[string]string)
+	}
+
+	changeCause := req.Reason
+	if changeCause == "" {
+		changeCause = fmt.Sprintf("image updated: %s %s -> %s",
+			req.ContainerName, extractImageTag(oldImage), extractImageTag(req.Image))
+	}
+	daemonSet.Annotations["kubernetes.io/change-cause"] = changeCause
 
 	_, err = d.Update(daemonSet)
-	return err
+	if err != nil {
+		return fmt.Errorf("更新DaemonSet失败: %v", err)
+	}
+
+	return nil
 }
 
 func (d *daemonSetOperator) UpdateImages(req *types.UpdateImagesRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" {
-		return fmt.Errorf("请求参数不完整")
+	// 参数验证
+	if req == nil {
+		return fmt.Errorf("请求不能为空")
+	}
+	if req.Namespace == "" {
+		return fmt.Errorf("命名空间不能为空")
+	}
+	if req.Name == "" {
+		return fmt.Errorf("DaemonSet名称不能为空")
 	}
 
+	// 检查是否有需要更新的容器
+	totalRequested := len(req.Containers.InitContainers) + len(req.Containers.Containers)
+	if req.Containers.EphemeralContainers != nil {
+		totalRequested += len(req.Containers.EphemeralContainers)
+	}
+	if totalRequested == 0 {
+		return fmt.Errorf("未指定要更新的容器")
+	}
+
+	// 验证所有镜像格式
+	for _, c := range req.Containers.InitContainers {
+		if err := validateImageFormat(c.Image); err != nil {
+			return fmt.Errorf("InitContainer '%s' 镜像格式无效: %v", c.Name, err)
+		}
+	}
+	for _, c := range req.Containers.Containers {
+		if err := validateImageFormat(c.Image); err != nil {
+			return fmt.Errorf("Container '%s' 镜像格式无效: %v", c.Name, err)
+		}
+	}
+	if req.Containers.EphemeralContainers != nil {
+		for _, c := range req.Containers.EphemeralContainers {
+			if err := validateImageFormat(c.Image); err != nil {
+				return fmt.Errorf("EphemeralContainer '%s' 镜像格式无效: %v", c.Name, err)
+			}
+		}
+	}
+
+	// 获取 DaemonSet
 	daemonSet, err := d.Get(req.Namespace, req.Name)
 	if err != nil {
 		return err
 	}
 
+	// 构建容器名到索引的映射，提高查找效率
+	initContainerMap := make(map[string]int)
+	for i, c := range daemonSet.Spec.Template.Spec.InitContainers {
+		initContainerMap[c.Name] = i
+	}
+
+	containerMap := make(map[string]int)
+	for i, c := range daemonSet.Spec.Template.Spec.Containers {
+		containerMap[c.Name] = i
+	}
+
+	ephemeralContainerMap := make(map[string]int)
+	for i, c := range daemonSet.Spec.Template.Spec.EphemeralContainers {
+		ephemeralContainerMap[c.Name] = i
+	}
+
+	// 记录变更
+	var changes []string
+
 	// 更新 InitContainers
 	for _, img := range req.Containers.InitContainers {
-		for i := range daemonSet.Spec.Template.Spec.InitContainers {
-			if daemonSet.Spec.Template.Spec.InitContainers[i].Name == img.Name {
-				daemonSet.Spec.Template.Spec.InitContainers[i].Image = img.Image
-				break
+		if idx, exists := initContainerMap[img.Name]; exists {
+			container := &daemonSet.Spec.Template.Spec.InitContainers[idx]
+			if container.Image != img.Image {
+				changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
+				container.Image = img.Image
 			}
 		}
 	}
 
 	// 更新 Containers
 	for _, img := range req.Containers.Containers {
-		for i := range daemonSet.Spec.Template.Spec.Containers {
-			if daemonSet.Spec.Template.Spec.Containers[i].Name == img.Name {
-				daemonSet.Spec.Template.Spec.Containers[i].Image = img.Image
-				break
+		if idx, exists := containerMap[img.Name]; exists {
+			container := &daemonSet.Spec.Template.Spec.Containers[idx]
+			if container.Image != img.Image {
+				changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
+				container.Image = img.Image
 			}
 		}
 	}
@@ -480,17 +596,54 @@ func (d *daemonSetOperator) UpdateImages(req *types.UpdateImagesRequest) error {
 	// 更新 EphemeralContainers
 	if req.Containers.EphemeralContainers != nil {
 		for _, img := range req.Containers.EphemeralContainers {
-			for i := range daemonSet.Spec.Template.Spec.EphemeralContainers {
-				if daemonSet.Spec.Template.Spec.EphemeralContainers[i].Name == img.Name {
-					daemonSet.Spec.Template.Spec.EphemeralContainers[i].Image = img.Image
-					break
+			if idx, exists := ephemeralContainerMap[img.Name]; exists {
+				container := &daemonSet.Spec.Template.Spec.EphemeralContainers[idx]
+				if container.Image != img.Image {
+					changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
+					container.Image = img.Image
 				}
 			}
 		}
 	}
 
+	// 如果没有实际变更，直接返回（幂等）
+	if len(changes) == 0 {
+		return nil
+	}
+
+	// 设置变更原因
+	if daemonSet.Annotations == nil {
+		daemonSet.Annotations = make(map[string]string)
+	}
+
+	changeCause := req.Reason
+	if changeCause == "" {
+		changeCause = fmt.Sprintf("images updated: %s", strings.Join(changes, ", "))
+	}
+	daemonSet.Annotations["kubernetes.io/change-cause"] = changeCause
+
+	// 执行更新
 	_, err = d.Update(daemonSet)
-	return err
+	if err != nil {
+		return fmt.Errorf("更新DaemonSet失败: %v", err)
+	}
+
+	return nil
+}
+
+// getAvailableContainerNames 获取可用的容器名称列表
+func (d *daemonSetOperator) getAvailableContainerNames(daemonSet *appsv1.DaemonSet) []string {
+	names := make([]string, 0)
+	for _, c := range daemonSet.Spec.Template.Spec.InitContainers {
+		names = append(names, c.Name+" (init)")
+	}
+	for _, c := range daemonSet.Spec.Template.Spec.Containers {
+		names = append(names, c.Name)
+	}
+	for _, c := range daemonSet.Spec.Template.Spec.EphemeralContainers {
+		names = append(names, c.Name+" (ephemeral)")
+	}
+	return names
 }
 
 func (d *daemonSetOperator) GetStatus(namespace, name string) (*types.DaemonSetStatusInfo, error) {

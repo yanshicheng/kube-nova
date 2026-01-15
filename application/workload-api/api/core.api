@@ -650,6 +650,11 @@ type (
         Nmae string `json:"name"`
         Ports []int32 `json:"ports"`
     }
+        // 集群资源名称查询请求
+    ClusterResourceNamesRequest {
+        ClusterUuid string `path:"clusterUuid" validate:"required"`
+        Namespace string `path:"namespace" validate:"required"`
+    }
 )
 
 @server(
@@ -926,4 +931,11 @@ service workload-api {
     @doc "获取 RoleBinding 关联信息"
     @handler RoleBindingGetAssociationHandler
     get /rolebinding/association (ClusterNamespaceResourceRequest) returns (RoleBindingAssociation)
+    @doc "获取集群所有命名空间的 ConfigMap 名称列表"
+    @handler GetClusterConfigMapNamesHandler
+    get /:clusterUuid/:namespace/configmaps (ClusterResourceNamesRequest) returns ([]string)
+
+    @doc "获取集群所有命名空间的 Secret 名称列表"
+    @handler GetClusterSecretNamesHandler
+    get /:clusterUuid/:namespace/secrets (ClusterResourceNamesRequest) returns ([]string)
 }

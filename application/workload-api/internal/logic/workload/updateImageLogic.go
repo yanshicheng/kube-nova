@@ -28,19 +28,29 @@ func NewUpdateImageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Updat
 }
 
 func (l *UpdateImageLogic) UpdateImage(req *types.UpdateImageRequest) (resp string, err error) {
+	username, ok := l.ctx.Value("username").(string)
+	if !ok {
+		username = "system"
+	}
 	// 获取版本详情和资源控制器
 	versionDetail, controller, err := getResourceController(l.ctx, l.svcCtx, req.Id)
 	if err != nil {
 		l.Errorf("获取资源控制器失败: %v", err)
 		return "", err
 	}
-
+	if req.Reason == "" {
+		req.Reason = fmt.Sprintf("更新镜像: %s/%s, 容器: %s, 新镜像: %s, 操作人: %s",
+			versionDetail.Namespace, versionDetail.ResourceName, req.ContainerName, req.Image, username)
+	} else {
+		req.Reason = fmt.Sprintf("%s, 操作人: %s", req.Reason, username)
+	}
 	// 构建更新镜像请求
 	updateReq := &k8sTypes.UpdateImageRequest{
 		Name:          versionDetail.ResourceName,
 		Namespace:     versionDetail.Namespace,
 		ContainerName: req.ContainerName,
 		Image:         req.Image,
+		Reason:        req.Reason,
 	}
 
 	// 根据资源类型执行更新

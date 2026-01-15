@@ -62,3 +62,9 @@ data:
         Tls: ${REDIS_TLS}
         NonBlock: ${REDIS_NONBLOCK}
         PingTimeout: ${REDIS_PING_TIMEOUT}
+    
+    ManagerRpc:
+      Target: k8s://${POD_NAMESPACE}/manager-rpc:30011
+      Optional: true
+      NonBlock: true
+      Timeout: ${DEFAULT_TIMEOUT}

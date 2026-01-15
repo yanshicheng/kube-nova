@@ -122,8 +122,16 @@ spec:
               memory: "2Gi"
               cpu: "2000m"
 
-          # 存活探针
           livenessProbe:
+            httpGet:
+              path: /
+              port: 14269
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+          readinessProbe:
             httpGet:
               path: /
               port: 14269
@@ -132,25 +140,14 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 3
 
-          # 就绪探针
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 14269
-            initialDelaySeconds: 10
-            periodSeconds: 5
-            timeoutSeconds: 3
-            failureThreshold: 3
-
-          # 启动探针
           startupProbe:
             httpGet:
               path: /
               port: 14269
-            initialDelaySeconds: 0
-            periodSeconds: 5
+            initialDelaySeconds: 30
+            periodSeconds: 10
             timeoutSeconds: 3
-            failureThreshold: 12
+            failureThreshold: 15
 
       # 存储卷定义
       volumes:

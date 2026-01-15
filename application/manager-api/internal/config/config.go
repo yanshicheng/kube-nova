@@ -7,7 +7,7 @@ import (
 )
 
 type Webhook struct {
-	AlertmanagerToken string `json:"AlertmanagerToken"`
+	Token string `json:"Token"`
 }
 type Config struct {
 	rest.RestConf

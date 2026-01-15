@@ -838,6 +838,13 @@ type GetAlertTrendResponse struct {
 	TotalResolved int64            `json:"totalResolved"` // 期间恢复总数
 }
 
+type GetAlertmanagerConfigRequest struct {
+	ClusterUuid string `path:"clusterUuid" validate:"required"` // 集群UUID
+	Namespace   string `form:"namespace,optional"`              // 命名空间，默认monitoring
+	CrdType     string `form:"crdType,optional"`                // 资源类型: configmap/secret，默认secret
+	Name        string `form:"name,optional"`                   // 资源名称，默认alertmanager-main
+}
+
 type GetClusterIngressDomainsRequest struct {
 	ClusterUuid string `path:"clusterUuid" validate:"required"`
 }
@@ -878,6 +885,12 @@ type GetProjectResourceRankingResp struct {
 
 type GetProjectsByUserIdRequest struct {
 	Name string `form:"name,optional" validate:"omitempty,max=100"`
+}
+
+type GetPrometheusConfigRequest struct {
+	ClusterUuid string `path:"clusterUuid" validate:"required"` // 集群UUID
+	Namespace   string `form:"namespace,optional"`              // 命名空间，默认monitoring
+	Name        string `form:"name,optional"`                   // 资源名称，默认k8s
 }
 
 type GetResourceDashboardSummaryReq struct {
@@ -921,6 +934,10 @@ type MigrateVersionOnProjectRequest struct {
 type MigrateWorkspaceOnProjectRequest struct {
 	WorkloadId   uint64 `json:"workloadId" validate:"required,gt=0"`
 	NewProjectId uint64 `json:"newProjectId" validate:"required,gt=0"`
+}
+
+type MonitoringConfigResponse struct {
+	Config string `json:"config"`
 }
 
 type NodeAnnotationDeleteRequest struct {
@@ -1650,6 +1667,13 @@ type SearchProjectWorkspaceRequest struct {
 	ProjectClusterId uint64 `form:"projectClusterId" validate:"required,gt=0"`      // 项目集群ID（必传）
 	Name             string `form:"name,optional" validate:"omitempty,max=100"`     // 工作空间名称（可选）
 	Namespace        string `form:"namespace,optional" validate:"omitempty,max=63"` // 命名空间（可选）
+}
+
+type SetAlertmanagerConfigRequest struct {
+	ClusterUuid string `path:"clusterUuid" validate:"required"` // 集群UUID
+	Namespace   string `json:"namespace,optional"`              // 命名空间，默认monitoring
+	CrdType     string `json:"crdType,optional"`                // 资源类型: configmap/secret，默认secret
+	Name        string `json:"name,optional"`                   // 资源名称，默认alertmanager-main
 }
 
 type SeverityStatItem struct {
