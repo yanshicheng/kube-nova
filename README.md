@@ -1,4 +1,26 @@
-<p align="center">   <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License">   <img src="https://img.shields.io/badge/Go-1.25.5-00ADD8?logo=go&logoColor=white" alt="Go">   <img src="https://img.shields.io/badge/Gozero-v1.9.4-1E88E5" alt="Gozero">   <img src="https://img.shields.io/badge/Vue-3.x-4FC08D?logo=vue.js&logoColor=white" alt="Vue">   <img src="https://img.shields.io/badge/Kubernetes-1.21+-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes">   <br/>   <img src="https://img.shields.io/badge/MySQL-8.0+-4479A1?logo=mysql&logoColor=white" alt="MySQL">   <img src="https://img.shields.io/badge/Redis-7.0+-DC382D?logo=redis&logoColor=white" alt="Redis">   <a target="_blank" href="https://github.com/yanshicheng/kube-nova">     <img src="https://img.shields.io/github/stars/yanshicheng/kube-nova?style=social" alt="GitHub Stars">   </a> </p> <p align="center">   <b>企业级 Kubernetes 多集群管理平台</b> </p> <p align="center">   <a href="https://kube-nova.ikubeops.com"><b>🌐 在线演示</b></a> |   <a href="https://www.ikubeops.com"><b>📖 部署文档</b></a> |   <a href="https://wiki-images.yanshicheng.com/common/kube-nova-wechat.png"><b>💬 加入我们</b></a> </p>
+<p align="center">
+  <img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="License">
+  <img src="https://img.shields.io/badge/Go-1.25.5-00ADD8?logo=go&logoColor=white" alt="Go">
+  <img src="https://img.shields.io/badge/Gozero-v1.9.4-1E88E5" alt="Gozero">
+  <img src="https://img.shields.io/badge/Vue-3.x-4FC08D?logo=vue.js&logoColor=white" alt="Vue">
+  <img src="https://img.shields.io/badge/Kubernetes-1.21+-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes">
+  <br/>
+  <img src="https://img.shields.io/badge/MySQL-8.0+-4479A1?logo=mysql&logoColor=white" alt="MySQL">
+  <img src="https://img.shields.io/badge/Redis-7.0+-DC382D?logo=redis&logoColor=white" alt="Redis">
+  <a target="_blank" href="https://github.com/yanshicheng/kube-nova">
+    <img src="https://img.shields.io/github/stars/yanshicheng/kube-nova?style=social" alt="GitHub Stars">
+  </a>
+</p>
+
+<p align="center">
+  <b>企业级 Kubernetes 多集群管理平台</b>
+</p>
+
+<p align="center">
+  <a href="https://kube-nova.ikubeops.com"><b>🌐 在线演示</b></a> |
+  <a href="https://www.ikubeops.com"><b>📖 部署文档</b></a> |
+  <a href="https://wiki-images.yanshicheng.com/common/kube-nova-wechat.png"><b>💬 加入我们</b></a>
+</p>
 
 ------
 
@@ -9,6 +31,7 @@
 | 后端代码     | [yanshicheng/kube-nova](https://github.com/yanshicheng/kube-nova)                   | [ikubeops/kube-nova](https://gitee.com/ikubeops/kube-nova)                   |
 | 前端代码     | [yanshicheng/kube-nova-web](https://github.com/yanshicheng/kube-nova-web)           | [ikubeops/kube-nova-web](https://gitee.com/ikubeops/kube-nova-web)           |
 | operator | [yanshicheng/kube-nova-operator](https://github.com/yanshicheng/kube-nova-operator) | [ikubeops/kube-nova-operator](https://gitee.com/ikubeops/kube-nova-operator) |
+
 ------
 
 ## 📖 项目简介
@@ -34,7 +57,7 @@ Kube-Nova 是一个企业级 Kubernetes 多集群管理平台，以**项目为�
 
 ### 后端技术栈
 
-- **语言**: Go 
+- **语言**: Go
 - **框架**: [Gozero](https://go-zero.dev/) （微服务框架）
 - **数据库**: MySQL
 - **缓存**: Redis
@@ -84,7 +107,7 @@ kube-nova/
 - Kubernetes 1.21+
 - MySQL 8.0+
 - Redis 7.0+
-- Go 1.25.5+ 
+- Go 1.25.5+
 
 ### 📚 部署文档
 
@@ -103,6 +126,7 @@ kube-nova/
 | workload-api       | `ikubeops/workload-api:latest`       | `registry.cn-hangzhou.aliyuncs.com/kube-nova/workload-api:latest`       |
 | kube-nova-web      | `ikubeops/kube-nova-web:latest`      | `registry.cn-hangzhou.aliyuncs.com/kube-nova/kube-nova-web:latest`      |
 | kube-nova-operator | `ikubeops/kube-nova-operator:latest` | `registry.cn-hangzhou.aliyuncs.com/kube-nova/kube-nova-operator:latest` |
+
 ------
 
 ## 💡 功能特性
@@ -209,7 +233,8 @@ kube-nova/
 
 ## 📸 平台截图
 
-<details> <summary>点击查看更多截图</summary>
+<details>
+<summary>点击查看更多截图</summary>
 
 ### 登录页面
 
@@ -217,27 +242,38 @@ kube-nova/
 
 ### 集群管理
 
-![集群管理](https://images.ikubeops.com/kube-nova/cluster-manager.png) ![集群节点](https://images.ikubeops.com/kube-nova/cluster-node.png) ![集群监控](https://images.ikubeops.com/kube-nova/cluster-monitor.png) ![集群中间件](https://images.ikubeops.com/kube-nova/cluster-m.png)
+![集群管理](https://images.ikubeops.com/kube-nova/cluster-manager.png)
+![集群节点](https://images.ikubeops.com/kube-nova/cluster-node.png)
+![集群监控](https://images.ikubeops.com/kube-nova/cluster-monitor.png)
+![集群中间件](https://images.ikubeops.com/kube-nova/cluster-m.png)
 
 ### 项目管理
 
-![项目资源池](https://images.ikubeops.com/kube-nova/project-resource.png) ![项目工作空间](https://images.ikubeops.com/kube-nova/project-workspace.png)
+![项目资源池](https://images.ikubeops.com/kube-nova/project-resource.png)
+![项目工作空间](https://images.ikubeops.com/kube-nova/project-workspace.png)
 
 ### 应用管理
 
-![应用详情](https://images.ikubeops.com/kube-nova/app-info.png) ![服务版本](https://images.ikubeops.com/kube-nova/app-version.png)
+![应用详情](https://images.ikubeops.com/kube-nova/app-info.png)
+![服务版本](https://images.ikubeops.com/kube-nova/app-version.png)
 
 ### Pod 运维
 
-![Pod 日志管理](https://images.ikubeops.com/kube-nova/pod-log.png) ![Pod 终端](https://images.ikubeops.com/kube-nova/pod-terminal.png) ![Pod 文件管理](https://images.ikubeops.com/kube-nova/pod-file-manager.png)
+![Pod 日志管理](https://images.ikubeops.com/kube-nova/pod-log.png)
+![Pod 终端](https://images.ikubeops.com/kube-nova/pod-terminal.png)
+![Pod 文件管理](https://images.ikubeops.com/kube-nova/pod-file-manager.png)
 
 ### 监控体系
 
-![Namespace 监控](https://images.ikubeops.com/kube-nova/namespace-monitor.png) ![Pod 监控](https://images.ikubeops.com/kube-nova/pod-monirot.png)
+![Namespace 监控](https://images.ikubeops.com/kube-nova/namespace-monitor.png)
+![Pod 监控](https://images.ikubeops.com/kube-nova/pod-monirot.png)
 
 ### 告警中心
 
-![告警渠道](https://images.ikubeops.com/kube-nova/monitor-channel.png) ![钉钉告警](https://images.ikubeops.com/kube-nova/dingding-notifcation.png) ![飞书告警](https://images.ikubeops.com/kube-nova/feishu-notification.png) ![邮件告警](https://images.ikubeops.com/kube-nova/email-notification.png)
+![告警渠道](https://images.ikubeops.com/kube-nova/monitor-channel.png)
+![钉钉告警](https://images.ikubeops.com/kube-nova/dingding-notifcation.png)
+![飞书告警](https://images.ikubeops.com/kube-nova/feishu-notification.png)
+![邮件告警](https://images.ikubeops.com/kube-nova/email-notification.png)
 
 </details>
 
@@ -267,7 +303,25 @@ kube-nova/
 
 ## 📄 开源协议
 
-本项目采用 [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) 协议开源。
+本项目采用 [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html) 协议开源。
+
+```
+KubeNova - 企业级 Kubernetes 多集群管理平台
+Copyright (C) 2025  YanShicheng
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+```
 
 ------
 
