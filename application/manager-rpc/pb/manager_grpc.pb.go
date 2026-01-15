@@ -156,6 +156,9 @@ const (
 	ManagerService_OnecBillingStatementBatchDel_FullMethodName    = "/pb.ManagerService/OnecBillingStatementBatchDel"
 	ManagerService_OnecBillingStatementGenerate_FullMethodName    = "/pb.ManagerService/OnecBillingStatementGenerate"
 	ManagerService_OnecBillingStatementGenerateAll_FullMethodName = "/pb.ManagerService/OnecBillingStatementGenerateAll"
+	ManagerService_GetAlertmanagerConfig_FullMethodName           = "/pb.ManagerService/GetAlertmanagerConfig"
+	ManagerService_GetPrometheusConfig_FullMethodName             = "/pb.ManagerService/GetPrometheusConfig"
+	ManagerService_SetAlertmanagerConfig_FullMethodName           = "/pb.ManagerService/SetAlertmanagerConfig"
 )
 
 // ManagerServiceClient is the client API for ManagerService service.
@@ -376,6 +379,12 @@ type ManagerServiceClient interface {
 	OnecBillingStatementGenerate(ctx context.Context, in *OnecBillingStatementGenerateReq, opts ...grpc.CallOption) (*OnecBillingStatementGenerateResp, error)
 	// 生成所有账单
 	OnecBillingStatementGenerateAll(ctx context.Context, in *OnecBillingStatementGenerateAllReq, opts ...grpc.CallOption) (*OnecBillingStatementGenerateAllResp, error)
+	// 获取Alertmanager配置
+	GetAlertmanagerConfig(ctx context.Context, in *GetAlertmanagerConfigReq, opts ...grpc.CallOption) (*GetAlertmanagerConfigResp, error)
+	// 获取Prometheus配置
+	GetPrometheusConfig(ctx context.Context, in *GetPrometheusConfigReq, opts ...grpc.CallOption) (*GetPrometheusConfigResp, error)
+	// 配置Alertmanager
+	SetAlertmanagerConfig(ctx context.Context, in *SetAlertmanagerConfigReq, opts ...grpc.CallOption) (*SetAlertmanagerConfigResp, error)
 }
 
 type managerServiceClient struct {
@@ -1756,6 +1765,36 @@ func (c *managerServiceClient) OnecBillingStatementGenerateAll(ctx context.Conte
 	return out, nil
 }
 
+func (c *managerServiceClient) GetAlertmanagerConfig(ctx context.Context, in *GetAlertmanagerConfigReq, opts ...grpc.CallOption) (*GetAlertmanagerConfigResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAlertmanagerConfigResp)
+	err := c.cc.Invoke(ctx, ManagerService_GetAlertmanagerConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *managerServiceClient) GetPrometheusConfig(ctx context.Context, in *GetPrometheusConfigReq, opts ...grpc.CallOption) (*GetPrometheusConfigResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPrometheusConfigResp)
+	err := c.cc.Invoke(ctx, ManagerService_GetPrometheusConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *managerServiceClient) SetAlertmanagerConfig(ctx context.Context, in *SetAlertmanagerConfigReq, opts ...grpc.CallOption) (*SetAlertmanagerConfigResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetAlertmanagerConfigResp)
+	err := c.cc.Invoke(ctx, ManagerService_SetAlertmanagerConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ManagerServiceServer is the server API for ManagerService service.
 // All implementations must embed UnimplementedManagerServiceServer
 // for forward compatibility.
@@ -1974,6 +2013,12 @@ type ManagerServiceServer interface {
 	OnecBillingStatementGenerate(context.Context, *OnecBillingStatementGenerateReq) (*OnecBillingStatementGenerateResp, error)
 	// 生成所有账单
 	OnecBillingStatementGenerateAll(context.Context, *OnecBillingStatementGenerateAllReq) (*OnecBillingStatementGenerateAllResp, error)
+	// 获取Alertmanager配置
+	GetAlertmanagerConfig(context.Context, *GetAlertmanagerConfigReq) (*GetAlertmanagerConfigResp, error)
+	// 获取Prometheus配置
+	GetPrometheusConfig(context.Context, *GetPrometheusConfigReq) (*GetPrometheusConfigResp, error)
+	// 配置Alertmanager
+	SetAlertmanagerConfig(context.Context, *SetAlertmanagerConfigReq) (*SetAlertmanagerConfigResp, error)
 	mustEmbedUnimplementedManagerServiceServer()
 }
 
@@ -2394,6 +2439,15 @@ func (UnimplementedManagerServiceServer) OnecBillingStatementGenerate(context.Co
 }
 func (UnimplementedManagerServiceServer) OnecBillingStatementGenerateAll(context.Context, *OnecBillingStatementGenerateAllReq) (*OnecBillingStatementGenerateAllResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method OnecBillingStatementGenerateAll not implemented")
+}
+func (UnimplementedManagerServiceServer) GetAlertmanagerConfig(context.Context, *GetAlertmanagerConfigReq) (*GetAlertmanagerConfigResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAlertmanagerConfig not implemented")
+}
+func (UnimplementedManagerServiceServer) GetPrometheusConfig(context.Context, *GetPrometheusConfigReq) (*GetPrometheusConfigResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPrometheusConfig not implemented")
+}
+func (UnimplementedManagerServiceServer) SetAlertmanagerConfig(context.Context, *SetAlertmanagerConfigReq) (*SetAlertmanagerConfigResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetAlertmanagerConfig not implemented")
 }
 func (UnimplementedManagerServiceServer) mustEmbedUnimplementedManagerServiceServer() {}
 func (UnimplementedManagerServiceServer) testEmbeddedByValue()                        {}
@@ -4882,6 +4936,60 @@ func _ManagerService_OnecBillingStatementGenerateAll_Handler(srv interface{}, ct
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ManagerService_GetAlertmanagerConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAlertmanagerConfigReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ManagerServiceServer).GetAlertmanagerConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ManagerService_GetAlertmanagerConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ManagerServiceServer).GetAlertmanagerConfig(ctx, req.(*GetAlertmanagerConfigReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ManagerService_GetPrometheusConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPrometheusConfigReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ManagerServiceServer).GetPrometheusConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ManagerService_GetPrometheusConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ManagerServiceServer).GetPrometheusConfig(ctx, req.(*GetPrometheusConfigReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ManagerService_SetAlertmanagerConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetAlertmanagerConfigReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ManagerServiceServer).SetAlertmanagerConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ManagerService_SetAlertmanagerConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ManagerServiceServer).SetAlertmanagerConfig(ctx, req.(*SetAlertmanagerConfigReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ManagerService_ServiceDesc is the grpc.ServiceDesc for ManagerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -5436,6 +5544,18 @@ var ManagerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "OnecBillingStatementGenerateAll",
 			Handler:    _ManagerService_OnecBillingStatementGenerateAll_Handler,
+		},
+		{
+			MethodName: "GetAlertmanagerConfig",
+			Handler:    _ManagerService_GetAlertmanagerConfig_Handler,
+		},
+		{
+			MethodName: "GetPrometheusConfig",
+			Handler:    _ManagerService_GetPrometheusConfig_Handler,
+		},
+		{
+			MethodName: "SetAlertmanagerConfig",
+			Handler:    _ManagerService_SetAlertmanagerConfig_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

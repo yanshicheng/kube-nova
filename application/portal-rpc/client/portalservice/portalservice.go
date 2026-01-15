@@ -30,8 +30,6 @@ type (
 	AddSysDeptResp                     = pb.AddSysDeptResp
 	AddSysMenuReq                      = pb.AddSysMenuReq
 	AddSysMenuResp                     = pb.AddSysMenuResp
-	AddSysPlatformReq                  = pb.AddSysPlatformReq
-	AddSysPlatformResp                 = pb.AddSysPlatformResp
 	AddSysRoleApiReq                   = pb.AddSysRoleApiReq
 	AddSysRoleApiResp                  = pb.AddSysRoleApiResp
 	AddSysRoleMenuReq                  = pb.AddSysRoleMenuReq
@@ -59,8 +57,6 @@ type (
 	BatchReadSiteMessagesResp          = pb.BatchReadSiteMessagesResp
 	BindAlertGroupAppsReq              = pb.BindAlertGroupAppsReq
 	BindAlertGroupAppsResp             = pb.BindAlertGroupAppsResp
-	BindUserPlatformReq                = pb.BindUserPlatformReq
-	BindUserPlatformResp               = pb.BindUserPlatformResp
 	DelAlertChannelsReq                = pb.DelAlertChannelsReq
 	DelAlertChannelsResp               = pb.DelAlertChannelsResp
 	DelAlertGroupLevelChannelsReq      = pb.DelAlertGroupLevelChannelsReq
@@ -81,18 +77,12 @@ type (
 	DelSysLoginLogResp                 = pb.DelSysLoginLogResp
 	DelSysMenuReq                      = pb.DelSysMenuReq
 	DelSysMenuResp                     = pb.DelSysMenuResp
-	DelSysPlatformReq                  = pb.DelSysPlatformReq
-	DelSysPlatformResp                 = pb.DelSysPlatformResp
 	DelSysRoleReq                      = pb.DelSysRoleReq
 	DelSysRoleResp                     = pb.DelSysRoleResp
 	DelSysTokenReq                     = pb.DelSysTokenReq
 	DelSysTokenResp                    = pb.DelSysTokenResp
 	DelSysUserReq                      = pb.DelSysUserReq
 	DelSysUserResp                     = pb.DelSysUserResp
-	DisableSysPlatformReq              = pb.DisableSysPlatformReq
-	DisableSysPlatformResp             = pb.DisableSysPlatformResp
-	EnableSysPlatformReq               = pb.EnableSysPlatformReq
-	EnableSysPlatformResp              = pb.EnableSysPlatformResp
 	GetAlertChannelsByIdReq            = pb.GetAlertChannelsByIdReq
 	GetAlertChannelsByIdResp           = pb.GetAlertChannelsByIdResp
 	GetAlertGroupLevelChannelsByIdReq  = pb.GetAlertGroupLevelChannelsByIdReq
@@ -103,20 +93,14 @@ type (
 	GetAlertGroupsByIdResp             = pb.GetAlertGroupsByIdResp
 	GetAlertNotificationsByIdReq       = pb.GetAlertNotificationsByIdReq
 	GetAlertNotificationsByIdResp      = pb.GetAlertNotificationsByIdResp
-	GetAllEnabledPlatformsReq          = pb.GetAllEnabledPlatformsReq
-	GetAllEnabledPlatformsResp         = pb.GetAllEnabledPlatformsResp
 	GetAllMenuTreeReq                  = pb.GetAllMenuTreeReq
 	GetAllMenuTreeResp                 = pb.GetAllMenuTreeResp
 	GetAllParentDeptReq                = pb.GetAllParentDeptReq
 	GetAllParentDeptResp               = pb.GetAllParentDeptResp
-	GetDefaultSysPlatformReq           = pb.GetDefaultSysPlatformReq
-	GetDefaultSysPlatformResp          = pb.GetDefaultSysPlatformResp
 	GetGroupsTreeReq                   = pb.GetGroupsTreeReq
 	GetGroupsTreeResp                  = pb.GetGroupsTreeResp
 	GetPlatformUrlReq                  = pb.GetPlatformUrlReq
 	GetPlatformUrlResp                 = pb.GetPlatformUrlResp
-	GetPlatformUsersReq                = pb.GetPlatformUsersReq
-	GetPlatformUsersResp               = pb.GetPlatformUsersResp
 	GetRolesMenuTreeReq                = pb.GetRolesMenuTreeReq
 	GetRolesMenuTreeResp               = pb.GetRolesMenuTreeResp
 	GetSiteMessagesByIdReq             = pb.GetSiteMessagesByIdReq
@@ -137,8 +121,6 @@ type (
 	GetSysMenuListResp                 = pb.GetSysMenuListResp
 	GetSysMenuSimpleTreeReq            = pb.GetSysMenuSimpleTreeReq
 	GetSysMenuSimpleTreeResp           = pb.GetSysMenuSimpleTreeResp
-	GetSysPlatformByIdReq              = pb.GetSysPlatformByIdReq
-	GetSysPlatformByIdResp             = pb.GetSysPlatformByIdResp
 	GetSysRoleByIdReq                  = pb.GetSysRoleByIdReq
 	GetSysRoleByIdResp                 = pb.GetSysRoleByIdResp
 	GetSysTokenByIdReq                 = pb.GetSysTokenByIdReq
@@ -151,8 +133,6 @@ type (
 	GetSysUserInfoResp                 = pb.GetSysUserInfoResp
 	GetTokenRequest                    = pb.GetTokenRequest
 	GetTokenResponse                   = pb.GetTokenResponse
-	GetUserPlatformsReq                = pb.GetUserPlatformsReq
-	GetUserPlatformsResp               = pb.GetUserPlatformsResp
 	GetUserUnreadMessagesReq           = pb.GetUserUnreadMessagesReq
 	GetUserUnreadMessagesResp          = pb.GetUserUnreadMessagesResp
 	GroupTreeNode                      = pb.GroupTreeNode
@@ -186,8 +166,6 @@ type (
 	SearchSysLoginLogResp              = pb.SearchSysLoginLogResp
 	SearchSysMenuReq                   = pb.SearchSysMenuReq
 	SearchSysMenuResp                  = pb.SearchSysMenuResp
-	SearchSysPlatformReq               = pb.SearchSysPlatformReq
-	SearchSysPlatformResp              = pb.SearchSysPlatformResp
 	SearchSysRoleApiReq                = pb.SearchSysRoleApiReq
 	SearchSysRoleApiResp               = pb.SearchSysRoleApiResp
 	SearchSysRoleMenuReq               = pb.SearchSysRoleMenuReq
@@ -202,8 +180,6 @@ type (
 	SearchSysUserRoleResp              = pb.SearchSysUserRoleResp
 	SetAllReadReq                      = pb.SetAllReadReq
 	SetAllReadResp                     = pb.SetAllReadResp
-	SetDefaultSysPlatformReq           = pb.SetDefaultSysPlatformReq
-	SetDefaultSysPlatformResp          = pb.SetDefaultSysPlatformResp
 	SiteMessages                       = pb.SiteMessages
 	SysAPI                             = pb.SysAPI
 	SysAPITreeNode                     = pb.SysAPITreeNode
@@ -213,20 +189,14 @@ type (
 	SysMenu                            = pb.SysMenu
 	SysMenuSimpleTreeNode              = pb.SysMenuSimpleTreeNode
 	SysMenuTree                        = pb.SysMenuTree
-	SysPlatform                        = pb.SysPlatform
 	SysRole                            = pb.SysRole
 	SysToken                           = pb.SysToken
 	SysUser                            = pb.SysUser
-	SysUserPlatform                    = pb.SysUserPlatform
 	TestLinkReq                        = pb.TestLinkReq
 	TestLinkResp                       = pb.TestLinkResp
 	TokenResponse                      = pb.TokenResponse
 	UnbindAlertGroupAppsReq            = pb.UnbindAlertGroupAppsReq
 	UnbindAlertGroupAppsResp           = pb.UnbindAlertGroupAppsResp
-	UnbindUserPlatformReq              = pb.UnbindUserPlatformReq
-	UnbindUserPlatformResp             = pb.UnbindUserPlatformResp
-	UnsetDefaultSysPlatformReq         = pb.UnsetDefaultSysPlatformReq
-	UnsetDefaultSysPlatformResp        = pb.UnsetDefaultSysPlatformResp
 	UpdateAlertChannelsReq             = pb.UpdateAlertChannelsReq
 	UpdateAlertChannelsResp            = pb.UpdateAlertChannelsResp
 	UpdateAlertGroupLevelChannelsReq   = pb.UpdateAlertGroupLevelChannelsReq
@@ -241,8 +211,6 @@ type (
 	UpdateSysDeptResp                  = pb.UpdateSysDeptResp
 	UpdateSysMenuReq                   = pb.UpdateSysMenuReq
 	UpdateSysMenuResp                  = pb.UpdateSysMenuResp
-	UpdateSysPlatformReq               = pb.UpdateSysPlatformReq
-	UpdateSysPlatformResp              = pb.UpdateSysPlatformResp
 	UpdateSysRoleReq                   = pb.UpdateSysRoleReq
 	UpdateSysRoleResp                  = pb.UpdateSysRoleResp
 	UpdateSysUserAvatarReq             = pb.UpdateSysUserAvatarReq
@@ -263,24 +231,6 @@ type (
 	VerifyTokenResponse                = pb.VerifyTokenResponse
 
 	PortalService interface {
-		// -----------------------系统平台表-----------------------
-		PlatformAdd(ctx context.Context, in *AddSysPlatformReq, opts ...grpc.CallOption) (*AddSysPlatformResp, error)
-		PlatformUpdate(ctx context.Context, in *UpdateSysPlatformReq, opts ...grpc.CallOption) (*UpdateSysPlatformResp, error)
-		PlatformDel(ctx context.Context, in *DelSysPlatformReq, opts ...grpc.CallOption) (*DelSysPlatformResp, error)
-		PlatformGetById(ctx context.Context, in *GetSysPlatformByIdReq, opts ...grpc.CallOption) (*GetSysPlatformByIdResp, error)
-		PlatformSearch(ctx context.Context, in *SearchSysPlatformReq, opts ...grpc.CallOption) (*SearchSysPlatformResp, error)
-		// 快捷操作
-		PlatformEnable(ctx context.Context, in *EnableSysPlatformReq, opts ...grpc.CallOption) (*EnableSysPlatformResp, error)
-		PlatformDisable(ctx context.Context, in *DisableSysPlatformReq, opts ...grpc.CallOption) (*DisableSysPlatformResp, error)
-		PlatformSetDefault(ctx context.Context, in *SetDefaultSysPlatformReq, opts ...grpc.CallOption) (*SetDefaultSysPlatformResp, error)
-		PlatformUnsetDefault(ctx context.Context, in *UnsetDefaultSysPlatformReq, opts ...grpc.CallOption) (*UnsetDefaultSysPlatformResp, error)
-		PlatformGetDefault(ctx context.Context, in *GetDefaultSysPlatformReq, opts ...grpc.CallOption) (*GetDefaultSysPlatformResp, error)
-		PlatformGetAllEnabled(ctx context.Context, in *GetAllEnabledPlatformsReq, opts ...grpc.CallOption) (*GetAllEnabledPlatformsResp, error)
-		// -----------------------用户平台权限表-----------------------
-		UserPlatformBind(ctx context.Context, in *BindUserPlatformReq, opts ...grpc.CallOption) (*BindUserPlatformResp, error)
-		UserPlatformUnbind(ctx context.Context, in *UnbindUserPlatformReq, opts ...grpc.CallOption) (*UnbindUserPlatformResp, error)
-		UserPlatformGet(ctx context.Context, in *GetUserPlatformsReq, opts ...grpc.CallOption) (*GetUserPlatformsResp, error)
-		PlatformUsersGet(ctx context.Context, in *GetPlatformUsersReq, opts ...grpc.CallOption) (*GetPlatformUsersResp, error)
 		// -----------------------系统API权限表-----------------------
 		APIAdd(ctx context.Context, in *AddSysAPIReq, opts ...grpc.CallOption) (*AddSysAPIResp, error)
 		APIUpdate(ctx context.Context, in *UpdateSysAPIReq, opts ...grpc.CallOption) (*UpdateSysAPIResp, error)
@@ -371,84 +321,6 @@ func NewPortalService(cli zrpc.Client) PortalService {
 	return &defaultPortalService{
 		cli: cli,
 	}
-}
-
-// -----------------------系统平台表-----------------------
-func (m *defaultPortalService) PlatformAdd(ctx context.Context, in *AddSysPlatformReq, opts ...grpc.CallOption) (*AddSysPlatformResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.PlatformAdd(ctx, in, opts...)
-}
-
-func (m *defaultPortalService) PlatformUpdate(ctx context.Context, in *UpdateSysPlatformReq, opts ...grpc.CallOption) (*UpdateSysPlatformResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.PlatformUpdate(ctx, in, opts...)
-}
-
-func (m *defaultPortalService) PlatformDel(ctx context.Context, in *DelSysPlatformReq, opts ...grpc.CallOption) (*DelSysPlatformResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.PlatformDel(ctx, in, opts...)
-}
-
-func (m *defaultPortalService) PlatformGetById(ctx context.Context, in *GetSysPlatformByIdReq, opts ...grpc.CallOption) (*GetSysPlatformByIdResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.PlatformGetById(ctx, in, opts...)
-}
-
-func (m *defaultPortalService) PlatformSearch(ctx context.Context, in *SearchSysPlatformReq, opts ...grpc.CallOption) (*SearchSysPlatformResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.PlatformSearch(ctx, in, opts...)
-}
-
-// 快捷操作
-func (m *defaultPortalService) PlatformEnable(ctx context.Context, in *EnableSysPlatformReq, opts ...grpc.CallOption) (*EnableSysPlatformResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.PlatformEnable(ctx, in, opts...)
-}
-
-func (m *defaultPortalService) PlatformDisable(ctx context.Context, in *DisableSysPlatformReq, opts ...grpc.CallOption) (*DisableSysPlatformResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.PlatformDisable(ctx, in, opts...)
-}
-
-func (m *defaultPortalService) PlatformSetDefault(ctx context.Context, in *SetDefaultSysPlatformReq, opts ...grpc.CallOption) (*SetDefaultSysPlatformResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.PlatformSetDefault(ctx, in, opts...)
-}
-
-func (m *defaultPortalService) PlatformUnsetDefault(ctx context.Context, in *UnsetDefaultSysPlatformReq, opts ...grpc.CallOption) (*UnsetDefaultSysPlatformResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.PlatformUnsetDefault(ctx, in, opts...)
-}
-
-func (m *defaultPortalService) PlatformGetDefault(ctx context.Context, in *GetDefaultSysPlatformReq, opts ...grpc.CallOption) (*GetDefaultSysPlatformResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.PlatformGetDefault(ctx, in, opts...)
-}
-
-func (m *defaultPortalService) PlatformGetAllEnabled(ctx context.Context, in *GetAllEnabledPlatformsReq, opts ...grpc.CallOption) (*GetAllEnabledPlatformsResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.PlatformGetAllEnabled(ctx, in, opts...)
-}
-
-// -----------------------用户平台权限表-----------------------
-func (m *defaultPortalService) UserPlatformBind(ctx context.Context, in *BindUserPlatformReq, opts ...grpc.CallOption) (*BindUserPlatformResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.UserPlatformBind(ctx, in, opts...)
-}
-
-func (m *defaultPortalService) UserPlatformUnbind(ctx context.Context, in *UnbindUserPlatformReq, opts ...grpc.CallOption) (*UnbindUserPlatformResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.UserPlatformUnbind(ctx, in, opts...)
-}
-
-func (m *defaultPortalService) UserPlatformGet(ctx context.Context, in *GetUserPlatformsReq, opts ...grpc.CallOption) (*GetUserPlatformsResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.UserPlatformGet(ctx, in, opts...)
-}
-
-func (m *defaultPortalService) PlatformUsersGet(ctx context.Context, in *GetPlatformUsersReq, opts ...grpc.CallOption) (*GetPlatformUsersResp, error) {
-	client := pb.NewPortalServiceClient(m.cli.Conn())
-	return client.PlatformUsersGet(ctx, in, opts...)
 }
 
 // -----------------------系统API权限表-----------------------

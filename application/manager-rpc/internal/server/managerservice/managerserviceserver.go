@@ -777,3 +777,21 @@ func (s *ManagerServiceServer) OnecBillingStatementGenerateAll(ctx context.Conte
 	l := managerservicelogic.NewOnecBillingStatementGenerateAllLogic(ctx, s.svcCtx)
 	return l.OnecBillingStatementGenerateAll(in)
 }
+
+// 获取Alertmanager配置
+func (s *ManagerServiceServer) GetAlertmanagerConfig(ctx context.Context, in *pb.GetAlertmanagerConfigReq) (*pb.GetAlertmanagerConfigResp, error) {
+	l := managerservicelogic.NewGetAlertmanagerConfigLogic(ctx, s.svcCtx)
+	return l.GetAlertmanagerConfig(in)
+}
+
+// 获取Prometheus配置
+func (s *ManagerServiceServer) GetPrometheusConfig(ctx context.Context, in *pb.GetPrometheusConfigReq) (*pb.GetPrometheusConfigResp, error) {
+	l := managerservicelogic.NewGetPrometheusConfigLogic(ctx, s.svcCtx)
+	return l.GetPrometheusConfig(in)
+}
+
+// 配置Alertmanager
+func (s *ManagerServiceServer) SetAlertmanagerConfig(ctx context.Context, in *pb.SetAlertmanagerConfigReq) (*pb.SetAlertmanagerConfigResp, error) {
+	l := managerservicelogic.NewSetAlertmanagerConfigLogic(ctx, s.svcCtx)
+	return l.SetAlertmanagerConfig(in)
+}

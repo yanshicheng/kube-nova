@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/yanshicheng/kube-nova/common/k8smanager/types"
-	"github.com/zeromicro/go-zero/core/logx"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -310,6 +310,7 @@ func (d *daemonSetOperator) GetYaml(namespace, name string) (string, error) {
 		return "", err
 	}
 
+	// 设置 TypeMeta
 	daemonSet.TypeMeta = metav1.TypeMeta{
 		APIVersion: "apps/v1",
 		Kind:       "DaemonSet",
@@ -377,19 +378,35 @@ func (d *daemonSetOperator) convertToPodDetailInfo(pod *corev1.Pod) types.PodDet
 	}
 }
 
-// ==================== 镜像管理 ====================
-
-// GetContainerImages 获取所有容器的镜像信息
 func (d *daemonSetOperator) GetContainerImages(namespace, name string) (*types.ContainerInfoList, error) {
 	daemonSet, err := d.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return ConvertPodSpecToContainerImages(&daemonSet.Spec.Template.Spec), nil
-}
+	result := &types.ContainerInfoList{
+		InitContainers: make([]types.ContainerInfo, 0),
+		Containers:     make([]types.ContainerInfo, 0),
+	}
 
+	for _, container := range daemonSet.Spec.Template.Spec.InitContainers {
+		result.InitContainers = append(result.InitContainers, types.ContainerInfo{
+			Name:  container.Name,
+			Image: container.Image,
+		})
+	}
+
+	for _, container := range daemonSet.Spec.Template.Spec.Containers {
+		result.Containers = append(result.Containers, types.ContainerInfo{
+			Name:  container.Name,
+			Image: container.Image,
+		})
+	}
+
+	return result, nil
+}
 func (d *daemonSetOperator) UpdateImage(req *types.UpdateImageRequest) error {
+	// 参数验证
 	if req == nil {
 		return fmt.Errorf("请求不能为空")
 	}
@@ -406,18 +423,22 @@ func (d *daemonSetOperator) UpdateImage(req *types.UpdateImageRequest) error {
 		return fmt.Errorf("镜像不能为空")
 	}
 
+	// 基本镜像格式验证
 	if err := validateImageFormat(req.Image); err != nil {
 		return fmt.Errorf("镜像格式无效: %v", err)
 	}
 
+	// 获取 DaemonSet
 	daemonSet, err := d.Get(req.Namespace, req.Name)
 	if err != nil {
 		return err
 	}
 
+	// 查找并更新容器镜像
 	var oldImage string
 	found := false
 
+	// 先在 InitContainers 中查找
 	for i := range daemonSet.Spec.Template.Spec.InitContainers {
 		container := &daemonSet.Spec.Template.Spec.InitContainers[i]
 		if container.Name == req.ContainerName {
@@ -428,6 +449,7 @@ func (d *daemonSetOperator) UpdateImage(req *types.UpdateImageRequest) error {
 		}
 	}
 
+	// 再在普通 Containers 中查找
 	if !found {
 		for i := range daemonSet.Spec.Template.Spec.Containers {
 			container := &daemonSet.Spec.Template.Spec.Containers[i]
@@ -440,6 +462,7 @@ func (d *daemonSetOperator) UpdateImage(req *types.UpdateImageRequest) error {
 		}
 	}
 
+	// 最后在 EphemeralContainers 中查找
 	if !found {
 		for i := range daemonSet.Spec.Template.Spec.EphemeralContainers {
 			container := &daemonSet.Spec.Template.Spec.EphemeralContainers[i]
@@ -453,14 +476,17 @@ func (d *daemonSetOperator) UpdateImage(req *types.UpdateImageRequest) error {
 	}
 
 	if !found {
+		// 提供更有用的错误信息
 		availableContainers := d.getAvailableContainerNames(daemonSet)
 		return fmt.Errorf("未找到容器 '%s'，可用容器: %v", req.ContainerName, availableContainers)
 	}
 
+	// 如果镜像没有变化，直接返回（幂等）
 	if oldImage == req.Image {
 		return nil
 	}
 
+	// 设置变更原因（用于回滚历史）
 	if daemonSet.Annotations == nil {
 		daemonSet.Annotations = make(map[string]string)
 	}
@@ -480,8 +506,8 @@ func (d *daemonSetOperator) UpdateImage(req *types.UpdateImageRequest) error {
 	return nil
 }
 
-// UpdateImages 批量更新镜像
 func (d *daemonSetOperator) UpdateImages(req *types.UpdateImagesRequest) error {
+	// 参数验证
 	if req == nil {
 		return fmt.Errorf("请求不能为空")
 	}
@@ -492,30 +518,100 @@ func (d *daemonSetOperator) UpdateImages(req *types.UpdateImagesRequest) error {
 		return fmt.Errorf("DaemonSet名称不能为空")
 	}
 
-	if len(req.Containers.Containers) == 0 {
+	// 检查是否有需要更新的容器
+	totalRequested := len(req.Containers.InitContainers) + len(req.Containers.Containers)
+	if req.Containers.EphemeralContainers != nil {
+		totalRequested += len(req.Containers.EphemeralContainers)
+	}
+	if totalRequested == 0 {
 		return fmt.Errorf("未指定要更新的容器")
 	}
 
+	// 验证所有镜像格式
+	for _, c := range req.Containers.InitContainers {
+		if err := validateImageFormat(c.Image); err != nil {
+			return fmt.Errorf("InitContainer '%s' 镜像格式无效: %v", c.Name, err)
+		}
+	}
 	for _, c := range req.Containers.Containers {
 		if err := validateImageFormat(c.Image); err != nil {
-			return fmt.Errorf("容器 '%s' 镜像格式无效: %v", c.ContainerName, err)
+			return fmt.Errorf("Container '%s' 镜像格式无效: %v", c.Name, err)
+		}
+	}
+	if req.Containers.EphemeralContainers != nil {
+		for _, c := range req.Containers.EphemeralContainers {
+			if err := validateImageFormat(c.Image); err != nil {
+				return fmt.Errorf("EphemeralContainer '%s' 镜像格式无效: %v", c.Name, err)
+			}
 		}
 	}
 
+	// 获取 DaemonSet
 	daemonSet, err := d.Get(req.Namespace, req.Name)
 	if err != nil {
 		return err
 	}
 
-	changes, err := ApplyImagesToPodSpec(&daemonSet.Spec.Template.Spec, req.Containers.Containers)
-	if err != nil {
-		return fmt.Errorf("应用镜像更新失败: %v", err)
+	// 构建容器名到索引的映射，提高查找效率
+	initContainerMap := make(map[string]int)
+	for i, c := range daemonSet.Spec.Template.Spec.InitContainers {
+		initContainerMap[c.Name] = i
 	}
 
+	containerMap := make(map[string]int)
+	for i, c := range daemonSet.Spec.Template.Spec.Containers {
+		containerMap[c.Name] = i
+	}
+
+	ephemeralContainerMap := make(map[string]int)
+	for i, c := range daemonSet.Spec.Template.Spec.EphemeralContainers {
+		ephemeralContainerMap[c.Name] = i
+	}
+
+	// 记录变更
+	var changes []string
+
+	// 更新 InitContainers
+	for _, img := range req.Containers.InitContainers {
+		if idx, exists := initContainerMap[img.Name]; exists {
+			container := &daemonSet.Spec.Template.Spec.InitContainers[idx]
+			if container.Image != img.Image {
+				changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
+				container.Image = img.Image
+			}
+		}
+	}
+
+	// 更新 Containers
+	for _, img := range req.Containers.Containers {
+		if idx, exists := containerMap[img.Name]; exists {
+			container := &daemonSet.Spec.Template.Spec.Containers[idx]
+			if container.Image != img.Image {
+				changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
+				container.Image = img.Image
+			}
+		}
+	}
+
+	// 更新 EphemeralContainers
+	if req.Containers.EphemeralContainers != nil {
+		for _, img := range req.Containers.EphemeralContainers {
+			if idx, exists := ephemeralContainerMap[img.Name]; exists {
+				container := &daemonSet.Spec.Template.Spec.EphemeralContainers[idx]
+				if container.Image != img.Image {
+					changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
+					container.Image = img.Image
+				}
+			}
+		}
+	}
+
+	// 如果没有实际变更，直接返回（幂等）
 	if len(changes) == 0 {
 		return nil
 	}
 
+	// 设置变更原因
 	if daemonSet.Annotations == nil {
 		daemonSet.Annotations = make(map[string]string)
 	}
@@ -526,6 +622,7 @@ func (d *daemonSetOperator) UpdateImages(req *types.UpdateImagesRequest) error {
 	}
 	daemonSet.Annotations["kubernetes.io/change-cause"] = changeCause
 
+	// 执行更新
 	_, err = d.Update(daemonSet)
 	if err != nil {
 		return fmt.Errorf("更新DaemonSet失败: %v", err)
@@ -534,6 +631,7 @@ func (d *daemonSetOperator) UpdateImages(req *types.UpdateImagesRequest) error {
 	return nil
 }
 
+// getAvailableContainerNames 获取可用的容器名称列表
 func (d *daemonSetOperator) getAvailableContainerNames(daemonSet *appsv1.DaemonSet) []string {
 	names := make([]string, 0)
 	for _, c := range daemonSet.Spec.Template.Spec.InitContainers {
@@ -609,22 +707,11 @@ func (d *daemonSetOperator) UpdateStrategy(req *types.UpdateStrategyRequest) err
 
 		if req.RollingUpdate.MaxUnavailable != "" {
 			maxUnavailable := intstr.Parse(req.RollingUpdate.MaxUnavailable)
-			// 验证 MaxUnavailable 值合法
-			if maxUnavailable.Type == intstr.Int && maxUnavailable.IntVal < 0 {
-				return fmt.Errorf("MaxUnavailable 不能为负数")
-			}
-			if maxUnavailable.Type == intstr.String && maxUnavailable.StrVal == "0%" {
-				return fmt.Errorf("MaxUnavailable 不能为 0%%，这会阻塞更新")
-			}
 			daemonSet.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = &maxUnavailable
 		}
 
 		if req.RollingUpdate.MaxSurge != "" {
 			maxSurge := intstr.Parse(req.RollingUpdate.MaxSurge)
-			// 验证 MaxSurge 值合法
-			if maxSurge.Type == intstr.Int && maxSurge.IntVal < 0 {
-				return fmt.Errorf("MaxSurge 不能为负数")
-			}
 			daemonSet.Spec.UpdateStrategy.RollingUpdate.MaxSurge = &maxSurge
 		}
 	}
@@ -743,28 +830,76 @@ func (d *daemonSetOperator) RollbackToConfig(req *types.RollbackToConfigRequest)
 	return fmt.Errorf("DaemonSet不支持业务层配置历史回滚")
 }
 
-// ==================== 环境变量管理 ====================
-
-// GetEnvVars 获取所有容器的环境变量
 func (d *daemonSetOperator) GetEnvVars(namespace, name string) (*types.EnvVarsResponse, error) {
 	daemonSet, err := d.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return ConvertPodSpecToEnvVars(&daemonSet.Spec.Template.Spec), nil
+	response := &types.EnvVarsResponse{
+		Containers: make([]types.ContainerEnvVars, 0),
+	}
+
+	for _, container := range daemonSet.Spec.Template.Spec.Containers {
+		envVars := make([]types.EnvVar, 0)
+		for _, env := range container.Env {
+			envVar := types.EnvVar{
+				Name: env.Name,
+				Source: types.EnvVarSource{
+					Type:  "value",
+					Value: env.Value,
+				},
+			}
+
+			if env.ValueFrom != nil {
+				if env.ValueFrom.ConfigMapKeyRef != nil {
+					envVar.Source.Type = "configMapKeyRef"
+					envVar.Source.ConfigMapKeyRef = &types.ConfigMapKeySelector{
+						Name:     env.ValueFrom.ConfigMapKeyRef.Name,
+						Key:      env.ValueFrom.ConfigMapKeyRef.Key,
+						Optional: env.ValueFrom.ConfigMapKeyRef.Optional != nil && *env.ValueFrom.ConfigMapKeyRef.Optional,
+					}
+				} else if env.ValueFrom.SecretKeyRef != nil {
+					envVar.Source.Type = "secretKeyRef"
+					envVar.Source.SecretKeyRef = &types.SecretKeySelector{
+						Name:     env.ValueFrom.SecretKeyRef.Name,
+						Key:      env.ValueFrom.SecretKeyRef.Key,
+						Optional: env.ValueFrom.SecretKeyRef.Optional != nil && *env.ValueFrom.SecretKeyRef.Optional,
+					}
+				} else if env.ValueFrom.FieldRef != nil {
+					envVar.Source.Type = "fieldRef"
+					envVar.Source.FieldRef = &types.ObjectFieldSelector{
+						FieldPath: env.ValueFrom.FieldRef.FieldPath,
+					}
+				} else if env.ValueFrom.ResourceFieldRef != nil {
+					envVar.Source.Type = "resourceFieldRef"
+					divisor := ""
+					if env.ValueFrom.ResourceFieldRef.Divisor.String() != "" {
+						divisor = env.ValueFrom.ResourceFieldRef.Divisor.String()
+					}
+					envVar.Source.ResourceFieldRef = &types.ResourceFieldSelector{
+						ContainerName: env.ValueFrom.ResourceFieldRef.ContainerName,
+						Resource:      env.ValueFrom.ResourceFieldRef.Resource,
+						Divisor:       divisor,
+					}
+				}
+			}
+
+			envVars = append(envVars, envVar)
+		}
+
+		response.Containers = append(response.Containers, types.ContainerEnvVars{
+			ContainerName: container.Name,
+			Env:           envVars,
+		})
+	}
+
+	return response, nil
 }
 
-// UpdateEnvVars 全量更新所有容器的环境变量
 func (d *daemonSetOperator) UpdateEnvVars(req *types.UpdateEnvVarsRequest) error {
-	if req == nil {
-		return fmt.Errorf("请求不能为空")
-	}
-	if req.Namespace == "" {
-		return fmt.Errorf("命名空间不能为空")
-	}
-	if req.Name == "" {
-		return fmt.Errorf("DaemonSet名称不能为空")
+	if req == nil || req.Namespace == "" || req.Name == "" || req.ContainerName == "" {
+		return fmt.Errorf("请求参数不完整")
 	}
 
 	daemonSet, err := d.Get(req.Namespace, req.Name)
@@ -772,8 +907,69 @@ func (d *daemonSetOperator) UpdateEnvVars(req *types.UpdateEnvVarsRequest) error
 		return err
 	}
 
-	if err := ApplyEnvVarsToPodSpec(&daemonSet.Spec.Template.Spec, req.Containers); err != nil {
-		return err
+	found := false
+	for i := range daemonSet.Spec.Template.Spec.Containers {
+		if daemonSet.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
+			envVars := make([]corev1.EnvVar, 0)
+			for _, env := range req.Env {
+				envVar := corev1.EnvVar{Name: env.Name}
+
+				switch env.Source.Type {
+				case "value":
+					envVar.Value = env.Source.Value
+				case "configMapKeyRef":
+					if env.Source.ConfigMapKeyRef != nil {
+						envVar.ValueFrom = &corev1.EnvVarSource{
+							ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{Name: env.Source.ConfigMapKeyRef.Name},
+								Key:                  env.Source.ConfigMapKeyRef.Key,
+								Optional:             &env.Source.ConfigMapKeyRef.Optional,
+							},
+						}
+					}
+				case "secretKeyRef":
+					if env.Source.SecretKeyRef != nil {
+						envVar.ValueFrom = &corev1.EnvVarSource{
+							SecretKeyRef: &corev1.SecretKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{Name: env.Source.SecretKeyRef.Name},
+								Key:                  env.Source.SecretKeyRef.Key,
+								Optional:             &env.Source.SecretKeyRef.Optional,
+							},
+						}
+					}
+				case "fieldRef":
+					if env.Source.FieldRef != nil {
+						envVar.ValueFrom = &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{FieldPath: env.Source.FieldRef.FieldPath},
+						}
+					}
+				case "resourceFieldRef":
+					if env.Source.ResourceFieldRef != nil {
+						var divisor resource.Quantity
+						if env.Source.ResourceFieldRef.Divisor != "" {
+							divisor, _ = resource.ParseQuantity(env.Source.ResourceFieldRef.Divisor)
+						}
+						envVar.ValueFrom = &corev1.EnvVarSource{
+							ResourceFieldRef: &corev1.ResourceFieldSelector{
+								ContainerName: env.Source.ResourceFieldRef.ContainerName,
+								Resource:      env.Source.ResourceFieldRef.Resource,
+								Divisor:       divisor,
+							},
+						}
+					}
+				}
+
+				envVars = append(envVars, envVar)
+			}
+
+			daemonSet.Spec.Template.Spec.Containers[i].Env = envVars
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("未找到容器: %s", req.ContainerName)
 	}
 
 	_, err = d.Update(daemonSet)
@@ -787,28 +983,39 @@ func (d *daemonSetOperator) GetPauseStatus(namespace, name string) (*types.Pause
 	}, nil
 }
 
-// ==================== 资源配额管理 ====================
-
-// GetResources 获取所有容器的资源配额
 func (d *daemonSetOperator) GetResources(namespace, name string) (*types.ResourcesResponse, error) {
 	daemonSet, err := d.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return ConvertPodSpecToResources(&daemonSet.Spec.Template.Spec), nil
+	response := &types.ResourcesResponse{
+		Containers: make([]types.ContainerResources, 0),
+	}
+
+	for _, container := range daemonSet.Spec.Template.Spec.Containers {
+		resources := types.ContainerResources{
+			ContainerName: container.Name,
+			Resources: types.ResourceRequirements{
+				Limits: types.ResourceList{
+					Cpu:    container.Resources.Limits.Cpu().String(),
+					Memory: container.Resources.Limits.Memory().String(),
+				},
+				Requests: types.ResourceList{
+					Cpu:    container.Resources.Requests.Cpu().String(),
+					Memory: container.Resources.Requests.Memory().String(),
+				},
+			},
+		}
+		response.Containers = append(response.Containers, resources)
+	}
+
+	return response, nil
 }
 
-// UpdateResources 全量更新所有容器的资源配额
 func (d *daemonSetOperator) UpdateResources(req *types.UpdateResourcesRequest) error {
-	if req == nil {
-		return fmt.Errorf("请求不能为空")
-	}
-	if req.Namespace == "" {
-		return fmt.Errorf("命名空间不能为空")
-	}
-	if req.Name == "" {
-		return fmt.Errorf("DaemonSet名称不能为空")
+	if req == nil || req.Namespace == "" || req.Name == "" || req.ContainerName == "" {
+		return fmt.Errorf("请求参数不完整")
 	}
 
 	daemonSet, err := d.Get(req.Namespace, req.Name)
@@ -816,36 +1023,143 @@ func (d *daemonSetOperator) UpdateResources(req *types.UpdateResourcesRequest) e
 		return err
 	}
 
-	if err := ApplyResourcesToPodSpec(&daemonSet.Spec.Template.Spec, req.Containers); err != nil {
-		return err
+	found := false
+	for i := range daemonSet.Spec.Template.Spec.Containers {
+		if daemonSet.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
+			if req.Resources.Limits.Cpu != "" {
+				cpuLimit, err := resource.ParseQuantity(req.Resources.Limits.Cpu)
+				if err != nil {
+					return fmt.Errorf("解析CPU限制失败: %v", err)
+				}
+				if daemonSet.Spec.Template.Spec.Containers[i].Resources.Limits == nil {
+					daemonSet.Spec.Template.Spec.Containers[i].Resources.Limits = corev1.ResourceList{}
+				}
+				daemonSet.Spec.Template.Spec.Containers[i].Resources.Limits[corev1.ResourceCPU] = cpuLimit
+			}
+
+			if req.Resources.Limits.Memory != "" {
+				memLimit, err := resource.ParseQuantity(req.Resources.Limits.Memory)
+				if err != nil {
+					return fmt.Errorf("解析内存限制失败: %v", err)
+				}
+				if daemonSet.Spec.Template.Spec.Containers[i].Resources.Limits == nil {
+					daemonSet.Spec.Template.Spec.Containers[i].Resources.Limits = corev1.ResourceList{}
+				}
+				daemonSet.Spec.Template.Spec.Containers[i].Resources.Limits[corev1.ResourceMemory] = memLimit
+			}
+
+			if req.Resources.Requests.Cpu != "" {
+				cpuRequest, err := resource.ParseQuantity(req.Resources.Requests.Cpu)
+				if err != nil {
+					return fmt.Errorf("解析CPU请求失败: %v", err)
+				}
+				if daemonSet.Spec.Template.Spec.Containers[i].Resources.Requests == nil {
+					daemonSet.Spec.Template.Spec.Containers[i].Resources.Requests = corev1.ResourceList{}
+				}
+				daemonSet.Spec.Template.Spec.Containers[i].Resources.Requests[corev1.ResourceCPU] = cpuRequest
+			}
+
+			if req.Resources.Requests.Memory != "" {
+				memRequest, err := resource.ParseQuantity(req.Resources.Requests.Memory)
+				if err != nil {
+					return fmt.Errorf("解析内存请求失败: %v", err)
+				}
+				if daemonSet.Spec.Template.Spec.Containers[i].Resources.Requests == nil {
+					daemonSet.Spec.Template.Spec.Containers[i].Resources.Requests = corev1.ResourceList{}
+				}
+				daemonSet.Spec.Template.Spec.Containers[i].Resources.Requests[corev1.ResourceMemory] = memRequest
+			}
+
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("未找到容器: %s", req.ContainerName)
 	}
 
 	_, err = d.Update(daemonSet)
 	return err
 }
 
-// ==================== 健康检查管理 ====================
-
-// GetProbes 获取所有容器的健康检查配置
 func (d *daemonSetOperator) GetProbes(namespace, name string) (*types.ProbesResponse, error) {
 	daemonSet, err := d.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return ConvertPodSpecToProbes(&daemonSet.Spec.Template.Spec), nil
+	response := &types.ProbesResponse{
+		Containers: make([]types.ContainerProbes, 0),
+	}
+
+	for _, container := range daemonSet.Spec.Template.Spec.Containers {
+		containerProbes := types.ContainerProbes{
+			ContainerName: container.Name,
+		}
+
+		if container.LivenessProbe != nil {
+			containerProbes.LivenessProbe = d.convertProbe(container.LivenessProbe)
+		}
+		if container.ReadinessProbe != nil {
+			containerProbes.ReadinessProbe = d.convertProbe(container.ReadinessProbe)
+		}
+		if container.StartupProbe != nil {
+			containerProbes.StartupProbe = d.convertProbe(container.StartupProbe)
+		}
+
+		response.Containers = append(response.Containers, containerProbes)
+	}
+
+	return response, nil
 }
 
-// UpdateProbes 全量更新所有容器的健康检查配置
+func (d *daemonSetOperator) convertProbe(probe *corev1.Probe) *types.Probe {
+	result := &types.Probe{
+		InitialDelaySeconds: probe.InitialDelaySeconds,
+		TimeoutSeconds:      probe.TimeoutSeconds,
+		PeriodSeconds:       probe.PeriodSeconds,
+		SuccessThreshold:    probe.SuccessThreshold,
+		FailureThreshold:    probe.FailureThreshold,
+	}
+
+	if probe.HTTPGet != nil {
+		result.Type = "httpGet"
+		headers := make([]types.HTTPHeader, 0)
+		for _, h := range probe.HTTPGet.HTTPHeaders {
+			headers = append(headers, types.HTTPHeader{Name: h.Name, Value: h.Value})
+		}
+		result.HttpGet = &types.HTTPGetAction{
+			Path:        probe.HTTPGet.Path,
+			Port:        probe.HTTPGet.Port.IntVal,
+			Host:        probe.HTTPGet.Host,
+			Scheme:      string(probe.HTTPGet.Scheme),
+			HttpHeaders: headers,
+		}
+	} else if probe.TCPSocket != nil {
+		result.Type = "tcpSocket"
+		result.TcpSocket = &types.TCPSocketAction{
+			Port: probe.TCPSocket.Port.IntVal,
+			Host: probe.TCPSocket.Host,
+		}
+	} else if probe.Exec != nil {
+		result.Type = "exec"
+		result.Exec = &types.ExecAction{Command: probe.Exec.Command}
+	} else if probe.GRPC != nil {
+		result.Type = "grpc"
+		service := ""
+		if probe.GRPC.Service != nil {
+			service = *probe.GRPC.Service
+		}
+		result.Grpc = &types.GRPCAction{Port: probe.GRPC.Port, Service: service}
+	}
+
+	return result
+}
+
 func (d *daemonSetOperator) UpdateProbes(req *types.UpdateProbesRequest) error {
-	if req == nil {
-		return fmt.Errorf("请求不能为空")
-	}
-	if req.Namespace == "" {
-		return fmt.Errorf("命名空间不能为空")
-	}
-	if req.Name == "" {
-		return fmt.Errorf("DaemonSet名称不能为空")
+	if req == nil || req.Namespace == "" || req.Name == "" || req.ContainerName == "" {
+		return fmt.Errorf("请求参数不完整")
 	}
 
 	daemonSet, err := d.Get(req.Namespace, req.Name)
@@ -853,12 +1167,74 @@ func (d *daemonSetOperator) UpdateProbes(req *types.UpdateProbesRequest) error {
 		return err
 	}
 
-	if err := ApplyProbesToPodSpec(&daemonSet.Spec.Template.Spec, req.Containers); err != nil {
-		return err
+	found := false
+	for i := range daemonSet.Spec.Template.Spec.Containers {
+		if daemonSet.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
+			if req.LivenessProbe != nil {
+				daemonSet.Spec.Template.Spec.Containers[i].LivenessProbe = d.buildProbe(req.LivenessProbe)
+			}
+			if req.ReadinessProbe != nil {
+				daemonSet.Spec.Template.Spec.Containers[i].ReadinessProbe = d.buildProbe(req.ReadinessProbe)
+			}
+			if req.StartupProbe != nil {
+				daemonSet.Spec.Template.Spec.Containers[i].StartupProbe = d.buildProbe(req.StartupProbe)
+			}
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("未找到容器: %s", req.ContainerName)
 	}
 
 	_, err = d.Update(daemonSet)
 	return err
+}
+
+func (d *daemonSetOperator) buildProbe(probe *types.Probe) *corev1.Probe {
+	result := &corev1.Probe{
+		InitialDelaySeconds: probe.InitialDelaySeconds,
+		TimeoutSeconds:      probe.TimeoutSeconds,
+		PeriodSeconds:       probe.PeriodSeconds,
+		SuccessThreshold:    probe.SuccessThreshold,
+		FailureThreshold:    probe.FailureThreshold,
+	}
+
+	switch probe.Type {
+	case "httpGet":
+		if probe.HttpGet != nil {
+			headers := make([]corev1.HTTPHeader, 0)
+			for _, h := range probe.HttpGet.HttpHeaders {
+				headers = append(headers, corev1.HTTPHeader{Name: h.Name, Value: h.Value})
+			}
+			result.HTTPGet = &corev1.HTTPGetAction{
+				Path:        probe.HttpGet.Path,
+				Port:        intstr.FromInt(int(probe.HttpGet.Port)),
+				Host:        probe.HttpGet.Host,
+				Scheme:      corev1.URIScheme(probe.HttpGet.Scheme),
+				HTTPHeaders: headers,
+			}
+		}
+	case "tcpSocket":
+		if probe.TcpSocket != nil {
+			result.TCPSocket = &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(probe.TcpSocket.Port)),
+				Host: probe.TcpSocket.Host,
+			}
+		}
+	case "exec":
+		if probe.Exec != nil {
+			result.Exec = &corev1.ExecAction{Command: probe.Exec.Command}
+		}
+	case "grpc":
+		if probe.Grpc != nil {
+			service := probe.Grpc.Service
+			result.GRPC = &corev1.GRPCAction{Port: probe.Grpc.Port, Service: &service}
+		}
+	}
+
+	return result
 }
 
 func (d *daemonSetOperator) Stop(namespace, name string) error {
@@ -939,6 +1315,7 @@ func (d *daemonSetOperator) Restart(namespace, name string) error {
 	return err
 }
 
+// daemonset.go - operator
 func (d *daemonSetOperator) GetPodLabels(namespace, name string) (map[string]string, error) {
 	var daemonSet *appsv1.DaemonSet
 	var err error
@@ -1040,6 +1417,7 @@ func (d *daemonSetOperator) GetVersionStatus(namespace, name string) (*types.Res
 		Ready: false,
 	}
 
+	// 检查是否通过节点选择器停止
 	if daemonSet.Spec.Template.Spec.NodeSelector != nil {
 		if _, exists := daemonSet.Spec.Template.Spec.NodeSelector["ikubeops.com/stopped"]; exists {
 			status.Status = types.StatusStopped
@@ -1053,6 +1431,7 @@ func (d *daemonSetOperator) GetVersionStatus(namespace, name string) (*types.Res
 	currentNumber := daemonSet.Status.CurrentNumberScheduled
 	numberReady := daemonSet.Status.NumberReady
 
+	// 没有期望的 Pod
 	if desiredNumber == 0 {
 		status.Status = types.StatusStopped
 		status.Message = "没有匹配的节点"
@@ -1060,6 +1439,7 @@ func (d *daemonSetOperator) GetVersionStatus(namespace, name string) (*types.Res
 		return status, nil
 	}
 
+	// 创建中：刚创建，还没有就绪的 Pod
 	if numberReady == 0 && currentNumber == 0 {
 		age := time.Since(daemonSet.CreationTimestamp.Time)
 		if age < 30*time.Second {
@@ -1069,6 +1449,7 @@ func (d *daemonSetOperator) GetVersionStatus(namespace, name string) (*types.Res
 		}
 	}
 
+	// 运行中：就绪数等于期望数
 	if numberReady == desiredNumber &&
 		daemonSet.Status.NumberAvailable == desiredNumber &&
 		daemonSet.Status.UpdatedNumberScheduled == desiredNumber {
@@ -1078,6 +1459,7 @@ func (d *daemonSetOperator) GetVersionStatus(namespace, name string) (*types.Res
 		return status, nil
 	}
 
+	// 更新中
 	if daemonSet.Status.UpdatedNumberScheduled < desiredNumber {
 		status.Status = types.StatusRunning
 		status.Message = fmt.Sprintf("正在更新中 (已更新: %d/%d, 就绪: %d/%d)",
@@ -1086,6 +1468,7 @@ func (d *daemonSetOperator) GetVersionStatus(namespace, name string) (*types.Res
 		return status, nil
 	}
 
+	// 异常：就绪数少于期望数
 	if numberReady < desiredNumber {
 		age := time.Since(daemonSet.CreationTimestamp.Time)
 		if age > 5*time.Minute {
@@ -1106,43 +1489,77 @@ func (d *daemonSetOperator) GetVersionStatus(namespace, name string) (*types.Res
 
 // ==================== 调度配置相关 ====================
 
-// GetSchedulingConfig 获取 DaemonSet 调度配置
+// GetSchedulingConfig 获取调度配置
 func (d *daemonSetOperator) GetSchedulingConfig(namespace, name string) (*types.SchedulingConfig, error) {
 	daemonSet, err := d.Get(namespace, name)
 	if err != nil {
-		return nil, fmt.Errorf("获取 DaemonSet 失败: %w", err)
+		return nil, err
 	}
 
-	return types.ConvertPodSpecToSchedulingConfig(&daemonSet.Spec.Template.Spec), nil
+	return convertPodSpecToSchedulingConfig(&daemonSet.Spec.Template.Spec), nil
 }
 
-// UpdateSchedulingConfig 更新 DaemonSet 调度配置
-func (d *daemonSetOperator) UpdateSchedulingConfig(namespace, name string, req *types.UpdateSchedulingConfigRequest) error {
-	if req == nil {
-		return fmt.Errorf("调度配置请求不能为空")
+// UpdateSchedulingConfig 更新调度配置
+func (d *daemonSetOperator) UpdateSchedulingConfig(namespace, name string, config *types.UpdateSchedulingConfigRequest) error {
+	if config == nil {
+		return fmt.Errorf("调度配置不能为空")
 	}
 
 	daemonSet, err := d.Get(namespace, name)
 	if err != nil {
-		return fmt.Errorf("获取 DaemonSet 失败: %w", err)
+		return err
 	}
 
-	if req.NodeName != nil && *req.NodeName != "" {
-		logx.Infof("警告: DaemonSet %s/%s 设置 NodeName 将导致只在指定节点运行", namespace, name)
-		req.NodeName = nil
+	// 更新 NodeSelector
+	if config.NodeSelector != nil {
+		daemonSet.Spec.Template.Spec.NodeSelector = config.NodeSelector
 	}
 
-	types.ApplySchedulingConfigToPodSpec(&daemonSet.Spec.Template.Spec, req)
+	// 更新 NodeName
+	if config.NodeName != "" {
+		daemonSet.Spec.Template.Spec.NodeName = config.NodeName
+	}
+
+	// 更新 Affinity
+	if config.Affinity != nil {
+		daemonSet.Spec.Template.Spec.Affinity = convertAffinityConfigToK8s(config.Affinity)
+	}
+
+	// 更新 Tolerations
+	if config.Tolerations != nil {
+		daemonSet.Spec.Template.Spec.Tolerations = convertTolerationsConfigToK8s(config.Tolerations)
+	}
+
+	// 更新 TopologySpreadConstraints
+	if config.TopologySpreadConstraints != nil {
+		daemonSet.Spec.Template.Spec.TopologySpreadConstraints = convertTopologySpreadConstraintsToK8s(config.TopologySpreadConstraints)
+	}
+
+	// 更新 SchedulerName
+	if config.SchedulerName != "" {
+		daemonSet.Spec.Template.Spec.SchedulerName = config.SchedulerName
+	}
+
+	// 更新 PriorityClassName
+	if config.PriorityClassName != "" {
+		daemonSet.Spec.Template.Spec.PriorityClassName = config.PriorityClassName
+	}
+
+	// 更新 Priority
+	if config.Priority != nil {
+		daemonSet.Spec.Template.Spec.Priority = config.Priority
+	}
+
+	// 更新 RuntimeClassName
+	if config.RuntimeClassName != nil {
+		daemonSet.Spec.Template.Spec.RuntimeClassName = config.RuntimeClassName
+	}
 
 	_, err = d.Update(daemonSet)
-	if err != nil {
-		return fmt.Errorf("更新 DaemonSet 调度配置失败: %w", err)
-	}
-
-	return nil
+	return err
 }
 
-// ==================== 存储配置管理 ====================
+// ==================== 存储配置相关 ====================
 
 // GetStorageConfig 获取存储配置
 func (d *daemonSetOperator) GetStorageConfig(namespace, name string) (*types.StorageConfig, error) {
@@ -1151,10 +1568,10 @@ func (d *daemonSetOperator) GetStorageConfig(namespace, name string) (*types.Sto
 		return nil, err
 	}
 
-	return ConvertPodSpecToStorageConfig(&daemonSet.Spec.Template.Spec), nil
+	return convertPodSpecToStorageConfig(&daemonSet.Spec.Template.Spec), nil
 }
 
-// UpdateStorageConfig 更新存储配置（全量更新）
+// UpdateStorageConfig 更新存储配置
 func (d *daemonSetOperator) UpdateStorageConfig(namespace, name string, config *types.UpdateStorageConfigRequest) error {
 	if config == nil {
 		return fmt.Errorf("存储配置不能为空")
@@ -1165,13 +1582,21 @@ func (d *daemonSetOperator) UpdateStorageConfig(namespace, name string, config *
 		return err
 	}
 
-	// DaemonSet 不支持 VolumeClaimTemplates
-	if len(config.VolumeClaimTemplates) > 0 {
-		return fmt.Errorf("DaemonSet 不支持 VolumeClaimTemplates")
+	// 更新 Volumes
+	if config.Volumes != nil {
+		daemonSet.Spec.Template.Spec.Volumes = convertVolumesConfigToK8s(config.Volumes)
 	}
 
-	if err := ApplyStorageConfigToPodSpec(&daemonSet.Spec.Template.Spec, config); err != nil {
-		return err
+	// 更新 VolumeMounts
+	if config.VolumeMounts != nil {
+		for _, vmConfig := range config.VolumeMounts {
+			for i := range daemonSet.Spec.Template.Spec.Containers {
+				if daemonSet.Spec.Template.Spec.Containers[i].Name == vmConfig.ContainerName {
+					daemonSet.Spec.Template.Spec.Containers[i].VolumeMounts = convertVolumeMountsToK8s(vmConfig.Mounts)
+					break
+				}
+			}
+		}
 	}
 
 	_, err = d.Update(daemonSet)
@@ -1180,6 +1605,7 @@ func (d *daemonSetOperator) UpdateStorageConfig(namespace, name string, config *
 
 // ==================== Events 相关 ====================
 
+// GetEvents 获取 DaemonSet 的事件（已存在，确保实现正确）
 func (d *daemonSetOperator) GetEvents(namespace, name string) ([]types.EventInfo, error) {
 	daemonSet, err := d.Get(namespace, name)
 	if err != nil {
@@ -1199,6 +1625,7 @@ func (d *daemonSetOperator) GetEvents(namespace, name string) ([]types.EventInfo
 		events = append(events, types.ConvertK8sEventToEventInfo(&eventList.Items[i]))
 	}
 
+	// 按最后发生时间降序排序
 	sort.Slice(events, func(i, j int) bool {
 		return events[i].LastTimestamp > events[j].LastTimestamp
 	})
@@ -1214,6 +1641,7 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 
 	var buf strings.Builder
 
+	// ========== 基本信息 ==========
 	buf.WriteString(fmt.Sprintf("Name:           %s\n", daemonSet.Name))
 	buf.WriteString(fmt.Sprintf("Namespace:      %s\n", daemonSet.Namespace))
 
@@ -1238,6 +1666,7 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 		buf.WriteString("\n")
 	}
 
+	// Labels
 	buf.WriteString("Labels:         ")
 	if len(daemonSet.Labels) == 0 {
 		buf.WriteString("<none>\n")
@@ -1252,6 +1681,7 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 		}
 	}
 
+	// Annotations
 	buf.WriteString("Annotations:    ")
 	if len(daemonSet.Annotations) == 0 {
 		buf.WriteString("<none>\n")
@@ -1329,6 +1759,7 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 		buf.WriteString("  Service Account:  default\n")
 	}
 
+	// Init Containers
 	if len(daemonSet.Spec.Template.Spec.InitContainers) > 0 {
 		buf.WriteString("  Init Containers:\n")
 		for _, container := range daemonSet.Spec.Template.Spec.InitContainers {
@@ -1395,6 +1826,7 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 		}
 	}
 
+	// Containers
 	buf.WriteString("  Containers:\n")
 	for _, container := range daemonSet.Spec.Template.Spec.Containers {
 		buf.WriteString(fmt.Sprintf("   %s:\n", container.Name))
@@ -1559,6 +1991,7 @@ func (d *daemonSetOperator) GetDescribe(namespace, name string) (string, error) 
 		}
 	}
 
+	// ========== Events ==========
 	buf.WriteString("Events:\n")
 	events, err := d.GetEvents(namespace, name)
 	if err == nil && len(events) > 0 {
@@ -1648,7 +2081,6 @@ func (d *daemonSetOperator) formatProbeForDescribe(probe *corev1.Probe) string {
 
 	return strings.Join(parts, " ")
 }
-
 func (d *daemonSetOperator) formatDurationForDescribe(duration time.Duration) string {
 	if duration < time.Minute {
 		return fmt.Sprintf("%ds", int(duration.Seconds()))
@@ -1661,24 +2093,31 @@ func (d *daemonSetOperator) formatDurationForDescribe(duration time.Duration) st
 	}
 }
 
+// ListAll 获取所有 DaemonSet（优先使用 informer）
 func (d *daemonSetOperator) ListAll(namespace string) ([]appsv1.DaemonSet, error) {
 	var daemonSets []*appsv1.DaemonSet
 	var err error
 
+	// 优先使用 informer
 	if d.useInformer && d.daemonSetLister != nil {
 		if namespace == "" {
+			// 获取所有 namespace 的 DaemonSet
 			daemonSets, err = d.daemonSetLister.List(labels.Everything())
 		} else {
+			// 获取指定 namespace 的 DaemonSet
 			daemonSets, err = d.daemonSetLister.DaemonSets(namespace).List(labels.Everything())
 		}
 
 		if err != nil {
+			// informer 失败，降级到 API 调用
 			return d.listAllFromAPI(namespace)
 		}
 	} else {
+		// 直接使用 API 调用
 		return d.listAllFromAPI(namespace)
 	}
 
+	// 转换为非指针切片
 	result := make([]appsv1.DaemonSet, 0, len(daemonSets))
 	for _, daemonSet := range daemonSets {
 		if daemonSet != nil {
@@ -1689,6 +2128,7 @@ func (d *daemonSetOperator) ListAll(namespace string) ([]appsv1.DaemonSet, error
 	return result, nil
 }
 
+// listAllFromAPI 通过 API 直接获取 DaemonSet 列表（内部辅助方法）
 func (d *daemonSetOperator) listAllFromAPI(namespace string) ([]appsv1.DaemonSet, error) {
 	daemonSetList, err := d.client.AppsV1().DaemonSets(namespace).List(d.ctx, metav1.ListOptions{})
 	if err != nil {
@@ -1701,6 +2141,7 @@ func (d *daemonSetOperator) listAllFromAPI(namespace string) ([]appsv1.DaemonSet
 	return daemonSetList.Items, nil
 }
 
+// GetResourceSummary 获取 DaemonSet 的资源摘要信息
 func (d *daemonSetOperator) GetResourceSummary(
 	namespace string,
 	name string,
@@ -1714,16 +2155,19 @@ func (d *daemonSetOperator) GetResourceSummary(
 		return nil, fmt.Errorf("命名空间和名称不能为空")
 	}
 
+	// 1. 获取 DaemonSet
 	daemonSet, err := d.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
+	// 获取 Pod 选择器标签
 	selectorLabels := daemonSet.Spec.Selector.MatchLabels
 	if len(selectorLabels) == 0 {
 		return nil, fmt.Errorf("DaemonSet 没有选择器标签")
 	}
 
+	// 使用通用辅助函数获取摘要
 	return getWorkloadResourceSummary(
 		namespace,
 		selectorLabels,
@@ -1733,48 +2177,4 @@ func (d *daemonSetOperator) GetResourceSummary(
 		svcOp,
 		ingressOp,
 	)
-}
-
-// ==================== 高级配置管理 ====================
-
-// GetAdvancedConfig 获取高级容器配置
-func (d *daemonSetOperator) GetAdvancedConfig(namespace, name string) (*types.AdvancedConfigResponse, error) {
-	daemonSet, err := d.Get(namespace, name)
-	if err != nil {
-		return nil, fmt.Errorf("获取 DaemonSet 失败: %w", err)
-	}
-
-	return ConvertPodSpecToAdvancedConfig(&daemonSet.Spec.Template.Spec), nil
-}
-
-// UpdateAdvancedConfig 更新高级容器配置（全量更新）
-func (d *daemonSetOperator) UpdateAdvancedConfig(req *types.UpdateAdvancedConfigRequest) error {
-	if req == nil {
-		return fmt.Errorf("请求不能为空")
-	}
-	if req.Namespace == "" {
-		return fmt.Errorf("命名空间不能为空")
-	}
-	if req.Name == "" {
-		return fmt.Errorf("DaemonSet名称不能为空")
-	}
-
-	daemonSet, err := d.Get(req.Namespace, req.Name)
-	if err != nil {
-		return fmt.Errorf("获取 DaemonSet 失败: %w", err)
-	}
-
-	if err := ApplyAdvancedConfigToPodSpec(&daemonSet.Spec.Template.Spec, req); err != nil {
-		return fmt.Errorf("应用高级配置失败: %w", err)
-	}
-
-	// DaemonSet 的 RestartPolicy 固定为 Always
-	daemonSet.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyAlways
-
-	_, err = d.Update(daemonSet)
-	if err != nil {
-		return fmt.Errorf("更新 DaemonSet 失败: %w", err)
-	}
-
-	return nil
 }

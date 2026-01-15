@@ -12,6 +12,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -106,6 +107,7 @@ func (d *deploymentOperator) Get(namespace, name string) (*appsv1.Deployment, er
 			deployment.Name = name
 			return deployment, nil
 		}
+		// 注入 apiversion
 		deployment.TypeMeta = metav1.TypeMeta{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
@@ -395,19 +397,36 @@ func (d *deploymentOperator) convertToPodDetailInfo(pod *corev1.Pod) types.PodDe
 	}
 }
 
-// ==================== 镜像管理 ====================
-
-// GetContainerImages 获取所有容器的镜像信息
 func (d *deploymentOperator) GetContainerImages(namespace, name string) (*types.ContainerInfoList, error) {
 	deployment, err := d.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return ConvertPodSpecToContainerImages(&deployment.Spec.Template.Spec), nil
+	result := &types.ContainerInfoList{
+		InitContainers: make([]types.ContainerInfo, 0),
+		Containers:     make([]types.ContainerInfo, 0),
+	}
+
+	for _, container := range deployment.Spec.Template.Spec.InitContainers {
+		result.InitContainers = append(result.InitContainers, types.ContainerInfo{
+			Name:  container.Name,
+			Image: container.Image,
+		})
+	}
+
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		result.Containers = append(result.Containers, types.ContainerInfo{
+			Name:  container.Name,
+			Image: container.Image,
+		})
+	}
+
+	return result, nil
 }
 
 func (d *deploymentOperator) UpdateImage(req *types.UpdateImageRequest) error {
+	// 参数验证
 	if req == nil {
 		return fmt.Errorf("请求不能为空")
 	}
@@ -424,18 +443,22 @@ func (d *deploymentOperator) UpdateImage(req *types.UpdateImageRequest) error {
 		return fmt.Errorf("镜像不能为空")
 	}
 
+	// 基本镜像格式验证
 	if err := validateImageFormat(req.Image); err != nil {
 		return fmt.Errorf("镜像格式无效: %v", err)
 	}
 
+	// 获取 Deployment
 	deployment, err := d.Get(req.Namespace, req.Name)
 	if err != nil {
 		return err
 	}
 
+	// 查找并更新容器镜像
 	var oldImage string
 	found := false
 
+	// 先在 InitContainers 中查找
 	for i := range deployment.Spec.Template.Spec.InitContainers {
 		container := &deployment.Spec.Template.Spec.InitContainers[i]
 		if container.Name == req.ContainerName {
@@ -446,6 +469,7 @@ func (d *deploymentOperator) UpdateImage(req *types.UpdateImageRequest) error {
 		}
 	}
 
+	// 再在普通 Containers 中查找
 	if !found {
 		for i := range deployment.Spec.Template.Spec.Containers {
 			container := &deployment.Spec.Template.Spec.Containers[i]
@@ -459,14 +483,17 @@ func (d *deploymentOperator) UpdateImage(req *types.UpdateImageRequest) error {
 	}
 
 	if !found {
+		// 提供更有用的错误信息
 		availableContainers := d.getAvailableContainerNames(deployment)
 		return fmt.Errorf("未找到容器 '%s'，可用容器: %v", req.ContainerName, availableContainers)
 	}
 
+	// 如果镜像没有变化，直接返回
 	if oldImage == req.Image {
 		return nil
 	}
 
+	// 设置变更原因（用于回滚历史）
 	if deployment.Annotations == nil {
 		deployment.Annotations = make(map[string]string)
 	}
@@ -485,9 +512,8 @@ func (d *deploymentOperator) UpdateImage(req *types.UpdateImageRequest) error {
 
 	return nil
 }
-
-// UpdateImages 批量更新镜像
 func (d *deploymentOperator) UpdateImages(req *types.UpdateImagesRequest) error {
+	// 参数验证
 	if req == nil {
 		return fmt.Errorf("请求不能为空")
 	}
@@ -498,30 +524,72 @@ func (d *deploymentOperator) UpdateImages(req *types.UpdateImagesRequest) error 
 		return fmt.Errorf("Deployment名称不能为空")
 	}
 
-	if len(req.Containers.Containers) == 0 {
+	// 检查是否有需要更新的容器
+	totalRequested := len(req.Containers.InitContainers) + len(req.Containers.Containers)
+	if totalRequested == 0 {
 		return fmt.Errorf("未指定要更新的容器")
 	}
 
+	// 验证所有镜像格式
+	for _, c := range req.Containers.InitContainers {
+		if err := validateImageFormat(c.Image); err != nil {
+			return fmt.Errorf("InitContainer '%s' 镜像格式无效: %v", c.Name, err)
+		}
+	}
 	for _, c := range req.Containers.Containers {
 		if err := validateImageFormat(c.Image); err != nil {
-			return fmt.Errorf("容器 '%s' 镜像格式无效: %v", c.ContainerName, err)
+			return fmt.Errorf("Container '%s' 镜像格式无效: %v", c.Name, err)
 		}
 	}
 
+	// 获取 Deployment
 	deployment, err := d.Get(req.Namespace, req.Name)
 	if err != nil {
 		return err
 	}
 
-	changes, err := ApplyImagesToPodSpec(&deployment.Spec.Template.Spec, req.Containers.Containers)
-	if err != nil {
-		return fmt.Errorf("应用镜像更新失败: %v", err)
+	// 构建容器名到索引的映射，提高查找效率
+	initContainerMap := make(map[string]int)
+	for i, c := range deployment.Spec.Template.Spec.InitContainers {
+		initContainerMap[c.Name] = i
 	}
 
+	containerMap := make(map[string]int)
+	for i, c := range deployment.Spec.Template.Spec.Containers {
+		containerMap[c.Name] = i
+	}
+
+	// 记录变更
+	var changes []string
+
+	// 更新 InitContainers
+	for _, img := range req.Containers.InitContainers {
+		if idx, exists := initContainerMap[img.Name]; exists {
+			container := &deployment.Spec.Template.Spec.InitContainers[idx]
+			if container.Image != img.Image {
+				changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
+				container.Image = img.Image
+			}
+		}
+	}
+
+	// 更新 Containers
+	for _, img := range req.Containers.Containers {
+		if idx, exists := containerMap[img.Name]; exists {
+			container := &deployment.Spec.Template.Spec.Containers[idx]
+			if container.Image != img.Image {
+				changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
+				container.Image = img.Image
+			}
+		}
+	}
+
+	// 如果没有实际变更，直接返回（幂等）
 	if len(changes) == 0 {
 		return nil
 	}
 
+	// 设置变更原因
 	if deployment.Annotations == nil {
 		deployment.Annotations = make(map[string]string)
 	}
@@ -532,6 +600,7 @@ func (d *deploymentOperator) UpdateImages(req *types.UpdateImagesRequest) error 
 	}
 	deployment.Annotations["kubernetes.io/change-cause"] = changeCause
 
+	// 执行更新
 	_, err = d.Update(deployment)
 	if err != nil {
 		return fmt.Errorf("更新Deployment失败: %v", err)
@@ -563,10 +632,6 @@ func (d *deploymentOperator) GetReplicas(namespace, name string) (*types.Replica
 func (d *deploymentOperator) Scale(req *types.ScaleRequest) error {
 	if req == nil || req.Namespace == "" || req.Name == "" {
 		return fmt.Errorf("请求参数不完整")
-	}
-
-	if req.Replicas < 0 {
-		return fmt.Errorf("副本数不能为负数: %d", req.Replicas)
 	}
 
 	deployment, err := d.Get(req.Namespace, req.Name)
@@ -618,22 +683,11 @@ func (d *deploymentOperator) UpdateStrategy(req *types.UpdateStrategyRequest) er
 
 		if req.RollingUpdate.MaxUnavailable != "" {
 			maxUnavailable := intstr.Parse(req.RollingUpdate.MaxUnavailable)
-			// 验证 MaxUnavailable 值合法
-			if maxUnavailable.Type == intstr.Int && maxUnavailable.IntVal < 0 {
-				return fmt.Errorf("MaxUnavailable 不能为负数")
-			}
-			if maxUnavailable.Type == intstr.String && maxUnavailable.StrVal == "0%" {
-				return fmt.Errorf("MaxUnavailable 不能为 0%%，这会阻塞更新")
-			}
 			deployment.Spec.Strategy.RollingUpdate.MaxUnavailable = &maxUnavailable
 		}
 
 		if req.RollingUpdate.MaxSurge != "" {
 			maxSurge := intstr.Parse(req.RollingUpdate.MaxSurge)
-			// 验证 MaxSurge 值合法
-			if maxSurge.Type == intstr.Int && maxSurge.IntVal < 0 {
-				return fmt.Errorf("MaxSurge 不能为负数")
-			}
 			deployment.Spec.Strategy.RollingUpdate.MaxSurge = &maxSurge
 		}
 	}
@@ -760,26 +814,76 @@ func (d *deploymentOperator) Rollback(req *types.RollbackToRevisionRequest) erro
 	return err
 }
 
-// ==================== 环境变量管理 ====================
-
 func (d *deploymentOperator) GetEnvVars(namespace, name string) (*types.EnvVarsResponse, error) {
 	deployment, err := d.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return ConvertPodSpecToEnvVars(&deployment.Spec.Template.Spec), nil
+	response := &types.EnvVarsResponse{
+		Containers: make([]types.ContainerEnvVars, 0),
+	}
+
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		envVars := make([]types.EnvVar, 0)
+		for _, env := range container.Env {
+			envVar := types.EnvVar{
+				Name: env.Name,
+				Source: types.EnvVarSource{
+					Type:  "value",
+					Value: env.Value,
+				},
+			}
+
+			if env.ValueFrom != nil {
+				if env.ValueFrom.ConfigMapKeyRef != nil {
+					envVar.Source.Type = "configMapKeyRef"
+					envVar.Source.ConfigMapKeyRef = &types.ConfigMapKeySelector{
+						Name:     env.ValueFrom.ConfigMapKeyRef.Name,
+						Key:      env.ValueFrom.ConfigMapKeyRef.Key,
+						Optional: env.ValueFrom.ConfigMapKeyRef.Optional != nil && *env.ValueFrom.ConfigMapKeyRef.Optional,
+					}
+				} else if env.ValueFrom.SecretKeyRef != nil {
+					envVar.Source.Type = "secretKeyRef"
+					envVar.Source.SecretKeyRef = &types.SecretKeySelector{
+						Name:     env.ValueFrom.SecretKeyRef.Name,
+						Key:      env.ValueFrom.SecretKeyRef.Key,
+						Optional: env.ValueFrom.SecretKeyRef.Optional != nil && *env.ValueFrom.SecretKeyRef.Optional,
+					}
+				} else if env.ValueFrom.FieldRef != nil {
+					envVar.Source.Type = "fieldRef"
+					envVar.Source.FieldRef = &types.ObjectFieldSelector{
+						FieldPath: env.ValueFrom.FieldRef.FieldPath,
+					}
+				} else if env.ValueFrom.ResourceFieldRef != nil {
+					envVar.Source.Type = "resourceFieldRef"
+					divisor := ""
+					if env.ValueFrom.ResourceFieldRef.Divisor.String() != "" {
+						divisor = env.ValueFrom.ResourceFieldRef.Divisor.String()
+					}
+					envVar.Source.ResourceFieldRef = &types.ResourceFieldSelector{
+						ContainerName: env.ValueFrom.ResourceFieldRef.ContainerName,
+						Resource:      env.ValueFrom.ResourceFieldRef.Resource,
+						Divisor:       divisor,
+					}
+				}
+			}
+
+			envVars = append(envVars, envVar)
+		}
+
+		response.Containers = append(response.Containers, types.ContainerEnvVars{
+			ContainerName: container.Name,
+			Env:           envVars,
+		})
+	}
+
+	return response, nil
 }
 
 func (d *deploymentOperator) UpdateEnvVars(req *types.UpdateEnvVarsRequest) error {
-	if req == nil {
-		return fmt.Errorf("请求不能为空")
-	}
-	if req.Namespace == "" {
-		return fmt.Errorf("命名空间不能为空")
-	}
-	if req.Name == "" {
-		return fmt.Errorf("Deployment名称不能为空")
+	if req == nil || req.Namespace == "" || req.Name == "" || req.ContainerName == "" {
+		return fmt.Errorf("请求参数不完整")
 	}
 
 	deployment, err := d.Get(req.Namespace, req.Name)
@@ -787,15 +891,85 @@ func (d *deploymentOperator) UpdateEnvVars(req *types.UpdateEnvVarsRequest) erro
 		return err
 	}
 
-	if err := ApplyEnvVarsToPodSpec(&deployment.Spec.Template.Spec, req.Containers); err != nil {
-		return err
+	found := false
+	for i := range deployment.Spec.Template.Spec.Containers {
+		if deployment.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
+			envVars := make([]corev1.EnvVar, 0)
+			for _, env := range req.Env {
+				envVar := corev1.EnvVar{
+					Name: env.Name,
+				}
+
+				switch env.Source.Type {
+				case "value":
+					envVar.Value = env.Source.Value
+				case "configMapKeyRef":
+					if env.Source.ConfigMapKeyRef != nil {
+						envVar.ValueFrom = &corev1.EnvVarSource{
+							ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: env.Source.ConfigMapKeyRef.Name,
+								},
+								Key:      env.Source.ConfigMapKeyRef.Key,
+								Optional: &env.Source.ConfigMapKeyRef.Optional,
+							},
+						}
+					}
+				case "secretKeyRef":
+					if env.Source.SecretKeyRef != nil {
+						envVar.ValueFrom = &corev1.EnvVarSource{
+							SecretKeyRef: &corev1.SecretKeySelector{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: env.Source.SecretKeyRef.Name,
+								},
+								Key:      env.Source.SecretKeyRef.Key,
+								Optional: &env.Source.SecretKeyRef.Optional,
+							},
+						}
+					}
+				case "fieldRef":
+					if env.Source.FieldRef != nil {
+						envVar.ValueFrom = &corev1.EnvVarSource{
+							FieldRef: &corev1.ObjectFieldSelector{
+								FieldPath: env.Source.FieldRef.FieldPath,
+							},
+						}
+					}
+				case "resourceFieldRef":
+					if env.Source.ResourceFieldRef != nil {
+						var divisor *resource.Quantity
+						if env.Source.ResourceFieldRef.Divisor != "" {
+							q, err := resource.ParseQuantity(env.Source.ResourceFieldRef.Divisor)
+							if err == nil {
+								divisor = &q
+							}
+						}
+						envVar.ValueFrom = &corev1.EnvVarSource{
+							ResourceFieldRef: &corev1.ResourceFieldSelector{
+								ContainerName: env.Source.ResourceFieldRef.ContainerName,
+								Resource:      env.Source.ResourceFieldRef.Resource,
+								Divisor:       *divisor,
+							},
+						}
+					}
+				}
+
+				envVars = append(envVars, envVar)
+			}
+
+			deployment.Spec.Template.Spec.Containers[i].Env = envVars
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("未找到容器: %s", req.ContainerName)
 	}
 
 	_, err = d.Update(deployment)
 	return err
 }
-
-// ==================== 暂停/恢复 ====================
 
 func (d *deploymentOperator) GetPauseStatus(namespace, name string) (*types.PauseStatusResponse, error) {
 	deployment, err := d.Get(namespace, name)
@@ -831,28 +1005,39 @@ func (d *deploymentOperator) ResumeRollout(namespace, name string) error {
 	return err
 }
 
-// ==================== 资源配额管理 ====================
-
-// GetResources 获取所有容器的资源配额
 func (d *deploymentOperator) GetResources(namespace, name string) (*types.ResourcesResponse, error) {
 	deployment, err := d.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return ConvertPodSpecToResources(&deployment.Spec.Template.Spec), nil
+	response := &types.ResourcesResponse{
+		Containers: make([]types.ContainerResources, 0),
+	}
+
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		resources := types.ContainerResources{
+			ContainerName: container.Name,
+			Resources: types.ResourceRequirements{
+				Limits: types.ResourceList{
+					Cpu:    container.Resources.Limits.Cpu().String(),
+					Memory: container.Resources.Limits.Memory().String(),
+				},
+				Requests: types.ResourceList{
+					Cpu:    container.Resources.Requests.Cpu().String(),
+					Memory: container.Resources.Requests.Memory().String(),
+				},
+			},
+		}
+		response.Containers = append(response.Containers, resources)
+	}
+
+	return response, nil
 }
 
-// UpdateResources 全量更新所有容器的资源配额
 func (d *deploymentOperator) UpdateResources(req *types.UpdateResourcesRequest) error {
-	if req == nil {
-		return fmt.Errorf("请求不能为空")
-	}
-	if req.Namespace == "" {
-		return fmt.Errorf("命名空间不能为空")
-	}
-	if req.Name == "" {
-		return fmt.Errorf("Deployment名称不能为空")
+	if req == nil || req.Namespace == "" || req.Name == "" || req.ContainerName == "" {
+		return fmt.Errorf("请求参数不完整")
 	}
 
 	deployment, err := d.Get(req.Namespace, req.Name)
@@ -860,36 +1045,151 @@ func (d *deploymentOperator) UpdateResources(req *types.UpdateResourcesRequest) 
 		return err
 	}
 
-	if err := ApplyResourcesToPodSpec(&deployment.Spec.Template.Spec, req.Containers); err != nil {
-		return err
+	found := false
+	for i := range deployment.Spec.Template.Spec.Containers {
+		if deployment.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
+			if req.Resources.Limits.Cpu != "" {
+				cpuLimit, err := resource.ParseQuantity(req.Resources.Limits.Cpu)
+				if err != nil {
+					return fmt.Errorf("解析CPU限制失败: %v", err)
+				}
+				if deployment.Spec.Template.Spec.Containers[i].Resources.Limits == nil {
+					deployment.Spec.Template.Spec.Containers[i].Resources.Limits = corev1.ResourceList{}
+				}
+				deployment.Spec.Template.Spec.Containers[i].Resources.Limits[corev1.ResourceCPU] = cpuLimit
+			}
+
+			if req.Resources.Limits.Memory != "" {
+				memLimit, err := resource.ParseQuantity(req.Resources.Limits.Memory)
+				if err != nil {
+					return fmt.Errorf("解析内存限制失败: %v", err)
+				}
+				if deployment.Spec.Template.Spec.Containers[i].Resources.Limits == nil {
+					deployment.Spec.Template.Spec.Containers[i].Resources.Limits = corev1.ResourceList{}
+				}
+				deployment.Spec.Template.Spec.Containers[i].Resources.Limits[corev1.ResourceMemory] = memLimit
+			}
+
+			if req.Resources.Requests.Cpu != "" {
+				cpuRequest, err := resource.ParseQuantity(req.Resources.Requests.Cpu)
+				if err != nil {
+					return fmt.Errorf("解析CPU请求失败: %v", err)
+				}
+				if deployment.Spec.Template.Spec.Containers[i].Resources.Requests == nil {
+					deployment.Spec.Template.Spec.Containers[i].Resources.Requests = corev1.ResourceList{}
+				}
+				deployment.Spec.Template.Spec.Containers[i].Resources.Requests[corev1.ResourceCPU] = cpuRequest
+			}
+
+			if req.Resources.Requests.Memory != "" {
+				memRequest, err := resource.ParseQuantity(req.Resources.Requests.Memory)
+				if err != nil {
+					return fmt.Errorf("解析内存请求失败: %v", err)
+				}
+				if deployment.Spec.Template.Spec.Containers[i].Resources.Requests == nil {
+					deployment.Spec.Template.Spec.Containers[i].Resources.Requests = corev1.ResourceList{}
+				}
+				deployment.Spec.Template.Spec.Containers[i].Resources.Requests[corev1.ResourceMemory] = memRequest
+			}
+
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("未找到容器: %s", req.ContainerName)
 	}
 
 	_, err = d.Update(deployment)
 	return err
 }
 
-// ==================== 健康检查管理 ====================
-
-// GetProbes 获取所有容器的健康检查配置
 func (d *deploymentOperator) GetProbes(namespace, name string) (*types.ProbesResponse, error) {
 	deployment, err := d.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return ConvertPodSpecToProbes(&deployment.Spec.Template.Spec), nil
+	response := &types.ProbesResponse{
+		Containers: make([]types.ContainerProbes, 0),
+	}
+
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		containerProbes := types.ContainerProbes{
+			ContainerName: container.Name,
+		}
+
+		if container.LivenessProbe != nil {
+			containerProbes.LivenessProbe = d.convertProbe(container.LivenessProbe)
+		}
+		if container.ReadinessProbe != nil {
+			containerProbes.ReadinessProbe = d.convertProbe(container.ReadinessProbe)
+		}
+		if container.StartupProbe != nil {
+			containerProbes.StartupProbe = d.convertProbe(container.StartupProbe)
+		}
+
+		response.Containers = append(response.Containers, containerProbes)
+	}
+
+	return response, nil
 }
 
-// UpdateProbes 全量更新所有容器的健康检查配置
+func (d *deploymentOperator) convertProbe(probe *corev1.Probe) *types.Probe {
+	result := &types.Probe{
+		InitialDelaySeconds: probe.InitialDelaySeconds,
+		TimeoutSeconds:      probe.TimeoutSeconds,
+		PeriodSeconds:       probe.PeriodSeconds,
+		SuccessThreshold:    probe.SuccessThreshold,
+		FailureThreshold:    probe.FailureThreshold,
+	}
+
+	if probe.HTTPGet != nil {
+		result.Type = "httpGet"
+		headers := make([]types.HTTPHeader, 0)
+		for _, h := range probe.HTTPGet.HTTPHeaders {
+			headers = append(headers, types.HTTPHeader{
+				Name:  h.Name,
+				Value: h.Value,
+			})
+		}
+		result.HttpGet = &types.HTTPGetAction{
+			Path:        probe.HTTPGet.Path,
+			Port:        probe.HTTPGet.Port.IntVal,
+			Host:        probe.HTTPGet.Host,
+			Scheme:      string(probe.HTTPGet.Scheme),
+			HttpHeaders: headers,
+		}
+	} else if probe.TCPSocket != nil {
+		result.Type = "tcpSocket"
+		result.TcpSocket = &types.TCPSocketAction{
+			Port: probe.TCPSocket.Port.IntVal,
+			Host: probe.TCPSocket.Host,
+		}
+	} else if probe.Exec != nil {
+		result.Type = "exec"
+		result.Exec = &types.ExecAction{
+			Command: probe.Exec.Command,
+		}
+	} else if probe.GRPC != nil {
+		result.Type = "grpc"
+		service := ""
+		if probe.GRPC.Service != nil {
+			service = *probe.GRPC.Service
+		}
+		result.Grpc = &types.GRPCAction{
+			Port:    probe.GRPC.Port,
+			Service: service,
+		}
+	}
+
+	return result
+}
+
 func (d *deploymentOperator) UpdateProbes(req *types.UpdateProbesRequest) error {
-	if req == nil {
-		return fmt.Errorf("请求不能为空")
-	}
-	if req.Namespace == "" {
-		return fmt.Errorf("命名空间不能为空")
-	}
-	if req.Name == "" {
-		return fmt.Errorf("Deployment名称不能为空")
+	if req == nil || req.Namespace == "" || req.Name == "" || req.ContainerName == "" {
+		return fmt.Errorf("请求参数不完整")
 	}
 
 	deployment, err := d.Get(req.Namespace, req.Name)
@@ -897,15 +1197,83 @@ func (d *deploymentOperator) UpdateProbes(req *types.UpdateProbesRequest) error 
 		return err
 	}
 
-	if err := ApplyProbesToPodSpec(&deployment.Spec.Template.Spec, req.Containers); err != nil {
-		return err
+	found := false
+	for i := range deployment.Spec.Template.Spec.Containers {
+		if deployment.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
+			if req.LivenessProbe != nil {
+				deployment.Spec.Template.Spec.Containers[i].LivenessProbe = d.buildProbe(req.LivenessProbe)
+			}
+			if req.ReadinessProbe != nil {
+				deployment.Spec.Template.Spec.Containers[i].ReadinessProbe = d.buildProbe(req.ReadinessProbe)
+			}
+			if req.StartupProbe != nil {
+				deployment.Spec.Template.Spec.Containers[i].StartupProbe = d.buildProbe(req.StartupProbe)
+			}
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("未找到容器: %s", req.ContainerName)
 	}
 
 	_, err = d.Update(deployment)
 	return err
 }
 
-// ==================== 停止/启动/重启 ====================
+func (d *deploymentOperator) buildProbe(probe *types.Probe) *corev1.Probe {
+	result := &corev1.Probe{
+		InitialDelaySeconds: probe.InitialDelaySeconds,
+		TimeoutSeconds:      probe.TimeoutSeconds,
+		PeriodSeconds:       probe.PeriodSeconds,
+		SuccessThreshold:    probe.SuccessThreshold,
+		FailureThreshold:    probe.FailureThreshold,
+	}
+
+	switch probe.Type {
+	case "httpGet":
+		if probe.HttpGet != nil {
+			headers := make([]corev1.HTTPHeader, 0)
+			for _, h := range probe.HttpGet.HttpHeaders {
+				headers = append(headers, corev1.HTTPHeader{
+					Name:  h.Name,
+					Value: h.Value,
+				})
+			}
+			result.HTTPGet = &corev1.HTTPGetAction{
+				Path:        probe.HttpGet.Path,
+				Port:        intstr.FromInt(int(probe.HttpGet.Port)),
+				Host:        probe.HttpGet.Host,
+				Scheme:      corev1.URIScheme(probe.HttpGet.Scheme),
+				HTTPHeaders: headers,
+			}
+		}
+	case "tcpSocket":
+		if probe.TcpSocket != nil {
+			result.TCPSocket = &corev1.TCPSocketAction{
+				Port: intstr.FromInt(int(probe.TcpSocket.Port)),
+				Host: probe.TcpSocket.Host,
+			}
+		}
+	case "exec":
+		if probe.Exec != nil {
+			result.Exec = &corev1.ExecAction{
+				Command: probe.Exec.Command,
+			}
+		}
+	case "grpc":
+		if probe.Grpc != nil {
+			service := probe.Grpc.Service
+			result.GRPC = &corev1.GRPCAction{
+				Port:    probe.Grpc.Port,
+				Service: &service,
+			}
+		}
+	}
+
+	return result
+}
 
 func (d *deploymentOperator) Stop(namespace, name string) error {
 	deployment, err := d.Get(namespace, name)
@@ -965,8 +1333,7 @@ func (d *deploymentOperator) Restart(namespace, name string) error {
 	return err
 }
 
-// ==================== Pod 标签相关 ====================
-
+// deployment.go - operator
 func (d *deploymentOperator) GetPodLabels(namespace, name string) (map[string]string, error) {
 	var deployment *appsv1.Deployment
 	var err error
@@ -1073,6 +1440,7 @@ func (d *deploymentOperator) GetVersionStatus(namespace, name string) (*types.Re
 		Ready: false,
 	}
 
+	// 停止状态：副本数为 0
 	if replicas == 0 {
 		status.Status = types.StatusStopped
 		status.Message = "副本数为 0，已停止"
@@ -1080,6 +1448,7 @@ func (d *deploymentOperator) GetVersionStatus(namespace, name string) (*types.Re
 		return status, nil
 	}
 
+	// 创建中：刚创建，还没有可用副本
 	if deployment.Status.AvailableReplicas == 0 && deployment.Status.Replicas == 0 {
 		age := time.Since(deployment.CreationTimestamp.Time)
 		if age < 30*time.Second {
@@ -1089,6 +1458,7 @@ func (d *deploymentOperator) GetVersionStatus(namespace, name string) (*types.Re
 		}
 	}
 
+	// 运行中：可用副本数等于期望副本数
 	if deployment.Status.AvailableReplicas == replicas &&
 		deployment.Status.ReadyReplicas == replicas &&
 		deployment.Status.UpdatedReplicas == replicas {
@@ -1098,6 +1468,7 @@ func (d *deploymentOperator) GetVersionStatus(namespace, name string) (*types.Re
 		return status, nil
 	}
 
+	// 更新中
 	if deployment.Status.UpdatedReplicas < replicas {
 		status.Status = types.StatusRunning
 		status.Message = fmt.Sprintf("正在更新中 (已更新: %d/%d, 可用: %d/%d)",
@@ -1106,6 +1477,7 @@ func (d *deploymentOperator) GetVersionStatus(namespace, name string) (*types.Re
 		return status, nil
 	}
 
+	// 异常：可用副本数少于期望副本数
 	if deployment.Status.AvailableReplicas < replicas {
 		age := time.Since(deployment.CreationTimestamp.Time)
 		if age > 5*time.Minute {
@@ -1124,91 +1496,91 @@ func (d *deploymentOperator) GetVersionStatus(namespace, name string) (*types.Re
 	return status, nil
 }
 
-// ==================== 调度配置管理 ====================
+// ==================== 调度配置相关 ====================
 
-// GetSchedulingConfig 获取 Deployment 调度配置
+// GetSchedulingConfig 获取调度配置
 func (d *deploymentOperator) GetSchedulingConfig(namespace, name string) (*types.SchedulingConfig, error) {
 	deployment, err := d.Get(namespace, name)
 	if err != nil {
-		return nil, fmt.Errorf("获取 Deployment 失败: %w", err)
+		return nil, err
 	}
 
-	return types.ConvertPodSpecToSchedulingConfig(&deployment.Spec.Template.Spec), nil
+	return convertPodSpecToSchedulingConfig(&deployment.Spec.Template.Spec), nil
 }
 
-// UpdateSchedulingConfig 更新 Deployment 调度配置
-func (d *deploymentOperator) UpdateSchedulingConfig(namespace, name string, req *types.UpdateSchedulingConfigRequest) error {
-	if req == nil {
-		return fmt.Errorf("调度配置请求不能为空")
+// UpdateSchedulingConfig 更新调度配置
+func (d *deploymentOperator) UpdateSchedulingConfig(namespace, name string, config *types.UpdateSchedulingConfigRequest) error {
+	if config == nil {
+		return fmt.Errorf("调度配置不能为空")
 	}
 
 	deployment, err := d.Get(namespace, name)
 	if err != nil {
-		return fmt.Errorf("获取 Deployment 失败: %w", err)
+		return err
 	}
 
-	types.ApplySchedulingConfigToPodSpec(&deployment.Spec.Template.Spec, req)
+	// 更新 NodeSelector
+	if config.NodeSelector != nil {
+		deployment.Spec.Template.Spec.NodeSelector = config.NodeSelector
+	}
+
+	// 更新 NodeName
+	if config.NodeName != "" {
+		deployment.Spec.Template.Spec.NodeName = config.NodeName
+	}
+
+	// 更新 Affinity
+	if config.Affinity != nil {
+		deployment.Spec.Template.Spec.Affinity = convertAffinityConfigToK8s(config.Affinity)
+	}
+
+	// 更新 Tolerations
+	if config.Tolerations != nil {
+		deployment.Spec.Template.Spec.Tolerations = convertTolerationsConfigToK8s(config.Tolerations)
+	}
+
+	// 更新 TopologySpreadConstraints
+	if config.TopologySpreadConstraints != nil {
+		deployment.Spec.Template.Spec.TopologySpreadConstraints = convertTopologySpreadConstraintsToK8s(config.TopologySpreadConstraints)
+	}
+
+	// 更新 SchedulerName
+	if config.SchedulerName != "" {
+		deployment.Spec.Template.Spec.SchedulerName = config.SchedulerName
+	}
+
+	// 更新 PriorityClassName
+	if config.PriorityClassName != "" {
+		deployment.Spec.Template.Spec.PriorityClassName = config.PriorityClassName
+	}
+
+	// 更新 Priority
+	if config.Priority != nil {
+		deployment.Spec.Template.Spec.Priority = config.Priority
+	}
+
+	// 更新 RuntimeClassName
+	if config.RuntimeClassName != nil {
+		deployment.Spec.Template.Spec.RuntimeClassName = config.RuntimeClassName
+	}
 
 	_, err = d.Update(deployment)
-	if err != nil {
-		return fmt.Errorf("更新 Deployment 调度配置失败: %w", err)
-	}
-
-	return nil
+	return err
 }
 
-// ==================== 高级配置管理 ====================
+// ==================== 存储配置相关 ====================
 
-// GetAdvancedConfig 获取高级容器配置
-func (d *deploymentOperator) GetAdvancedConfig(namespace, name string) (*types.AdvancedConfigResponse, error) {
-	deployment, err := d.Get(namespace, name)
-	if err != nil {
-		return nil, fmt.Errorf("获取 Deployment 失败: %w", err)
-	}
-
-	return ConvertPodSpecToAdvancedConfig(&deployment.Spec.Template.Spec), nil
-}
-
-// UpdateAdvancedConfig 更新高级容器配置（全量更新）
-func (d *deploymentOperator) UpdateAdvancedConfig(req *types.UpdateAdvancedConfigRequest) error {
-	if req == nil {
-		return fmt.Errorf("请求不能为空")
-	}
-	if req.Namespace == "" {
-		return fmt.Errorf("命名空间不能为空")
-	}
-	if req.Name == "" {
-		return fmt.Errorf("Deployment名称不能为空")
-	}
-
-	deployment, err := d.Get(req.Namespace, req.Name)
-	if err != nil {
-		return fmt.Errorf("获取 Deployment 失败: %w", err)
-	}
-
-	if err := ApplyAdvancedConfigToPodSpec(&deployment.Spec.Template.Spec, req); err != nil {
-		return fmt.Errorf("应用高级配置失败: %w", err)
-	}
-
-	_, err = d.Update(deployment)
-	if err != nil {
-		return fmt.Errorf("更新 Deployment 失败: %w", err)
-	}
-
-	return nil
-}
-
-// ==================== 存储配置管理 ====================
-
+// GetStorageConfig 获取存储配置
 func (d *deploymentOperator) GetStorageConfig(namespace, name string) (*types.StorageConfig, error) {
 	deployment, err := d.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return ConvertPodSpecToStorageConfig(&deployment.Spec.Template.Spec), nil
+	return convertPodSpecToStorageConfig(&deployment.Spec.Template.Spec), nil
 }
 
+// UpdateStorageConfig 更新存储配置
 func (d *deploymentOperator) UpdateStorageConfig(namespace, name string, config *types.UpdateStorageConfigRequest) error {
 	if config == nil {
 		return fmt.Errorf("存储配置不能为空")
@@ -1219,13 +1591,21 @@ func (d *deploymentOperator) UpdateStorageConfig(namespace, name string, config 
 		return err
 	}
 
-	// Deployment 不支持 VolumeClaimTemplates
-	if len(config.VolumeClaimTemplates) > 0 {
-		return fmt.Errorf("Deployment 不支持 VolumeClaimTemplates")
+	// 更新 Volumes
+	if config.Volumes != nil {
+		deployment.Spec.Template.Spec.Volumes = convertVolumesConfigToK8s(config.Volumes)
 	}
 
-	if err := ApplyStorageConfigToPodSpec(&deployment.Spec.Template.Spec, config); err != nil {
-		return err
+	// 更新 VolumeMounts
+	if config.VolumeMounts != nil {
+		for _, vmConfig := range config.VolumeMounts {
+			for i := range deployment.Spec.Template.Spec.Containers {
+				if deployment.Spec.Template.Spec.Containers[i].Name == vmConfig.ContainerName {
+					deployment.Spec.Template.Spec.Containers[i].VolumeMounts = convertVolumeMountsToK8s(vmConfig.Mounts)
+					break
+				}
+			}
+		}
 	}
 
 	_, err = d.Update(deployment)
@@ -1234,6 +1614,7 @@ func (d *deploymentOperator) UpdateStorageConfig(namespace, name string, config 
 
 // ==================== Events 相关 ====================
 
+// GetEvents 获取 Deployment 的事件（已存在，但需要确保实现正确）
 func (d *deploymentOperator) GetEvents(namespace, name string) ([]types.EventInfo, error) {
 	deployment, err := d.Get(namespace, name)
 	if err != nil {
@@ -1253,6 +1634,7 @@ func (d *deploymentOperator) GetEvents(namespace, name string) ([]types.EventInf
 		events = append(events, types.ConvertK8sEventToEventInfo(&eventList.Items[i]))
 	}
 
+	// 按最后发生时间降序排序（最新的在前面）
 	sort.Slice(events, func(i, j int) bool {
 		return events[i].LastTimestamp > events[j].LastTimestamp
 	})
@@ -1268,6 +1650,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 
 	var buf strings.Builder
 
+	// ========== 基本信息 ==========
 	buf.WriteString(fmt.Sprintf("Name:                   %s\n", deployment.Name))
 	buf.WriteString(fmt.Sprintf("Namespace:              %s\n", deployment.Namespace))
 
@@ -1277,6 +1660,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		buf.WriteString("CreationTimestamp:      <unset>\n")
 	}
 
+	// Labels
 	buf.WriteString("Labels:                 ")
 	if len(deployment.Labels) == 0 {
 		buf.WriteString("<none>\n")
@@ -1291,6 +1675,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		}
 	}
 
+	// Annotations
 	buf.WriteString("Annotations:            ")
 	if len(deployment.Annotations) == 0 {
 		buf.WriteString("<none>\n")
@@ -1320,6 +1705,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		buf.WriteString("<none>\n")
 	}
 
+	// ========== 副本信息 ==========
 	replicas := int32(0)
 	if deployment.Spec.Replicas != nil {
 		replicas = *deployment.Spec.Replicas
@@ -1338,6 +1724,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		unavailable,
 	))
 
+	// ========== 更新策略 ==========
 	buf.WriteString(fmt.Sprintf("StrategyType:           %s\n", deployment.Spec.Strategy.Type))
 	buf.WriteString(fmt.Sprintf("MinReadySeconds:        %d\n", deployment.Spec.MinReadySeconds))
 
@@ -1360,8 +1747,10 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		buf.WriteString(fmt.Sprintf("Revision History Limit: %d\n", *deployment.Spec.RevisionHistoryLimit))
 	}
 
+	// ========== Pod Template ==========
 	buf.WriteString("Pod Template:\n")
 
+	// Pod Labels
 	buf.WriteString("  Labels:  ")
 	if len(deployment.Spec.Template.Labels) == 0 {
 		buf.WriteString("<none>\n")
@@ -1394,6 +1783,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		buf.WriteString("  Service Account:  default\n")
 	}
 
+	// Init Containers
 	if len(deployment.Spec.Template.Spec.InitContainers) > 0 {
 		buf.WriteString("  Init Containers:\n")
 		for _, container := range deployment.Spec.Template.Spec.InitContainers {
@@ -1451,6 +1841,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		}
 	}
 
+	// Containers
 	buf.WriteString("  Containers:\n")
 	for _, container := range deployment.Spec.Template.Spec.Containers {
 		buf.WriteString(fmt.Sprintf("   %s:\n", container.Name))
@@ -1460,6 +1851,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 			buf.WriteString(fmt.Sprintf("    Image Pull Policy:  %s\n", container.ImagePullPolicy))
 		}
 
+		// Ports
 		if len(container.Ports) > 0 {
 			for _, port := range container.Ports {
 				buf.WriteString(fmt.Sprintf("    Port:       %d/%s\n", port.ContainerPort, port.Protocol))
@@ -1540,6 +1932,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 			buf.WriteString("\n")
 		}
 
+		// Environment
 		buf.WriteString("    Environment:\n")
 		if len(container.Env) > 0 {
 			for _, env := range container.Env {
@@ -1549,6 +1942,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 			buf.WriteString("      <none>\n")
 		}
 
+		// Mounts
 		buf.WriteString("    Mounts:\n")
 		if len(container.VolumeMounts) > 0 {
 			for _, mount := range container.VolumeMounts {
@@ -1607,6 +2001,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		buf.WriteString("   <none>\n")
 	}
 
+	// ========== Conditions ==========
 	buf.WriteString("Conditions:\n")
 	buf.WriteString("  Type           Status  Reason\n")
 	buf.WriteString("  ----           ------  ------\n")
@@ -1619,6 +2014,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		buf.WriteString("  <none>\n")
 	}
 
+	// ========== ReplicaSets ==========
 	rsList, err := d.client.AppsV1().ReplicaSets(namespace).List(d.ctx, metav1.ListOptions{})
 	if err == nil {
 		var oldRS []string
@@ -1627,6 +2023,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		for i := range rsList.Items {
 			rs := &rsList.Items[i]
 
+			// 检查是否属于当前 Deployment
 			isOwned := false
 			for _, owner := range rs.OwnerReferences {
 				if owner.Kind == "Deployment" && owner.Name == deployment.Name && owner.UID == deployment.UID {
@@ -1646,6 +2043,7 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 
 			rsInfo := fmt.Sprintf("%s (%d/%d replicas created)", rs.Name, rs.Status.Replicas, rsReplicas)
 
+			// 判断是否为新的 ReplicaSet（有副本）
 			if rsReplicas > 0 {
 				newRS = rsInfo
 			} else {
@@ -1670,12 +2068,14 @@ func (d *deploymentOperator) GetDescribe(namespace, name string) (string, error)
 		}
 	}
 
+	// ========== Events ==========
 	buf.WriteString("Events:\n")
 	events, err := d.GetEvents(namespace, name)
 	if err == nil && len(events) > 0 {
 		buf.WriteString("  Type    Reason              Age                    From                   Message\n")
 		buf.WriteString("  ----    ------              ----                   ----                   -------\n")
 
+		// 只显示最近 10 条
 		limit := 10
 		if len(events) < limit {
 			limit = len(events)
@@ -1736,6 +2136,7 @@ func (d *deploymentOperator) formatEnvironment(buf *strings.Builder, env corev1.
 	}
 }
 
+// formatProbe 格式化探针信息
 func (d *deploymentOperator) formatProbe(probe *corev1.Probe) string {
 	var parts []string
 
@@ -1759,6 +2160,7 @@ func (d *deploymentOperator) formatProbe(probe *corev1.Probe) string {
 	return strings.Join(parts, " ")
 }
 
+// formatDuration 格式化时间间隔
 func (d *deploymentOperator) formatDuration(duration time.Duration) string {
 	if duration < time.Minute {
 		return fmt.Sprintf("%ds", int(duration.Seconds()))
@@ -1771,24 +2173,31 @@ func (d *deploymentOperator) formatDuration(duration time.Duration) string {
 	}
 }
 
+// ListAll 获取所有 Deployment（优先使用 informer）
 func (d *deploymentOperator) ListAll(namespace string) ([]appsv1.Deployment, error) {
 	var deployments []*appsv1.Deployment
 	var err error
 
+	// 优先使用 informer
 	if d.useInformer && d.deploymentLister != nil {
 		if namespace == "" {
+			// 获取所有 namespace 的 Deployment
 			deployments, err = d.deploymentLister.List(labels.Everything())
 		} else {
+			// 获取指定 namespace 的 Deployment
 			deployments, err = d.deploymentLister.Deployments(namespace).List(labels.Everything())
 		}
 
 		if err != nil {
+			// informer 失败，降级到 API 调用
 			return d.listAllFromAPI(namespace)
 		}
 	} else {
+		// 直接使用 API 调用
 		return d.listAllFromAPI(namespace)
 	}
 
+	// 转换为非指针切片
 	result := make([]appsv1.Deployment, 0, len(deployments))
 	for _, deployment := range deployments {
 		if deployment != nil {
@@ -1799,6 +2208,7 @@ func (d *deploymentOperator) ListAll(namespace string) ([]appsv1.Deployment, err
 	return result, nil
 }
 
+// listAllFromAPI 通过 API 直接获取 Deployment 列表（内部辅助方法）
 func (d *deploymentOperator) listAllFromAPI(namespace string) ([]appsv1.Deployment, error) {
 	deploymentList, err := d.client.AppsV1().Deployments(namespace).List(d.ctx, metav1.ListOptions{})
 	if err != nil {
@@ -1811,6 +2221,8 @@ func (d *deploymentOperator) listAllFromAPI(namespace string) ([]appsv1.Deployme
 	return deploymentList.Items, nil
 }
 
+// GetResourceSummary 获取 Deployment 的资源摘要信息
+// 包括关联的 Pod、Service、Ingress 等信息
 func (d *deploymentOperator) GetResourceSummary(
 	namespace string,
 	name string,
@@ -1824,16 +2236,19 @@ func (d *deploymentOperator) GetResourceSummary(
 		return nil, fmt.Errorf("命名空间和名称不能为空")
 	}
 
+	// 1. 获取 Deployment
 	deployment, err := d.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
+	// 获取 Pod 选择器标签
 	selectorLabels := deployment.Spec.Selector.MatchLabels
 	if len(selectorLabels) == 0 {
 		return nil, fmt.Errorf("Deployment 没有选择器标签")
 	}
 
+	// 使用通用辅助函数获取摘要
 	return getWorkloadResourceSummary(
 		namespace,
 		selectorLabels,
@@ -1843,17 +2258,4 @@ func (d *deploymentOperator) GetResourceSummary(
 		svcOp,
 		ingressOp,
 	)
-}
-
-// ==================== 辅助方法 ====================
-
-func (d *deploymentOperator) getAvailableContainerNames(deployment *appsv1.Deployment) []string {
-	names := make([]string, 0)
-	for _, c := range deployment.Spec.Template.Spec.InitContainers {
-		names = append(names, c.Name+" (init)")
-	}
-	for _, c := range deployment.Spec.Template.Spec.Containers {
-		names = append(names, c.Name)
-	}
-	return names
 }

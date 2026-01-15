@@ -17,7 +17,7 @@ type AddApplicationResource struct {
 }
 
 type AddClusterRoleRuleRequest struct {
-	ClusterUuid string         `json:"clusterUuid" validate:"required"` // 修改为 json
+	ClusterUuid string         `form:"clusterUuid" validate:"required"`
 	Name        string         `json:"name" validate:"required"`
 	Rule        PolicyRuleInfo `json:"rule" validate:"required"`
 }
@@ -30,7 +30,7 @@ type AddOnecProjectVersionReq struct {
 }
 
 type AddSubjectRequest struct {
-	ClusterUuid string      `json:"clusterUuid" validate:"required"` // 修改为 json
+	ClusterUuid string      `form:"clusterUuid" validate:"required"`
 	Name        string      `json:"name" validate:"required"`
 	Subject     SubjectInfo `json:"subject" validate:"required"`
 }
@@ -46,9 +46,9 @@ type AggregationRuleInfo struct {
 }
 
 type ApplicationAccessSummary struct {
-	InternalAccessList []string `json:"internalAccessList"`
-	ExternalAccessList []string `json:"externalAccessList"`
-	NodePortList       []string `json:"nodePortList"`
+	InternalAccessList []string `json:"internalAccessList"` // 内部访问域名列表（ClusterIP）
+	ExternalAccessList []string `json:"externalAccessList"` // 外部访问域名列表（LoadBalancer）
+	NodePortList       []string `json:"nodePortList"`       // NodePort 访问列表
 }
 
 type ApplicationServiceListResponse struct {
@@ -101,24 +101,16 @@ type ApplicationServiceRequest struct {
 }
 
 type ApplicationSummary struct {
-	PodCount         int                      `json:"podCount"`
-	AbnormalPodCount int                      `json:"abnormalPodCount"`
-	ServiceCount     int                      `json:"serviceCount"`
-	IngressCount     int                      `json:"ingressCount"`
-	Service          ApplicationAccessSummary `json:"service"`
-	IngressDomains   []string                 `json:"ingressDomains"`
+	PodCount         int                      `json:"podCount"`         // Pod 总数
+	AbnormalPodCount int                      `json:"abnormalPodCount"` // 异常 Pod 数量
+	ServiceCount     int                      `json:"serviceCount"`     // 关联的 Service 数量
+	IngressCount     int                      `json:"ingressCount"`     // 关联的 Ingress 数量
+	Service          ApplicationAccessSummary `json:"service"`          // Service 访问汇总
+	IngressDomains   []string                 `json:"ingressDomains"`   // Ingress 域名列表
 }
 
 type BatchDeleteRequest struct {
 	Ids []uint64 `json:"ids" validate:"required,min=1"` // ID列表
-}
-
-type CSIVolumeConfig struct {
-	Driver               string            `json:"driver"`
-	ReadOnly             bool              `json:"readOnly,optional"`
-	FSType               string            `json:"fsType,optional"`
-	VolumeAttributes     map[string]string `json:"volumeAttributes,optional"`
-	NodePublishSecretRef *SecretReference  `json:"nodePublishSecretRef,optional"`
 }
 
 type CanDeleteResponse struct {
@@ -241,12 +233,6 @@ type ClusterNamespaceRequest struct {
 	LabelSelector string `form:"labelSelector,optional"`
 }
 
-type ClusterNamespaceResourceDeleteRequest struct {
-	ClusterUuid string `json:"clusterUuid" validate:"required"`
-	Namespace   string `json:"namespace" validate:"required"`
-	Name        string `json:"name" validate:"required"`
-}
-
 type ClusterNamespaceResourceRequest struct {
 	ClusterUuid string `form:"clusterUuid" validate:"required"`
 	Namespace   string `form:"namespace" validate:"required"`
@@ -300,16 +286,6 @@ type ClusterNodeInfo struct {
 	Unschedulable int64   `json:"unschedulable"` // 是否可调度
 }
 
-type ClusterResourceActionRequest struct {
-	ClusterUuid string `json:"clusterUuid" validate:"required"`
-	Name        string `json:"name" validate:"required"`
-}
-
-type ClusterResourceDeleteRequest struct {
-	ClusterUuid string `json:"clusterUuid" validate:"required"`
-	Name        string `json:"name" validate:"required"`
-}
-
 type ClusterResourceListRequest struct {
 	ClusterUuid   string `form:"clusterUuid" validate:"required"`
 	Search        string `form:"search,optional"`        // 搜索关键字
@@ -327,7 +303,7 @@ type ClusterResourceNamesRequest struct {
 }
 
 type ClusterResourceYamlRequest struct {
-	ClusterUuid string `json:"clusterUuid" validate:"required"`
+	ClusterUuid string `form:"clusterUuid" validate:"required"`
 	YamlStr     string `json:"yamlStr" validate:"required"`
 }
 
@@ -425,354 +401,6 @@ type ClusterRoleUsageResponse struct {
 	DeleteWarning       string                  `json:"deleteWarning,optional"`
 }
 
-type CommAdvancedConfigResponse struct {
-	PodConfig  CommPodAdvancedConfig         `json:"podConfig"`
-	Containers []CommContainerAdvancedConfig `json:"containers"`
-}
-
-type CommAffinityConfig struct {
-	NodeAffinity    *CommNodeAffinity    `json:"nodeAffinity,optional"`
-	PodAffinity     *CommPodAffinity     `json:"podAffinity,optional"`
-	PodAntiAffinity *CommPodAntiAffinity `json:"podAntiAffinity,optional"`
-}
-
-type CommAppArmorProfile struct {
-	Type             string `json:"type"`
-	LocalhostProfile string `json:"localhostProfile,optional"`
-}
-
-type CommCapabilities struct {
-	Add  []string `json:"add,optional"`
-	Drop []string `json:"drop,optional"`
-}
-
-type CommContainerAdvancedConfig struct {
-	ContainerName   string                        `json:"containerName"`
-	ContainerType   string                        `json:"containerType,optional"`
-	Lifecycle       *CommLifecycle                `json:"lifecycle,optional"`
-	ImagePullPolicy string                        `json:"imagePullPolicy,optional"`
-	Command         []string                      `json:"command,optional"`
-	Args            []string                      `json:"args,optional"`
-	WorkingDir      string                        `json:"workingDir,optional"`
-	Stdin           bool                          `json:"stdin,optional"`
-	StdinOnce       bool                          `json:"stdinOnce,optional"`
-	TTY             bool                          `json:"tty,optional"`
-	SecurityContext *CommContainerSecurityContext `json:"securityContext,optional"`
-}
-
-type CommContainerImageInfo struct {
-	ContainerName string `json:"containerName"`
-	ContainerType string `json:"containerType"`
-	Image         string `json:"image"`
-}
-
-type CommContainerInfoList struct {
-	Containers []CommContainerImageInfo `json:"containers"`
-}
-
-type CommContainerProbes struct {
-	ContainerName  string     `json:"containerName"`
-	ContainerType  string     `json:"containerType"`
-	LivenessProbe  *CommProbe `json:"livenessProbe,optional"`
-	ReadinessProbe *CommProbe `json:"readinessProbe,optional"`
-	StartupProbe   *CommProbe `json:"startupProbe,optional"`
-}
-
-type CommContainerResources struct {
-	ContainerName string                   `json:"containerName"`
-	ContainerType string                   `json:"containerType"`
-	Resources     CommResourceRequirements `json:"resources"`
-}
-
-type CommContainerSecurityContext struct {
-	RunAsUser                int64                `json:"runAsUser,optional"`
-	RunAsGroup               int64                `json:"runAsGroup,optional"`
-	RunAsNonRoot             bool                 `json:"runAsNonRoot,optional"`
-	ReadOnlyRootFilesystem   bool                 `json:"readOnlyRootFilesystem,optional"`
-	Privileged               bool                 `json:"privileged,optional"`
-	AllowPrivilegeEscalation bool                 `json:"allowPrivilegeEscalation,optional"`
-	ProcMount                string               `json:"procMount,optional"`
-	Capabilities             *CommCapabilities    `json:"capabilities,optional"`
-	SeccompProfile           *CommSeccompProfile  `json:"seccompProfile,optional"`
-	SELinuxOptions           *CommSELinuxOptions  `json:"seLinuxOptions,optional"`
-	AppArmorProfile          *CommAppArmorProfile `json:"appArmorProfile,optional"`
-}
-
-type CommDNSConfig struct {
-	Nameservers []string              `json:"nameservers,optional"`
-	Searches    []string              `json:"searches,optional"`
-	Options     []CommDNSConfigOption `json:"options,optional"`
-}
-
-type CommDNSConfigOption struct {
-	Name  string `json:"name"`
-	Value string `json:"value,optional"`
-}
-
-type CommExecAction struct {
-	Command []string `json:"command"`
-}
-
-type CommGRPCAction struct {
-	Port    int32  `json:"port"`
-	Service string `json:"service,optional"`
-}
-
-type CommHTTPGetAction struct {
-	Path        string           `json:"path"`
-	Port        int32            `json:"port"`
-	Host        string           `json:"host,optional"`
-	Scheme      string           `json:"scheme,optional"`
-	HTTPHeaders []CommHTTPHeader `json:"httpHeaders,optional"`
-}
-
-type CommHTTPHeader struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
-
-type CommHostAlias struct {
-	IP        string   `json:"ip"`
-	Hostnames []string `json:"hostnames"`
-}
-
-type CommLabelSelectorConfig struct {
-	MatchLabels      map[string]string              `json:"matchLabels,optional"`
-	MatchExpressions []CommLabelSelectorRequirement `json:"matchExpressions,optional"`
-}
-
-type CommLabelSelectorRequirement struct {
-	Key      string   `json:"key"`
-	Operator string   `json:"operator"`
-	Values   []string `json:"values,optional"`
-}
-
-type CommLifecycle struct {
-	PostStart *CommLifecycleHandler `json:"postStart,optional"`
-	PreStop   *CommLifecycleHandler `json:"preStop,optional"`
-}
-
-type CommLifecycleHandler struct {
-	Type      string               `json:"type"`
-	Exec      *CommExecAction      `json:"exec,optional"`
-	HTTPGet   *CommHTTPGetAction   `json:"httpGet,optional"`
-	TCPSocket *CommTCPSocketAction `json:"tcpSocket,optional"`
-	Sleep     *CommSleepAction     `json:"sleep,optional"`
-}
-
-type CommNodeAffinity struct {
-	RequiredDuringSchedulingIgnoredDuringExecution  *CommNodeSelector             `json:"requiredDuringSchedulingIgnoredDuringExecution,optional"`
-	PreferredDuringSchedulingIgnoredDuringExecution []CommPreferredSchedulingTerm `json:"preferredDuringSchedulingIgnoredDuringExecution,optional"`
-}
-
-type CommNodeSelector struct {
-	NodeSelectorTerms []CommNodeSelectorTerm `json:"nodeSelectorTerms"`
-}
-
-type CommNodeSelectorRequirement struct {
-	Key      string   `json:"key"`
-	Operator string   `json:"operator"`
-	Values   []string `json:"values,optional"`
-}
-
-type CommNodeSelectorTerm struct {
-	MatchExpressions []CommNodeSelectorRequirement `json:"matchExpressions,optional"`
-	MatchFields      []CommNodeSelectorRequirement `json:"matchFields,optional"`
-}
-
-type CommPodAdvancedConfig struct {
-	TerminationGracePeriodSeconds int64                   `json:"terminationGracePeriodSeconds,optional"`
-	RestartPolicy                 string                  `json:"restartPolicy,optional"`
-	DNSPolicy                     string                  `json:"dnsPolicy,optional"`
-	DNSConfig                     *CommDNSConfig          `json:"dnsConfig,optional"`
-	HostNetwork                   bool                    `json:"hostNetwork,optional"`
-	HostPID                       bool                    `json:"hostPID,optional"`
-	HostIPC                       bool                    `json:"hostIPC,optional"`
-	HostUsers                     bool                    `json:"hostUsers,optional"`
-	Hostname                      string                  `json:"hostname,optional"`
-	Subdomain                     string                  `json:"subdomain,optional"`
-	HostAliases                   []CommHostAlias         `json:"hostAliases,optional"`
-	ServiceAccountName            string                  `json:"serviceAccountName,optional"`
-	AutomountServiceAccountToken  bool                    `json:"automountServiceAccountToken,optional"`
-	ImagePullSecrets              []string                `json:"imagePullSecrets,optional"`
-	PriorityClassName             string                  `json:"priorityClassName,optional"`
-	Priority                      int32                   `json:"priority,optional"`
-	PreemptionPolicy              string                  `json:"preemptionPolicy,optional"`
-	RuntimeClassName              string                  `json:"runtimeClassName,optional"`
-	SecurityContext               *CommPodSecurityContext `json:"securityContext,optional"`
-	ShareProcessNamespace         bool                    `json:"shareProcessNamespace,optional"`
-	OS                            *CommPodOS              `json:"os,optional"`
-	SchedulerName                 string                  `json:"schedulerName,optional"`
-	ActiveDeadlineSeconds         int64                   `json:"activeDeadlineSeconds,optional"`
-}
-
-type CommPodAffinity struct {
-	RequiredDuringSchedulingIgnoredDuringExecution  []CommPodAffinityTerm         `json:"requiredDuringSchedulingIgnoredDuringExecution,optional"`
-	PreferredDuringSchedulingIgnoredDuringExecution []CommWeightedPodAffinityTerm `json:"preferredDuringSchedulingIgnoredDuringExecution,optional"`
-}
-
-type CommPodAffinityTerm struct {
-	LabelSelector     *CommLabelSelectorConfig `json:"labelSelector,optional"`
-	Namespaces        []string                 `json:"namespaces,optional"`
-	TopologyKey       string                   `json:"topologyKey"`
-	NamespaceSelector *CommLabelSelectorConfig `json:"namespaceSelector,optional"`
-}
-
-type CommPodAntiAffinity struct {
-	RequiredDuringSchedulingIgnoredDuringExecution  []CommPodAffinityTerm         `json:"requiredDuringSchedulingIgnoredDuringExecution,optional"`
-	PreferredDuringSchedulingIgnoredDuringExecution []CommWeightedPodAffinityTerm `json:"preferredDuringSchedulingIgnoredDuringExecution,optional"`
-}
-
-type CommPodOS struct {
-	Name string `json:"name"`
-}
-
-type CommPodSecurityContext struct {
-	RunAsUser           int64                              `json:"runAsUser,optional"`
-	RunAsGroup          int64                              `json:"runAsGroup,optional"`
-	RunAsNonRoot        bool                               `json:"runAsNonRoot,optional"`
-	SupplementalGroups  []int64                            `json:"supplementalGroups,optional"`
-	FSGroup             int64                              `json:"fsGroup,optional"`
-	FSGroupChangePolicy string                             `json:"fsGroupChangePolicy,optional"`
-	SeccompProfile      *CommSeccompProfile                `json:"seccompProfile,optional"`
-	SELinuxOptions      *CommSELinuxOptions                `json:"seLinuxOptions,optional"`
-	AppArmorProfile     *CommAppArmorProfile               `json:"appArmorProfile,optional"`
-	Sysctls             []CommSysctl                       `json:"sysctls,optional"`
-	WindowsOptions      *CommWindowsSecurityContextOptions `json:"windowsOptions,optional"`
-}
-
-type CommPreferredSchedulingTerm struct {
-	Weight     int32                `json:"weight"`
-	Preference CommNodeSelectorTerm `json:"preference"`
-}
-
-type CommProbe struct {
-	Type                string               `json:"type"`
-	HttpGet             *CommHTTPGetAction   `json:"httpGet,optional"`
-	TcpSocket           *CommTCPSocketAction `json:"tcpSocket,optional"`
-	Exec                *CommExecAction      `json:"exec,optional"`
-	Grpc                *CommGRPCAction      `json:"grpc,optional"`
-	InitialDelaySeconds int32                `json:"initialDelaySeconds,optional"`
-	TimeoutSeconds      int32                `json:"timeoutSeconds,optional"`
-	PeriodSeconds       int32                `json:"periodSeconds,optional"`
-	SuccessThreshold    int32                `json:"successThreshold,optional"`
-	FailureThreshold    int32                `json:"failureThreshold,optional"`
-}
-
-type CommProbesResponse struct {
-	Containers []CommContainerProbes `json:"containers"`
-}
-
-type CommResourceList struct {
-	Cpu    string `json:"cpu,optional"`
-	Memory string `json:"memory,optional"`
-}
-
-type CommResourceRequirements struct {
-	Limits   CommResourceList `json:"limits,optional"`
-	Requests CommResourceList `json:"requests,optional"`
-}
-
-type CommResourcesResponse struct {
-	Containers []CommContainerResources `json:"containers"`
-}
-
-type CommSELinuxOptions struct {
-	User  string `json:"user,optional"`
-	Role  string `json:"role,optional"`
-	Type  string `json:"type,optional"`
-	Level string `json:"level,optional"`
-}
-
-type CommSchedulingConfig struct {
-	NodeSelector              map[string]string              `json:"nodeSelector,optional"`
-	NodeName                  string                         `json:"nodeName,optional"`
-	Affinity                  *CommAffinityConfig            `json:"affinity,optional"`
-	Tolerations               []CommToleration               `json:"tolerations,optional"`
-	TopologySpreadConstraints []CommTopologySpreadConstraint `json:"topologySpreadConstraints,optional"`
-}
-
-type CommSeccompProfile struct {
-	Type             string `json:"type"`
-	LocalhostProfile string `json:"localhostProfile,optional"`
-}
-
-type CommSleepAction struct {
-	Seconds int64 `json:"seconds"`
-}
-
-type CommSysctl struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
-}
-
-type CommTCPSocketAction struct {
-	Port int32  `json:"port"`
-	Host string `json:"host,optional"`
-}
-
-type CommToleration struct {
-	Key               string `json:"key,optional"`
-	Operator          string `json:"operator,optional"`
-	Value             string `json:"value,optional"`
-	Effect            string `json:"effect,optional"`
-	TolerationSeconds int64  `json:"tolerationSeconds,optional"`
-}
-
-type CommTopologySpreadConstraint struct {
-	MaxSkew            int32                    `json:"maxSkew"`
-	TopologyKey        string                   `json:"topologyKey"`
-	WhenUnsatisfiable  string                   `json:"whenUnsatisfiable"`
-	LabelSelector      *CommLabelSelectorConfig `json:"labelSelector,optional"`
-	MinDomains         int32                    `json:"minDomains,optional"`
-	NodeAffinityPolicy string                   `json:"nodeAffinityPolicy,optional"`
-	NodeTaintsPolicy   string                   `json:"nodeTaintsPolicy,optional"`
-	MatchLabelKeys     []string                 `json:"matchLabelKeys,optional"`
-}
-
-type CommUpdateAdvancedConfigRequest struct {
-	Id         uint64                        `path:"id" validate:"required,min=1"`
-	PodConfig  *CommPodAdvancedConfig        `json:"podConfig,optional"`
-	Containers []CommContainerAdvancedConfig `json:"containers,optional"`
-}
-
-type CommUpdateImagesRequest struct {
-	Id         uint64                `path:"id" validate:"required,min=1"`
-	Containers CommContainerInfoList `json:"containers"`
-	Reason     string                `json:"reason,optional"`
-}
-
-type CommUpdateProbesRequest struct {
-	Id         uint64                `path:"id" validate:"required,min=1"`
-	Containers []CommContainerProbes `json:"containers"`
-}
-
-type CommUpdateResourcesRequest struct {
-	Id         uint64                   `path:"id" validate:"required,min=1"`
-	Containers []CommContainerResources `json:"containers"`
-}
-
-type CommUpdateSchedulingConfigRequest struct {
-	Id                        uint64                         `path:"id" validate:"required,min=1"`
-	NodeSelector              map[string]string              `json:"nodeSelector,optional"`
-	NodeName                  string                         `json:"nodeName,optional"`
-	Affinity                  *CommAffinityConfig            `json:"affinity,optional"`
-	Tolerations               []CommToleration               `json:"tolerations,optional"`
-	TopologySpreadConstraints []CommTopologySpreadConstraint `json:"topologySpreadConstraints,optional"`
-}
-
-type CommWeightedPodAffinityTerm struct {
-	Weight          int32               `json:"weight"`
-	PodAffinityTerm CommPodAffinityTerm `json:"podAffinityTerm"`
-}
-
-type CommWindowsSecurityContextOptions struct {
-	GMSACredentialSpecName string `json:"gmsaCredentialSpecName,optional"`
-	GMSACredentialSpec     string `json:"gmsaCredentialSpec,optional"`
-	RunAsUserName          string `json:"runAsUserName,optional"`
-	HostProcess            bool   `json:"hostProcess,optional"`
-}
-
 type ConfigHistoryInfo struct {
 	Id          uint64   `json:"id"`
 	Revision    int32    `json:"revision"`
@@ -801,7 +429,7 @@ type ConfigMapDetail struct {
 type ConfigMapKeySelector struct {
 	Name     string `json:"name"`
 	Key      string `json:"key"`
-	Optional bool   `json:"optional,optional"`
+	Optional bool   `json:"optional"`
 }
 
 type ConfigMapListItem struct {
@@ -815,12 +443,6 @@ type ConfigMapListItem struct {
 type ConfigMapListResponse struct {
 	Total int                 `json:"total"`
 	Items []ConfigMapListItem `json:"items"`
-}
-
-type ConfigMapProjectionConfig struct {
-	Name     string            `json:"name"`
-	Items    []KeyToPathConfig `json:"items,optional"`
-	Optional bool              `json:"optional,optional"`
 }
 
 type ConfigMapRequest struct {
@@ -858,7 +480,6 @@ type ConfigMapVolumeConfig struct {
 
 type ContainerEnvVars struct {
 	ContainerName string   `json:"containerName"`
-	ContainerType string   `json:"containerType"`
 	Env           []EnvVar `json:"env"`
 }
 
@@ -873,6 +494,18 @@ type ContainerInfoList struct {
 	EphemeralContainers []ContainerInfo `json:"ephemeralContainers,optional"`
 }
 
+type ContainerProbes struct {
+	ContainerName  string `json:"containerName"`
+	LivenessProbe  *Probe `json:"livenessProbe,optional"`
+	ReadinessProbe *Probe `json:"readinessProbe,optional"`
+	StartupProbe   *Probe `json:"startupProbe,optional"`
+}
+
+type ContainerResources struct {
+	ContainerName string               `json:"containerName"`
+	Resources     ResourceRequirements `json:"resources"`
+}
+
 type CreateCanaryRequest struct {
 	WorkloadId     uint64 `json:"workloadId" validate:"required,min=1"`
 	VersionId      uint64 `json:"versionId" validate:"required,min=1"`
@@ -880,16 +513,16 @@ type CreateCanaryRequest struct {
 }
 
 type CronJobHistoryItem struct {
-	Name              string `json:"name"`
-	Status            string `json:"status"`
-	Completions       int32  `json:"completions"`
-	Succeeded         int32  `json:"succeeded"`
-	Active            int32  `json:"active"`
-	Failed            int32  `json:"failed"`
-	StartTime         int64  `json:"startTime,optional"`
-	CompletionTime    int64  `json:"completionTime,optional"`
-	Duration          string `json:"duration,optional"`
-	CreationTimestamp int64  `json:"creationTimestamp"`
+	Name              string `json:"name"`                    // Job 名称
+	Status            string `json:"status"`                  // 状态: Completed, Failed, Running, Suspended
+	Completions       int32  `json:"completions"`             // 期望完成数
+	Succeeded         int32  `json:"succeeded"`               // 已成功数
+	Active            int32  `json:"active"`                  // 运行中数
+	Failed            int32  `json:"failed"`                  // 失败数
+	StartTime         int64  `json:"startTime,optional"`      // 开始时间（Unix 时间戳，秒）
+	CompletionTime    int64  `json:"completionTime,optional"` // 完成时间（Unix 时间戳，秒）
+	Duration          string `json:"duration,optional"`       // 持续时间（格式化字符串，如 "2m30s"）
+	CreationTimestamp int64  `json:"creationTimestamp"`       // 创建时间（Unix 时间戳，秒）
 }
 
 type CronJobHistoryResponse struct {
@@ -916,11 +549,6 @@ type DefaultIdRequest struct {
 	Id uint64 `path:"id" validate:"required,gt=0"` // ID
 }
 
-type DefaultNameDeleteRequest struct {
-	WorkloadId uint64 `json:"workloadId" validate:"required,min=1"`
-	Name       string `json:"name" validate:"required"`
-}
-
 type DefaultNameRequest struct {
 	WorkloadId uint64 `form:"workloadId" validate:"required,min=1"`
 	Name       string `form:"name" validate:"required"`
@@ -939,27 +567,6 @@ type DefaultPodNameRequest struct {
 type DeleteCanaryRequest struct {
 	WorkloadId uint64 `json:"workloadId" validate:"required,min=1"`
 	Name       string `json:"name" validate:"required"`
-}
-
-type DeleteJobNameRequest struct {
-	Id      uint64 `path:"id" validate:"required,min=1"`
-	JobName string `json:"jobName" validate:"required"`
-}
-
-type DownwardAPIProjectionConfig struct {
-	Items []DownwardAPIVolumeFileConfig `json:"items"`
-}
-
-type DownwardAPIVolumeConfig struct {
-	Items       []DownwardAPIVolumeFileConfig `json:"items,optional"`
-	DefaultMode int32                         `json:"defaultMode,optional"`
-}
-
-type DownwardAPIVolumeFileConfig struct {
-	Path             string                 `json:"path"`
-	FieldRef         *ObjectFieldSelector   `json:"fieldRef,optional"`
-	ResourceFieldRef *ResourceFieldSelector `json:"resourceFieldRef,optional"`
-	Mode             int32                  `json:"mode,optional"`
 }
 
 type EmptyDirVolumeConfig struct {
@@ -1027,6 +634,15 @@ type EventsQueryRequest struct {
 	Type               string `form:"type,optional"`
 	Page               int    `form:"page,default=1"`
 	PageSize           int    `form:"pageSize,default=20"`
+}
+
+type ExecAction struct {
+	Command []string `json:"command"`
+}
+
+type GRPCAction struct {
+	Port    int32  `json:"port"`
+	Service string `json:"service,optional"`
 }
 
 type GetAppIngressRequest struct {
@@ -1228,6 +844,19 @@ type HPAScalingRules struct {
 	Policies                   []HPAScalingPolicy `json:"policies,optional"`
 }
 
+type HTTPGetAction struct {
+	Path        string       `json:"path"`
+	Port        int32        `json:"port"`
+	Host        string       `json:"host,optional"`
+	Scheme      string       `json:"scheme,optional"`
+	HttpHeaders []HTTPHeader `json:"httpHeaders,optional"`
+}
+
+type HTTPHeader struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 type HostPathVolumeConfig struct {
 	Path string `json:"path"`
 	Type string `json:"type,optional"`
@@ -1239,11 +868,6 @@ type IngressBackendInfo struct {
 	ResourceRef IngressResourceRef `json:"resourceRef,optional"`
 }
 
-type IngressClassActionRequest struct {
-	ClusterUuid string `json:"clusterUuid" validate:"required"`
-	Name        string `json:"name" validate:"required"`
-}
-
 type IngressClassControllerStatus struct {
 	IngressClassName   string   `json:"ingressClassName"`
 	ControllerName     string   `json:"controllerName"`
@@ -1251,11 +875,6 @@ type IngressClassControllerStatus struct {
 	ControllerReady    bool     `json:"controllerReady"`
 	ControllerReplicas int      `json:"controllerReplicas,optional"`
 	Namespace          string   `json:"namespace,optional"`
-}
-
-type IngressClassDeleteRequest struct {
-	ClusterUuid string `json:"clusterUuid" validate:"required"`
-	Name        string `json:"name" validate:"required"`
 }
 
 type IngressClassDetail struct {
@@ -1416,16 +1035,16 @@ type InjectEphemeralContainerWithClusterUuidRequest struct {
 type JobInfo struct {
 	Name              string `json:"name"`
 	Namespace         string `json:"namespace"`
-	Completions       int32  `json:"completions"`
-	Parallelism       int32  `json:"parallelism"`
-	Succeeded         int32  `json:"succeeded"`
-	Failed            int32  `json:"failed"`
-	Active            int32  `json:"active"`
-	StartTime         int64  `json:"startTime,optional"`
-	CompletionTime    int64  `json:"completionTime,optional"`
-	Duration          string `json:"duration"`
-	Status            string `json:"status"`
-	CreationTimestamp int64  `json:"creationTimestamp"`
+	Completions       int32  `json:"completions"`             // 期望完成的 Pod 数
+	Parallelism       int32  `json:"parallelism"`             // 并行运行的 Pod 数
+	Succeeded         int32  `json:"succeeded"`               // 成功完成的 Pod 数
+	Failed            int32  `json:"failed"`                  // 失败的 Pod 数
+	Active            int32  `json:"active"`                  // 运行中的 Pod 数
+	StartTime         int64  `json:"startTime,optional"`      // Unix 时间戳（秒）
+	CompletionTime    int64  `json:"completionTime,optional"` // Unix 时间戳（秒）
+	Duration          string `json:"duration"`                // 运行时长
+	Status            string `json:"status"`                  // Running, Completed, Failed, Suspended
+	CreationTimestamp int64  `json:"creationTimestamp"`       // Unix 时间戳（秒）
 }
 
 type JobParallelismConfig struct {
@@ -1436,17 +1055,17 @@ type JobParallelismConfig struct {
 }
 
 type JobSpecConfig struct {
-	Parallelism             int32                   `json:"parallelism,optional"`
-	Completions             int32                   `json:"completions,optional"`
-	BackoffLimit            int32                   `json:"backoffLimit,optional"`
-	ActiveDeadlineSeconds   int64                   `json:"activeDeadlineSeconds,optional"`
-	TTLSecondsAfterFinished int32                   `json:"ttlSecondsAfterFinished,optional"`
-	CompletionMode          string                  `json:"completionMode"`
-	Suspend                 bool                    `json:"suspend"`
-	PodReplacementPolicy    string                  `json:"podReplacementPolicy"`
-	BackoffLimitPerIndex    int32                   `json:"backoffLimitPerIndex,optional"`
-	MaxFailedIndexes        int32                   `json:"maxFailedIndexes,optional"`
-	PodFailurePolicy        *PodFailurePolicyConfig `json:"podFailurePolicy,optional"`
+	Parallelism             int32                   `json:"parallelism,optional"`             // goctl 生成: *int32
+	Completions             int32                   `json:"completions,optional"`             // goctl 生成: *int32
+	BackoffLimit            int32                   `json:"backoffLimit,optional"`            // goctl 生成: *int32
+	ActiveDeadlineSeconds   int64                   `json:"activeDeadlineSeconds,optional"`   // goctl 生成: *int64
+	TTLSecondsAfterFinished int32                   `json:"ttlSecondsAfterFinished,optional"` // goctl 生成: *int32
+	CompletionMode          string                  `json:"completionMode"`                   // goctl 生成: string
+	Suspend                 bool                    `json:"suspend"`                          // goctl 生成: bool
+	PodReplacementPolicy    string                  `json:"podReplacementPolicy"`             // goctl 生成: string
+	BackoffLimitPerIndex    int32                   `json:"backoffLimitPerIndex,optional"`    // goctl 生成: *int32
+	MaxFailedIndexes        int32                   `json:"maxFailedIndexes,optional"`        // goctl 生成: *int32
+	PodFailurePolicy        *PodFailurePolicyConfig `json:"podFailurePolicy,optional"`        // goctl 生成: *PodFailurePolicyConfig
 }
 
 type KeyToPathConfig struct {
@@ -1482,10 +1101,10 @@ type ListJobsRequest struct {
 	Namespace string `form:"namespace,optional"`
 	Page      int    `form:"page,default=1" validate:"min=1"`
 	PageSize  int    `form:"pageSize,default=20" validate:"min=1"`
-	Search    string `form:"search,optional"`
-	Labels    string `form:"labels,optional"`
-	SortBy    string `form:"sortBy,optional"`
-	SortDesc  bool   `form:"sortDesc,optional"`
+	Search    string `form:"search,optional"`   // 搜索关键字（支持名称模糊匹配）
+	Labels    string `form:"labels,optional"`   // 标签选择器，如 "env=prod,tier=frontend"
+	SortBy    string `form:"sortBy,optional"`   // 排序字段: name, creationTime, status
+	SortDesc  bool   `form:"sortDesc,optional"` // 是否降序排序
 }
 
 type ListJobsResponse struct {
@@ -1501,10 +1120,10 @@ type ListPodsWithPaginationRequest struct {
 	Namespace string `form:"namespace,optional"`
 	Page      int    `form:"page,default=1" validate:"min=1"`
 	PageSize  int    `form:"pageSize,default=20" validate:"min=1"`
-	Search    string `form:"search,optional"`
-	Labels    string `form:"labels,optional"`
-	SortBy    string `form:"sortBy,optional"`
-	SortDesc  bool   `form:"sortDesc,optional"`
+	Search    string `form:"search,optional"`   // 搜索关键字（支持名称模糊匹配）
+	Labels    string `form:"labels,optional"`   // 标签选择器，如 "env=prod,tier=frontend"
+	SortBy    string `form:"sortBy,optional"`   // 排序字段: name, creationTime, status
+	SortDesc  bool   `form:"sortDesc,optional"` // 是否降序排序
 }
 
 type ListPodsWithPaginationResponse struct {
@@ -1522,10 +1141,10 @@ type ListRequest struct {
 }
 
 type ListResponse struct {
-	Total      int `json:"total"`
-	Page       int `json:"page"`
-	PageSize   int `json:"pageSize"`
-	TotalPages int `json:"totalPages"`
+	Total      int `json:"total"`      // 总数量
+	Page       int `json:"page"`       // 当前页码
+	PageSize   int `json:"pageSize"`   // 每页大小
+	TotalPages int `json:"totalPages"` // 总页数
 }
 
 type MatchInfo struct {
@@ -1548,26 +1167,20 @@ type MetricInfo struct {
 	TemplateRef    TemplateRef    `json:"templateRef,optional"`    // 模板引用
 }
 
-type MonitoringResourceDeleteRequest struct {
-	ClusterUuid string `json:"clusterUuid" validate:"required"`
-	Namespace   string `json:"namespace" validate:"required"`
-	Name        string `json:"name" validate:"required"`
-}
-
 type MonitoringResourceListRequest struct {
 	ClusterUuid string `form:"clusterUuid" validate:"required"`
-	Namespace   string `form:"namespace,optional"`
+	Namespace   string `form:"namespace,optional" `
 	Search      string `form:"search,optional"` // 搜索关键字
 }
 
 type MonitoringResourceNameRequest struct {
 	ClusterUuid string `form:"clusterUuid" validate:"required"`
-	Namespace   string `form:"namespace,optional"`
+	Namespace   string `form:"namespace,optional" `
 	Name        string `form:"name,optional"`
 }
 
 type MonitoringResourceYamlRequest struct {
-	ClusterUuid string `json:"clusterUuid" validate:"required"`
+	ClusterUuid string `form:"clusterUuid" validate:"required"`
 	Namespace   string `json:"namespace" validate:"required"`
 	YamlStr     string `json:"yamlStr" validate:"required"`
 }
@@ -1578,129 +1191,16 @@ type NFSVolumeConfig struct {
 	ReadOnly bool   `json:"readOnly,optional"`
 }
 
-type NPEgressRuleInfo struct {
-	Ports []NPNetworkPolicyPortInfo `json:"ports"`
-	To    []NPNetworkPolicyPeerInfo `json:"to"`
-}
-
-type NPIPBlockInfo struct {
-	CIDR   string   `json:"cidr"`
-	Except []string `json:"except,omitempty"`
-}
-
-type NPIngressRuleInfo struct {
-	Ports []NPNetworkPolicyPortInfo `json:"ports"`
-	From  []NPNetworkPolicyPeerInfo `json:"from"`
-}
-
-type NPMatchExpression struct {
-	Key      string   `json:"key"`
-	Operator string   `json:"operator"`
-	Values   []string `json:"values,omitempty"`
-}
-
-type NPNetworkPolicyPeerInfo struct {
-	PodSelector            map[string]string   `json:"podSelector,omitempty"`
-	PodSelectorExprs       []NPMatchExpression `json:"podSelectorExprs,omitempty"`
-	NamespaceSelector      map[string]string   `json:"namespaceSelector,omitempty"`
-	NamespaceSelectorExprs []NPMatchExpression `json:"namespaceSelectorExprs,omitempty"`
-	IPBlock                *NPIPBlockInfo      `json:"ipBlock,omitempty"`
-}
-
-type NPNetworkPolicyPortInfo struct {
-	Protocol  string `json:"protocol,omitempty"`
-	Port      int32  `json:"port,omitempty"`
-	EndPort   int32  `json:"endPort,omitempty"`
-	NamedPort string `json:"namedPort,omitempty"`
-}
-
-type NamespaceLabelsRequest struct {
-	ClusterUuid string `form:"clusterUuid" validate:"required"`
-	Namespace   string `form:"namespace" validate:"required"`
-}
-
-type NamespaceLabelsResponse struct {
-	Labels map[string]string `json:"labels"` // Namespace 标签
-}
-
 type NamespacedRoleInfo struct {
 	RoleName  string `json:"roleName"`
 	RoleKind  string `json:"roleKind"`
 	Namespace string `json:"namespace"`
 }
 
-type NetworkPolicyAffectedPod struct {
-	Name      string            `json:"name"`
-	Namespace string            `json:"namespace"`
-	Labels    map[string]string `json:"labels"`
-	Matched   bool              `json:"matched"`
-	Reason    string            `json:"reason"`
-}
-
-type NetworkPolicyAffectedPodsResponse struct {
-	NetworkPolicyName string                     `json:"networkPolicyName"`
-	NetworkPolicyNS   string                     `json:"networkPolicyNamespace"`
-	AffectedPods      []NetworkPolicyAffectedPod `json:"affectedPods"`
-	TotalAffected     int                        `json:"totalAffected"`
-}
-
-type NetworkPolicyDeleteRequest struct {
-	ClusterUuid string `json:"clusterUuid" validate:"required"`
-	Namespace   string `json:"namespace" validate:"required"`
-	Name        string `json:"name" validate:"required"`
-}
-
-type NetworkPolicyDetail struct {
-	Name                        string              `json:"name"`
-	Namespace                   string              `json:"namespace"`
-	PodSelector                 map[string]string   `json:"podSelector"`
-	PodSelectorMatchExpressions []NPMatchExpression `json:"podSelectorMatchExpressions,omitempty"`
-	IngressRules                []NPIngressRuleInfo `json:"ingressRules"`
-	EgressRules                 []NPEgressRuleInfo  `json:"egressRules"`
-	PolicyTypes                 []string            `json:"policyTypes"`
-	Labels                      map[string]string   `json:"labels,optional"`
-	Annotations                 map[string]string   `json:"annotations,optional"`
-	Age                         string              `json:"age"`
-	CreationTimestamp           int64               `json:"creationTimestamp"`
-}
-
-type NetworkPolicyListItem struct {
-	Name              string            `json:"name"`
-	Namespace         string            `json:"namespace"`
-	Age               string            `json:"age"`
-	CreationTimestamp int64             `json:"creationTimestamp"`
-	Labels            map[string]string `json:"labels,optional"`
-	Annotations       map[string]string `json:"annotations,optional"`
-}
-
-type NetworkPolicyListRequest struct {
-	ClusterUuid   string `form:"clusterUuid" validate:"required"`
-	Namespace     string `form:"namespace,optional"`
-	Search        string `form:"search,optional"`
-	LabelSelector string `form:"labelSelector,optional"`
-}
-
-type NetworkPolicyListResponse struct {
-	Total int                     `json:"total"`
-	Items []NetworkPolicyListItem `json:"items"`
-}
-
-type NetworkPolicyNameRequest struct {
-	ClusterUuid string `form:"clusterUuid" validate:"required"`
-	Namespace   string `form:"namespace,optional"`
-	Name        string `form:"name,optional"`
-}
-
-type NetworkPolicyYamlRequest struct {
-	ClusterUuid string `json:"clusterUuid" validate:"required"`
-	Namespace   string `json:"namespace" validate:"required"`
-	YamlStr     string `json:"yamlStr" validate:"required"`
-}
-
 type NextScheduleTimeResponse struct {
-	NextScheduleTime int64  `json:"nextScheduleTime,optional"`
+	NextScheduleTime int64  `json:"nextScheduleTime,optional"` // goctl 生成: *int64
 	Schedule         string `json:"schedule"`
-	Timezone         string `json:"timezone,optional"`
+	Timezone         string `json:"timezone,optional"` // goctl 生成: *string
 	IsSuspended      bool   `json:"isSuspended"`
 	CurrentTime      int64  `json:"currentTime"`
 }
@@ -2002,7 +1502,7 @@ type PodDetailInfo struct {
 	Node         string            `json:"node"`
 	PodIP        string            `json:"podIP"`
 	Labels       map[string]string `json:"labels"`
-	CreationTime int64             `json:"creationTime"`
+	CreationTime int64             `json:"creationTime"` // Unix 时间戳（毫秒）
 }
 
 type PodFailurePolicyConfig struct {
@@ -2010,7 +1510,7 @@ type PodFailurePolicyConfig struct {
 }
 
 type PodFailurePolicyOnExitCodesRequirement struct {
-	ContainerName string  `json:"containerName,optional"`
+	ContainerName string  `json:"containerName,optional"` // goctl 会自动转为 *string
 	Operator      string  `json:"operator"`
 	Values        []int32 `json:"values"`
 }
@@ -2052,11 +1552,6 @@ type PodResourceList struct {
 	Containers   ContainerInfoList `json:"containers"`
 }
 
-type PodSelectorResponse struct {
-	MatchLabels map[string]string `json:"matchLabels"` // 匹配的标签
-	Labels      map[string]string `json:"labels"`      // 资源自身的标签
-}
-
 type PolicyRuleInfo struct {
 	APIGroups       []string `json:"apiGroups"`                // "", apps, batch 等
 	Resources       []string `json:"resources"`                // pods, deployments 等
@@ -2068,6 +1563,19 @@ type PolicyRuleInfo struct {
 type PreferredSchedulingTermConfig struct {
 	Weight     int32                  `json:"weight"`
 	Preference NodeSelectorTermConfig `json:"preference"`
+}
+
+type Probe struct {
+	Type                string           `json:"type"`
+	HttpGet             *HTTPGetAction   `json:"httpGet,optional"`
+	TcpSocket           *TCPSocketAction `json:"tcpSocket,optional"`
+	Exec                *ExecAction      `json:"exec,optional"`
+	Grpc                *GRPCAction      `json:"grpc,optional"`
+	InitialDelaySeconds int32            `json:"initialDelaySeconds,optional"`
+	TimeoutSeconds      int32            `json:"timeoutSeconds,optional"`
+	PeriodSeconds       int32            `json:"periodSeconds,optional"`
+	SuccessThreshold    int32            `json:"successThreshold,optional"`
+	FailureThreshold    int32            `json:"failureThreshold,optional"`
 }
 
 type ProbeListItem struct {
@@ -2084,9 +1592,8 @@ type ProbeListResponse struct {
 	Items []ProbeListItem `json:"items"`
 }
 
-type ProjectedVolumeConfig struct {
-	Sources     []VolumeProjectionConfig `json:"sources"`
-	DefaultMode int32                    `json:"defaultMode,optional"`
+type ProbesResponse struct {
+	Containers []ContainerProbes `json:"containers"`
 }
 
 type PrometheusRuleListItem struct {
@@ -2104,13 +1611,13 @@ type PrometheusRuleListResponse struct {
 }
 
 type RemoveClusterRoleRuleRequest struct {
-	ClusterUuid string `json:"clusterUuid" validate:"required"` // 修改为 json
+	ClusterUuid string `form:"clusterUuid" validate:"required"`
 	Name        string `json:"name" validate:"required"`
 	RuleIndex   int    `json:"ruleIndex" validate:"min=0"`
 }
 
 type RemoveSubjectRequest struct {
-	ClusterUuid      string `json:"clusterUuid" validate:"required"` // 修改为 json
+	ClusterUuid      string `form:"clusterUuid" validate:"required"`
 	Name             string `json:"name" validate:"required"`
 	SubjectKind      string `json:"subjectKind" validate:"required"`
 	SubjectName      string `json:"subjectName" validate:"required"`
@@ -2126,6 +1633,20 @@ type ResourceFieldSelector struct {
 	ContainerName string `json:"containerName,optional"`
 	Resource      string `json:"resource"`
 	Divisor       string `json:"divisor,optional"`
+}
+
+type ResourceList struct {
+	Cpu    string `json:"cpu,optional"`
+	Memory string `json:"memory,optional"`
+}
+
+type ResourceRequirements struct {
+	Limits   ResourceList `json:"limits,optional"`
+	Requests ResourceList `json:"requests,optional"`
+}
+
+type ResourcesResponse struct {
+	Containers []ContainerResources `json:"containers"`
 }
 
 type RevisionInfo struct {
@@ -2293,7 +1814,7 @@ type SecretDetail struct {
 type SecretKeySelector struct {
 	Name     string `json:"name"`
 	Key      string `json:"key"`
-	Optional bool   `json:"optional,optional"`
+	Optional bool   `json:"optional"`
 }
 
 type SecretListItem struct {
@@ -2316,16 +1837,6 @@ type SecretListRequest struct {
 type SecretListResponse struct {
 	Total int              `json:"total"`
 	Items []SecretListItem `json:"items"`
-}
-
-type SecretProjectionConfig struct {
-	Name     string            `json:"name"`
-	Items    []KeyToPathConfig `json:"items,optional"`
-	Optional bool              `json:"optional,optional"`
-}
-
-type SecretReference struct {
-	Name string `json:"name"`
 }
 
 type SecretRequest struct {
@@ -2399,12 +1910,6 @@ type ServiceAccountListItem struct {
 type ServiceAccountListResponse struct {
 	Total int                      `json:"total"`
 	Items []ServiceAccountListItem `json:"items"`
-}
-
-type ServiceAccountTokenProjectionConfig struct {
-	Audience          string `json:"audience"`
-	ExpirationSeconds int64  `json:"expirationSeconds,optional"`
-	Path              string `json:"path"`
 }
 
 type ServiceDetail struct {
@@ -2513,12 +2018,12 @@ type SessionAffinityConfig struct {
 }
 
 type SetDefaultIngressClassRequest struct {
-	ClusterUuid string `json:"clusterUuid" validate:"required"` // 修改为 json
+	ClusterUuid string `form:"clusterUuid" validate:"required"`
 	Name        string `json:"name" validate:"required"`
 }
 
 type SetDefaultStorageClassRequest struct {
-	ClusterUuid string `json:"clusterUuid" validate:"required"`
+	ClusterUuid string `form:"clusterUuid" validate:"required"`
 	Name        string `json:"name" validate:"required"`
 }
 
@@ -2575,8 +2080,8 @@ type StorageClassPVResponse struct {
 }
 
 type StorageConfig struct {
-	Volumes              []VolumeConfig                `json:"volumes"`
-	VolumeMounts         []VolumeMountConfig           `json:"volumeMounts"`
+	Volumes              []VolumeConfig                `json:"volumes,optional"`
+	VolumeMounts         []VolumeMountConfig           `json:"volumeMounts,optional"`
 	VolumeClaimTemplates []PersistentVolumeClaimConfig `json:"volumeClaimTemplates,optional"`
 }
 
@@ -2607,6 +2112,11 @@ type SubjectInfo struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace,optional"` // 仅对 ServiceAccount 有效
 	APIGroup  string `json:"apiGroup,optional"`
+}
+
+type TCPSocketAction struct {
+	Port int32  `json:"port"`
+	Host string `json:"host,optional"`
 }
 
 type TLSPolicy struct {
@@ -2674,8 +2184,9 @@ type UpdateCronJobScheduleRequest struct {
 }
 
 type UpdateEnvVarsRequest struct {
-	Id         uint64             `path:"id" validate:"required,min=1"`
-	Containers []ContainerEnvVars `json:"containers"`
+	Id            uint64   `path:"id" validate:"required,min=1"`
+	ContainerName string   `json:"containerName" validate:"required"`
+	Env           []EnvVar `json:"env"`
 }
 
 type UpdateImageRequest struct {
@@ -2683,6 +2194,11 @@ type UpdateImageRequest struct {
 	ContainerName string `json:"containerName" validate:"required"`
 	Image         string `json:"image" validate:"required"`
 	Reason        string `json:"reason,optional" `
+}
+
+type UpdateImagesRequest struct {
+	Id                uint64            `path:"id" validate:"required,min=1"`
+	ContainerInfoList ContainerInfoList `json:"containerInfoList"`
 }
 
 type UpdateJobParallelismRequest struct {
@@ -2695,17 +2211,17 @@ type UpdateJobParallelismRequest struct {
 
 type UpdateJobSpecRequest struct {
 	Id                      uint64                  `path:"id" validate:"required,min=1"`
-	Parallelism             int32                   `json:"parallelism,optional"`
-	Completions             int32                   `json:"completions,optional"`
-	BackoffLimit            int32                   `json:"backoffLimit,optional"`
-	ActiveDeadlineSeconds   int64                   `json:"activeDeadlineSeconds,optional"`
-	TTLSecondsAfterFinished int32                   `json:"ttlSecondsAfterFinished,optional"`
-	CompletionMode          string                  `json:"completionMode,optional"`
-	Suspend                 bool                    `json:"suspend,optional"`
-	PodReplacementPolicy    string                  `json:"podReplacementPolicy,optional"`
-	BackoffLimitPerIndex    int32                   `json:"backoffLimitPerIndex,optional"`
-	MaxFailedIndexes        int32                   `json:"maxFailedIndexes,optional"`
-	PodFailurePolicy        *PodFailurePolicyConfig `json:"podFailurePolicy,optional"`
+	Parallelism             int32                   `json:"parallelism,optional"`             // goctl 生成: *int32
+	Completions             int32                   `json:"completions,optional"`             // goctl 生成: *int32
+	BackoffLimit            int32                   `json:"backoffLimit,optional"`            // goctl 生成: *int32
+	ActiveDeadlineSeconds   int64                   `json:"activeDeadlineSeconds,optional"`   // goctl 生成: *int64
+	TTLSecondsAfterFinished int32                   `json:"ttlSecondsAfterFinished,optional"` // goctl 生成: *int32
+	CompletionMode          string                  `json:"completionMode,optional"`          // goctl 生成: *string
+	Suspend                 bool                    `json:"suspend,optional"`                 // goctl 生成: *bool
+	PodReplacementPolicy    string                  `json:"podReplacementPolicy,optional"`    // goctl 生成: *string
+	BackoffLimitPerIndex    int32                   `json:"backoffLimitPerIndex,optional"`    // goctl 生成: *int32
+	MaxFailedIndexes        int32                   `json:"maxFailedIndexes,optional"`        // goctl 生成: *int32
+	PodFailurePolicy        *PodFailurePolicyConfig `json:"podFailurePolicy,optional"`        // goctl 生成: *PodFailurePolicyConfig
 }
 
 type UpdateOnecProjectApplicationReq struct {
@@ -2717,6 +2233,20 @@ type UpdateOnecProjectApplicationReq struct {
 type UpdateOnecProjectVersionReq struct {
 	Id              uint64 `json:"id" validate:"required,min=1"`
 	ResourceYamlStr string `json:"resourceYamlStr" validate:"required,min=1"`
+}
+
+type UpdateProbesRequest struct {
+	Id             uint64 `path:"id" validate:"required,min=1"`
+	ContainerName  string `json:"containerName" validate:"required"`
+	LivenessProbe  *Probe `json:"livenessProbe,optional"`
+	ReadinessProbe *Probe `json:"readinessProbe,optional"`
+	StartupProbe   *Probe `json:"startupProbe,optional"`
+}
+
+type UpdateResourcesRequest struct {
+	Id            uint64               `path:"id" validate:"required,min=1"`
+	ContainerName string               `json:"containerName" validate:"required"`
+	Resources     ResourceRequirements `json:"resources" validate:"required"`
 }
 
 type UpdateSchedulingConfigRequest struct {
@@ -2734,8 +2264,8 @@ type UpdateSchedulingConfigRequest struct {
 
 type UpdateStorageConfigRequest struct {
 	Id                   uint64                        `path:"id" validate:"required,min=1"`
-	Volumes              []VolumeConfig                `json:"volumes"`
-	VolumeMounts         []VolumeMountConfig           `json:"volumeMounts"`
+	Volumes              []VolumeConfig                `json:"volumes,optional"`
+	VolumeMounts         []VolumeMountConfig           `json:"volumeMounts,optional"`
 	VolumeClaimTemplates []PersistentVolumeClaimConfig `json:"volumeClaimTemplates,optional"`
 }
 
@@ -2822,10 +2352,6 @@ type ValidateRoleRefResponse struct {
 	Message string `json:"message"`
 }
 
-type VersionIdDeleteRequest struct {
-	VersionId uint64 `json:"versionId" validate:"required,min=1"`
-}
-
 type VersionIdRequest struct {
 	VersionId uint64 `form:"versionId" validate:"required,min=1"`
 }
@@ -2836,17 +2362,14 @@ type VersionLabelsResp struct {
 }
 
 type VolumeConfig struct {
-	Name                  string                   `json:"name"`
-	Type                  string                   `json:"type"`
-	EmptyDir              *EmptyDirVolumeConfig    `json:"emptyDir,optional"`
-	HostPath              *HostPathVolumeConfig    `json:"hostPath,optional"`
-	ConfigMap             *ConfigMapVolumeConfig   `json:"configMap,optional"`
-	Secret                *SecretVolumeConfig      `json:"secret,optional"`
-	PersistentVolumeClaim *PVCVolumeConfig         `json:"persistentVolumeClaim,optional"`
-	NFS                   *NFSVolumeConfig         `json:"nfs,optional"`
-	DownwardAPI           *DownwardAPIVolumeConfig `json:"downwardAPI,optional"`
-	Projected             *ProjectedVolumeConfig   `json:"projected,optional"`
-	CSI                   *CSIVolumeConfig         `json:"csi,optional"`
+	Name                  string                 `json:"name"`
+	Type                  string                 `json:"type"`
+	EmptyDir              *EmptyDirVolumeConfig  `json:"emptyDir,optional"`
+	HostPath              *HostPathVolumeConfig  `json:"hostPath,optional"`
+	ConfigMap             *ConfigMapVolumeConfig `json:"configMap,optional"`
+	Secret                *SecretVolumeConfig    `json:"secret,optional"`
+	PersistentVolumeClaim *PVCVolumeConfig       `json:"persistentVolumeClaim,optional"`
+	NFS                   *NFSVolumeConfig       `json:"nfs,optional"`
 }
 
 type VolumeMount struct {
@@ -2860,15 +2383,7 @@ type VolumeMount struct {
 
 type VolumeMountConfig struct {
 	ContainerName string        `json:"containerName"`
-	ContainerType string        `json:"containerType"`
 	Mounts        []VolumeMount `json:"mounts"`
-}
-
-type VolumeProjectionConfig struct {
-	Secret              *SecretProjectionConfig              `json:"secret,optional"`
-	ConfigMap           *ConfigMapProjectionConfig           `json:"configMap,optional"`
-	DownwardAPI         *DownwardAPIProjectionConfig         `json:"downwardAPI,optional"`
-	ServiceAccountToken *ServiceAccountTokenProjectionConfig `json:"serviceAccountToken,optional"`
 }
 
 type WebhookInfo struct {
@@ -2882,29 +2397,4 @@ type WebhookInfo struct {
 type WeightedPodAffinityTermConfig struct {
 	Weight          int32                 `json:"weight"`
 	PodAffinityTerm PodAffinityTermConfig `json:"podAffinityTerm"`
-}
-
-type WorkloadNameItem struct {
-	Name      string            `json:"name"`
-	Namespace string            `json:"namespace"`
-	Labels    map[string]string `json:"labels,optional"`
-	CreatedAt int64             `json:"createdAt"`
-}
-
-type WorkloadResourceListRequest struct {
-	ClusterUuid string `form:"clusterUuid" validate:"required"`
-	Namespace   string `form:"namespace" validate:"required"`
-	Type        string `form:"type" validate:"required,oneof=cronjob deployment statefulset daemonset"`
-}
-
-type WorkloadResourceListResponse struct {
-	Total int                `json:"total"`
-	Items []WorkloadNameItem `json:"items"`
-}
-
-type WorkloadResourceSelectorRequest struct {
-	ClusterUuid string `form:"clusterUuid" validate:"required"`
-	Namespace   string `form:"namespace" validate:"required"`
-	Type        string `form:"type" validate:"required,oneof=cronjob deployment statefulset daemonset"`
-	Name        string `form:"name" validate:"required"`
 }

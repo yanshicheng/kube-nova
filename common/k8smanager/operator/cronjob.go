@@ -458,64 +458,244 @@ func (c *cronJobOperator) GetContainerImages(namespace, name string) (*types.Con
 }
 
 func (c *cronJobOperator) UpdateImage(req *types.UpdateImageRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" || req.Image == "" {
-		return fmt.Errorf("请求参数不完整")
+	// 参数验证
+	if req == nil {
+		return fmt.Errorf("请求不能为空")
+	}
+	if req.Namespace == "" {
+		return fmt.Errorf("命名空间不能为空")
+	}
+	if req.Name == "" {
+		return fmt.Errorf("CronJob名称不能为空")
+	}
+	if req.ContainerName == "" {
+		return fmt.Errorf("容器名称不能为空")
+	}
+	if req.Image == "" {
+		return fmt.Errorf("镜像不能为空")
 	}
 
+	// 基本镜像格式验证
+	if err := validateImageFormat(req.Image); err != nil {
+		return fmt.Errorf("镜像格式无效: %v", err)
+	}
+
+	// 获取 CronJob
 	cronJob, err := c.Get(req.Namespace, req.Name)
 	if err != nil {
 		return err
 	}
 
-	updated := false
-	for i := range cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers {
-		if req.ContainerName == "" || cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
-			cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[i].Image = req.Image
-			updated = true
-			if req.ContainerName != "" {
+	// 查找并更新容器镜像
+	var oldImage string
+	found := false
+
+	// 先在 InitContainers 中查找
+	for i := range cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers {
+		container := &cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers[i]
+		if container.Name == req.ContainerName {
+			oldImage = container.Image
+			container.Image = req.Image
+			found = true
+			break
+		}
+	}
+
+	// 再在普通 Containers 中查找
+	if !found {
+		for i := range cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers {
+			container := &cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[i]
+			if container.Name == req.ContainerName {
+				oldImage = container.Image
+				container.Image = req.Image
+				found = true
 				break
 			}
 		}
 	}
 
-	if !updated {
-		return fmt.Errorf("未找到容器: %s", req.ContainerName)
+	// 最后在 EphemeralContainers 中查找
+	if !found {
+		for i := range cronJob.Spec.JobTemplate.Spec.Template.Spec.EphemeralContainers {
+			container := &cronJob.Spec.JobTemplate.Spec.Template.Spec.EphemeralContainers[i]
+			if container.Name == req.ContainerName {
+				oldImage = container.Image
+				container.Image = req.Image
+				found = true
+				break
+			}
+		}
 	}
 
+	if !found {
+		// 提供更有用的错误信息
+		availableContainers := c.getAvailableContainerNames(cronJob)
+		return fmt.Errorf("未找到容器 '%s'，可用容器: %v", req.ContainerName, availableContainers)
+	}
+
+	// 如果镜像没有变化，直接返回（幂等）
+	if oldImage == req.Image {
+		return nil
+	}
+
+	// 设置变更原因（CronJob 虽然不支持回滚，但记录变更原因有助于审计）
+	if cronJob.Annotations == nil {
+		cronJob.Annotations = make(map[string]string)
+	}
+
+	changeCause := req.Reason
+	if changeCause == "" {
+		changeCause = fmt.Sprintf("image updated: %s %s -> %s",
+			req.ContainerName, extractImageTag(oldImage), extractImageTag(req.Image))
+	}
+	cronJob.Annotations["kubernetes.io/change-cause"] = changeCause
+
 	_, err = c.Update(cronJob)
-	return err
+	if err != nil {
+		return fmt.Errorf("更新CronJob失败: %v", err)
+	}
+
+	return nil
 }
 
 func (c *cronJobOperator) UpdateImages(req *types.UpdateImagesRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" {
-		return fmt.Errorf("请求参数不完整")
+	// 参数验证
+	if req == nil {
+		return fmt.Errorf("请求不能为空")
+	}
+	if req.Namespace == "" {
+		return fmt.Errorf("命名空间不能为空")
+	}
+	if req.Name == "" {
+		return fmt.Errorf("CronJob名称不能为空")
 	}
 
+	// 检查是否有需要更新的容器
+	totalRequested := len(req.Containers.InitContainers) + len(req.Containers.Containers)
+	if req.Containers.EphemeralContainers != nil {
+		totalRequested += len(req.Containers.EphemeralContainers)
+	}
+	if totalRequested == 0 {
+		return fmt.Errorf("未指定要更新的容器")
+	}
+
+	// 验证所有镜像格式
+	for _, cont := range req.Containers.InitContainers {
+		if err := validateImageFormat(cont.Image); err != nil {
+			return fmt.Errorf("InitContainer '%s' 镜像格式无效: %v", cont.Name, err)
+		}
+	}
+	for _, cont := range req.Containers.Containers {
+		if err := validateImageFormat(cont.Image); err != nil {
+			return fmt.Errorf("Container '%s' 镜像格式无效: %v", cont.Name, err)
+		}
+	}
+	if req.Containers.EphemeralContainers != nil {
+		for _, cont := range req.Containers.EphemeralContainers {
+			if err := validateImageFormat(cont.Image); err != nil {
+				return fmt.Errorf("EphemeralContainer '%s' 镜像格式无效: %v", cont.Name, err)
+			}
+		}
+	}
+
+	// 获取 CronJob
 	cronJob, err := c.Get(req.Namespace, req.Name)
 	if err != nil {
 		return err
 	}
 
+	// 构建容器名到索引的映射，提高查找效率
+	initContainerMap := make(map[string]int)
+	for i, cont := range cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers {
+		initContainerMap[cont.Name] = i
+	}
+
+	containerMap := make(map[string]int)
+	for i, cont := range cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers {
+		containerMap[cont.Name] = i
+	}
+
+	ephemeralContainerMap := make(map[string]int)
+	for i, cont := range cronJob.Spec.JobTemplate.Spec.Template.Spec.EphemeralContainers {
+		ephemeralContainerMap[cont.Name] = i
+	}
+
+	// 记录变更
+	var changes []string
+
+	// 更新 InitContainers
 	for _, img := range req.Containers.InitContainers {
-		for i := range cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers {
-			if cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers[i].Name == img.Name {
-				cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers[i].Image = img.Image
-				break
+		if idx, exists := initContainerMap[img.Name]; exists {
+			container := &cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers[idx]
+			if container.Image != img.Image {
+				changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
+				container.Image = img.Image
 			}
 		}
 	}
 
+	// 更新 Containers
 	for _, img := range req.Containers.Containers {
-		for i := range cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers {
-			if cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[i].Name == img.Name {
-				cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[i].Image = img.Image
-				break
+		if idx, exists := containerMap[img.Name]; exists {
+			container := &cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[idx]
+			if container.Image != img.Image {
+				changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
+				container.Image = img.Image
 			}
 		}
 	}
 
+	// 更新 EphemeralContainers
+	if req.Containers.EphemeralContainers != nil {
+		for _, img := range req.Containers.EphemeralContainers {
+			if idx, exists := ephemeralContainerMap[img.Name]; exists {
+				container := &cronJob.Spec.JobTemplate.Spec.Template.Spec.EphemeralContainers[idx]
+				if container.Image != img.Image {
+					changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
+					container.Image = img.Image
+				}
+			}
+		}
+	}
+
+	// 如果没有实际变更，直接返回（幂等）
+	if len(changes) == 0 {
+		return nil
+	}
+
+	// 设置变更原因
+	if cronJob.Annotations == nil {
+		cronJob.Annotations = make(map[string]string)
+	}
+
+	changeCause := req.Reason
+	if changeCause == "" {
+		changeCause = fmt.Sprintf("images updated: %s", strings.Join(changes, ", "))
+	}
+	cronJob.Annotations["kubernetes.io/change-cause"] = changeCause
+
+	// 执行更新
 	_, err = c.Update(cronJob)
-	return err
+	if err != nil {
+		return fmt.Errorf("更新CronJob失败: %v", err)
+	}
+
+	return nil
+}
+
+// getAvailableContainerNames 获取可用的容器名称列表
+func (c *cronJobOperator) getAvailableContainerNames(cronJob *batchv1.CronJob) []string {
+	names := make([]string, 0)
+	for _, cont := range cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers {
+		names = append(names, cont.Name+" (init)")
+	}
+	for _, cont := range cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers {
+		names = append(names, cont.Name)
+	}
+	for _, cont := range cronJob.Spec.JobTemplate.Spec.Template.Spec.EphemeralContainers {
+		names = append(names, cont.Name+" (ephemeral)")
+	}
+	return names
 }
 
 func (c *cronJobOperator) GetScheduleConfig(namespace, name string) (*types.CronJobScheduleConfig, error) {

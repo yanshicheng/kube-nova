@@ -14,6 +14,7 @@ import (
 	types3 "github.com/yanshicheng/kube-nova/application/manager-rpc/internal/rsync/types"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/watch/incremental"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/alertservice"
+	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/portalservice"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/storageservice"
 	"github.com/yanshicheng/kube-nova/common/interceptors"
 	"github.com/yanshicheng/kube-nova/common/k8smanager/cluster"
@@ -43,6 +44,7 @@ type ServiceContext struct {
 	OnecBillingStatementModel     model.OnecBillingStatementModel
 	OnecBillingConfigBindingModel model.OnecBillingConfigBindingModel
 	Storage                       storageservice.StorageService
+	PortalRpc                     portalservice.PortalService
 	BillingService                billing.Service
 	K8sManager                    cluster.Manager
 	SyncOperator                  types3.SyncService
@@ -127,11 +129,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	})
 
 	// ==================== 创建增量同步管理器 ====================
-	// 注意：这里只创建管理器，不设置 handler
-	// handler 需要在 setup.go 中设置，因为它需要引用 svcCtx
 	incrementalManager := incremental.NewManager(incremental.ManagerConfig{
-		NodeID:          "",  // 自动生成：hostname-pid
-		Redis:           rds, // 用于分布式锁和去重
+		NodeID:          "",
+		Redis:           rds,
 		K8sManager:      k8sManager,
 		ClusterModel:    clusterModel,
 		WorkerCount:     10,               // 并发处理数
@@ -147,6 +147,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Cache:  rds,
 		//ControllerRpc:         controllerservice.NewControllerService(controllerRpc),
 		Storage:                       storageservice.NewStorageService(zrpc.MustNewClient(c.PortalRpc)),
+		PortalRpc:                     portalservice.NewPortalService(alertRpc),
 		OnecClusterModel:              clusterModel,
 		OnecClusterAppModel:           model.NewOnecClusterAppModel(sqlConn, c.DBCache),
 		OnecClusterNodeModel:          clusterNodeModel,
