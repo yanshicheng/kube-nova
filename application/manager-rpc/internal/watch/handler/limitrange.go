@@ -98,8 +98,71 @@ func (h *DefaultEventHandler) handleLimitRangeAddOrUpdate(ctx context.Context, c
 
 // handleLimitRangeDelete 处理 LimitRange 删除事件
 func (h *DefaultEventHandler) handleLimitRangeDelete(ctx context.Context, clusterUUID string, lr *corev1.LimitRange) error {
-	logx.WithContext(ctx).Infof("[LimitRange-DELETE] ClusterUUID: %s, Namespace: %s, Name: %s", clusterUUID, lr.Namespace, lr.Name)
+	logger := logx.WithContext(ctx)
+	logger.Infof("[LimitRange-DELETE] ClusterUUID: %s, Namespace: %s, Name: %s", clusterUUID, lr.Namespace, lr.Name)
+
+	// 查询对应的工作空间
+	workspaces, err := h.svcCtx.ProjectWorkspaceModel.FindAllByClusterUuidNamespaceIncludeDeleted(ctx, clusterUUID, lr.Namespace)
+	if err != nil && !errors.Is(err, model.ErrNotFound) {
+		return fmt.Errorf("查询工作空间失败: %v", err)
+	}
+
+	// 找到未删除的工作空间
+	var workspace *model.OnecProjectWorkspace
+	for _, ws := range workspaces {
+		if ws.IsDeleted == 0 {
+			workspace = ws
+			break
+		}
+	}
+
+	if workspace == nil {
+		logger.Debugf("[LimitRange-DELETE] 未找到对应的工作空间，跳过: ClusterUUID=%s, Namespace=%s", clusterUUID, lr.Namespace)
+		return nil
+	}
+
+	// 重置工作空间的 LimitRange 相关字段为默认值
+	h.resetWorkspaceLimitRangeFields(workspace)
+
+	// 更新工作空间
+	if err := h.svcCtx.ProjectWorkspaceModel.Update(ctx, workspace); err != nil {
+		return fmt.Errorf("更新工作空间失败: %v", err)
+	}
+
+	logger.Infof("[LimitRange-DELETE] 重置工作空间限制配置成功: ID=%d, Namespace=%s", workspace.Id, workspace.Namespace)
 	return nil
+}
+
+// resetWorkspaceLimitRangeFields 重置工作空间的 LimitRange 相关字段为默认值
+func (h *DefaultEventHandler) resetWorkspaceLimitRangeFields(workspace *model.OnecProjectWorkspace) {
+	// 重置 Pod 级别限制
+	workspace.PodMaxCpu = "0"
+	workspace.PodMaxMemory = "0Gi"
+	workspace.PodMaxEphemeralStorage = "0Gi"
+	workspace.PodMinCpu = "0"
+	workspace.PodMinMemory = "0Mi"
+	workspace.PodMinEphemeralStorage = "0Mi"
+
+	// 重置 Container 级别最大/最小限制
+	workspace.ContainerMaxCpu = "0"
+	workspace.ContainerMaxMemory = "0Gi"
+	workspace.ContainerMaxEphemeralStorage = "0Gi"
+	workspace.ContainerMinCpu = "0"
+	workspace.ContainerMinMemory = "0Mi"
+	workspace.ContainerMinEphemeralStorage = "0Mi"
+
+	// 重置 Container 默认限制 (limits)
+	workspace.ContainerDefaultCpu = "100m"
+	workspace.ContainerDefaultMemory = "128Mi"
+	workspace.ContainerDefaultEphemeralStorage = "0Gi"
+
+	// 重置 Container 默认请求 (requests)
+	workspace.ContainerDefaultRequestCpu = "50m"
+	workspace.ContainerDefaultRequestMemory = "64Mi"
+	workspace.ContainerDefaultRequestEphemeralStorage = "0Mi"
+
+	// 更新操作者
+	workspace.UpdatedBy = SystemOperator
 }
 
 // updateWorkspaceFromLimitRange 从 LimitRange 更新工作空间字段
@@ -175,4 +238,6 @@ func (h *DefaultEventHandler) updateWorkspaceFromLimitRange(workspace *model.One
 			}
 		}
 	}
+
+	workspace.UpdatedBy = SystemOperator
 }

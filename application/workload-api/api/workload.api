@@ -32,6 +32,7 @@ type (
         Id uint64 `path:"id" validate:"required,min=1"`
         ContainerName string `json:"containerName" validate:"required"`
         Image string `json:"image" validate:"required"`
+        Reason string `json:"reason,optional" `
     }
 
     UpdateImagesRequest {

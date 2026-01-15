@@ -42,7 +42,7 @@ Cache:
   Pass: "123456"
   Tls: false # bool
   NonBlock: true # bool
-  PingTimeout: 3s # default 1s
+  PingTimeout: 10s # default 10s
 
 Mysql:
   DataSource: root:12345678@tcp(172.16.1.61:3307)/kube_nova?charset=utf8mb4&parseTime=True&loc=Local&timeout=10s
@@ -56,7 +56,7 @@ DBCache:
     Pass: "123456"
     Tls: false # bool
     NonBlock: true # bool
-    PingTimeout: 3s # default 1s
+    PingTimeout: 10s # default 10s
 
 PortalRpc:
   Endpoints:

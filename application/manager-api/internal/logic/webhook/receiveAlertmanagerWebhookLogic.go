@@ -80,11 +80,9 @@ func (l *ReceiveAlertmanagerWebhookLogic) ReceiveAlertmanagerWebhook(req *types.
 
 // validateToken 验证 Token
 func (l *ReceiveAlertmanagerWebhookLogic) validateToken() error {
-	// 从 HTTP Header 中获取 Token
 	token := l.ctx.Value("token").(string)
 
-	// 从配置中获取期望的 Token
-	expectedToken := l.svcCtx.Config.Webhook.AlertmanagerToken
+	expectedToken := l.svcCtx.Config.Webhook.Token
 
 	if expectedToken == "" {
 		l.Errorf("警告：未配置 Webhook Token，跳过认证")

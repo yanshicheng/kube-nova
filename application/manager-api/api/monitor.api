@@ -1,0 +1,64 @@
+syntax = "v1"
+
+info(
+    title: "监控配置服务"
+    desc: "Alertmanager和Prometheus配置管理接口"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+type (
+    // 获取Alertmanager配置请求
+    GetAlertmanagerConfigRequest {
+        ClusterUuid string `path:"clusterUuid" validate:"required"` // 集群UUID
+        Namespace   string `form:"namespace,optional"`              // 命名空间，默认monitoring
+        CrdType     string `form:"crdType,optional"`                // 资源类型: configmap/secret，默认secret
+        Name        string `form:"name,optional"`                   // 资源名称，默认alertmanager-main
+    }
+
+        // 获取Prometheus配置请求
+    GetPrometheusConfigRequest {
+        ClusterUuid string `path:"clusterUuid" validate:"required"` // 集群UUID
+        Namespace   string `form:"namespace,optional"`              // 命名空间，默认monitoring
+        Name        string `form:"name,optional"`                   // 资源名称，默认k8s
+    }
+
+        // 配置Alertmanager请求
+    SetAlertmanagerConfigRequest {
+        ClusterUuid string `path:"clusterUuid" validate:"required"`          // 集群UUID
+        Namespace   string `json:"namespace,optional"`                       // 命名空间，默认monitoring
+        CrdType     string `json:"crdType,optional"`                         // 资源类型: configmap/secret，默认secret
+        Name        string `json:"name,optional"`                            // 资源名称，默认alertmanager-main
+    }
+
+
+
+        // 通用配置响应
+    MonitoringConfigResponse {
+        Config string `json:"config"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: monitoring
+    prefix: /manager/v1/monitoring
+)
+
+service manager-api {
+    // 获取Alertmanager配置
+    @doc "获取指定集群的Alertmanager配置"
+    @handler GetAlertmanagerConfigHandler
+    get /alertmanager/:clusterUuid/config (GetAlertmanagerConfigRequest) returns (MonitoringConfigResponse)
+
+    // 获取Prometheus配置
+    @doc "获取指定集群的Prometheus配置"
+    @handler GetPrometheusConfigHandler
+    get /prometheus/:clusterUuid/config (GetPrometheusConfigRequest) returns (MonitoringConfigResponse)
+
+    // 配置Alertmanager
+    @doc "配置指定集群的Alertmanager"
+    @handler SetAlertmanagerConfigHandler
+    post /alertmanager/:clusterUuid/config (SetAlertmanagerConfigRequest) returns (string)
+}

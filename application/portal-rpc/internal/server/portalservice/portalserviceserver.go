@@ -307,3 +307,9 @@ func (s *PortalServiceServer) MenuGetSimpleTree(ctx context.Context, in *pb.GetS
 	l := portalservicelogic.NewMenuGetSimpleTreeLogic(ctx, s.svcCtx)
 	return l.MenuGetSimpleTree(in)
 }
+
+// 获取平台地址
+func (s *PortalServiceServer) GetKubeNovaPlatformUrl(ctx context.Context, in *pb.GetPlatformUrlReq) (*pb.GetPlatformUrlResp, error) {
+	l := portalservicelogic.NewGetKubeNovaPlatformUrlLogic(ctx, s.svcCtx)
+	return l.GetKubeNovaPlatformUrl(in)
+}

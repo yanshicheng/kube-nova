@@ -99,6 +99,8 @@ type (
 	GetAllParentDeptResp               = pb.GetAllParentDeptResp
 	GetGroupsTreeReq                   = pb.GetGroupsTreeReq
 	GetGroupsTreeResp                  = pb.GetGroupsTreeResp
+	GetPlatformUrlReq                  = pb.GetPlatformUrlReq
+	GetPlatformUrlResp                 = pb.GetPlatformUrlResp
 	GetRolesMenuTreeReq                = pb.GetRolesMenuTreeReq
 	GetRolesMenuTreeResp               = pb.GetRolesMenuTreeResp
 	GetSiteMessagesByIdReq             = pb.GetSiteMessagesByIdReq

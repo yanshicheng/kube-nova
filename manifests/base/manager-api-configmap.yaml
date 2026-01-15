@@ -14,7 +14,7 @@ data:
     MaxBytes: 10485760
 
     Webhook:
-      AlertmanagerToken: ${ALERTMANAGER_WEBHOOK_TOKEN}
+      Token: ${ALERTMANAGER_WEBHOOK_TOKEN}
 
     DevServer:
       Enabled: true

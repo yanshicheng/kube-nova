@@ -104,9 +104,74 @@ func (h *DefaultEventHandler) handleResourceQuotaAddOrUpdate(ctx context.Context
 
 // handleResourceQuotaDelete 处理 ResourceQuota 删除事件
 func (h *DefaultEventHandler) handleResourceQuotaDelete(ctx context.Context, clusterUUID string, rq *corev1.ResourceQuota) error {
-	logx.WithContext(ctx).Infof("[ResourceQuota-DELETE] ClusterUUID: %s, Namespace: %s, Name: %s", clusterUUID, rq.Namespace, rq.Name)
-	// 删除时不做特殊处理，工作空间的配额信息保留
+	logger := logx.WithContext(ctx)
+	logger.Infof("[ResourceQuota-DELETE] ClusterUUID: %s, Namespace: %s, Name: %s", clusterUUID, rq.Namespace, rq.Name)
+
+	// 查询对应的工作空间
+	workspaces, err := h.svcCtx.ProjectWorkspaceModel.FindAllByClusterUuidNamespaceIncludeDeleted(ctx, clusterUUID, rq.Namespace)
+	if err != nil && !errors.Is(err, model.ErrNotFound) {
+		return fmt.Errorf("查询工作空间失败: %v", err)
+	}
+
+	// 找到未删除的工作空间
+	var workspace *model.OnecProjectWorkspace
+	for _, ws := range workspaces {
+		if ws.IsDeleted == 0 {
+			workspace = ws
+			break
+		}
+	}
+
+	if workspace == nil {
+		logger.Debugf("[ResourceQuota-DELETE] 未找到对应的工作空间，跳过: ClusterUUID=%s, Namespace=%s", clusterUUID, rq.Namespace)
+		return nil
+	}
+
+	// 重置工作空间的 ResourceQuota 相关字段为默认值
+	h.resetWorkspaceResourceQuotaFields(workspace)
+
+	// 更新工作空间
+	if err := h.svcCtx.ProjectWorkspaceModel.Update(ctx, workspace); err != nil {
+		return fmt.Errorf("更新工作空间失败: %v", err)
+	}
+
+	// 同步项目集群资源分配
+	if err := h.svcCtx.ProjectModel.SyncProjectClusterResourceAllocation(ctx, workspace.ProjectClusterId); err != nil {
+		logger.Errorf("[ResourceQuota-DELETE] 同步项目集群资源失败: %v", err)
+	}
+
+	logger.Infof("[ResourceQuota-DELETE] 重置工作空间配额成功: ID=%d, Namespace=%s", workspace.Id, workspace.Namespace)
 	return nil
+}
+
+// resetWorkspaceResourceQuotaFields 重置工作空间的 ResourceQuota 相关字段为默认值
+func (h *DefaultEventHandler) resetWorkspaceResourceQuotaFields(workspace *model.OnecProjectWorkspace) {
+	// 重置计算资源
+	workspace.CpuAllocated = "0"
+	workspace.MemAllocated = "0Gi"
+	workspace.StorageAllocated = "0Gi"
+	workspace.GpuAllocated = "0"
+	workspace.EphemeralStorageAllocated = "0Gi"
+
+	// 重置对象数量限制
+	workspace.PodsAllocated = 0
+	workspace.ConfigmapAllocated = 0
+	workspace.SecretAllocated = 0
+	workspace.PvcAllocated = 0
+	workspace.ServiceAllocated = 0
+	workspace.LoadbalancersAllocated = 0
+	workspace.NodeportsAllocated = 0
+
+	// 重置工作负载数量限制
+	workspace.DeploymentsAllocated = 0
+	workspace.JobsAllocated = 0
+	workspace.CronjobsAllocated = 0
+	workspace.DaemonsetsAllocated = 0
+	workspace.StatefulsetsAllocated = 0
+	workspace.IngressesAllocated = 0
+
+	// 更新操作者
+	workspace.UpdatedBy = SystemOperator
 }
 
 // updateWorkspaceFromResourceQuota 从 ResourceQuota 更新工作空间字段
@@ -177,7 +242,6 @@ func (h *DefaultEventHandler) updateWorkspaceFromResourceQuota(workspace *model.
 		workspace.NodeportsAllocated = nodeports.Value()
 	}
 
-	// 工作负载类型资源（count/xxx 格式）
 	for resourceName, quantity := range hard {
 		name := string(resourceName)
 		switch {
@@ -195,4 +259,7 @@ func (h *DefaultEventHandler) updateWorkspaceFromResourceQuota(workspace *model.
 			workspace.IngressesAllocated = quantity.Value()
 		}
 	}
+
+	// 更新操作者
+	workspace.UpdatedBy = SystemOperator
 }

@@ -99,6 +99,8 @@ type (
 	GetAllParentDeptResp               = pb.GetAllParentDeptResp
 	GetGroupsTreeReq                   = pb.GetGroupsTreeReq
 	GetGroupsTreeResp                  = pb.GetGroupsTreeResp
+	GetPlatformUrlReq                  = pb.GetPlatformUrlReq
+	GetPlatformUrlResp                 = pb.GetPlatformUrlResp
 	GetRolesMenuTreeReq                = pb.GetRolesMenuTreeReq
 	GetRolesMenuTreeResp               = pb.GetRolesMenuTreeResp
 	GetSiteMessagesByIdReq             = pb.GetSiteMessagesByIdReq
@@ -306,6 +308,8 @@ type (
 		MenuGetRolesMenuTree(ctx context.Context, in *GetRolesMenuTreeReq, opts ...grpc.CallOption) (*GetRolesMenuTreeResp, error)
 		MenuGetAllMenuTree(ctx context.Context, in *GetAllMenuTreeReq, opts ...grpc.CallOption) (*GetAllMenuTreeResp, error)
 		MenuGetSimpleTree(ctx context.Context, in *GetSysMenuSimpleTreeReq, opts ...grpc.CallOption) (*GetSysMenuSimpleTreeResp, error)
+		// 获取平台地址
+		GetKubeNovaPlatformUrl(ctx context.Context, in *GetPlatformUrlReq, opts ...grpc.CallOption) (*GetPlatformUrlResp, error)
 	}
 
 	defaultPortalService struct {
@@ -602,4 +606,10 @@ func (m *defaultPortalService) MenuGetAllMenuTree(ctx context.Context, in *GetAl
 func (m *defaultPortalService) MenuGetSimpleTree(ctx context.Context, in *GetSysMenuSimpleTreeReq, opts ...grpc.CallOption) (*GetSysMenuSimpleTreeResp, error) {
 	client := pb.NewPortalServiceClient(m.cli.Conn())
 	return client.MenuGetSimpleTree(ctx, in, opts...)
+}
+
+// 获取平台地址
+func (m *defaultPortalService) GetKubeNovaPlatformUrl(ctx context.Context, in *GetPlatformUrlReq, opts ...grpc.CallOption) (*GetPlatformUrlResp, error) {
+	client := pb.NewPortalServiceClient(m.cli.Conn())
+	return client.GetKubeNovaPlatformUrl(ctx, in, opts...)
 }

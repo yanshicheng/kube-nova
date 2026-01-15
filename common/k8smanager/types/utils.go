@@ -279,6 +279,8 @@ type UpdateImageRequest struct {
 	Namespace     string `json:"namespace"`
 	ContainerName string `json:"containerName"`
 	Image         string `json:"image"`
+	Message       string `json:"message"`
+	Reason        string `json:"reason,omitempty"`
 }
 
 // UpdateImagesRequest 批量更新镜像请求
@@ -286,4 +288,5 @@ type UpdateImagesRequest struct {
 	Name       string            `json:"name"`
 	Namespace  string            `json:"namespace"`
 	Containers ContainerInfoList `json:"containers"`
+	Reason     string            `json:"reason,omitempty"`
 }

@@ -297,6 +297,11 @@ type ClusterResourceNameRequest struct {
 	Name        string `form:"name" validate:"required"`
 }
 
+type ClusterResourceNamesRequest struct {
+	ClusterUuid string `path:"clusterUuid" validate:"required"`
+	Namespace   string `path:"namespace" validate:"required"`
+}
+
 type ClusterResourceYamlRequest struct {
 	ClusterUuid string `form:"clusterUuid" validate:"required"`
 	YamlStr     string `json:"yamlStr" validate:"required"`
@@ -2188,6 +2193,7 @@ type UpdateImageRequest struct {
 	Id            uint64 `path:"id" validate:"required,min=1"`
 	ContainerName string `json:"containerName" validate:"required"`
 	Image         string `json:"image" validate:"required"`
+	Reason        string `json:"reason,optional" `
 }
 
 type UpdateImagesRequest struct {
