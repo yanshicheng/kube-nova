@@ -619,7 +619,7 @@ type ClusterResourceInfo struct {
 
 type ClusterUpdateAvatarRequest struct {
 	Id     uint64 `path:"id" validate:"required,gt=0"` // 集群ID
-	Avatar string `form:"avatar, optional" validate:"omitempty"`
+	Avatar string `json:"avatar,optional" validate:"omitempty"`
 }
 
 type CostCompositionItem struct {
@@ -664,12 +664,12 @@ type DefaultIdRequest struct {
 
 type DeleteAlertRuleFileRequest struct {
 	Id      uint64 `path:"id" validate:"required,gt=0"` // 主键ID
-	Cascade bool   `form:"cascade,optional"`            // 是否级联删除
+	Cascade bool   `json:"cascade,optional"`            // 是否级联删除
 }
 
 type DeleteAlertRuleGroupRequest struct {
 	Id      uint64 `path:"id" validate:"required,gt=0"` // 主键ID
-	Cascade bool   `form:"cascade,optional"`            // 是否级联删除
+	Cascade bool   `json:"cascade,optional"`            // 是否级联删除
 }
 
 type DeleteProjectAuditLogBeforeDaysRequest struct {
@@ -1257,6 +1257,16 @@ type OnecBillingStatementDelRequest struct {
 }
 
 type OnecBillingStatementDelResponse struct {
+}
+
+type OnecBillingStatementExportRequest struct {
+	StartTime     int64  `form:"startTime,optional"`     // 计费开始时间
+	EndTime       int64  `form:"endTime,optional"`       // 计费结束时间
+	ClusterUuid   string `form:"clusterUuid,optional"`   // 集群UUID
+	ProjectId     uint64 `form:"projectId,optional"`     // 项目ID
+	StatementType string `form:"statementType,optional"` // 账单类型
+	OrderField    string `form:"orderField,optional"`    // 排序字段
+	IsAsc         bool   `form:"isAsc,optional"`         // 是否升序
 }
 
 type OnecBillingStatementGenerateRequest struct {

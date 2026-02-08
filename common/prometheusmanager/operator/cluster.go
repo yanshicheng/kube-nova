@@ -811,7 +811,7 @@ func (c *ClusterOperator) getControlPlaneMetrics(timeRange *types.TimeRange) (*t
 	return controlPlane, nil
 }
 
-// GetAPIServerMetrics 获取 API Server 指标（完善版）
+// GetAPIServerMetrics 获取 API Server 指标
 func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*types.APIServerMetrics, error) {
 	apiServer := &types.APIServerMetrics{
 		RequestsByVerb: []types.VerbMetrics{},
@@ -826,9 +826,9 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 	}
 
 	window := c.calculateRateWindow(timeRange)
-	c.log.Infof(" 开始查询 API Server 指标 (window: %s)", window)
+	c.log.Infof("开始查询 API Server 指标 (window: %s)", window)
 
-	// ==================== 基础指标和延迟 ====================
+	// 基础指标和延迟查询任务
 	tasks := []clusterQueryTask{
 		{
 			name:  "qps",
@@ -886,7 +886,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 			},
 		},
 
-		// ==================== 并发指标 ====================
+		// 并发指标
 		{
 			name:  "inflight_requests",
 			query: `sum(apiserver_current_inflight_requests)`,
@@ -929,9 +929,10 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 				return nil
 			},
 		},
+		// Watch 连接数通过长连接请求中 verb 为 WATCH 的统计
 		{
 			name:  "watch_count",
-			query: `sum(apiserver_registered_watchers)`,
+			query: `sum(apiserver_longrunning_requests{verb="WATCH"})`,
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					apiServer.WatchCount = int64(results[0].Value)
@@ -941,10 +942,10 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 			},
 		},
 
-		// ==================== 性能指标 ====================
+		// 性能指标：请求终止统计
 		{
 			name:  "request_dropped",
-			query: fmt.Sprintf(`sum(increase(apiserver_dropped_requests_total[%s]))`, window),
+			query: fmt.Sprintf(`sum(increase(apiserver_request_terminations_total[%s]))`, window),
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					apiServer.RequestDropped = int64(results[0].Value)
@@ -952,9 +953,10 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 				return nil
 			},
 		},
+		// 请求超时统计：使用状态码 504 或终止原因为 timeout 的请求
 		{
 			name:  "request_timeout",
-			query: fmt.Sprintf(`sum(increase(apiserver_request_timeout_total[%s]))`, window),
+			query: fmt.Sprintf(`sum(increase(apiserver_request_total{code="504"}[%s])) or sum(increase(apiserver_request_terminations_total{reason="timeout"}[%s])) or vector(0)`, window, window),
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					apiServer.RequestTimeout = int64(results[0].Value)
@@ -972,9 +974,10 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 				return nil
 			},
 		},
+		// Webhook 延迟：优先使用 admission webhook 指标，备选使用 admission controller 指标
 		{
 			name:  "webhook_duration",
-			query: fmt.Sprintf(`histogram_quantile(0.99, sum(rate(apiserver_admission_webhook_admission_duration_seconds_bucket[%s])) by (le))`, window),
+			query: fmt.Sprintf(`histogram_quantile(0.99, sum(rate(apiserver_admission_webhook_admission_duration_seconds_bucket[%s])) by (le)) or histogram_quantile(0.99, sum(rate(apiserver_admission_controller_admission_duration_seconds_bucket[%s])) by (le))`, window, window),
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					apiServer.WebhookDurationSeconds = results[0].Value
@@ -984,7 +987,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 			},
 		},
 
-		// ==================== 认证和鉴权 ====================
+		// 认证和鉴权
 		{
 			name:  "auth_attempts",
 			query: fmt.Sprintf(`sum(rate(authentication_attempts[%s]))`, window),
@@ -1015,6 +1018,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 				return nil
 			},
 		},
+		// 鉴权延迟：该指标在新版本可能不存在，返回空值表示无数据
 		{
 			name:  "authz_duration",
 			query: fmt.Sprintf(`histogram_quantile(0.99, sum(rate(apiserver_authorization_duration_seconds_bucket[%s])) by (le))`, window),
@@ -1025,18 +1029,22 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 				return nil
 			},
 		},
+		// 客户端证书过期检测：使用 histogram 的低百分位获取最小剩余有效期
+		// apiserver_client_certificate_expiration_seconds 是 histogram 类型
+		// 使用 1% 分位值近似最小过期时间，转换为天数
 		{
 			name:  "client_cert_expiration",
-			query: `min(apiserver_client_certificate_expiration_seconds) / 86400`,
+			query: fmt.Sprintf(`histogram_quantile(0.01, sum(rate(apiserver_client_certificate_expiration_seconds_bucket[%s])) by (le)) / 86400`, window),
 			f: func(results []types.InstantQueryResult) error {
-				if len(results) > 0 {
+				if len(results) > 0 && results[0].Value > 0 {
 					apiServer.ClientCertExpirationDays = results[0].Value
+					c.log.Infof("Client Cert Expiration Days (min): %.2f", apiServer.ClientCertExpirationDays)
 				}
 				return nil
 			},
 		},
 
-		// ==================== 分类统计 ====================
+		// 分类统计
 		{
 			name:  "verb",
 			query: fmt.Sprintf(`sum(rate(apiserver_request_total[%s])) by (verb)`, window),
@@ -1083,14 +1091,14 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 
 	c.executeParallelQueries(tasks)
 
-	// ==================== 趋势数据 ====================
+	// 趋势数据
 	if timeRange != nil && !timeRange.Start.IsZero() && !timeRange.End.IsZero() {
 		step := timeRange.Step
 		if step == "" {
 			step = c.calculateStep(timeRange.Start, timeRange.End)
 		}
 
-		c.log.Infof(" 查询 API Server 趋势数据: start=%s, end=%s, step=%s",
+		c.log.Infof("查询 API Server 趋势数据: start=%s, end=%s, step=%s",
 			timeRange.Start.Format("2006-01-02 15:04:05"),
 			timeRange.End.Format("2006-01-02 15:04:05"),
 			step)
@@ -1182,7 +1190,7 @@ func (c *ClusterOperator) GetAPIServerMetrics(timeRange *types.TimeRange) (*type
 		}
 
 		c.executeParallelRangeQueries(timeRange.Start, timeRange.End, step, rangeTasks)
-		c.log.Infof(" API Server 趋势数据查询完成，共 %d 个数据点", len(apiServer.Trend))
+		c.log.Infof("API Server 趋势数据查询完成，共 %d 个数据点", len(apiServer.Trend))
 	}
 
 	return apiServer, nil
@@ -1197,30 +1205,14 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 	}
 	window := c.calculateRateWindow(timeRange)
 
-	c.log.Infof(" 开始查询 Scheduler 指标 (window: %s)", window)
+	c.log.Infof("开始查询 Scheduler 指标 (window: %s)", window)
 
-	// ==================== 尝试多种指标版本 ====================
-	// 不同 Kubernetes 版本的指标名称可能不同
-	successRateQueries := []string{
-		// Kubernetes 1.14+
-		fmt.Sprintf(`sum(rate(scheduler_schedule_attempts_total{result="scheduled"}[%s])) / sum(rate(scheduler_schedule_attempts_total[%s]))`, window, window),
-		// 老版本
-		fmt.Sprintf(`sum(rate(scheduler_scheduling_algorithm_duration_seconds_count{result="scheduled"}[%s])) / sum(rate(scheduler_scheduling_algorithm_duration_seconds_count[%s]))`, window, window),
-		// 备用：根据 Pod 状态推算
-		`1 - (sum(kube_pod_status_phase{phase="Pending"}) / (sum(kube_pod_status_phase) or vector(1)))`,
-	}
-
-	latencyQueries := []string{
-		fmt.Sprintf(`histogram_quantile(0.95, sum(rate(scheduler_scheduling_duration_seconds_bucket[%s])) by (le))`, window),
-		fmt.Sprintf(`histogram_quantile(0.95, sum(rate(scheduler_scheduling_algorithm_duration_seconds_bucket[%s])) by (le))`, window),
-		fmt.Sprintf(`histogram_quantile(0.95, sum(rate(scheduler_binding_duration_seconds_bucket[%s])) by (le))`, window),
-	}
-
-	// ==================== 基础指标 ====================
+	// 基础指标查询任务
 	tasks := []clusterQueryTask{
+		// 调度尝试次数：使用 scheduler_pod_scheduling_attempts_count
 		{
 			name:  "schedule_attempts",
-			query: fmt.Sprintf(`sum(rate(scheduler_schedule_attempts_total[%s]))`, window),
+			query: fmt.Sprintf(`sum(rate(scheduler_pod_scheduling_attempts_count[%s]))`, window),
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.ScheduleAttempts = results[0].Value
@@ -1229,24 +1221,16 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 				return nil
 			},
 		},
+		// 调度成功率：通过 Pending Pod 与总 Pod 比例推算
 		{
-			name: "success_rate",
-			query: func() string {
-				for _, q := range successRateQueries {
-					if result, err := c.query(q, nil); err == nil && len(result) > 0 {
-						c.log.Infof("使用 Success Rate 查询: %s", q)
-						return q
-					}
-				}
-				return successRateQueries[0]
-			}(),
+			name:  "success_rate",
+			query: `1 - (sum(kube_pod_status_phase{phase="Pending"}) / (sum(kube_pod_status_phase{phase=~"Running|Pending"}) or vector(1)))`,
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.ScheduleSuccessRate = results[0].Value
 					c.log.Infof("Schedule Success Rate: %.2f%%", scheduler.ScheduleSuccessRate*100)
 				} else {
 					scheduler.ScheduleSuccessRate = 1.0
-					c.log.Errorf("  无法获取 Success Rate，使用默认值 100%%")
 				}
 				return nil
 			},
@@ -1262,9 +1246,10 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 				return nil
 			},
 		},
+		// 不可调度 Pod 数：使用 PodScheduled 条件为 false 的统计
 		{
 			name:  "unschedulable_pods",
-			query: `sum(kube_pod_status_unschedulable)`,
+			query: `sum(kube_pod_status_condition{condition="PodScheduled",status="false"})`,
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.UnschedulablePods = int64(results[0].Value)
@@ -1274,17 +1259,10 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			},
 		},
 
-		// ==================== 延迟指标 ====================
+		// 延迟指标：使用 scheduler_scheduling_algorithm_duration_seconds
 		{
-			name: "p50",
-			query: func() string {
-				for _, q := range latencyQueries {
-					if result, err := c.query(q, nil); err == nil && len(result) > 0 {
-						return strings.Replace(q, "0.95", "0.50", 1)
-					}
-				}
-				return strings.Replace(latencyQueries[0], "0.95", "0.50", 1)
-			}(),
+			name:  "p50",
+			query: fmt.Sprintf(`histogram_quantile(0.50, sum(rate(scheduler_scheduling_algorithm_duration_seconds_bucket[%s])) by (le))`, window),
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.P50ScheduleLatency = results[0].Value
@@ -1294,16 +1272,8 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			},
 		},
 		{
-			name: "p95",
-			query: func() string {
-				for _, q := range latencyQueries {
-					if result, err := c.query(q, nil); err == nil && len(result) > 0 {
-						c.log.Infof("使用 Latency 查询: %s", q)
-						return q
-					}
-				}
-				return latencyQueries[0]
-			}(),
+			name:  "p95",
+			query: fmt.Sprintf(`histogram_quantile(0.95, sum(rate(scheduler_scheduling_algorithm_duration_seconds_bucket[%s])) by (le))`, window),
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.P95ScheduleLatency = results[0].Value
@@ -1313,15 +1283,8 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			},
 		},
 		{
-			name: "p99",
-			query: func() string {
-				for _, q := range latencyQueries {
-					if result, err := c.query(q, nil); err == nil && len(result) > 0 {
-						return strings.Replace(q, "0.95", "0.99", 1)
-					}
-				}
-				return strings.Replace(latencyQueries[0], "0.95", "0.99", 1)
-			}(),
+			name:  "p99",
+			query: fmt.Sprintf(`histogram_quantile(0.99, sum(rate(scheduler_scheduling_algorithm_duration_seconds_bucket[%s])) by (le))`, window),
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.P99ScheduleLatency = results[0].Value
@@ -1330,9 +1293,10 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 				return nil
 			},
 		},
+		// 绑定延迟：使用 framework 扩展点的 Bind 阶段
 		{
 			name:  "binding_latency",
-			query: fmt.Sprintf(`histogram_quantile(0.99, sum(rate(scheduler_binding_duration_seconds_bucket[%s])) by (le))`, window),
+			query: fmt.Sprintf(`histogram_quantile(0.99, sum(rate(scheduler_framework_extension_point_duration_seconds_bucket{extension_point="Bind"}[%s])) by (le))`, window),
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.BindingLatency = results[0].Value
@@ -1342,10 +1306,10 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			},
 		},
 
-		// ==================== 调度结果 ====================
+		// 调度结果统计
 		{
 			name:  "scheduled",
-			query: fmt.Sprintf(`sum(increase(scheduler_schedule_attempts_total{result="scheduled"}[%s]))`, window),
+			query: fmt.Sprintf(`sum(increase(scheduler_pod_scheduling_attempts_count[%s]))`, window),
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.ScheduledPods = int64(results[0].Value)
@@ -1353,11 +1317,12 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 				return nil
 			},
 		},
+		// 调度失败数：通过 Pod 调度尝试的 histogram 统计
 		{
 			name:  "failed",
-			query: fmt.Sprintf(`sum(increase(scheduler_schedule_attempts_total{result!="scheduled"}[%s]))`, window),
+			query: fmt.Sprintf(`sum(increase(scheduler_pod_scheduling_attempts_sum[%s])) - sum(increase(scheduler_pod_scheduling_attempts_count[%s]))`, window, window),
 			f: func(results []types.InstantQueryResult) error {
-				if len(results) > 0 {
+				if len(results) > 0 && results[0].Value > 0 {
 					scheduler.FailedScheduling = int64(results[0].Value)
 					c.log.Infof("Failed Scheduling: %d", scheduler.FailedScheduling)
 				}
@@ -1375,9 +1340,10 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 				return nil
 			},
 		},
+		// 抢占牺牲者数：scheduler_preemption_victims 是 histogram，使用 sum 获取总数
 		{
 			name:  "preemption_victims",
-			query: fmt.Sprintf(`sum(increase(scheduler_preemption_victims[%s]))`, window),
+			query: fmt.Sprintf(`sum(increase(scheduler_preemption_victims_sum[%s]))`, window),
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.PreemptionVictims = int64(results[0].Value)
@@ -1386,7 +1352,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			},
 		},
 
-		// ==================== 调度队列 ====================
+		// 调度队列
 		{
 			name:  "queue_length",
 			query: `sum(scheduler_pending_pods)`,
@@ -1400,7 +1366,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 		},
 		{
 			name:  "active_queue",
-			query: `sum(scheduler_queue_incoming_pods_total{event="Active"})`,
+			query: `sum(scheduler_pending_pods{queue="active"})`,
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.ActiveQueueLength = int64(results[0].Value)
@@ -1410,7 +1376,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 		},
 		{
 			name:  "backoff_queue",
-			query: `sum(scheduler_queue_incoming_pods_total{event="Backoff"})`,
+			query: `sum(scheduler_pending_pods{queue="backoff"})`,
 			f: func(results []types.InstantQueryResult) error {
 				if len(results) > 0 {
 					scheduler.BackoffQueueLength = int64(results[0].Value)
@@ -1419,7 +1385,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			},
 		},
 
-		// ==================== Framework 插件延迟 ====================
+		// Framework 插件延迟
 		{
 			name:  "filter_latency",
 			query: fmt.Sprintf(`histogram_quantile(0.99, sum(rate(scheduler_framework_extension_point_duration_seconds_bucket{extension_point="Filter"}[%s])) by (le))`, window),
@@ -1466,31 +1432,22 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 
 	c.executeParallelQueries(tasks)
 
-	// ==================== 调度失败原因分类 ====================
+	// 调度失败原因分类
 	c.getScheduleFailureReasons(scheduler, window)
 
-	// ==================== 趋势数据 ====================
+	// 趋势数据
 	if timeRange != nil && !timeRange.Start.IsZero() && !timeRange.End.IsZero() {
 		step := timeRange.Step
 		if step == "" {
 			step = c.calculateStep(timeRange.Start, timeRange.End)
 		}
 
-		c.log.Infof(" 查询 Scheduler 趋势数据: start=%s, end=%s, step=%s",
+		c.log.Infof("查询 Scheduler 趋势数据: start=%s, end=%s, step=%s",
 			timeRange.Start.Format("2006-01-02 15:04:05"),
 			timeRange.End.Format("2006-01-02 15:04:05"),
 			step)
 
 		var mu sync.Mutex
-
-		// 选择可用的查询
-		successQuery := successRateQueries[0]
-		for _, q := range successRateQueries {
-			if result, err := c.query(q, nil); err == nil && len(result) > 0 {
-				successQuery = q
-				break
-			}
-		}
 
 		rangeTasks := []clusterRangeTask{
 			{
@@ -1513,7 +1470,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			},
 			{
 				name:  "success_rate_trend",
-				query: successQuery,
+				query: `1 - (sum(kube_pod_status_phase{phase="Pending"}) / (sum(kube_pod_status_phase{phase=~"Running|Pending"}) or vector(1)))`,
 				f: func(results []types.RangeQueryResult) error {
 					if len(results) > 0 && len(results[0].Values) > 0 {
 						mu.Lock()
@@ -1528,15 +1485,8 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 				},
 			},
 			{
-				name: "p95_latency_trend",
-				query: func() string {
-					for _, q := range latencyQueries {
-						if result, err := c.query(q, nil); err == nil && len(result) > 0 {
-							return q
-						}
-					}
-					return latencyQueries[0]
-				}(),
+				name:  "p95_latency_trend",
+				query: fmt.Sprintf(`histogram_quantile(0.95, sum(rate(scheduler_scheduling_algorithm_duration_seconds_bucket[%s])) by (le))`, window),
 				f: func(results []types.RangeQueryResult) error {
 					if len(results) > 0 && len(results[0].Values) > 0 {
 						mu.Lock()
@@ -1552,7 +1502,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 			},
 			{
 				name:  "attempts_trend",
-				query: fmt.Sprintf(`sum(rate(scheduler_schedule_attempts_total[%s]))`, window),
+				query: fmt.Sprintf(`sum(rate(scheduler_pod_scheduling_attempts_count[%s]))`, window),
 				f: func(results []types.RangeQueryResult) error {
 					if len(results) > 0 && len(results[0].Values) > 0 {
 						mu.Lock()
@@ -1569,7 +1519,7 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 		}
 
 		c.executeParallelRangeQueries(timeRange.Start, timeRange.End, step, rangeTasks)
-		c.log.Infof(" Scheduler 趋势数据查询完成，共 %d 个数据点", len(scheduler.Trend))
+		c.log.Infof("Scheduler 趋势数据查询完成，共 %d 个数据点", len(scheduler.Trend))
 	}
 
 	return scheduler, nil
@@ -1577,74 +1527,86 @@ func (c *ClusterOperator) GetSchedulerMetrics(timeRange *types.TimeRange) (*type
 
 // getScheduleFailureReasons 获取调度失败原因分类
 func (c *ClusterOperator) getScheduleFailureReasons(scheduler *types.SchedulerMetrics, window string) {
-	// 尝试多种指标格式
-	reasonQueries := map[string]string{
-		"InsufficientCPU":    fmt.Sprintf(`sum(increase(scheduler_schedule_attempts_total{result="error",profile="default",reason="Insufficient cpu"}[%s]))`, window),
-		"InsufficientMemory": fmt.Sprintf(`sum(increase(scheduler_schedule_attempts_total{result="error",profile="default",reason="Insufficient memory"}[%s]))`, window),
-		"NodeAffinity":       fmt.Sprintf(`sum(increase(scheduler_schedule_attempts_total{result="error",profile="default",reason=~".*node.*affinity.*"}[%s]))`, window),
-		"PodAffinity":        fmt.Sprintf(`sum(increase(scheduler_schedule_attempts_total{result="error",profile="default",reason=~".*pod.*affinity.*"}[%s]))`, window),
-		"Taint":              fmt.Sprintf(`sum(increase(scheduler_schedule_attempts_total{result="error",profile="default",reason=~".*taint.*"}[%s]))`, window),
-		"VolumeBinding":      fmt.Sprintf(`sum(increase(scheduler_schedule_attempts_total{result="error",profile="default",reason=~".*volume.*"}[%s]))`, window),
-		"NoNodesAvailable":   fmt.Sprintf(`sum(increase(scheduler_schedule_attempts_total{result="error",profile="default",reason="No nodes available"}[%s]))`, window),
-	}
+	c.log.Infof("查询调度失败原因分类")
 
-	// 备用查询（基于 Pod 条件）
-	backupQueries := map[string]string{
-		"InsufficientCPU":  `sum(kube_pod_status_scheduled_time == 0) and on(pod) kube_pod_condition{condition="PodScheduled",status="false",reason="Unschedulable"} * on(pod) kube_pod_info{created_by_kind="ReplicaSet"}`,
-		"NoNodesAvailable": `sum(kube_pod_status_unschedulable)`,
-	}
-
-	c.log.Infof(" 查询调度失败原因分类")
-
-	tasks := []clusterQueryTask{}
-	for name, query := range reasonQueries {
-		reasonName := name
-		reasonQuery := query
-		tasks = append(tasks, clusterQueryTask{
-			name:  "reason_" + name,
-			query: reasonQuery,
+	// 通过 scheduler_plugin_evaluation_total 统计各插件的失败情况
+	// 不同 Kubernetes 版本的指标格式可能有差异
+	tasks := []clusterQueryTask{
+		// 资源不足相关：通过 plugin 名称匹配
+		{
+			name:  "insufficient_cpu",
+			query: fmt.Sprintf(`sum(increase(scheduler_plugin_evaluation_total{plugin="NodeResourcesFit",status!="success"}[%s])) or vector(0)`, window),
 			f: func(results []types.InstantQueryResult) error {
-				if len(results) > 0 {
-					count := int64(results[0].Value)
-					switch reasonName {
-					case "InsufficientCPU":
-						scheduler.FailureReasons.InsufficientCPU = count
-					case "InsufficientMemory":
-						scheduler.FailureReasons.InsufficientMemory = count
-					case "NodeAffinity":
-						scheduler.FailureReasons.NodeAffinity = count
-					case "PodAffinity":
-						scheduler.FailureReasons.PodAffinity = count
-					case "Taint":
-						scheduler.FailureReasons.Taint = count
-					case "VolumeBinding":
-						scheduler.FailureReasons.VolumeBinding = count
-					case "NoNodesAvailable":
-						scheduler.FailureReasons.NoNodesAvailable = count
-					}
-					if count > 0 {
-						c.log.Infof("Failure Reason [%s]: %d", reasonName, count)
-					}
+				if len(results) > 0 && results[0].Value > 0 {
+					scheduler.FailureReasons.InsufficientCPU = int64(results[0].Value)
+					c.log.Infof("Failure Reason [InsufficientResources]: %d", scheduler.FailureReasons.InsufficientCPU)
 				}
 				return nil
 			},
-		})
+		},
+		// 节点亲和性
+		{
+			name:  "node_affinity",
+			query: fmt.Sprintf(`sum(increase(scheduler_plugin_evaluation_total{plugin="NodeAffinity",status!="success"}[%s])) or vector(0)`, window),
+			f: func(results []types.InstantQueryResult) error {
+				if len(results) > 0 && results[0].Value > 0 {
+					scheduler.FailureReasons.NodeAffinity = int64(results[0].Value)
+					c.log.Infof("Failure Reason [NodeAffinity]: %d", scheduler.FailureReasons.NodeAffinity)
+				}
+				return nil
+			},
+		},
+		// Pod 亲和性
+		{
+			name:  "pod_affinity",
+			query: fmt.Sprintf(`sum(increase(scheduler_plugin_evaluation_total{plugin=~"InterPodAffinity|PodTopologySpread",status!="success"}[%s])) or vector(0)`, window),
+			f: func(results []types.InstantQueryResult) error {
+				if len(results) > 0 && results[0].Value > 0 {
+					scheduler.FailureReasons.PodAffinity = int64(results[0].Value)
+					c.log.Infof("Failure Reason [PodAffinity]: %d", scheduler.FailureReasons.PodAffinity)
+				}
+				return nil
+			},
+		},
+		// 污点
+		{
+			name:  "taint",
+			query: fmt.Sprintf(`sum(increase(scheduler_plugin_evaluation_total{plugin="TaintToleration",status!="success"}[%s])) or vector(0)`, window),
+			f: func(results []types.InstantQueryResult) error {
+				if len(results) > 0 && results[0].Value > 0 {
+					scheduler.FailureReasons.Taint = int64(results[0].Value)
+					c.log.Infof("Failure Reason [Taint]: %d", scheduler.FailureReasons.Taint)
+				}
+				return nil
+			},
+		},
+		// 卷绑定
+		{
+			name:  "volume_binding",
+			query: fmt.Sprintf(`sum(increase(scheduler_plugin_evaluation_total{plugin="VolumeBinding",status!="success"}[%s])) or vector(0)`, window),
+			f: func(results []types.InstantQueryResult) error {
+				if len(results) > 0 && results[0].Value > 0 {
+					scheduler.FailureReasons.VolumeBinding = int64(results[0].Value)
+					c.log.Infof("Failure Reason [VolumeBinding]: %d", scheduler.FailureReasons.VolumeBinding)
+				}
+				return nil
+			},
+		},
+		// 无可用节点：使用不可调度 Pod 数量作为近似值
+		{
+			name:  "no_nodes_available",
+			query: `sum(kube_pod_status_condition{condition="PodScheduled",status="false"}) or vector(0)`,
+			f: func(results []types.InstantQueryResult) error {
+				if len(results) > 0 && results[0].Value > 0 {
+					scheduler.FailureReasons.NoNodesAvailable = int64(results[0].Value)
+					c.log.Infof("Failure Reason [NoNodesAvailable]: %d", scheduler.FailureReasons.NoNodesAvailable)
+				}
+				return nil
+			},
+		},
 	}
 
 	c.executeParallelQueries(tasks)
-
-	// 如果主要查询都失败，尝试备用查询
-	if scheduler.FailureReasons.InsufficientCPU == 0 && scheduler.FailureReasons.NoNodesAvailable == 0 {
-		c.log.Errorf("  调度失败原因指标不可用，尝试备用查询")
-		for name, query := range backupQueries {
-			if results, err := c.query(query, nil); err == nil && len(results) > 0 {
-				count := int64(results[0].Value)
-				if name == "NoNodesAvailable" {
-					scheduler.FailureReasons.NoNodesAvailable = count
-				}
-			}
-		}
-	}
 }
 
 func (c *ClusterOperator) GetControllerManagerMetrics(timeRange *types.TimeRange) (*types.ControllerManagerMetrics, error) {

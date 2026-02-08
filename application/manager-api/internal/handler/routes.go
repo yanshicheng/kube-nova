@@ -398,6 +398,12 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Handler: billing.OnecBillingStatementBatchDelHandler(serverCtx),
 				},
 				{
+					// 导出账单Excel
+					Method:  http.MethodGet,
+					Path:    "/statement/export",
+					Handler: billing.OnecBillingStatementExportHandler(serverCtx),
+				},
+				{
 					// 立即生成账单
 					Method:  http.MethodPost,
 					Path:    "/statement/generate",

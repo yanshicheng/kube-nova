@@ -35,11 +35,6 @@ type (
         Reason string `json:"reason,optional" `
     }
 
-    UpdateImagesRequest {
-        Id uint64 `path:"id" validate:"required,min=1"`
-        ContainerInfoList ContainerInfoList `json:"containerInfoList"`
-    }
-
         // K8s 原生版本历史（Deployment 专用）
     RevisionInfo {
         Revision int64 `json:"revision"`
@@ -129,13 +124,13 @@ type (
     ConfigMapKeySelector {
         Name string `json:"name"`
         Key string `json:"key"`
-        Optional bool `json:"optional"`
+        Optional bool `json:"optional,optional"`
     }
 
     SecretKeySelector {
         Name string `json:"name"`
         Key string `json:"key"`
-        Optional bool `json:"optional"`
+        Optional bool `json:"optional,optional"`
     }
 
     ObjectFieldSelector {
@@ -155,6 +150,7 @@ type (
 
     ContainerEnvVars {
         ContainerName string `json:"containerName"`
+        ContainerType string `json:"containerType"`
         Env []EnvVar `json:"env"`
     }
 
@@ -164,8 +160,7 @@ type (
 
     UpdateEnvVarsRequest {
         Id uint64 `path:"id" validate:"required,min=1"`
-        ContainerName string `json:"containerName" validate:"required"`
-        Env []EnvVar `json:"env"`
+        Containers []ContainerEnvVars `json:"containers"`
     }
 
         // ==================== 暂停/恢复更新 ====================
@@ -175,68 +170,68 @@ type (
         SupportType string `json:"supportType"`
     }
 
-        // ==================== 资源配额相关 ====================
+        // ==================== 资源配额相关（与 types/utils.go 一致）====================
 
-    ResourceRequirements {
-        Limits ResourceList `json:"limits,optional"`
-        Requests ResourceList `json:"requests,optional"`
-    }
-
-    ResourceList {
+    CommResourceList {
         Cpu string `json:"cpu,optional"`
         Memory string `json:"memory,optional"`
     }
 
-    ContainerResources {
+    CommResourceRequirements {
+        Limits CommResourceList `json:"limits,optional"`
+        Requests CommResourceList `json:"requests,optional"`
+    }
+
+    CommContainerResources {
         ContainerName string `json:"containerName"`
-        Resources ResourceRequirements `json:"resources"`
+        ContainerType string `json:"containerType"`
+        Resources CommResourceRequirements `json:"resources"`
     }
 
-    ResourcesResponse {
-        Containers []ContainerResources `json:"containers"`
+    CommResourcesResponse {
+        Containers []CommContainerResources `json:"containers"`
     }
 
-    UpdateResourcesRequest {
+    CommUpdateResourcesRequest {
         Id uint64 `path:"id" validate:"required,min=1"`
-        ContainerName string `json:"containerName" validate:"required"`
-        Resources ResourceRequirements `json:"resources" validate:"required"`
+        Containers []CommContainerResources `json:"containers"`
     }
 
-        // ==================== 健康检查相关 ====================
+        // ==================== 健康检查相关（与 types/utils.go 一致）====================
 
-    HTTPGetAction {
-        Path string `json:"path"`
-        Port int32 `json:"port"`
-        Host string `json:"host,optional"`
-        Scheme string `json:"scheme,optional"`
-        HttpHeaders []HTTPHeader `json:"httpHeaders,optional"`
-    }
-
-    HTTPHeader {
+    CommHTTPHeader {
         Name string `json:"name"`
         Value string `json:"value"`
     }
 
-    TCPSocketAction {
+    CommHTTPGetAction {
+        Path string `json:"path"`
+        Port int32 `json:"port"`
+        Host string `json:"host,optional"`
+        Scheme string `json:"scheme,optional"`
+        HTTPHeaders []CommHTTPHeader `json:"httpHeaders,optional"`
+    }
+
+    CommTCPSocketAction {
         Port int32 `json:"port"`
         Host string `json:"host,optional"`
     }
 
-    ExecAction {
+    CommExecAction {
         Command []string `json:"command"`
     }
 
-    GRPCAction {
+    CommGRPCAction {
         Port int32 `json:"port"`
         Service string `json:"service,optional"`
     }
 
-    Probe {
+    CommProbe {
         Type string `json:"type"`
-        HttpGet *HTTPGetAction `json:"httpGet,optional"`
-        TcpSocket *TCPSocketAction `json:"tcpSocket,optional"`
-        Exec *ExecAction `json:"exec,optional"`
-        Grpc *GRPCAction `json:"grpc,optional"`
+        HttpGet *CommHTTPGetAction `json:"httpGet,optional"`
+        TcpSocket *CommTCPSocketAction `json:"tcpSocket,optional"`
+        Exec *CommExecAction `json:"exec,optional"`
+        Grpc *CommGRPCAction `json:"grpc,optional"`
         InitialDelaySeconds int32 `json:"initialDelaySeconds,optional"`
         TimeoutSeconds int32 `json:"timeoutSeconds,optional"`
         PeriodSeconds int32 `json:"periodSeconds,optional"`
@@ -244,23 +239,293 @@ type (
         FailureThreshold int32 `json:"failureThreshold,optional"`
     }
 
-    ContainerProbes {
+    CommContainerProbes {
         ContainerName string `json:"containerName"`
-        LivenessProbe *Probe `json:"livenessProbe,optional"`
-        ReadinessProbe *Probe `json:"readinessProbe,optional"`
-        StartupProbe *Probe `json:"startupProbe,optional"`
+        ContainerType string `json:"containerType"`
+        LivenessProbe *CommProbe `json:"livenessProbe,optional"`
+        ReadinessProbe *CommProbe `json:"readinessProbe,optional"`
+        StartupProbe *CommProbe `json:"startupProbe,optional"`
     }
 
-    ProbesResponse {
-        Containers []ContainerProbes `json:"containers"`
+    CommProbesResponse {
+        Containers []CommContainerProbes `json:"containers"`
     }
 
-    UpdateProbesRequest {
+    CommUpdateProbesRequest {
         Id uint64 `path:"id" validate:"required,min=1"`
-        ContainerName string `json:"containerName" validate:"required"`
-        LivenessProbe *Probe `json:"livenessProbe,optional"`
-        ReadinessProbe *Probe `json:"readinessProbe,optional"`
-        StartupProbe *Probe `json:"startupProbe,optional"`
+        Containers []CommContainerProbes `json:"containers"`
+    }
+
+        // ==================== 镜像管理相关（与 types/utils.go 一致）====================
+
+    CommContainerImageInfo {
+        ContainerName string `json:"containerName"`
+        ContainerType string `json:"containerType"`
+        Image string `json:"image"`
+    }
+
+    CommContainerInfoList {
+        Containers []CommContainerImageInfo `json:"containers"`
+    }
+
+    CommUpdateImagesRequest {
+        Id uint64 `path:"id" validate:"required,min=1"`
+        Containers CommContainerInfoList `json:"containers"`
+        Reason string `json:"reason,optional"`
+    }
+
+        // ==================== 调度配置相关（与 types/utils.go 一致）====================
+
+    CommNodeSelectorRequirement {
+        Key string `json:"key"`
+        Operator string `json:"operator"`
+        Values []string `json:"values,optional"`
+    }
+
+    CommNodeSelectorTerm {
+        MatchExpressions []CommNodeSelectorRequirement `json:"matchExpressions,optional"`
+        MatchFields []CommNodeSelectorRequirement `json:"matchFields,optional"`
+    }
+
+    CommNodeSelector {
+        NodeSelectorTerms []CommNodeSelectorTerm `json:"nodeSelectorTerms"`
+    }
+
+    CommPreferredSchedulingTerm {
+        Weight int32 `json:"weight"`
+        Preference CommNodeSelectorTerm `json:"preference"`
+    }
+
+    CommNodeAffinity {
+        RequiredDuringSchedulingIgnoredDuringExecution *CommNodeSelector `json:"requiredDuringSchedulingIgnoredDuringExecution,optional"`
+        PreferredDuringSchedulingIgnoredDuringExecution []CommPreferredSchedulingTerm `json:"preferredDuringSchedulingIgnoredDuringExecution,optional"`
+    }
+
+    CommLabelSelectorRequirement {
+        Key string `json:"key"`
+        Operator string `json:"operator"`
+        Values []string `json:"values,optional"`
+    }
+
+    CommLabelSelectorConfig {
+        MatchLabels map[string]string `json:"matchLabels,optional"`
+        MatchExpressions []CommLabelSelectorRequirement `json:"matchExpressions,optional"`
+    }
+
+    CommPodAffinityTerm {
+        LabelSelector *CommLabelSelectorConfig `json:"labelSelector,optional"`
+        Namespaces []string `json:"namespaces,optional"`
+        TopologyKey string `json:"topologyKey"`
+        NamespaceSelector *CommLabelSelectorConfig `json:"namespaceSelector,optional"`
+    }
+
+    CommWeightedPodAffinityTerm {
+        Weight int32 `json:"weight"`
+        PodAffinityTerm CommPodAffinityTerm `json:"podAffinityTerm"`
+    }
+
+    CommPodAffinity {
+        RequiredDuringSchedulingIgnoredDuringExecution []CommPodAffinityTerm `json:"requiredDuringSchedulingIgnoredDuringExecution,optional"`
+        PreferredDuringSchedulingIgnoredDuringExecution []CommWeightedPodAffinityTerm `json:"preferredDuringSchedulingIgnoredDuringExecution,optional"`
+    }
+
+    CommPodAntiAffinity {
+        RequiredDuringSchedulingIgnoredDuringExecution []CommPodAffinityTerm `json:"requiredDuringSchedulingIgnoredDuringExecution,optional"`
+        PreferredDuringSchedulingIgnoredDuringExecution []CommWeightedPodAffinityTerm `json:"preferredDuringSchedulingIgnoredDuringExecution,optional"`
+    }
+
+    CommAffinityConfig {
+        NodeAffinity *CommNodeAffinity `json:"nodeAffinity,optional"`
+        PodAffinity *CommPodAffinity `json:"podAffinity,optional"`
+        PodAntiAffinity *CommPodAntiAffinity `json:"podAntiAffinity,optional"`
+    }
+
+    CommToleration {
+        Key string `json:"key,optional"`
+        Operator string `json:"operator,optional"`
+        Value string `json:"value,optional"`
+        Effect string `json:"effect,optional"`
+        TolerationSeconds int64 `json:"tolerationSeconds,optional"`
+    }
+
+    CommTopologySpreadConstraint {
+        MaxSkew int32 `json:"maxSkew"`
+        TopologyKey string `json:"topologyKey"`
+        WhenUnsatisfiable string `json:"whenUnsatisfiable"`
+        LabelSelector *CommLabelSelectorConfig `json:"labelSelector,optional"`
+        MinDomains int32 `json:"minDomains,optional"`
+        NodeAffinityPolicy string `json:"nodeAffinityPolicy,optional"`
+        NodeTaintsPolicy string `json:"nodeTaintsPolicy,optional"`
+        MatchLabelKeys []string `json:"matchLabelKeys,optional"`
+    }
+
+    CommSchedulingConfig {
+        NodeSelector map[string]string `json:"nodeSelector,optional"`
+        NodeName string `json:"nodeName,optional"`
+        Affinity *CommAffinityConfig `json:"affinity,optional"`
+        Tolerations []CommToleration `json:"tolerations,optional"`
+        TopologySpreadConstraints []CommTopologySpreadConstraint `json:"topologySpreadConstraints,optional"`
+    }
+
+    CommUpdateSchedulingConfigRequest {
+        Id uint64 `path:"id" validate:"required,min=1"`
+        NodeSelector map[string]string `json:"nodeSelector,optional"`
+        NodeName string `json:"nodeName,optional"`
+        Affinity *CommAffinityConfig `json:"affinity,optional"`
+        Tolerations []CommToleration `json:"tolerations,optional"`
+        TopologySpreadConstraints []CommTopologySpreadConstraint `json:"topologySpreadConstraints,optional"`
+    }
+
+        // ==================== 高级容器配置相关（与 types/utils.go 一致）====================
+
+    CommSleepAction {
+        Seconds int64 `json:"seconds"`
+    }
+
+    CommLifecycleHandler {
+        Type string `json:"type"`
+        Exec *CommExecAction `json:"exec,optional"`
+        HTTPGet *CommHTTPGetAction `json:"httpGet,optional"`
+        TCPSocket *CommTCPSocketAction `json:"tcpSocket,optional"`
+        Sleep *CommSleepAction `json:"sleep,optional"`
+    }
+
+    CommLifecycle {
+        PostStart *CommLifecycleHandler `json:"postStart,optional"`
+        PreStop *CommLifecycleHandler `json:"preStop,optional"`
+    }
+
+    CommCapabilities {
+        Add []string `json:"add,optional"`
+        Drop []string `json:"drop,optional"`
+    }
+
+    CommSeccompProfile {
+        Type string `json:"type"`
+        LocalhostProfile string `json:"localhostProfile,optional"`
+    }
+
+    CommSELinuxOptions {
+        User string `json:"user,optional"`
+        Role string `json:"role,optional"`
+        Type string `json:"type,optional"`
+        Level string `json:"level,optional"`
+    }
+
+    CommAppArmorProfile {
+        Type string `json:"type"`
+        LocalhostProfile string `json:"localhostProfile,optional"`
+    }
+
+    CommContainerSecurityContext {
+        RunAsUser int64 `json:"runAsUser,optional"`
+        RunAsGroup int64 `json:"runAsGroup,optional"`
+        RunAsNonRoot bool `json:"runAsNonRoot,optional"`
+        ReadOnlyRootFilesystem bool `json:"readOnlyRootFilesystem,optional"`
+        Privileged bool `json:"privileged,optional"`
+        AllowPrivilegeEscalation bool `json:"allowPrivilegeEscalation,optional"`
+        ProcMount string `json:"procMount,optional"`
+        Capabilities *CommCapabilities `json:"capabilities,optional"`
+        SeccompProfile *CommSeccompProfile `json:"seccompProfile,optional"`
+        SELinuxOptions *CommSELinuxOptions `json:"seLinuxOptions,optional"`
+        AppArmorProfile *CommAppArmorProfile `json:"appArmorProfile,optional"`
+    }
+
+    CommContainerAdvancedConfig {
+        ContainerName string `json:"containerName"`
+        ContainerType string `json:"containerType,optional"`
+        Lifecycle *CommLifecycle `json:"lifecycle,optional"`
+        ImagePullPolicy string `json:"imagePullPolicy,optional"`
+        Command []string `json:"command,optional"`
+        Args []string `json:"args,optional"`
+        WorkingDir string `json:"workingDir,optional"`
+        Stdin bool `json:"stdin,optional"`
+        StdinOnce bool `json:"stdinOnce,optional"`
+        TTY bool `json:"tty,optional"`
+        SecurityContext *CommContainerSecurityContext `json:"securityContext,optional"`
+    }
+
+    CommDNSConfigOption {
+        Name string `json:"name"`
+        Value string `json:"value,optional"`
+    }
+
+    CommDNSConfig {
+        Nameservers []string `json:"nameservers,optional"`
+        Searches []string `json:"searches,optional"`
+        Options []CommDNSConfigOption `json:"options,optional"`
+    }
+
+    CommHostAlias {
+        IP string `json:"ip"`
+        Hostnames []string `json:"hostnames"`
+    }
+
+    CommPodOS {
+        Name string `json:"name"`
+    }
+
+    CommSysctl {
+        Name string `json:"name"`
+        Value string `json:"value"`
+    }
+
+    CommWindowsSecurityContextOptions {
+        GMSACredentialSpecName string `json:"gmsaCredentialSpecName,optional"`
+        GMSACredentialSpec string `json:"gmsaCredentialSpec,optional"`
+        RunAsUserName string `json:"runAsUserName,optional"`
+        HostProcess bool `json:"hostProcess,optional"`
+    }
+
+    CommPodSecurityContext {
+        RunAsUser int64 `json:"runAsUser,optional"`
+        RunAsGroup int64 `json:"runAsGroup,optional"`
+        RunAsNonRoot bool `json:"runAsNonRoot,optional"`
+        SupplementalGroups []int64 `json:"supplementalGroups,optional"`
+        FSGroup int64 `json:"fsGroup,optional"`
+        FSGroupChangePolicy string `json:"fsGroupChangePolicy,optional"`
+        SeccompProfile *CommSeccompProfile `json:"seccompProfile,optional"`
+        SELinuxOptions *CommSELinuxOptions `json:"seLinuxOptions,optional"`
+        AppArmorProfile *CommAppArmorProfile `json:"appArmorProfile,optional"`
+        Sysctls []CommSysctl `json:"sysctls,optional"`
+        WindowsOptions *CommWindowsSecurityContextOptions `json:"windowsOptions,optional"`
+    }
+
+    CommPodAdvancedConfig {
+        TerminationGracePeriodSeconds int64 `json:"terminationGracePeriodSeconds,optional"`
+        RestartPolicy string `json:"restartPolicy,optional"`
+        DNSPolicy string `json:"dnsPolicy,optional"`
+        DNSConfig *CommDNSConfig `json:"dnsConfig,optional"`
+        HostNetwork bool `json:"hostNetwork,optional"`
+        HostPID bool `json:"hostPID,optional"`
+        HostIPC bool `json:"hostIPC,optional"`
+        HostUsers bool `json:"hostUsers,optional"`
+        Hostname string `json:"hostname,optional"`
+        Subdomain string `json:"subdomain,optional"`
+        HostAliases []CommHostAlias `json:"hostAliases,optional"`
+        ServiceAccountName string `json:"serviceAccountName,optional"`
+        AutomountServiceAccountToken bool `json:"automountServiceAccountToken,optional"`
+        ImagePullSecrets []string `json:"imagePullSecrets,optional"`
+        PriorityClassName string `json:"priorityClassName,optional"`
+        Priority int32 `json:"priority,optional"`
+        PreemptionPolicy string `json:"preemptionPolicy,optional"`
+        RuntimeClassName string `json:"runtimeClassName,optional"`
+        SecurityContext *CommPodSecurityContext `json:"securityContext,optional"`
+        ShareProcessNamespace bool `json:"shareProcessNamespace,optional"`
+        OS *CommPodOS `json:"os,optional"`
+        SchedulerName string `json:"schedulerName,optional"`
+        ActiveDeadlineSeconds int64 `json:"activeDeadlineSeconds,optional"`
+    }
+
+    CommAdvancedConfigResponse {
+        PodConfig CommPodAdvancedConfig `json:"podConfig"`
+        Containers []CommContainerAdvancedConfig `json:"containers"`
+    }
+
+    CommUpdateAdvancedConfigRequest {
+        Id uint64 `path:"id" validate:"required,min=1"`
+        PodConfig *CommPodAdvancedConfig `json:"podConfig,optional"`
+        Containers []CommContainerAdvancedConfig `json:"containers,optional"`
     }
 
         // ==================== Job 相关 ====================
@@ -303,23 +568,23 @@ type (
     }
 
     CronJobHistoryItem {
-        Name string `json:"name"`                                    // Job 名称
-        Status string `json:"status"`                                // 状态: Completed, Failed, Running, Suspended
-        Completions int32 `json:"completions"`                       // 期望完成数
-        Succeeded int32 `json:"succeeded"`                           // 已成功数
-        Active int32 `json:"active"`                                 // 运行中数
-        Failed int32 `json:"failed"`                                 // 失败数
-        StartTime int64 `json:"startTime,optional"`                  // 开始时间（Unix 时间戳，秒）
-        CompletionTime int64 `json:"completionTime,optional"`        // 完成时间（Unix 时间戳，秒）
-        Duration string `json:"duration,optional"`                   // 持续时间（格式化字符串，如 "2m30s"）
-        CreationTimestamp int64 `json:"creationTimestamp"`           // 创建时间（Unix 时间戳，秒）
+        Name string `json:"name"`
+        Status string `json:"status"`
+        Completions int32 `json:"completions"`
+        Succeeded int32 `json:"succeeded"`
+        Active int32 `json:"active"`
+        Failed int32 `json:"failed"`
+        StartTime int64 `json:"startTime,optional"`
+        CompletionTime int64 `json:"completionTime,optional"`
+        Duration string `json:"duration,optional"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
     }
 
     CronJobHistoryResponse {
         Jobs []CronJobHistoryItem `json:"jobs"`
     }
 
-        // ==================== 调度配置相关 ====================
+        // ==================== 调度配置相关（保留原有定义供其他接口使用）====================
 
     SchedulingConfig {
         NodeSelector map[string]string `json:"nodeSelector,optional"`
@@ -431,8 +696,8 @@ type (
         // ==================== 存储配置相关 ====================
 
     StorageConfig {
-        Volumes []VolumeConfig `json:"volumes,optional"`
-        VolumeMounts []VolumeMountConfig `json:"volumeMounts,optional"`
+        Volumes []VolumeConfig `json:"volumes"`
+        VolumeMounts []VolumeMountConfig `json:"volumeMounts"`
         VolumeClaimTemplates []PersistentVolumeClaimConfig `json:"volumeClaimTemplates,optional"`
     }
 
@@ -445,6 +710,9 @@ type (
         Secret *SecretVolumeConfig `json:"secret,optional"`
         PersistentVolumeClaim *PVCVolumeConfig `json:"persistentVolumeClaim,optional"`
         NFS *NFSVolumeConfig `json:"nfs,optional"`
+        DownwardAPI *DownwardAPIVolumeConfig `json:"downwardAPI,optional"`
+        Projected *ProjectedVolumeConfig `json:"projected,optional"`
+        CSI *CSIVolumeConfig `json:"csi,optional"`
     }
 
     EmptyDirVolumeConfig {
@@ -488,8 +756,67 @@ type (
         ReadOnly bool `json:"readOnly,optional"`
     }
 
+    DownwardAPIVolumeConfig {
+        Items []DownwardAPIVolumeFileConfig `json:"items,optional"`
+        DefaultMode int32 `json:"defaultMode,optional"`
+    }
+
+    DownwardAPIVolumeFileConfig {
+        Path string `json:"path"`
+        FieldRef *ObjectFieldSelector `json:"fieldRef,optional"`
+        ResourceFieldRef *ResourceFieldSelector `json:"resourceFieldRef,optional"`
+        Mode int32 `json:"mode,optional"`
+    }
+
+    ProjectedVolumeConfig {
+        Sources []VolumeProjectionConfig `json:"sources"`
+        DefaultMode int32 `json:"defaultMode,optional"`
+    }
+
+    VolumeProjectionConfig {
+        Secret *SecretProjectionConfig `json:"secret,optional"`
+        ConfigMap *ConfigMapProjectionConfig `json:"configMap,optional"`
+        DownwardAPI *DownwardAPIProjectionConfig `json:"downwardAPI,optional"`
+        ServiceAccountToken *ServiceAccountTokenProjectionConfig `json:"serviceAccountToken,optional"`
+    }
+
+    SecretProjectionConfig {
+        Name string `json:"name"`
+        Items []KeyToPathConfig `json:"items,optional"`
+        Optional bool `json:"optional,optional"`
+    }
+
+    ConfigMapProjectionConfig {
+        Name string `json:"name"`
+        Items []KeyToPathConfig `json:"items,optional"`
+        Optional bool `json:"optional,optional"`
+    }
+
+    DownwardAPIProjectionConfig {
+        Items []DownwardAPIVolumeFileConfig `json:"items"`
+    }
+
+    ServiceAccountTokenProjectionConfig {
+        Audience string `json:"audience"`
+        ExpirationSeconds int64 `json:"expirationSeconds,optional"`
+        Path string `json:"path"`
+    }
+
+    CSIVolumeConfig {
+        Driver string `json:"driver"`
+        ReadOnly bool `json:"readOnly,optional"`
+        FSType string `json:"fsType,optional"`
+        VolumeAttributes map[string]string `json:"volumeAttributes,optional"`
+        NodePublishSecretRef *SecretReference `json:"nodePublishSecretRef,optional"`
+    }
+
+    SecretReference {
+        Name string `json:"name"`
+    }
+
     VolumeMountConfig {
         ContainerName string `json:"containerName"`
+        ContainerType string `json:"containerType"`
         Mounts []VolumeMount `json:"mounts"`
     }
 
@@ -522,8 +849,8 @@ type (
 
     UpdateStorageConfigRequest {
         Id uint64 `path:"id" validate:"required,min=1"`
-        Volumes []VolumeConfig `json:"volumes,optional"`
-        VolumeMounts []VolumeMountConfig `json:"volumeMounts,optional"`
+        Volumes []VolumeConfig `json:"volumes"`
+        VolumeMounts []VolumeMountConfig `json:"volumeMounts"`
         VolumeClaimTemplates []PersistentVolumeClaimConfig `json:"volumeClaimTemplates,optional"`
     }
 
@@ -587,19 +914,26 @@ type (
         Page int `form:"page,default=1"`
         PageSize int `form:"pageSize,default=20"`
     }
+
     PodLabelsResponse {
         Labels map[string]string `json:"labels"`
     }
+
     GetDefaultJobNameRequest {
         Id uint64 `path:"id" validate:"required,min=1"`
         JobName string `form:"jobName" validate:"required"`
     }
 
+    // 删除 Job 请求（DELETE 方法）
+    DeleteJobNameRequest {
+        Id uint64 `path:"id" validate:"required,min=1"`
+        JobName string `json:"jobName" validate:"required"`
+    }
 
         // ==================== Job Spec 配置相关 ====================
 
     PodFailurePolicyOnExitCodesRequirement {
-        ContainerName string `json:"containerName,optional"` // goctl 会自动转为 *string
+        ContainerName string `json:"containerName,optional"`
         Operator string `json:"operator"`
         Values []int32 `json:"values"`
     }
@@ -620,61 +954,51 @@ type (
     }
 
     JobSpecConfig {
-                                                                                    // 基本类型 + optional = goctl 自动生成指针类型
-        Parallelism int32 `json:"parallelism,optional"`                             // goctl 生成: *int32
-        Completions int32 `json:"completions,optional"`                             // goctl 生成: *int32
-        BackoffLimit int32 `json:"backoffLimit,optional"`                           // goctl 生成: *int32
-        ActiveDeadlineSeconds int64 `json:"activeDeadlineSeconds,optional"`         // goctl 生成: *int64
-        TTLSecondsAfterFinished int32 `json:"ttlSecondsAfterFinished,optional"`     // goctl 生成: *int32
-
-                                                                                    // 非 optional 的字段保持值类型
-        CompletionMode string `json:"completionMode"`                               // goctl 生成: string
-        Suspend bool `json:"suspend"`                                               // goctl 生成: bool
-        PodReplacementPolicy string `json:"podReplacementPolicy"`                   // goctl 生成: string
-
-                                                                                    // Indexed 模式专用
-        BackoffLimitPerIndex int32 `json:"backoffLimitPerIndex,optional"`           // goctl 生成: *int32
-        MaxFailedIndexes int32 `json:"maxFailedIndexes,optional"`                   // goctl 生成: *int32
-
-                                                                                    // 复杂类型
-        PodFailurePolicy *PodFailurePolicyConfig `json:"podFailurePolicy,optional"` // goctl 生成: *PodFailurePolicyConfig
+        Parallelism int32 `json:"parallelism,optional"`
+        Completions int32 `json:"completions,optional"`
+        BackoffLimit int32 `json:"backoffLimit,optional"`
+        ActiveDeadlineSeconds int64 `json:"activeDeadlineSeconds,optional"`
+        TTLSecondsAfterFinished int32 `json:"ttlSecondsAfterFinished,optional"`
+        CompletionMode string `json:"completionMode"`
+        Suspend bool `json:"suspend"`
+        PodReplacementPolicy string `json:"podReplacementPolicy"`
+        BackoffLimitPerIndex int32 `json:"backoffLimitPerIndex,optional"`
+        MaxFailedIndexes int32 `json:"maxFailedIndexes,optional"`
+        PodFailurePolicy *PodFailurePolicyConfig `json:"podFailurePolicy,optional"`
     }
 
     UpdateJobSpecRequest {
         Id uint64 `path:"id" validate:"required,min=1"`
-
-                                                                                    // 更新请求的所有字段都应该是 optional，以支持部分更新
-        Parallelism int32 `json:"parallelism,optional"`                             // goctl 生成: *int32
-        Completions int32 `json:"completions,optional"`                             // goctl 生成: *int32
-        BackoffLimit int32 `json:"backoffLimit,optional"`                           // goctl 生成: *int32
-        ActiveDeadlineSeconds int64 `json:"activeDeadlineSeconds,optional"`         // goctl 生成: *int64
-        TTLSecondsAfterFinished int32 `json:"ttlSecondsAfterFinished,optional"`     // goctl 生成: *int32
-        CompletionMode string `json:"completionMode,optional"`                      // goctl 生成: *string
-        Suspend bool `json:"suspend,optional"`                                      // goctl 生成: *bool
-        PodReplacementPolicy string `json:"podReplacementPolicy,optional"`          // goctl 生成: *string
-        BackoffLimitPerIndex int32 `json:"backoffLimitPerIndex,optional"`           // goctl 生成: *int32
-        MaxFailedIndexes int32 `json:"maxFailedIndexes,optional"`                   // goctl 生成: *int32
-        PodFailurePolicy *PodFailurePolicyConfig `json:"podFailurePolicy,optional"` // goctl 生成: *PodFailurePolicyConfig
+        Parallelism int32 `json:"parallelism,optional"`
+        Completions int32 `json:"completions,optional"`
+        BackoffLimit int32 `json:"backoffLimit,optional"`
+        ActiveDeadlineSeconds int64 `json:"activeDeadlineSeconds,optional"`
+        TTLSecondsAfterFinished int32 `json:"ttlSecondsAfterFinished,optional"`
+        CompletionMode string `json:"completionMode,optional"`
+        Suspend bool `json:"suspend,optional"`
+        PodReplacementPolicy string `json:"podReplacementPolicy,optional"`
+        BackoffLimitPerIndex int32 `json:"backoffLimitPerIndex,optional"`
+        MaxFailedIndexes int32 `json:"maxFailedIndexes,optional"`
+        PodFailurePolicy *PodFailurePolicyConfig `json:"podFailurePolicy,optional"`
     }
 
         // ==================== 下次执行时间相关 ====================
 
     NextScheduleTimeResponse {
-        NextScheduleTime int64 `json:"nextScheduleTime,optional"`  // goctl 生成: *int64
+        NextScheduleTime int64 `json:"nextScheduleTime,optional"`
         Schedule string `json:"schedule"`
-        Timezone string `json:"timezone,optional"`                 // goctl 生成: *string
+        Timezone string `json:"timezone,optional"`
         IsSuspended bool `json:"isSuspended"`
         CurrentTime int64 `json:"currentTime"`
     }
 
         // ==================== 通用列表相关 ====================
 
-        // 通用列表响应
     ListResponse {
-        Total int `json:"total"`           // 总数量
-        Page int `json:"page"`             // 当前页码
-        PageSize int `json:"pageSize"`     // 每页大小
-        TotalPages int `json:"totalPages"` // 总页数
+        Total int `json:"total"`
+        Page int `json:"page"`
+        PageSize int `json:"pageSize"`
+        TotalPages int `json:"totalPages"`
     }
 
         // ==================== Job 列表相关 ====================
@@ -682,16 +1006,16 @@ type (
     JobInfo {
         Name string `json:"name"`
         Namespace string `json:"namespace"`
-        Completions int32 `json:"completions"`                 // 期望完成的 Pod 数
-        Parallelism int32 `json:"parallelism"`                 // 并行运行的 Pod 数
-        Succeeded int32 `json:"succeeded"`                     // 成功完成的 Pod 数
-        Failed int32 `json:"failed"`                           // 失败的 Pod 数
-        Active int32 `json:"active"`                           // 运行中的 Pod 数
-        StartTime int64 `json:"startTime,optional"`            // Unix 时间戳（秒）
-        CompletionTime int64 `json:"completionTime,optional"`  // Unix 时间戳（秒）
-        Duration string `json:"duration"`                      // 运行时长
-        Status string `json:"status"`                          // Running, Completed, Failed, Suspended
-        CreationTimestamp int64 `json:"creationTimestamp"`     // Unix 时间戳（秒）
+        Completions int32 `json:"completions"`
+        Parallelism int32 `json:"parallelism"`
+        Succeeded int32 `json:"succeeded"`
+        Failed int32 `json:"failed"`
+        Active int32 `json:"active"`
+        StartTime int64 `json:"startTime,optional"`
+        CompletionTime int64 `json:"completionTime,optional"`
+        Duration string `json:"duration"`
+        Status string `json:"status"`
+        CreationTimestamp int64 `json:"creationTimestamp"`
     }
 
     ListJobsRequest {
@@ -699,10 +1023,10 @@ type (
         Namespace string `form:"namespace,optional"`
         Page int `form:"page,default=1" validate:"min=1"`
         PageSize int `form:"pageSize,default=20" validate:"min=1"`
-        Search string `form:"search,optional"`   // 搜索关键字（支持名称模糊匹配）
-        Labels string `form:"labels,optional"`   // 标签选择器，如 "env=prod,tier=frontend"
-        SortBy string `form:"sortBy,optional"`   // 排序字段: name, creationTime, status
-        SortDesc bool `form:"sortDesc,optional"` // 是否降序排序
+        Search string `form:"search,optional"`
+        Labels string `form:"labels,optional"`
+        SortBy string `form:"sortBy,optional"`
+        SortDesc bool `form:"sortDesc,optional"`
     }
 
     ListJobsResponse {
@@ -725,19 +1049,18 @@ type (
         Node string `json:"node"`
         PodIP string `json:"podIP"`
         Labels map[string]string `json:"labels"`
-        CreationTime int64 `json:"creationTime"` // Unix 时间戳（毫秒）
+        CreationTime int64 `json:"creationTime"`
     }
 
     ListPodsWithPaginationRequest {
         Id uint64 `path:"id" validate:"required,min=1"`
-
         Namespace string `form:"namespace,optional"`
         Page int `form:"page,default=1" validate:"min=1"`
         PageSize int `form:"pageSize,default=20" validate:"min=1"`
-        Search string `form:"search,optional"`   // 搜索关键字（支持名称模糊匹配）
-        Labels string `form:"labels,optional"`   // 标签选择器，如 "env=prod,tier=frontend"
-        SortBy string `form:"sortBy,optional"`   // 排序字段: name, creationTime, status
-        SortDesc bool `form:"sortDesc,optional"` // 是否降序排序
+        Search string `form:"search,optional"`
+        Labels string `form:"labels,optional"`
+        SortBy string `form:"sortBy,optional"`
+        SortDesc bool `form:"sortDesc,optional"`
     }
 
     ListPodsWithPaginationResponse {
@@ -765,32 +1088,36 @@ type (
         ClusterUuid string `form:"clusterUuid"  validate:"required"`
         Namespace string `form:"namespace"  validate:"required"`
     }
-        // WorkloadResourceSummary 工作负载资源摘要（通用于 Deployment、StatefulSet、DaemonSet、CronJob）
+
+        // WorkloadResourceSummary 工作负载资源摘要
     ApplicationSummary {
-        PodCount int `json:"podCount"`                             // Pod 总数
-        AbnormalPodCount int `json:"abnormalPodCount"`             // 异常 Pod 数量
-        ServiceCount int `json:"serviceCount"`                     // 关联的 Service 数量
-        IngressCount int `json:"ingressCount"`                     // 关联的 Ingress 数量
-        Service ApplicationAccessSummary `json:"service"`          // Service 访问汇总
-        IngressDomains []string `json:"ingressDomains"`            // Ingress 域名列表
+        PodCount int `json:"podCount"`
+        AbnormalPodCount int `json:"abnormalPodCount"`
+        ServiceCount int `json:"serviceCount"`
+        IngressCount int `json:"ingressCount"`
+        Service ApplicationAccessSummary `json:"service"`
+        IngressDomains []string `json:"ingressDomains"`
     }
 
         // ApplicationAccessSummary Service 访问汇总
     ApplicationAccessSummary {
-        InternalAccessList []string `json:"internalAccessList"` // 内部访问域名列表（ClusterIP）
-        ExternalAccessList []string `json:"externalAccessList"` // 外部访问域名列表（LoadBalancer）
-        NodePortList []string `json:"nodePortList"`             // NodePort 访问列表
+        InternalAccessList []string `json:"internalAccessList"`
+        ExternalAccessList []string `json:"externalAccessList"`
+        NodePortList []string `json:"nodePortList"`
     }
+
     GetPodYamlWithClusterUuidRequest {
         ClusterUuid string `form:"clusterUuid"  validate:"required"`
         Namespace string `form:"namespace"  validate:"required"`
         PodName string `form:"podName"  validate:"required"`
     }
+
     GetPodDetailWithClusterUuidRequest {
         ClusterUuid string `form:"clusterUuid"  validate:"required"`
         Namespace string `form:"namespace"  validate:"required"`
         PodName string `form:"podName"  validate:"required"`
     }
+
     InjectEphemeralContainerWithClusterUuidRequest {
         ClusterUuid string `form:"clusterUuid"  validate:"required"`
         Namespace string `form:"namespace"  validate:"required"`
@@ -809,11 +1136,12 @@ type (
 )
 
 service workload-api {
-    //  摘要
+    // 摘要
     // 获取服务摘耀
     @doc "获取应用摘要"
     @handler GetApplicationSummaryHandler
     get /:applicationId/summary (GetApplicationSummaryRequest) returns (ApplicationSummary)
+
     // ==================== 基础操作 ====================
 
     @doc "获取pod列表"
@@ -844,7 +1172,6 @@ service workload-api {
     @handler GetResourceDetailHandler
     get /:id/detail (DefaultIdRequest) returns (string)
 
-
     @doc "注入临时容器"
     @handler InjectEphemeralContainerHandler
     post /:id/pod/inject (InjectEphemeralContainerRequest) returns (string)
@@ -874,6 +1201,7 @@ service workload-api {
     @doc "通过 clusterUuid 获取 pod 详情"
     @handler GetPodDetailWithClusterUuidHandler
     get /pod/detail-with-cluster-uuid (GetPodDetailWithClusterUuidRequest) returns (string)
+
     // 通过 clusteruuid 注入临时容器
     @doc "通过 clusteruuid 获取 注入临时容器"
     @handler InjectEphemeralContainerWithClusterUuidHandler
@@ -883,9 +1211,11 @@ service workload-api {
     @doc "通过 clusteruuid 驱逐 pod"
     @handler EvictPodWithClusterUuidHandler
     post /pod/evict-with-cluster-uuid (GetPodDetailWithClusterUuidRequest) returns (string)
+
     @doc "获取pod的所有containers"
     @handler GetPodContainersHandler
     get /:id/pod/containers (GetDefaultPodNameRequest) returns (ContainerInfoList)
+
     @doc "获取pod的所有containers通过workload"
     @handler GetWorkloadPodContainersHandler
     get /workload/:id/pod/containers (GetDefaultPodNameRequest) returns (ContainerInfoList)
@@ -893,11 +1223,12 @@ service workload-api {
     @doc "通过集群namespace获取所有containers"
     @handler GetPodContainersWithClusterNamespaceHandler
     get /pod/containers-with-cluster-namespace (GetPodContainersWithClusterNamespaceRequest) returns (ContainerInfoList)
-    // ==================== 镜像相关 ====================
+
+    // ==================== 镜像相关（使用 Comm 类型与 types/utils.go 一致）====================
 
     @doc "查询资源使用的镜像"
     @handler GetResourceImagesHandler
-    get /:id/images (DefaultIdRequest) returns (ContainerInfoList)
+    get /:id/images (DefaultIdRequest) returns (CommContainerInfoList)
 
     @doc "更新资源镜像"
     @handler UpdateImageHandler
@@ -905,7 +1236,7 @@ service workload-api {
 
     @doc "更新多个镜像"
     @handler UpdateImagesHandler
-    post /:id/images (UpdateImagesRequest) returns (string)
+    post /:id/images (CommUpdateImagesRequest) returns (string)
 
     // ==================== 副本数调整 ====================
 
@@ -969,35 +1300,45 @@ service workload-api {
     @handler ResumeResourceHandler
     post /:id/resume (DefaultIdRequest) returns (string)
 
-    // ==================== 资源配额管理 ====================
+    // ==================== 资源配额管理（使用 Comm 类型与 types/utils.go 一致）====================
 
     @doc "查询资源配额"
     @handler GetResourceQuotaHandler
-    get /:id/resources (DefaultIdRequest) returns (ResourcesResponse)
+    get /:id/resources (DefaultIdRequest) returns (CommResourcesResponse)
 
     @doc "修改资源配额"
     @handler UpdateResourceQuotaHandler
-    put /:id/resources (UpdateResourcesRequest) returns (string)
+    put /:id/resources (CommUpdateResourcesRequest) returns (string)
 
-    // ==================== 健康检查管理 ====================
+    // ==================== 健康检查管理（使用 Comm 类型与 types/utils.go 一致）====================
 
     @doc "查询健康检查配置"
     @handler GetProbesHandler
-    get /:id/probes (DefaultIdRequest) returns (ProbesResponse)
+    get /:id/probes (DefaultIdRequest) returns (CommProbesResponse)
 
     @doc "修改健康检查配置"
     @handler UpdateProbesHandler
-    put /:id/probes (UpdateProbesRequest) returns (string)
+    put /:id/probes (CommUpdateProbesRequest) returns (string)
 
-    // ==================== 调度配置管理 ====================
+    // ==================== 调度配置管理（使用 Comm 类型与 types/utils.go 一致）====================
 
     @doc "查询调度配置"
     @handler GetSchedulingConfigHandler
-    get /:id/scheduling (DefaultIdRequest) returns (SchedulingConfig)
+    get /:id/scheduling (DefaultIdRequest) returns (CommSchedulingConfig)
 
     @doc "修改调度配置"
     @handler UpdateSchedulingConfigHandler
-    put /:id/scheduling (UpdateSchedulingConfigRequest) returns (string)
+    put /:id/scheduling (CommUpdateSchedulingConfigRequest) returns (string)
+
+    // ==================== 高级容器配置管理（新增，与 types/utils.go 一致）====================
+
+    @doc "查询高级容器配置"
+    @handler GetAdvancedConfigHandler
+    get /:id/advanced-config (DefaultIdRequest) returns (CommAdvancedConfigResponse)
+
+    @doc "修改高级容器配置"
+    @handler UpdateAdvancedConfigHandler
+    put /:id/advanced-config (CommUpdateAdvancedConfigRequest) returns (string)
 
     // ==================== 存储配置管理 ====================
 
@@ -1023,8 +1364,6 @@ service workload-api {
     @handler UpdateJobParallelismHandler
     put /:id/parallelism (UpdateJobParallelismRequest) returns (string)
 
-
-
     // ==================== CronJob 特有操作 ====================
 
     @doc "查询 CronJob 历史 Job 列表"
@@ -1037,7 +1376,7 @@ service workload-api {
 
     @doc "删除 CronJob Job"
     @handler DeleteCronJobJobHandler
-    delete /:id/cronjob-job/job (GetDefaultJobNameRequest) returns (string)
+    delete /:id/cronjob-job/job (DeleteJobNameRequest) returns (string)
 
     @doc "查询 CronJob 调度配置"
     @handler GetCronJobScheduleHandler
@@ -1076,7 +1415,6 @@ service workload-api {
     @doc "获取 CronJob 下次执行时间"
     @handler GetNextScheduleTimeHandler
     get /:id/next-schedule-time (DefaultIdRequest) returns (NextScheduleTimeResponse)
-
 
     @doc "获取Job列表（带分页）"
     @handler ListJobsHandler

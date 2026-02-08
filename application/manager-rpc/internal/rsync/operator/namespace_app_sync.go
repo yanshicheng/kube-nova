@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/model"
+	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/rsync/types"
 	"github.com/yanshicheng/kube-nova/common/k8smanager/cluster"
 	"github.com/yanshicheng/kube-nova/common/utils"
 	appsv1 "k8s.io/api/apps/v1"
@@ -25,7 +26,7 @@ const (
 
 // SyncClusterApplications 同步某个集群的所有应用资源
 func (s *ClusterResourceSync) SyncClusterApplications(ctx context.Context, clusterUuid string, operator string, enableAudit bool) error {
-	s.Logger.WithContext(ctx).Infof("开始同步集群应用资源, clusterUuid: %s, operator: %s", clusterUuid, operator)
+	s.Logger.WithContext(ctx).Infof("开始同步集群应用资源, clusterUuid: %s, operator: %s, enableHardDelete: %v", clusterUuid, operator, types.EnableHardDelete)
 
 	// 验证集群是否存在
 	onecCluster, err := s.ClusterModel.FindOneByUuid(ctx, clusterUuid)
@@ -102,14 +103,20 @@ func (s *ClusterResourceSync) SyncClusterApplications(ctx context.Context, clust
 
 	wg.Wait()
 
-	s.Logger.WithContext(ctx).Infof("集群应用资源同步完成: NS总数=%d, 成功=%d, 失败=%d, 新增=%d, 更新=%d, 删除=%d",
-		len(nsList), successCnt, failCnt, newCnt, updateCnt, deleteCnt)
+	// 确定删除模式描述
+	deleteMode := "软删除"
+	if types.EnableHardDelete {
+		deleteMode = "硬删除"
+	}
+
+	s.Logger.WithContext(ctx).Infof("集群应用资源同步完成: NS总数=%d, 成功=%d, 失败=%d, 新增=%d, 更新=%d, 删除=%d(%s)",
+		len(nsList), successCnt, failCnt, newCnt, updateCnt, deleteCnt, deleteMode)
 
 	// 记录审计日志
 	if enableAudit {
 		status := int64(1)
-		auditDetail := fmt.Sprintf("集群[%s]应用同步: NS总数=%d, 成功=%d, 新增App=%d, 更新=%d, 删除=%d",
-			onecCluster.Name, len(nsList), successCnt, newCnt, updateCnt, deleteCnt)
+		auditDetail := fmt.Sprintf("集群[%s]应用同步: NS总数=%d, 成功=%d, 新增App=%d, 更新=%d, 删除=%d(%s)",
+			onecCluster.Name, len(nsList), successCnt, newCnt, updateCnt, deleteCnt, deleteMode)
 		if failCnt > 0 {
 			status = 2
 			auditDetail = fmt.Sprintf("%s, 失败=%d", auditDetail, failCnt)
@@ -150,7 +157,8 @@ func (s *ClusterResourceSync) syncNamespaceApplicationsWithFlagger(
 	k8sClient cluster.Client,
 	flaggerHelper *FlaggerHelper,
 ) (int, int, int, error) {
-	s.Logger.WithContext(ctx).Infof("开始同步 Namespace 应用资源, clusterUuid: %s, namespace: %s", clusterUuid, namespace)
+	s.Logger.WithContext(ctx).Infof("开始同步 Namespace 应用资源, clusterUuid: %s, namespace: %s, enableHardDelete: %v",
+		clusterUuid, namespace, types.EnableHardDelete)
 
 	// 1. 查询数据库中的 Workspace 记录
 	query := "cluster_uuid = ? AND namespace = ?"
@@ -245,8 +253,12 @@ func (s *ClusterResourceSync) syncNamespaceApplicationsWithFlagger(
 	// 记录审计日志
 	if enableAudit && (totalNew > 0 || totalUpdate > 0 || totalDelete > 0) {
 		status := int64(1)
-		auditDetail := fmt.Sprintf("NS[%s]应用同步: 新增=%d, 更新=%d, 删除=%d",
-			namespace, totalNew, totalUpdate, totalDelete)
+		deleteMode := "软删除"
+		if types.EnableHardDelete {
+			deleteMode = "硬删除"
+		}
+		auditDetail := fmt.Sprintf("NS[%s]应用同步: 新增=%d, 更新=%d, 删除=%d(%s)",
+			namespace, totalNew, totalUpdate, totalDelete, deleteMode)
 		if len(syncErrors) > 0 {
 			status = 2
 		}
@@ -317,8 +329,8 @@ func (s *ClusterResourceSync) syncDeploymentsWithFlagger(
 
 	wg.Wait()
 
-	// 检查缺失资源
-	deleteCnt, err := s.checkMissingResourcesGeneric(ctx, workspace.Id, ResourceTypeDeployment, deployments)
+	// 检查并删除缺失资源
+	deleteCnt, err := s.checkMissingResourcesGeneric(ctx, workspace.Id, ResourceTypeDeployment, deployments, operator)
 	if err != nil {
 		s.Logger.WithContext(ctx).Errorf("检查缺失的 Deployment 失败: %v", err)
 	}
@@ -379,7 +391,7 @@ func (s *ClusterResourceSync) syncStatefulSetsWithFlagger(
 
 	wg.Wait()
 
-	deleteCnt, err := s.checkMissingResourcesGeneric(ctx, workspace.Id, ResourceTypeStatefulSet, statefulSets)
+	deleteCnt, err := s.checkMissingResourcesGeneric(ctx, workspace.Id, ResourceTypeStatefulSet, statefulSets, operator)
 	if err != nil {
 		s.Logger.WithContext(ctx).Errorf("检查缺失的 StatefulSet 失败: %v", err)
 	}
@@ -440,7 +452,7 @@ func (s *ClusterResourceSync) syncDaemonSetsWithFlagger(
 
 	wg.Wait()
 
-	deleteCnt, err := s.checkMissingResourcesGeneric(ctx, workspace.Id, ResourceTypeDaemonSet, daemonSets)
+	deleteCnt, err := s.checkMissingResourcesGeneric(ctx, workspace.Id, ResourceTypeDaemonSet, daemonSets, operator)
 	if err != nil {
 		s.Logger.WithContext(ctx).Errorf("检查缺失的 DaemonSet 失败: %v", err)
 	}
@@ -502,7 +514,7 @@ func (s *ClusterResourceSync) syncCronJobsWithFlagger(
 
 	wg.Wait()
 
-	deleteCnt, err := s.checkMissingResourcesGeneric(ctx, workspace.Id, ResourceTypeCronJob, cronJobs)
+	deleteCnt, err := s.checkMissingResourcesGeneric(ctx, workspace.Id, ResourceTypeCronJob, cronJobs, operator)
 	if err != nil {
 		s.Logger.WithContext(ctx).Errorf("检查缺失的 CronJob 失败: %v", err)
 	}
@@ -511,6 +523,7 @@ func (s *ClusterResourceSync) syncCronJobsWithFlagger(
 }
 
 // syncSingleResourceWithFlagger 同步单个资源（使用 FlaggerHelper）
+// 返回值: isNew 表示是否为新创建的记录
 func (s *ClusterResourceSync) syncSingleResourceWithFlagger(
 	ctx context.Context,
 	workspace *model.OnecProjectWorkspace,
@@ -536,180 +549,70 @@ func (s *ClusterResourceSync) syncSingleResourceWithFlagger(
 		appName = annotations[utils.AnnotationApplicationName]
 	}
 
-	s.Logger.WithContext(ctx).Infof(
+	s.Logger.WithContext(ctx).Debugf(
 		"处理资源: name=%s, type=%s, isFlagger=%v, versionRole=%s, appName=%s",
 		resourceName, resourceType, flaggerInfo.IsFlaggerManaged,
 		flaggerInfo.VersionRole, appName,
 	)
 
-	// 3. 查找或创建应用
-	app, err := s.findOrCreateApplication(ctx, workspace, appName, resourceType, operator)
+	// 3. 查找或创建应用（包含软删除恢复逻辑）
+	app, isAppNew, err := s.ensureApplicationExists(ctx, workspace, appName, resourceType, operator)
 	if err != nil {
-		return false, fmt.Errorf("查找或创建应用失败: %v", err)
+		return false, fmt.Errorf("确保应用存在失败: %v", err)
 	}
 
-	// 4. 查找该资源的版本记录
-	existingVersion, needMigrate, oldAppId, err := s.findVersionRecord(ctx, workspace, app, resourceName, resourceType)
+	// 4. 查找或创建版本（包含软删除恢复和迁移逻辑）
+	isVersionNew, err := s.ensureVersionExists(ctx, workspace, app, resourceName, resourceType, flaggerInfo.VersionRole, operator)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("确保版本存在失败: %v", err)
 	}
 
-	// 5. 如果需要迁移
-	if needMigrate && existingVersion != nil {
-		s.Logger.WithContext(ctx).Infof(
-			"开始迁移版本: versionId=%d, 从应用ID=%d 迁移到 应用ID=%d",
-			existingVersion.Id, oldAppId, app.Id,
-		)
-
-		existingVersion.ApplicationId = app.Id
-		existingVersion.VersionRole = flaggerInfo.VersionRole
-		existingVersion.ParentAppName = "" // 不再使用此字段
-		existingVersion.Status = 1
-		existingVersion.UpdatedAt = time.Now()
-		existingVersion.UpdatedBy = operator
-
-		if err := s.ProjectApplicationVersion.Update(ctx, existingVersion); err != nil {
-			return false, fmt.Errorf("迁移版本失败: %v", err)
-		}
-
-		s.Logger.WithContext(ctx).Infof("版本迁移成功: versionId=%d", existingVersion.Id)
-		s.cleanupEmptyApplication(ctx, oldAppId, operator)
-
-		return false, nil
-	}
-
-	// 6. 版本存在，更新信息
-	if existingVersion != nil {
-		changed := false
-
-		if existingVersion.Status != 1 {
-			existingVersion.Status = 1
-			changed = true
-		}
-
-		// 更新 VersionRole
-		if existingVersion.VersionRole != flaggerInfo.VersionRole {
-			s.Logger.WithContext(ctx).Infof("更新版本角色: %s -> %s",
-				existingVersion.VersionRole, flaggerInfo.VersionRole)
-			existingVersion.VersionRole = flaggerInfo.VersionRole
-			changed = true
-		}
-
-		// 清空不再使用的 ParentAppName
-		if existingVersion.ParentAppName != "" {
-			existingVersion.ParentAppName = ""
-			changed = true
-		}
-
-		if changed {
-			existingVersion.UpdatedAt = time.Now()
-			existingVersion.UpdatedBy = operator
-			if err := s.ProjectApplicationVersion.Update(ctx, existingVersion); err != nil {
-				return false, fmt.Errorf("更新版本失败: %v", err)
-			}
-			s.Logger.WithContext(ctx).Infof("版本已更新: versionId=%d", existingVersion.Id)
-		}
-
-		return false, nil
-	}
-
-	// 7. 版本不存在，创建新版本
-	s.Logger.WithContext(ctx).Infof("创建新版本: resource=%s, role=%s", resourceName, flaggerInfo.VersionRole)
-
-	newVersion := &model.OnecProjectVersion{
-		ApplicationId: app.Id,
-		Version:       resourceName,
-		VersionRole:   flaggerInfo.VersionRole,
-		ResourceName:  resourceName,
-		ParentAppName: "", // 不再使用
-		Status:        1,
-		CreatedBy:     operator,
-		UpdatedBy:     operator,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
-		IsDeleted:     0,
-	}
-
-	result, err := s.ProjectApplicationVersion.Insert(ctx, newVersion)
-	if err != nil {
-		return false, fmt.Errorf("创建版本失败: %v", err)
-	}
-
-	versionId, _ := result.LastInsertId()
-	s.Logger.WithContext(ctx).Infof("版本创建成功: versionId=%d, role=%s", versionId, flaggerInfo.VersionRole)
-
-	return true, nil
+	// 如果应用或版本是新创建的，返回 true
+	return isAppNew || isVersionNew, nil
 }
 
-// findVersionRecord 查找版本记录，返回版本、是否需要迁移、旧应用ID
-func (s *ClusterResourceSync) findVersionRecord(
-	ctx context.Context,
-	workspace *model.OnecProjectWorkspace,
-	correctApp *model.OnecProjectApplication,
-	resourceName string,
-	resourceType string,
-) (*model.OnecProjectVersion, bool, uint64, error) {
-	// 先在正确的应用下查找
-	versionQuery := "application_id = ? AND resource_name = ?"
-	versions, err := s.ProjectApplicationVersion.SearchNoPage(
-		ctx, "", false, versionQuery, correctApp.Id, resourceName,
-	)
-
-	if err == nil && len(versions) > 0 {
-		return versions[0], false, 0, nil
-	}
-
-	// 在所有应用中查找该资源名
-	allVersionsQuery := "resource_name = ?"
-	allVersions, err := s.ProjectApplicationVersion.SearchNoPage(
-		ctx, "", false, allVersionsQuery, resourceName,
-	)
-
-	if err != nil || len(allVersions) == 0 {
-		return nil, false, 0, nil
-	}
-
-	// 查找属于同一 workspace 和资源类型的版本
-	for _, v := range allVersions {
-		oldApp, err := s.ProjectApplication.FindOne(ctx, v.ApplicationId)
-		if err != nil {
-			continue
-		}
-
-		if oldApp.WorkspaceId == workspace.Id && oldApp.ResourceType == resourceType {
-			// 检查是否在错误的应用下
-			if v.ApplicationId != correctApp.Id {
-				s.Logger.WithContext(ctx).Infof(
-					"发现历史数据问题: 版本[%s]在应用[%s]下，应该在[%s]下",
-					resourceName, oldApp.NameEn, correctApp.NameEn,
-				)
-				return v, true, v.ApplicationId, nil
-			}
-			return v, false, 0, nil
-		}
-	}
-
-	return nil, false, 0, nil
-}
-
-// findOrCreateApplication 查找或创建应用
-func (s *ClusterResourceSync) findOrCreateApplication(
+// ensureApplicationExists 确保应用存在（包含软删除恢复逻辑）
+// 返回值: app, isNew, error
+func (s *ClusterResourceSync) ensureApplicationExists(
 	ctx context.Context,
 	workspace *model.OnecProjectWorkspace,
 	appNameEn string,
 	resourceType string,
 	operator string,
-) (*model.OnecProjectApplication, error) {
-	app, err := s.ProjectApplication.FindOneByWorkspaceIdNameEnResourceType(
+) (*model.OnecProjectApplication, bool, error) {
+
+	// 使用包含软删除的查询方法
+	app, err := s.ProjectApplication.FindOneByWorkspaceIdNameEnResourceTypeIncludeDeleted(
 		ctx, workspace.Id, appNameEn, resourceType,
 	)
 
 	if err == nil {
-		return app, nil
+		// 应用存在
+		if app.IsDeleted == 1 {
+			// 软删除状态，恢复它
+			s.Logger.WithContext(ctx).Infof("恢复软删除的应用: id=%d, name=%s", app.Id, appNameEn)
+			if err := s.ProjectApplication.RestoreSoftDeleted(ctx, app.Id, operator); err != nil {
+				return nil, false, fmt.Errorf("恢复应用失败: %v", err)
+			}
+
+			// 重新查询恢复后的应用
+			app, err = s.ProjectApplication.FindOneByWorkspaceIdNameEnResourceType(
+				ctx, workspace.Id, appNameEn, resourceType,
+			)
+			if err != nil {
+				return nil, false, fmt.Errorf("查询恢复后的应用失败: %v", err)
+			}
+
+			return app, false, nil // 恢复不算新建
+		}
+
+		// 应用存在且未删除，直接返回
+		return app, false, nil
 	}
 
+	// 应用不存在，创建新应用
 	if errors.Is(err, model.ErrNotFound) {
-		s.Logger.WithContext(ctx).Infof("应用不存在，创建: %s", appNameEn)
+		s.Logger.WithContext(ctx).Infof("创建新应用: %s, type=%s", appNameEn, resourceType)
 
 		app = &model.OnecProjectApplication{
 			WorkspaceId:  workspace.Id,
@@ -726,63 +629,228 @@ func (s *ClusterResourceSync) findOrCreateApplication(
 
 		result, err := s.ProjectApplication.Insert(ctx, app)
 		if err != nil {
-			if strings.Contains(err.Error(), "Duplicate") {
+			// 处理并发创建导致的重复键错误
+			if strings.Contains(err.Error(), "Duplicate") || strings.Contains(err.Error(), "1062") {
 				s.Logger.WithContext(ctx).Infof("应用已存在（并发创建），重新查询: %s", appNameEn)
-				app, err = s.ProjectApplication.FindOneByWorkspaceIdNameEnResourceType(
+
+				// 重新查询（包含软删除）
+				app, err = s.ProjectApplication.FindOneByWorkspaceIdNameEnResourceTypeIncludeDeleted(
 					ctx, workspace.Id, appNameEn, resourceType,
 				)
-				if err == nil {
-					return app, nil
+				if err != nil {
+					return nil, false, fmt.Errorf("并发创建后查询应用失败: %v", err)
 				}
+
+				// 如果查到的是软删除状态，恢复它
+				if app.IsDeleted == 1 {
+					if err := s.ProjectApplication.RestoreSoftDeleted(ctx, app.Id, operator); err != nil {
+						return nil, false, fmt.Errorf("恢复并发创建的应用失败: %v", err)
+					}
+					app.IsDeleted = 0
+				}
+
+				return app, false, nil
 			}
-			return nil, fmt.Errorf("创建应用失败: %v", err)
+			return nil, false, fmt.Errorf("创建应用失败: %v", err)
 		}
 
 		appId, _ := result.LastInsertId()
 		app.Id = uint64(appId)
 		s.Logger.WithContext(ctx).Infof("应用创建成功: appId=%d", app.Id)
-		return app, nil
+		return app, true, nil
 	}
 
-	return nil, fmt.Errorf("查询应用失败: %v", err)
+	return nil, false, fmt.Errorf("查询应用失败: %v", err)
 }
 
-// cleanupEmptyApplication 清理空应用
-func (s *ClusterResourceSync) cleanupEmptyApplication(
+// ensureVersionExists 确保版本存在（包含软删除恢复和迁移逻辑）
+// 返回值: isNew, error
+func (s *ClusterResourceSync) ensureVersionExists(
 	ctx context.Context,
-	appId uint64,
+	workspace *model.OnecProjectWorkspace,
+	correctApp *model.OnecProjectApplication,
+	resourceName string,
+	resourceType string,
+	versionRole string,
 	operator string,
-) {
-	versionQuery := "application_id = ? AND is_deleted = 0"
-	versions, err := s.ProjectApplicationVersion.SearchNoPage(ctx, "", false, versionQuery, appId)
+) (bool, error) {
 
-	if err != nil || len(versions) > 0 {
-		return
+	// 1. 先在正确的应用下查找（包含软删除）
+	version, err := s.ProjectApplicationVersion.FindOneByApplicationIdResourceNameIncludeDeleted(
+		ctx, correctApp.Id, resourceName,
+	)
+
+	if err == nil {
+		// 版本存在于正确的应用下
+		if version.IsDeleted == 1 {
+			// 软删除状态，恢复它
+			s.Logger.WithContext(ctx).Infof("恢复软删除的版本: id=%d, resourceName=%s", version.Id, resourceName)
+			if err := s.ProjectApplicationVersion.RestoreSoftDeleted(ctx, version.Id, operator); err != nil {
+				return false, fmt.Errorf("恢复版本失败: %v", err)
+			}
+
+			// 恢复后检查是否需要更新其他字段
+			if version.VersionRole != versionRole {
+				version.VersionRole = versionRole
+				version.UpdatedAt = time.Now()
+				version.UpdatedBy = operator
+				if err := s.ProjectApplicationVersion.Update(ctx, version); err != nil {
+					s.Logger.WithContext(ctx).Errorf("更新恢复后的版本角色失败: %v", err)
+				}
+			}
+
+			return false, nil // 恢复不算新建
+		}
+
+		// 版本存在且未删除，检查是否需要更新
+		changed := false
+
+		if version.Status != 1 {
+			version.Status = 1
+			changed = true
+		}
+
+		if version.VersionRole != versionRole {
+			s.Logger.WithContext(ctx).Infof("更新版本角色: %s -> %s", version.VersionRole, versionRole)
+			version.VersionRole = versionRole
+			changed = true
+		}
+
+		// 清空不再使用的 ParentAppName
+		if version.ParentAppName != "" {
+			version.ParentAppName = ""
+			changed = true
+		}
+
+		if changed {
+			version.UpdatedAt = time.Now()
+			version.UpdatedBy = operator
+			if err := s.ProjectApplicationVersion.Update(ctx, version); err != nil {
+				return false, fmt.Errorf("更新版本失败: %v", err)
+			}
+			s.Logger.WithContext(ctx).Debugf("版本已更新: versionId=%d", version.Id)
+		}
+
+		return false, nil
 	}
 
-	app, err := s.ProjectApplication.FindOne(ctx, appId)
-	if err != nil {
-		s.Logger.WithContext(ctx).Errorf("查询应用失败: appId=%d, error=%v", appId, err)
-		return
+	// 2. 在正确应用下找不到，检查是否在其他应用下（需要迁移）
+	if errors.Is(err, model.ErrNotFound) {
+		// 在所有应用中搜索该 resourceName
+		migratedVersion, oldAppId, needMigrate := s.findVersionInOtherApps(ctx, workspace.Id, resourceType, resourceName)
+
+		if needMigrate && migratedVersion != nil {
+			// 需要迁移
+			s.Logger.WithContext(ctx).Infof(
+				"开始迁移版本: versionId=%d, 从应用ID=%d 迁移到 应用ID=%d",
+				migratedVersion.Id, oldAppId, correctApp.Id,
+			)
+
+			// 如果版本是软删除状态，先恢复
+			if migratedVersion.IsDeleted == 1 {
+				if err := s.ProjectApplicationVersion.RestoreSoftDeleted(ctx, migratedVersion.Id, operator); err != nil {
+					return false, fmt.Errorf("恢复待迁移版本失败: %v", err)
+				}
+			}
+
+			migratedVersion.ApplicationId = correctApp.Id
+			migratedVersion.VersionRole = versionRole
+			migratedVersion.ParentAppName = ""
+			migratedVersion.Status = 1
+			migratedVersion.UpdatedAt = time.Now()
+			migratedVersion.UpdatedBy = operator
+
+			if err := s.ProjectApplicationVersion.Update(ctx, migratedVersion); err != nil {
+				return false, fmt.Errorf("迁移版本失败: %v", err)
+			}
+
+			s.Logger.WithContext(ctx).Infof("版本迁移成功: versionId=%d", migratedVersion.Id)
+
+			// 清理旧的空应用
+			s.cleanupEmptyApplicationWithDeleteMode(ctx, oldAppId, operator)
+
+			return false, nil
+		}
+
+		// 3. 完全不存在，创建新版本
+		s.Logger.WithContext(ctx).Infof("创建新版本: resource=%s, role=%s", resourceName, versionRole)
+
+		newVersion := &model.OnecProjectVersion{
+			ApplicationId: correctApp.Id,
+			Version:       resourceName,
+			VersionRole:   versionRole,
+			ResourceName:  resourceName,
+			ParentAppName: "",
+			Status:        1,
+			CreatedBy:     operator,
+			UpdatedBy:     operator,
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
+			IsDeleted:     0,
+		}
+
+		result, err := s.ProjectApplicationVersion.Insert(ctx, newVersion)
+		if err != nil {
+			// 处理并发创建
+			if strings.Contains(err.Error(), "Duplicate") || strings.Contains(err.Error(), "1062") {
+				s.Logger.WithContext(ctx).Infof("版本已存在（并发创建）: %s", resourceName)
+				return false, nil
+			}
+			return false, fmt.Errorf("创建版本失败: %v", err)
+		}
+
+		versionId, _ := result.LastInsertId()
+		s.Logger.WithContext(ctx).Infof("版本创建成功: versionId=%d, role=%s", versionId, versionRole)
+
+		return true, nil
 	}
 
-	s.Logger.WithContext(ctx).Infof("清理空应用: appId=%d, name=%s", appId, app.NameEn)
-
-	app.IsDeleted = 1
-	app.UpdatedAt = time.Now()
-	app.UpdatedBy = operator
-
-	if err := s.ProjectApplication.Update(ctx, app); err != nil {
-		s.Logger.WithContext(ctx).Errorf("删除空应用失败: appId=%d, error=%v", appId, err)
-	} else {
-		s.Logger.WithContext(ctx).Infof("空应用已删除: appId=%d, name=%s", appId, app.NameEn)
-	}
+	return false, fmt.Errorf("查询版本失败: %v", err)
 }
 
-// checkMissingResourcesGeneric 泛型检查缺失资源
-func (s *ClusterResourceSync) checkMissingResourcesGeneric(ctx context.Context, workspaceId uint64, resourceType string, k8sResources interface{}) (int, error) {
+// findVersionInOtherApps 在其他应用中查找版本（用于迁移场景）
+// 返回: version, oldAppId, needMigrate
+func (s *ClusterResourceSync) findVersionInOtherApps(
+	ctx context.Context,
+	workspaceId uint64,
+	resourceType string,
+	resourceName string,
+) (*model.OnecProjectVersion, uint64, bool) {
+
+	// 查询该 workspace 下该类型的所有应用
+	appQuery := "workspace_id = ? AND resource_type = ?"
+	apps, err := s.ProjectApplication.SearchNoPage(ctx, "", false, appQuery, workspaceId, resourceType)
+	if err != nil || len(apps) == 0 {
+		return nil, 0, false
+	}
+
+	// 遍历每个应用查找版本
+	for _, app := range apps {
+		version, err := s.ProjectApplicationVersion.FindOneByApplicationIdResourceNameIncludeDeleted(
+			ctx, app.Id, resourceName,
+		)
+		if err == nil {
+			// 找到了
+			return version, app.Id, true
+		}
+	}
+
+	return nil, 0, false
+}
+
+// checkMissingResourcesGeneric 检查并删除数据库中存在但 K8s 不存在的资源
+// 根据 types.EnableHardDelete 控制软删除还是硬删除
+// 删除版本后会检查并清理空应用
+func (s *ClusterResourceSync) checkMissingResourcesGeneric(
+	ctx context.Context,
+	workspaceId uint64,
+	resourceType string,
+	k8sResources interface{},
+	operator string,
+) (int, error) {
 	resourceType = strings.ToLower(resourceType)
 
+	// 1. 构建 K8s 资源名称 Map
 	k8sResourceMap := make(map[string]bool)
 
 	switch resources := k8sResources.(type) {
@@ -804,44 +872,133 @@ func (s *ClusterResourceSync) checkMissingResourcesGeneric(ctx context.Context, 
 		}
 	}
 
+	// 2. 查询数据库中该 workspace 该类型的所有应用
 	appQuery := "workspace_id = ? AND resource_type = ?"
 	applications, err := s.ProjectApplication.SearchNoPage(ctx, "", false, appQuery, workspaceId, resourceType)
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
 		return 0, fmt.Errorf("查询应用列表失败: %v", err)
 	}
 
-	var mu sync.Mutex
-	updateCount := 0
+	deleteMode := "软删除"
+	if types.EnableHardDelete {
+		deleteMode = "硬删除"
+	}
 
+	var (
+		deletedVersionCount int
+		appsToCheck         = make(map[uint64]bool) // 记录需要检查是否为空的应用
+	)
+
+	// 3. 遍历每个应用，检查其下的版本
 	for _, app := range applications {
+		// 查询该应用下的所有版本（只查未删除的）
 		versionQuery := "application_id = ?"
 		versions, err := s.ProjectApplicationVersion.SearchNoPage(ctx, "", false, versionQuery, app.Id)
 		if err != nil && !errors.Is(err, model.ErrNotFound) {
+			s.Logger.WithContext(ctx).Errorf("查询应用[%d]的版本列表失败: %v", app.Id, err)
 			continue
 		}
 
 		for _, version := range versions {
+			// 检查该版本对应的资源是否在 K8s 中存在
 			if !k8sResourceMap[version.ResourceName] {
-				if version.Status != 0 {
-					s.Logger.WithContext(ctx).Infof("资源在K8s中不存在，更新状态: resourceName=%s, versionId=%d", version.ResourceName, version.Id)
-					version.Status = 0
-					version.UpdatedAt = time.Now()
-					version.UpdatedBy = "system_rsync"
-					if err := s.ProjectApplicationVersion.Update(ctx, version); err != nil {
-						s.Logger.WithContext(ctx).Errorf("更新版本状态失败: %v", err)
-					} else {
-						mu.Lock()
-						updateCount++
-						mu.Unlock()
+				// K8s 中不存在该资源，执行删除
+				s.Logger.WithContext(ctx).Infof(
+					"资源在K8s中不存在，执行%s: resourceName=%s, versionId=%d, appId=%d",
+					deleteMode, version.ResourceName, version.Id, app.Id,
+				)
+
+				if types.EnableHardDelete {
+					// 硬删除版本
+					if err := s.ProjectApplicationVersion.Delete(ctx, version.Id); err != nil {
+						s.Logger.WithContext(ctx).Errorf("硬删除版本失败: versionId=%d, error=%v", version.Id, err)
+						continue
 					}
+					s.Logger.WithContext(ctx).Infof("硬删除版本成功: versionId=%d, resourceName=%s", version.Id, version.ResourceName)
+				} else {
+					// 软删除版本
+					if err := s.ProjectApplicationVersion.DeleteSoft(ctx, version.Id); err != nil {
+						s.Logger.WithContext(ctx).Errorf("软删除版本失败: versionId=%d, error=%v", version.Id, err)
+						continue
+					}
+					s.Logger.WithContext(ctx).Infof("软删除版本成功: versionId=%d, resourceName=%s", version.Id, version.ResourceName)
 				}
+
+				deletedVersionCount++
+				// 记录该应用需要检查是否为空
+				appsToCheck[app.Id] = true
 			}
 		}
 	}
 
-	s.Logger.WithContext(ctx).Infof("更新了 %d 个缺失资源的状态", updateCount)
+	// 4. 检查并清理空应用
+	for appId := range appsToCheck {
+		s.cleanupEmptyApplicationWithDeleteMode(ctx, appId, operator)
+	}
 
-	return updateCount, nil
+	s.Logger.WithContext(ctx).Infof("检查缺失资源完成: type=%s, %s了 %d 个版本", resourceType, deleteMode, deletedVersionCount)
+
+	return deletedVersionCount, nil
+}
+
+// cleanupEmptyApplicationWithDeleteMode 清理空应用（根据 types.EnableHardDelete 控制删除模式）
+func (s *ClusterResourceSync) cleanupEmptyApplicationWithDeleteMode(
+	ctx context.Context,
+	appId uint64,
+	operator string,
+) {
+	// 查询该应用下是否还有未删除的版本
+	remainingVersions, err := s.ProjectApplicationVersion.FindAllByApplicationId(ctx, appId)
+	if err != nil && !errors.Is(err, model.ErrNotFound) {
+		s.Logger.WithContext(ctx).Errorf("查询应用[%d]剩余版本失败: %v", appId, err)
+		return
+	}
+
+	// 如果还有版本，不删除应用
+	if len(remainingVersions) > 0 {
+		return
+	}
+
+	// 应用下没有版本了，根据删除模式处理
+	app, err := s.ProjectApplication.FindOne(ctx, appId)
+	if err != nil {
+		// 可能应用已经被删除了
+		s.Logger.WithContext(ctx).Debugf("查询应用失败(可能已删除): appId=%d, error=%v", appId, err)
+		return
+	}
+
+	deleteMode := "软删除"
+	if types.EnableHardDelete {
+		deleteMode = "硬删除"
+	}
+
+	s.Logger.WithContext(ctx).Infof("清理空应用(%s): appId=%d, name=%s", deleteMode, appId, app.NameEn)
+
+	if types.EnableHardDelete {
+		// 硬删除应用
+		if err := s.ProjectApplication.Delete(ctx, appId); err != nil {
+			s.Logger.WithContext(ctx).Errorf("硬删除空应用失败: appId=%d, error=%v", appId, err)
+		} else {
+			s.Logger.WithContext(ctx).Infof("硬删除空应用成功: appId=%d, name=%s", appId, app.NameEn)
+		}
+	} else {
+		// 软删除应用
+		if err := s.ProjectApplication.DeleteSoft(ctx, appId); err != nil {
+			s.Logger.WithContext(ctx).Errorf("软删除空应用失败: appId=%d, error=%v", appId, err)
+		} else {
+			s.Logger.WithContext(ctx).Infof("软删除空应用成功: appId=%d, name=%s", appId, app.NameEn)
+		}
+	}
+}
+
+// cleanupEmptyApplication 清理空应用（保持向后兼容，使用 types.EnableHardDelete 控制）
+// 已弃用：请使用 cleanupEmptyApplicationWithDeleteMode
+func (s *ClusterResourceSync) cleanupEmptyApplication(
+	ctx context.Context,
+	appId uint64,
+	operator string,
+) {
+	s.cleanupEmptyApplicationWithDeleteMode(ctx, appId, operator)
 }
 
 // resourceTypeToKind 将资源类型转换为 Kind
@@ -862,7 +1019,7 @@ func resourceTypeToKind(resourceType string) string {
 
 // SyncAllClusterApplications 同步所有集群的应用资源
 func (s *ClusterResourceSync) SyncAllClusterApplications(ctx context.Context, operator string, enableAudit bool) error {
-	s.Logger.WithContext(ctx).Infof("开始同步所有集群的应用资源, operator: %s", operator)
+	s.Logger.WithContext(ctx).Infof("开始同步所有集群的应用资源, operator: %s, enableHardDelete: %v", operator, types.EnableHardDelete)
 
 	clusters, err := s.ClusterModel.GetAllClusters(ctx)
 	if err != nil {
@@ -912,11 +1069,17 @@ func (s *ClusterResourceSync) SyncAllClusterApplications(ctx context.Context, op
 
 	wg.Wait()
 
-	s.Logger.WithContext(ctx).Infof("所有集群应用资源同步完成: 总数=%d, 成功=%d, 失败=%d", len(clusters), successCnt, failCnt)
+	deleteMode := "软删除"
+	if types.EnableHardDelete {
+		deleteMode = "硬删除"
+	}
+
+	s.Logger.WithContext(ctx).Infof("所有集群应用资源同步完成: 总数=%d, 成功=%d, 失败=%d, 删除模式=%s",
+		len(clusters), successCnt, failCnt, deleteMode)
 
 	if enableAudit {
 		status := int64(1)
-		auditDetail := fmt.Sprintf("批量应用同步: 集群总数=%d, 成功=%d", len(clusters), successCnt)
+		auditDetail := fmt.Sprintf("批量应用同步: 集群总数=%d, 成功=%d, 删除模式=%s", len(clusters), successCnt, deleteMode)
 		if failCnt > 0 {
 			status = 2
 			auditDetail = fmt.Sprintf("%s, 失败=%d", auditDetail, failCnt)

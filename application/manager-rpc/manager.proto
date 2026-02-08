@@ -1278,8 +1278,9 @@ message GetOnecProjectVersionDetailResp {
   string resourceType = 17;
   uint64 applicationId = 18;
   string applicationNameCn = 19;
-  uint64 workspaceId = 20;
-  uint64 versionId = 21;
+  string applicationNameEn = 20;
+  uint64 workspaceId = 21;
+  uint64 versionId = 22;
 
 }
 

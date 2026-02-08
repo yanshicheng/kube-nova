@@ -56,9 +56,17 @@ func (p *podOperator) GetLogs(namespace, name, container string, opts *corev1.Po
 		p.log.Debugf("设置默认尾部行数: %d", tailLines)
 	}
 
-	if opts.TailLines != nil && *opts.TailLines == 0 {
-		p.log.Info("TailLines=0，获取全部日志")
-		opts.TailLines = nil
+	// 处理 TailLines 的特殊值
+	if opts.TailLines != nil {
+		if *opts.TailLines == 0 {
+			p.log.Info("TailLines=0，获取全部日志")
+			opts.TailLines = nil
+		} else if *opts.TailLines < 0 {
+			// 负数视为无效，使用默认值
+			tailLines := int64(DefaultTailLines)
+			opts.TailLines = &tailLines
+			p.log.Infof("TailLines 为负数，使用默认值: %d", tailLines)
+		}
 	}
 
 	p.log.Infof("最终日志选项: follow=%v, tailLines=%v, timestamps=%v",
@@ -118,6 +126,11 @@ func (p *podOperator) GetLogsWithFollow(namespace, name, container string, opts 
 		if *opts.TailLines > 0 {
 			podLogOpts.TailLines = opts.TailLines
 			p.log.Debugf("设置尾部行数: %d", *opts.TailLines)
+		} else if *opts.TailLines < 0 {
+			// 负数视为无效，使用默认值
+			tailLines := int64(DefaultTailLines)
+			podLogOpts.TailLines = &tailLines
+			p.log.Infof("TailLines 为负数，使用默认值: %d", tailLines)
 		} else {
 			// TailLines=0 表示获取全部日志
 			p.log.Debug("TailLines=0，不限制行数")
