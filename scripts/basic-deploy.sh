@@ -94,13 +94,20 @@ deploy_resources() {
     kubectl apply -f "${MANIFESTS_DIR}/jaeger.yaml"
 }
 
-# --- 4. 健壮的服务就绪检查 ---
+# --- 4. 健壮的服务就绪检查  ---
 wait_for_services() {
     step "等待服务就绪"
     local apps=("mysql" "redis" "minio" "jaeger")
+
     for app in "${apps[@]}"; do
         info "等待 ${app} Pod 达到 Ready 状态..."
-        kubectl wait --for=condition=ready pod -l app=${app} -n ${NAMESPACE} --timeout=120s || error "${app} 启动超时"
+
+        # 修复点：添加 ,!job-name 排除掉初始化任务(Job)的 Pod
+        # 这样只等待真正的 Deployment/StatefulSet 服务 Pod
+        kubectl wait --for=condition=ready pod \
+            -l 'app=${app},!job-name' \
+            -n ${NAMESPACE} \
+            --timeout=120s || error "${app} 启动超时"
     done
 
     info "等待 MySQL 应用层响应 (mysqladmin ping)..."
