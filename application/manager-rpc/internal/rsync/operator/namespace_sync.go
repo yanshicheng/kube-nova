@@ -338,7 +338,12 @@ func (s *ClusterResourceSync) handleNamespaceWithoutAnnotation(ctx context.Conte
 				s.Logger.WithContext(ctx).Errorf("更新 Workspace 状态失败: %v", err)
 			}
 		}
-		return false, s.updateNamespaceAnnotationForWorkspace(ctx, cluster.Uuid, nsName, workspace)
+		// 检查 Namespace 注解是否匹配（只读检查，不修改集群）
+		if err := s.checkNamespaceAnnotationForWorkspace(ctx, cluster.Uuid, nsName, workspace); err != nil {
+			s.Logger.WithContext(ctx).Errorf("检查 Namespace 注解失败: %v", err)
+			// 注解检查失败不影响同步流程，继续执行
+		}
+		return false, nil
 	}
 
 	// 存在于多个项目，解决冲突
@@ -367,8 +372,16 @@ func (s *ClusterResourceSync) assignNamespaceToDefaultProject(ctx context.Contex
 		return false, err
 	}
 
-	// 4. 更新 namespace 注解
-	return isNew, s.updateNamespaceAnnotationWithUUID(ctx, clusterUUID, nsName, defaultProject.Uuid)
+	// 4. 检查 namespace 注解是否匹配（只读检查，不修改集群）
+	annotationMatches, err := s.checkNamespaceAnnotationWithUUID(ctx, clusterUUID, nsName, defaultProject.Uuid)
+	if err != nil {
+		s.Logger.WithContext(ctx).Errorf("检查 Namespace 注解失败: %v", err)
+		// 注解检查失败不影响同步流程，继续执行
+	} else if !annotationMatches {
+		s.Logger.WithContext(ctx).Infof("Namespace[%s] 注解与默认项目不匹配，需要手动修正集群注解", nsName)
+	}
+
+	return isNew, nil
 }
 
 // ==================== 辅助方法 ====================
@@ -560,8 +573,8 @@ func (s *ClusterResourceSync) createProjectClusterBinding(ctx context.Context, c
 	return projectCluster, nil
 }
 
-// updateNamespaceAnnotationForWorkspace 为 Workspace 更新 Namespace 注解
-func (s *ClusterResourceSync) updateNamespaceAnnotationForWorkspace(ctx context.Context, clusterUUID string, nsName string, workspace *model.OnecProjectWorkspace) error {
+// checkNamespaceAnnotationForWorkspace 检查 Workspace 的 Namespace 注解是否匹配（只读操作）
+func (s *ClusterResourceSync) checkNamespaceAnnotationForWorkspace(ctx context.Context, clusterUUID string, nsName string, workspace *model.OnecProjectWorkspace) error {
 	projectCluster, err := s.ProjectClusterResourceModel.FindOne(ctx, workspace.ProjectClusterId)
 	if err != nil {
 		s.Logger.WithContext(ctx).Errorf("查询项目集群关系失败: %v", err)
@@ -574,42 +587,44 @@ func (s *ClusterResourceSync) updateNamespaceAnnotationForWorkspace(ctx context.
 		return fmt.Errorf("查询项目失败: %v", err)
 	}
 
-	return s.updateNamespaceAnnotationWithUUID(ctx, clusterUUID, nsName, project.Uuid)
+	// 检查注解是否匹配（只读操作）
+	annotationMatches, err := s.checkNamespaceAnnotationWithUUID(ctx, clusterUUID, nsName, project.Uuid)
+	if err != nil {
+		s.Logger.WithContext(ctx).Errorf("检查 Namespace 注解失败: %v", err)
+		return err
+	}
+
+	if !annotationMatches {
+		s.Logger.WithContext(ctx).Infof("Namespace[%s] 注解与项目[%s]不匹配，需要手动修正集群注解", nsName, project.Name)
+	}
+
+	return nil
 }
 
-// updateNamespaceAnnotationWithUUID 使用项目UUID更新 Namespace 注解
-func (s *ClusterResourceSync) updateNamespaceAnnotationWithUUID(ctx context.Context, clusterUUID string, nsName string, projectUUID string) error {
+// checkNamespaceAnnotationWithUUID 检查 Namespace 注解是否匹配项目UUID（只读操作）
+// 注意：此方法只检查，不修改集群资源，符合同步服务只读原则
+func (s *ClusterResourceSync) checkNamespaceAnnotationWithUUID(ctx context.Context, clusterUUID string, nsName string, projectUUID string) (bool, error) {
 	k8sClient, err := s.K8sManager.GetCluster(ctx, clusterUUID)
 	if err != nil {
 		s.Logger.WithContext(ctx).Errorf("获取K8s客户端失败: %v", err)
-		return fmt.Errorf("获取K8s客户端失败: %v", err)
+		return false, fmt.Errorf("获取K8s客户端失败: %v", err)
 	}
 
 	ns, err := k8sClient.Namespaces().Get(nsName)
 	if err != nil {
 		s.Logger.WithContext(ctx).Errorf("获取 Namespace 失败: %v", err)
-		return fmt.Errorf("获取 Namespace 失败: %v", err)
+		return false, fmt.Errorf("获取 Namespace 失败: %v", err)
 	}
 
 	// 检查注解是否已经正确
 	if ns.Annotations != nil && ns.Annotations[ProjectUUIDAnnotation] == projectUUID {
-		return nil
+		s.Logger.WithContext(ctx).Debugf("Namespace 注解匹配: %s -> %s", nsName, projectUUID)
+		return true, nil
 	}
 
-	// 更新注解
-	if ns.Annotations == nil {
-		ns.Annotations = make(map[string]string)
-	}
-	ns.Annotations[ProjectUUIDAnnotation] = projectUUID
-
-	_, err = k8sClient.Namespaces().Update(ns)
-	if err != nil {
-		s.Logger.WithContext(ctx).Errorf("更新 Namespace 注解失败: %v", err)
-		return fmt.Errorf("更新 Namespace 注解失败: %v", err)
-	}
-
-	s.Logger.WithContext(ctx).Infof("更新 Namespace 注解成功: %s -> %s", nsName, projectUUID)
-	return nil
+	s.Logger.WithContext(ctx).Debugf("Namespace 注解不匹配: %s, 期望=%s, 实际=%s",
+		nsName, projectUUID, ns.Annotations[ProjectUUIDAnnotation])
+	return false, nil
 }
 
 // resolveMultipleProjectConflict 解决多项目冲突
@@ -659,8 +674,13 @@ func (s *ClusterResourceSync) resolveMultipleProjectConflict(ctx context.Context
 		s.syncProjectClusterResourceAndCache(ctx, projectClusterId)
 	}
 
-	// 更新 namespace 注解
-	return s.updateNamespaceAnnotationForWorkspace(ctx, clusterUUID, nsName, latestWorkspace)
+	// 检查 namespace 注解是否匹配（只读检查，不修改集群）
+	if err := s.checkNamespaceAnnotationForWorkspace(ctx, clusterUUID, nsName, latestWorkspace); err != nil {
+		s.Logger.WithContext(ctx).Errorf("检查 Namespace 注解失败: %v", err)
+		// 注解检查失败不影响同步流程，继续执行
+	}
+
+	return nil
 }
 
 // deleteNamespaceFromOtherProjects 删除该 Namespace 在其他项目下的记录（硬删除）

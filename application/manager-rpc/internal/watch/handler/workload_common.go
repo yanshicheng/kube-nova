@@ -159,19 +159,64 @@ func (h *DefaultEventHandler) syncWorkloadToDatabase(ctx context.Context, cluste
 	// 初始化同步结果
 	syncResult := &SyncResult{}
 
-	// Step 4: 确保应用存在
+	// Step 4: 检查版本是否已存在且绑定了应用
+	existingApp, existingVersion, err := h.findApplicationAndVersionByResourceName(ctx, workspace.Id, resourceName, resourceType)
+	if err != nil && !errors.Is(err, model.ErrNotFound) {
+		return fmt.Errorf("查询现有应用和版本失败: %v", err)
+	}
+
+	if existingApp != nil && existingVersion != nil {
+		// 版本存在且已绑定应用，执行智能检查逻辑
+		shouldSkip, err := h.checkAndCorrectExistingBinding(ctx, existingApp, existingVersion, versionRole, annotations, status, syncResult)
+		if err != nil {
+			return fmt.Errorf("检查现有绑定失败: %v", err)
+		}
+
+		if shouldSkip {
+			// 跳过处理，但仍需检查是否有变更用于审计日志
+			if !syncResult.HasChange() {
+				logger.Debugf("[Workload-SYNC] 版本已正确绑定，无变更，跳过: resourceName=%s", resourceName)
+				return nil
+			}
+			// 有变更，继续创建审计日志
+			logger.Infof("[Workload-SYNC] 版本绑定已修正: ClusterUUID=%s, Namespace=%s, ResourceName=%s, AppNameEn=%s, AppID=%d, Changes=%v",
+				clusterUUID, namespace, resourceName, appNameEn, existingApp.Id, syncResult.ChangeDetails)
+
+			// 创建审计日志
+			projectId, projectName := h.getProjectInfo(ctx, workspace.ProjectClusterId)
+			actionDetail := h.buildSyncAuditDetail(resourceType, appNameEn, resourceName, status, syncResult)
+
+			h.createAuditLog(ctx, &AuditLogInfo{
+				ClusterName:     h.getClusterName(ctx, clusterUUID),
+				ClusterUuid:     clusterUUID,
+				ProjectId:       projectId,
+				ProjectName:     projectName,
+				WorkspaceId:     workspace.Id,
+				WorkspaceName:   workspace.Name,
+				ApplicationId:   existingApp.Id,
+				ApplicationName: existingApp.NameEn,
+				Title:           "应用版本同步",
+				ActionDetail:    actionDetail,
+				Status:          1,
+			})
+
+			return nil
+		}
+	}
+
+	// Step 5: 确保应用存在
 	application, err := h.ensureApplication(ctx, workspace.Id, appNameEn, appNameCn, resourceType, syncResult)
 	if err != nil {
 		return fmt.Errorf("确保应用存在失败: %v", err)
 	}
 
-	// Step 5: 确保版本存在
+	// Step 6: 确保版本存在
 	err = h.ensureVersion(ctx, application.Id, resourceName, versionRole, annotations, status, syncResult)
 	if err != nil {
 		return fmt.Errorf("确保版本存在失败: %v", err)
 	}
 
-	// Step 6: 只有在有实际变更时才创建审计日志
+	// Step 7: 只有在有实际变更时才创建审计日志
 	if !syncResult.HasChange() {
 		logger.Debugf("[Workload-SYNC] 无实际变更，跳过审计日志: ClusterUUID=%s, Namespace=%s, ResourceName=%s",
 			clusterUUID, namespace, resourceName)
@@ -694,4 +739,146 @@ func (h *DefaultEventHandler) ensureVersion(ctx context.Context, applicationId u
 		applicationId, resourceName, version, versionRole, status)
 
 	return nil
+}
+
+// checkAndCorrectExistingBinding 检查并修正现有的版本绑定
+// 返回值: shouldSkip (是否应该跳过后续处理), error
+func (h *DefaultEventHandler) checkAndCorrectExistingBinding(
+	ctx context.Context,
+	existingApp *model.OnecProjectApplication,
+	existingVersion *model.OnecProjectVersion,
+	expectedVersionRole string,
+	annotations map[string]string,
+	expectedStatus int64,
+	syncResult *SyncResult,
+) (bool, error) {
+	logger := logx.WithContext(ctx)
+
+	// 1. 检查应用是否处于删除状态
+	if existingApp.IsDeleted == 1 {
+		// 应用是删除状态，修复为正常状态
+		logger.Infof("[Workload-BINDING] 恢复软删除的应用: AppID=%d, NameEn=%s", existingApp.Id, existingApp.NameEn)
+		if err := h.svcCtx.ProjectApplication.RestoreSoftDeleted(ctx, existingApp.Id, SystemOperator); err != nil {
+			return false, fmt.Errorf("恢复应用失败: %v", err)
+		}
+		syncResult.ApplicationRestored = true
+		syncResult.AddChangeDetail("恢复软删除应用")
+		existingApp.IsDeleted = 0 // 更新内存中的状态
+	}
+
+	// 2. 检查版本是否处于删除状态
+	if existingVersion.IsDeleted == 1 {
+		// 版本是删除状态，修复为正常状态
+		logger.Infof("[Workload-BINDING] 恢复软删除的版本: VersionID=%d, ResourceName=%s", existingVersion.Id, existingVersion.ResourceName)
+		if err := h.svcCtx.ProjectVersion.RestoreSoftDeleted(ctx, existingVersion.Id, SystemOperator); err != nil {
+			return false, fmt.Errorf("恢复版本失败: %v", err)
+		}
+		syncResult.VersionRestored = true
+		syncResult.AddChangeDetail("恢复软删除版本")
+		existingVersion.IsDeleted = 0 // 更新内存中的状态
+	}
+
+	// 3. 检查是否有明确的应用注解
+	hasExplicitAppAnnotation := false
+	annotationAppNameEn := ""
+	annotationAppNameCn := ""
+
+	if annotations != nil {
+		if nameEn, ok := annotations[AnnotationApplicationEn]; ok && nameEn != "" {
+			hasExplicitAppAnnotation = true
+			annotationAppNameEn = nameEn
+		}
+		if nameCn, ok := annotations[AnnotationApplication]; ok && nameCn != "" {
+			hasExplicitAppAnnotation = true
+			annotationAppNameCn = nameCn
+		}
+	}
+
+	// 4. 如果有明确的应用注解，检查应用的中英文名是否正确
+	if hasExplicitAppAnnotation {
+		needUpdateApp := false
+
+		// 检查英文名
+		if annotationAppNameEn != "" && existingApp.NameEn != annotationAppNameEn {
+			logger.Infof("[Workload-BINDING] 应用英文名不匹配，需要修正: 当前=%s, 期望=%s", existingApp.NameEn, annotationAppNameEn)
+			oldNameEn := existingApp.NameEn
+			existingApp.NameEn = annotationAppNameEn
+			needUpdateApp = true
+			syncResult.ApplicationUpdated = true
+			syncResult.AddChangeDetail(fmt.Sprintf("应用英文名: %s -> %s", oldNameEn, annotationAppNameEn))
+		}
+
+		// 检查中文名
+		if annotationAppNameCn != "" && existingApp.NameCn != annotationAppNameCn {
+			logger.Infof("[Workload-BINDING] 应用中文名不匹配，需要修正: 当前=%s, 期望=%s", existingApp.NameCn, annotationAppNameCn)
+			oldNameCn := existingApp.NameCn
+			existingApp.NameCn = annotationAppNameCn
+			needUpdateApp = true
+			syncResult.ApplicationUpdated = true
+			syncResult.AddChangeDetail(fmt.Sprintf("应用中文名: %s -> %s", oldNameCn, annotationAppNameCn))
+		}
+
+		// 如果需要更新应用，执行更新
+		if needUpdateApp {
+			existingApp.UpdatedBy = SystemOperator
+			if err := h.svcCtx.ProjectApplication.Update(ctx, existingApp); err != nil {
+				return false, fmt.Errorf("更新应用失败: %v", err)
+			}
+			logger.Infof("[Workload-BINDING] 应用信息已修正: AppID=%d", existingApp.Id)
+		}
+	} else {
+		// 5. 如果没有注解，应用正常则跳过
+		logger.Debugf("[Workload-BINDING] 资源无应用注解，保持当前绑定: AppID=%d, NameEn=%s", existingApp.Id, existingApp.NameEn)
+	}
+
+	// 6. 检查版本信息是否需要更新
+	needUpdateVersion := false
+	var versionChanges []string
+
+	// 检查版本角色
+	if existingVersion.VersionRole != expectedVersionRole {
+		versionChanges = append(versionChanges, fmt.Sprintf("角色: %s -> %s", existingVersion.VersionRole, expectedVersionRole))
+		existingVersion.VersionRole = expectedVersionRole
+		needUpdateVersion = true
+	}
+
+	// 检查版本状态
+	if existingVersion.Status != expectedStatus {
+		versionChanges = append(versionChanges, fmt.Sprintf("状态: %d -> %d", existingVersion.Status, expectedStatus))
+		existingVersion.Status = expectedStatus
+		needUpdateVersion = true
+	}
+
+	// 检查版本号（从注解）
+	if annotations != nil {
+		if v, ok := annotations[AnnotationVersion]; ok && v != "" && existingVersion.Version != v {
+			versionChanges = append(versionChanges, fmt.Sprintf("版本号: %s -> %s", existingVersion.Version, v))
+			existingVersion.Version = v
+			needUpdateVersion = true
+		}
+	}
+
+	// 清空不再使用的 ParentAppName
+	if existingVersion.ParentAppName != "" {
+		versionChanges = append(versionChanges, "清除ParentAppName")
+		existingVersion.ParentAppName = ""
+		needUpdateVersion = true
+	}
+
+	// 如果需要更新版本，执行更新
+	if needUpdateVersion {
+		existingVersion.UpdatedBy = SystemOperator
+		if err := h.svcCtx.ProjectVersion.Update(ctx, existingVersion); err != nil {
+			return false, fmt.Errorf("更新版本失败: %v", err)
+		}
+		syncResult.VersionUpdated = true
+		for _, change := range versionChanges {
+			syncResult.AddChangeDetail(change)
+		}
+		logger.Infof("[Workload-BINDING] 版本信息已修正: VersionID=%d, Changes=%v", existingVersion.Id, versionChanges)
+	}
+
+	// 7. 返回是否应该跳过后续处理
+	// 如果版本已正确绑定到应用，跳过后续的应用创建和版本创建逻辑
+	return true, nil
 }

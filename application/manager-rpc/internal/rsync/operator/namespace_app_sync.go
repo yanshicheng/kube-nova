@@ -522,7 +522,7 @@ func (s *ClusterResourceSync) syncCronJobsWithFlagger(
 	return newCnt, updateCnt, deleteCnt, nil
 }
 
-// syncSingleResourceWithFlagger 同步单个资源（使用 FlaggerHelper）
+// syncSingleResourceWithFlagger 同步单个资源（优化版本）
 // 返回值: isNew 表示是否为新创建的记录
 func (s *ClusterResourceSync) syncSingleResourceWithFlagger(
 	ctx context.Context,
@@ -543,11 +543,7 @@ func (s *ClusterResourceSync) syncSingleResourceWithFlagger(
 	flaggerInfo := flaggerHelper.IdentifyResource(resourceName, resourceKind, labels, annotations)
 
 	// 2. 确定应用名称
-	// 优先使用注解中指定的名称，否则使用 Flagger 识别的原始名称
-	appName := flaggerInfo.OriginalAppName
-	if annotations != nil && annotations[utils.AnnotationApplicationName] != "" {
-		appName = annotations[utils.AnnotationApplicationName]
-	}
+	appName := s.determineApplicationName(annotations, flaggerInfo)
 
 	s.Logger.WithContext(ctx).Debugf(
 		"处理资源: name=%s, type=%s, isFlagger=%v, versionRole=%s, appName=%s",
@@ -555,20 +551,423 @@ func (s *ClusterResourceSync) syncSingleResourceWithFlagger(
 		flaggerInfo.VersionRole, appName,
 	)
 
-	// 3. 查找或创建应用（包含软删除恢复逻辑）
-	app, isAppNew, err := s.ensureApplicationExists(ctx, workspace, appName, resourceType, operator)
+	// 3. 快速检查：版本是否已存在且正确
+	exists, isCorrect, existingVersion, err := s.checkVersionExistsAndCorrect(
+		ctx, workspace, resourceName, resourceType, appName, flaggerInfo.VersionRole, annotations,
+	)
+	if err != nil {
+		return false, fmt.Errorf("检查版本状态失败: %v", err)
+	}
+
+	if exists && isCorrect {
+		// 版本已存在且信息正确，直接返回
+		s.Logger.WithContext(ctx).Debugf("版本已存在且正确，跳过处理: %s", resourceName)
+		return false, nil
+	}
+
+	// 4. 版本不存在或信息不正确，需要处理
+	s.Logger.WithContext(ctx).Debugf("版本需要处理: exists=%v, isCorrect=%v", exists, isCorrect)
+
+	// 5. 查找或创建应用
+	app, isAppNew, err := s.ensureApplicationExistsWithLabels(ctx, workspace, appName, "", "", resourceType, operator)
 	if err != nil {
 		return false, fmt.Errorf("确保应用存在失败: %v", err)
 	}
 
-	// 4. 查找或创建版本（包含软删除恢复和迁移逻辑）
-	isVersionNew, err := s.ensureVersionExists(ctx, workspace, app, resourceName, resourceType, flaggerInfo.VersionRole, operator)
-	if err != nil {
-		return false, fmt.Errorf("确保版本存在失败: %v", err)
+	// 6. 处理版本
+	var isVersionNew bool
+	if exists && !isCorrect {
+		// 版本存在但信息不正确，需要更新或迁移
+		isVersionNew, err = s.fixExistingVersion(
+			ctx, workspace, app, existingVersion, resourceName,
+			resourceType, flaggerInfo.VersionRole, operator,
+		)
+	} else {
+		// 版本不存在，创建新版本
+		isVersionNew, err = s.ensureVersionExists(
+			ctx, workspace, app, resourceName, resourceType, flaggerInfo.VersionRole, operator,
+		)
 	}
 
-	// 如果应用或版本是新创建的，返回 true
+	if err != nil {
+		return false, fmt.Errorf("处理版本失败: %v", err)
+	}
+
 	return isAppNew || isVersionNew, nil
+}
+
+// checkVersionExistsAndCorrect 检查版本是否存在且信息正确
+// 返回: exists, isCorrect, version, error
+func (s *ClusterResourceSync) checkVersionExistsAndCorrect(
+	ctx context.Context,
+	workspace *model.OnecProjectWorkspace,
+	resourceName string,
+	resourceType string,
+	expectedAppName string,
+	expectedVersionRole string,
+	annotations map[string]string,
+) (bool, bool, *model.OnecProjectVersion, error) {
+
+	// 1. 在工作空间范围内查找所有同名的版本
+	// 先查找工作空间下的所有应用
+	apps, err := s.ProjectApplication.FindAllByWorkspaceId(ctx, workspace.Id)
+	if err != nil {
+		return false, false, nil, fmt.Errorf("查询工作空间应用失败: %v", err)
+	}
+
+	// 遍历所有应用，查找匹配的版本
+	for _, app := range apps {
+		if app.ResourceType != resourceType {
+			continue // 跳过不同资源类型的应用
+		}
+
+		// 查找该应用下的指定版本
+		version, err := s.ProjectApplicationVersion.FindOneByApplicationIdResourceNameIncludeDeleted(
+			ctx, app.Id, resourceName,
+		)
+		if err != nil {
+			if errors.Is(err, model.ErrNotFound) {
+				continue // 该应用下没有此版本，继续查找
+			}
+			return false, false, nil, fmt.Errorf("查询版本失败: %v", err)
+		}
+
+		// 找到了版本，检查是否正确
+		if version.IsDeleted == 1 {
+			// 软删除的版本需要恢复，认为是存在但不正确
+			return true, false, version, nil
+		}
+
+		// 检查版本角色是否匹配
+		roleMatches := (version.VersionRole == expectedVersionRole)
+
+		// 检查状态是否正确
+		statusCorrect := (version.Status == 1)
+
+		// 关键逻辑：判断是否需要修正
+		needCorrection := s.shouldCorrectVersionBinding(ctx, app, annotations)
+
+		if !needCorrection && roleMatches && statusCorrect {
+			// 版本已正确绑定到应用，且角色和状态正确，跳过处理
+			s.Logger.WithContext(ctx).Debugf(
+				"版本已正确绑定: resourceName=%s, appId=%d, appName=%s, 跳过处理",
+				resourceName, app.Id, app.NameEn,
+			)
+			return true, true, version, nil
+		} else {
+			// 需要修正：应用归属错误或角色错误或状态错误
+			s.Logger.WithContext(ctx).Debugf(
+				"版本需要修正: resourceName=%s, needCorrection=%v, roleMatches=%v, statusCorrect=%v",
+				resourceName, needCorrection, roleMatches, statusCorrect,
+			)
+			return true, false, version, nil
+		}
+	}
+
+	return false, false, nil, nil // 版本不存在
+}
+
+// shouldCorrectVersionBinding 判断是否需要修正版本绑定
+// 核心逻辑：只有当资源明确指定了应用注解且与当前绑定不符时，才需要修正
+func (s *ClusterResourceSync) shouldCorrectVersionBinding(
+	ctx context.Context,
+	currentApp *model.OnecProjectApplication,
+	annotations map[string]string,
+) bool {
+	// 1. 检查资源是否有明确的应用注解
+	hasExplicitAppAnnotation := false
+	annotationAppName := ""
+
+	if annotations != nil {
+		// 检查是否有 ikubeops.com/owned-by-app 注解（最高优先级）
+		if ownedByApp := annotations[utils.AnnotationApplicationName]; ownedByApp != "" {
+			hasExplicitAppAnnotation = true
+			annotationAppName = ownedByApp
+		} else {
+			// 检查是否有应用标识注解
+			appNameCn := annotations[utils.AnnotationApplication]   // ikubeops.com/application
+			appNameEn := annotations[utils.AnnotationApplicationEn] // ikubeops.com/application-en
+
+			if appNameCn != "" || appNameEn != "" {
+				hasExplicitAppAnnotation = true
+				// 优先使用英文名
+				if appNameEn != "" {
+					annotationAppName = appNameEn
+				} else {
+					annotationAppName = appNameCn
+				}
+			}
+		}
+	}
+
+	// 2. 如果资源没有明确的应用注解，不需要修正
+	if !hasExplicitAppAnnotation {
+		s.Logger.WithContext(ctx).Debugf(
+			"资源无应用注解，保持当前绑定: currentApp=%s",
+			currentApp.NameEn,
+		)
+		return false
+	}
+
+	// 3. 如果有明确的应用注解，检查是否与当前绑定匹配
+	appNameMatches := (currentApp.NameEn == annotationAppName || currentApp.NameCn == annotationAppName)
+
+	if appNameMatches {
+		s.Logger.WithContext(ctx).Debugf(
+			"应用注解与当前绑定匹配: annotationApp=%s, currentApp=%s",
+			annotationAppName, currentApp.NameEn,
+		)
+		return false // 不需要修正
+	}
+
+	// 4. 应用注解与当前绑定不匹配，需要修正
+	s.Logger.WithContext(ctx).Infof(
+		"应用注解与当前绑定不匹配，需要修正: annotationApp=%s, currentApp=%s",
+		annotationAppName, currentApp.NameEn,
+	)
+	return true
+}
+
+// fixExistingVersion 修复已存在但信息不正确的版本
+func (s *ClusterResourceSync) fixExistingVersion(
+	ctx context.Context,
+	workspace *model.OnecProjectWorkspace,
+	correctApp *model.OnecProjectApplication,
+	existingVersion *model.OnecProjectVersion,
+	resourceName string,
+	resourceType string,
+	expectedVersionRole string,
+	operator string,
+) (bool, error) {
+
+	changed := false
+
+	// 1. 检查是否需要迁移到正确的应用
+	if existingVersion.ApplicationId != correctApp.Id {
+		s.Logger.WithContext(ctx).Infof(
+			"迁移版本到正确应用: versionId=%d, 从应用ID=%d 到应用ID=%d",
+			existingVersion.Id, existingVersion.ApplicationId, correctApp.Id,
+		)
+
+		oldAppId := existingVersion.ApplicationId
+		existingVersion.ApplicationId = correctApp.Id
+		changed = true
+
+		// 清理旧的空应用（异步）
+		go s.cleanupEmptyApplicationWithDeleteMode(ctx, oldAppId, operator)
+	}
+
+	// 2. 检查版本角色是否需要更新
+	if existingVersion.VersionRole != expectedVersionRole {
+		s.Logger.WithContext(ctx).Infof(
+			"更新版本角色: versionId=%d, %s -> %s",
+			existingVersion.Id, existingVersion.VersionRole, expectedVersionRole,
+		)
+		existingVersion.VersionRole = expectedVersionRole
+		changed = true
+	}
+
+	// 3. 检查状态是否需要更新
+	if existingVersion.Status != 1 {
+		existingVersion.Status = 1
+		changed = true
+	}
+
+	// 4. 检查是否需要恢复软删除
+	if existingVersion.IsDeleted == 1 {
+		if err := s.ProjectApplicationVersion.RestoreSoftDeleted(ctx, existingVersion.Id, operator); err != nil {
+			return false, fmt.Errorf("恢复软删除版本失败: %v", err)
+		}
+		existingVersion.IsDeleted = 0
+		s.Logger.WithContext(ctx).Infof("恢复软删除版本: versionId=%d", existingVersion.Id)
+		changed = true
+	}
+
+	// 5. 如果有变更，更新版本
+	if changed {
+		existingVersion.UpdatedAt = time.Now()
+		existingVersion.UpdatedBy = operator
+
+		if err := s.ProjectApplicationVersion.Update(ctx, existingVersion); err != nil {
+			return false, fmt.Errorf("更新版本失败: %v", err)
+		}
+
+		s.Logger.WithContext(ctx).Infof("版本修复完成: versionId=%d", existingVersion.Id)
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// determineApplicationName 确定应用名称
+func (s *ClusterResourceSync) determineApplicationName(
+	annotations map[string]string,
+	flaggerInfo *FlaggerResourceInfo,
+) string {
+	// 优先级1: ikubeops.com/owned-by-app 注解（最高优先级）
+	if annotations != nil && annotations[utils.AnnotationApplicationName] != "" {
+		return annotations[utils.AnnotationApplicationName]
+	}
+
+	// 优先级2: 使用资源标签中的应用信息
+	if annotations != nil {
+		appNameCn := annotations[utils.AnnotationApplication]   // ikubeops.com/application
+		appNameEn := annotations[utils.AnnotationApplicationEn] // ikubeops.com/application-en
+
+		// 优先使用英文名
+		if appNameEn != "" {
+			return appNameEn
+		}
+		if appNameCn != "" {
+			return appNameCn
+		}
+	}
+
+	// 优先级3: 使用 Flagger 识别的原始名称
+	return flaggerInfo.OriginalAppName
+}
+
+// ensureApplicationExistsWithLabels 确保应用存在（支持中英文名智能匹配）
+// 返回值: app, isNew, error
+func (s *ClusterResourceSync) ensureApplicationExistsWithLabels(
+	ctx context.Context,
+	workspace *model.OnecProjectWorkspace,
+	appName string,
+	appNameCn string,
+	appNameEn string,
+	resourceType string,
+	operator string,
+) (*model.OnecProjectApplication, bool, error) {
+
+	// 1. 如果有中英文名标签，优先使用智能匹配查找
+	if appNameCn != "" || appNameEn != "" {
+		app, err := s.ProjectApplication.FindByWorkspaceIdNamesResourceTypeIncludeDeleted(
+			ctx, workspace.Id, appNameCn, appNameEn, resourceType,
+		)
+
+		if err == nil {
+			// 找到了匹配的应用
+			if app.IsDeleted == 1 {
+				// 软删除状态，恢复它
+				s.Logger.WithContext(ctx).Infof("恢复软删除的应用: id=%d, nameCn=%s, nameEn=%s", app.Id, app.NameCn, app.NameEn)
+				if err := s.ProjectApplication.RestoreSoftDeleted(ctx, app.Id, operator); err != nil {
+					return nil, false, fmt.Errorf("恢复应用失败: %v", err)
+				}
+				app.IsDeleted = 0
+			}
+
+			// 检查是否需要更新应用的中英文名
+			needUpdate := false
+			if appNameCn != "" && app.NameCn != appNameCn {
+				s.Logger.WithContext(ctx).Infof("更新应用中文名: id=%d, 原名=%s, 新名=%s", app.Id, app.NameCn, appNameCn)
+				app.NameCn = appNameCn
+				needUpdate = true
+			}
+			if appNameEn != "" && app.NameEn != appNameEn {
+				s.Logger.WithContext(ctx).Infof("更新应用英文名: id=%d, 原名=%s, 新名=%s", app.Id, app.NameEn, appNameEn)
+				app.NameEn = appNameEn
+				needUpdate = true
+			}
+
+			if needUpdate {
+				app.UpdatedBy = operator
+				if err := s.ProjectApplication.Update(ctx, app); err != nil {
+					s.Logger.WithContext(ctx).Infof("更新应用名称失败: %v", err)
+				}
+			}
+
+			return app, false, nil
+		}
+
+		if !errors.Is(err, model.ErrNotFound) {
+			return nil, false, fmt.Errorf("查询应用失败: %v", err)
+		}
+	}
+
+	// 2. 如果智能匹配没找到，但有标签信息，创建新应用时使用正确的中英文名
+	if appNameCn != "" || appNameEn != "" {
+		return s.createApplicationWithLabels(ctx, workspace, appName, appNameCn, appNameEn, resourceType, operator)
+	}
+
+	// 3. 如果没有标签信息，回退到原有逻辑（通过 appName 查找）
+	return s.ensureApplicationExists(ctx, workspace, appName, resourceType, operator)
+}
+
+// createApplicationWithLabels 使用标签信息创建新应用
+func (s *ClusterResourceSync) createApplicationWithLabels(
+	ctx context.Context,
+	workspace *model.OnecProjectWorkspace,
+	appName string,
+	appNameCn string,
+	appNameEn string,
+	resourceType string,
+	operator string,
+) (*model.OnecProjectApplication, bool, error) {
+
+	// 确定最终的中英文名
+	finalNameCn := appNameCn
+	finalNameEn := appNameEn
+
+	// 如果没有中文名，使用英文名
+	if finalNameCn == "" {
+		finalNameCn = finalNameEn
+	}
+	// 如果没有英文名，使用中文名
+	if finalNameEn == "" {
+		finalNameEn = finalNameCn
+	}
+	// 如果都没有，使用 appName
+	if finalNameCn == "" && finalNameEn == "" {
+		finalNameCn = appName
+		finalNameEn = appName
+	}
+
+	s.Logger.WithContext(ctx).Infof("创建新应用: nameCn=%s, nameEn=%s, type=%s", finalNameCn, finalNameEn, resourceType)
+
+	app := &model.OnecProjectApplication{
+		WorkspaceId:  workspace.Id,
+		NameCn:       finalNameCn,
+		NameEn:       finalNameEn,
+		ResourceType: resourceType,
+		Description:  fmt.Sprintf("从集群同步的%s资源", resourceType),
+		CreatedBy:    operator,
+		UpdatedBy:    operator,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		IsDeleted:    0,
+	}
+
+	result, err := s.ProjectApplication.Insert(ctx, app)
+	if err != nil {
+		// 处理并发创建导致的重复键错误
+		if strings.Contains(err.Error(), "Duplicate") || strings.Contains(err.Error(), "1062") {
+			s.Logger.WithContext(ctx).Infof("应用已存在（并发创建），重新查询: nameEn=%s", finalNameEn)
+
+			// 重新查询（包含软删除）
+			app, err = s.ProjectApplication.FindOneByWorkspaceIdNameEnResourceTypeIncludeDeleted(
+				ctx, workspace.Id, finalNameEn, resourceType,
+			)
+			if err != nil {
+				return nil, false, fmt.Errorf("并发创建后查询应用失败: %v", err)
+			}
+
+			// 如果查到的是软删除状态，恢复它
+			if app.IsDeleted == 1 {
+				if err := s.ProjectApplication.RestoreSoftDeleted(ctx, app.Id, operator); err != nil {
+					return nil, false, fmt.Errorf("恢复并发创建的应用失败: %v", err)
+				}
+				app.IsDeleted = 0
+			}
+
+			return app, false, nil
+		}
+		return nil, false, fmt.Errorf("创建应用失败: %v", err)
+	}
+
+	appId, _ := result.LastInsertId()
+	app.Id = uint64(appId)
+	s.Logger.WithContext(ctx).Infof("应用创建成功: appId=%d", app.Id)
+	return app, true, nil
 }
 
 // ensureApplicationExists 确保应用存在（包含软删除恢复逻辑）
