@@ -10,25 +10,43 @@ info(
 
 import "./base.api"
 
-// ==================== 通用请求 ====================
+// ==================== 通用请求结构定义 ====================
 type (
-    // 集群级资源列表请求（无 namespace）
+    // [GET] 列表查询通用请求 (Query Params)
     ClusterResourceListRequest {
         ClusterUuid string `form:"clusterUuid" validate:"required"`
         Search string `form:"search,optional"`               // 搜索关键字
         LabelSelector string `form:"labelSelector,optional"` // 标签选择器
     }
 
-        // 集群级资源名称请求
+        // [GET] 详情/YAML/Describe 通用请求 (Query Params)
     ClusterResourceNameRequest {
         ClusterUuid string `form:"clusterUuid" validate:"required"`
         Name string `form:"name" validate:"required"`
     }
 
-        // 集群级资源 YAML 创建/更新请求
+        // [DELETE] 通用删除请求 (JSON Body)
+    ClusterResourceDeleteRequest {
+        ClusterUuid string `json:"clusterUuid" validate:"required"`
+        Name string `json:"name" validate:"required"`
+    }
+
+        // [POST] 通用操作请求 (JSON Body, 用于如取消默认等简单操作)
+    ClusterResourceActionRequest {
+        ClusterUuid string `json:"clusterUuid" validate:"required"`
+        Name string `json:"name" validate:"required"`
+    }
+
+        // [POST/PUT] YAML 创建/更新通用请求 (JSON Body)
     ClusterResourceYamlRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        ClusterUuid string `json:"clusterUuid" validate:"required"`
         YamlStr string `json:"yamlStr" validate:"required"`
+    }
+
+        // [GET] 通用删除检查响应
+    CanDeleteResponse {
+        CanDelete bool `json:"canDelete"`
+        Warning string `json:"warning,optional"`
     }
 )
 
@@ -97,16 +115,16 @@ type (
         PVs []StorageClassPVItem `json:"pvs"`
     }
 
-        // 设置默认 StorageClass 请求
+        // [POST] 设置默认 StorageClass 请求 (JSON Body)
     SetDefaultStorageClassRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        ClusterUuid string `json:"clusterUuid" validate:"required"`
         Name string `json:"name" validate:"required"`
     }
 )
 
 // ==================== PersistentVolume 相关 ====================
 type (
-    // PV 列表请求
+    // PV 列表请求 (Query Params)
     PVListRequest {
         ClusterUuid string `form:"clusterUuid" validate:"required"`
         Search string `form:"search,optional"`
@@ -228,15 +246,10 @@ type (
         CreationTimestamp int64 `json:"creationTimestamp"`
     }
 
-
         // 聚合规则信息
     AggregationRuleInfo {
         ClusterRoleSelectors []LabelSelectorInfo `json:"clusterRoleSelectors"`
     }
-
-
-
-
 
         // ClusterRole 使用情况响应
     ClusterRoleUsageResponse {
@@ -268,8 +281,6 @@ type (
         Age string `json:"age"`
     }
 
-
-
         // ClusterRole 权限摘要
     ClusterRolePermissionSummary {
         ClusterRoleName string `json:"clusterRoleName"`
@@ -281,16 +292,16 @@ type (
         RiskLevel string `json:"riskLevel"`                          // low, medium, high, critical
     }
 
-        // 添加规则请求
+        // [POST] 添加规则请求 (JSON Body)
     AddClusterRoleRuleRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        ClusterUuid string `json:"clusterUuid" validate:"required"` // 修改为 json
         Name string `json:"name" validate:"required"`
         Rule PolicyRuleInfo `json:"rule" validate:"required"`
     }
 
-        // 移除规则请求
+        // [POST] 移除规则请求 (JSON Body)
     RemoveClusterRoleRuleRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        ClusterUuid string `json:"clusterUuid" validate:"required"` // 修改为 json
         Name string `json:"name" validate:"required"`
         RuleIndex int `json:"ruleIndex" validate:"min=0"`
     }
@@ -329,15 +340,13 @@ type (
         CreationTimestamp int64 `json:"creationTimestamp"`
     }
 
-
-
-        // 根据 ClusterRole 查询请求
+        // [GET] 根据 ClusterRole 查询请求
     GetByClusterRoleRequest {
         ClusterUuid string `form:"clusterUuid" validate:"required"`
         ClusterRoleName string `form:"clusterRoleName" validate:"required"`
     }
 
-        // 根据主体查询请求
+        // [GET] 根据主体查询请求
     GetBySubjectRequest {
         ClusterUuid string `form:"clusterUuid" validate:"required"`
         SubjectKind string `form:"subjectKind" validate:"required,oneof=User Group ServiceAccount"`
@@ -385,16 +394,16 @@ type (
         RiskLevel string `json:"riskLevel"`
     }
 
-        // 添加主体请求
+        // [POST] 添加主体请求 (JSON Body)
     AddSubjectRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        ClusterUuid string `json:"clusterUuid" validate:"required"` // 修改为 json
         Name string `json:"name" validate:"required"`
         Subject SubjectInfo `json:"subject" validate:"required"`
     }
 
-        // 移除主体请求
+        // [POST] 移除主体请求 (JSON Body)
     RemoveSubjectRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        ClusterUuid string `json:"clusterUuid" validate:"required"` // 修改为 json
         Name string `json:"name" validate:"required"`
         SubjectKind string `json:"subjectKind" validate:"required"`
         SubjectName string `json:"subjectName" validate:"required"`
@@ -410,11 +419,29 @@ type (
 
 // ==================== IngressClass 相关 ====================
 type (
-    // IngressClass 列表请求
+    // [GET] IngressClass 列表请求
     IngressClassListRequest {
         ClusterUuid string `form:"clusterUuid" validate:"required"`
         Search string `form:"search,optional"`
         LabelSelector string `form:"labelSelector,optional"`
+    }
+
+        // [GET] IngressClass 名称请求 (Query Params)
+    IngressClassNameRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Name string `form:"name" validate:"required"`
+    }
+
+        // [DELETE] IngressClass 删除请求 (JSON Body)
+    IngressClassDeleteRequest {
+        ClusterUuid string `json:"clusterUuid" validate:"required"`
+        Name string `json:"name" validate:"required"`
+    }
+
+        // [POST] IngressClass 操作请求 (JSON Body)
+    IngressClassActionRequest {
+        ClusterUuid string `json:"clusterUuid" validate:"required"`
+        Name string `json:"name" validate:"required"`
     }
 
         // IngressClass 列表项
@@ -456,12 +483,6 @@ type (
         Scope string `json:"scope,optional"` // Cluster 或 Namespace
     }
 
-        // IngressClass 名称请求
-    IngressClassNameRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Name string `form:"name" validate:"required"`
-    }
-
         // IngressClass 使用情况响应
     IngressClassUsageResponse {
         IngressClassName string `json:"ingressClassName"`
@@ -486,9 +507,9 @@ type (
         Age string `json:"age"`
     }
 
-        // 设置默认 IngressClass 请求
+        // [POST] 设置默认 IngressClass 请求 (JSON Body)
     SetDefaultIngressClassRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        ClusterUuid string `json:"clusterUuid" validate:"required"` // 修改为 json
         Name string `json:"name" validate:"required"`
     }
 
@@ -503,13 +524,6 @@ type (
     }
 )
 
-// ==================== 通用删除检查响应 ====================
-type (
-    CanDeleteResponse {
-        CanDelete bool `json:"canDelete"`
-        Warning string `json:"warning,optional"`
-    }
-)
 
 // ==================== 路由定义 ====================
 @server(
@@ -547,7 +561,7 @@ service workload-api {
 
     @doc "删除 StorageClass"
     @handler StorageClassDeleteHandler
-    delete /storageclass (ClusterResourceNameRequest) returns (string)
+    delete /storageclass (ClusterResourceDeleteRequest) returns (string) // 使用 JSON Body
 
     @doc "获取 StorageClass 关联的 PV"
     @handler StorageClassGetPVsHandler
@@ -563,7 +577,7 @@ service workload-api {
 
     @doc "取消默认 StorageClass"
     @handler StorageClassUnsetDefaultHandler
-    post /storageclass/unset-default (ClusterResourceNameRequest) returns (string)
+    post /storageclass/unset-default (ClusterResourceActionRequest) returns (string) // 使用 JSON Body
 
     // ==================== PersistentVolume 接口 ====================
 
@@ -593,7 +607,7 @@ service workload-api {
 
     @doc "删除 PV"
     @handler PVDeleteHandler
-    delete /pv (ClusterResourceNameRequest) returns (string)
+    delete /pv (ClusterResourceDeleteRequest) returns (string) // 使用 JSON Body
 
     @doc "获取 PV 使用情况"
     @handler PVGetUsageHandler
@@ -631,7 +645,7 @@ service workload-api {
 
     @doc "删除 ClusterRole"
     @handler ClusterRoleDeleteHandler
-    delete /clusterrole (ClusterResourceNameRequest) returns (string)
+    delete /clusterrole (ClusterResourceDeleteRequest) returns (string) // 使用 JSON Body
 
     @doc "获取 ClusterRole 使用情况（被哪些绑定引用）"
     @handler ClusterRoleGetUsageHandler
@@ -681,7 +695,7 @@ service workload-api {
 
     @doc "删除 ClusterRoleBinding"
     @handler ClusterRoleBindingDeleteHandler
-    delete /clusterrolebinding (ClusterResourceNameRequest) returns (string)
+    delete /clusterrolebinding (ClusterResourceDeleteRequest) returns (string) // 使用 JSON Body
 
     @doc "获取 ClusterRoleBinding 实际权限"
     @handler ClusterRoleBindingGetPermissionsHandler
@@ -739,7 +753,7 @@ service workload-api {
 
     @doc "删除 IngressClass"
     @handler IngressClassDeleteHandler
-    delete /ingressclass (IngressClassNameRequest) returns (string)
+    delete /ingressclass (IngressClassDeleteRequest) returns (string) // 使用 JSON Body
 
     @doc "获取 IngressClass 使用情况（哪些 Ingress 使用）"
     @handler IngressClassGetUsageHandler
@@ -755,7 +769,7 @@ service workload-api {
 
     @doc "取消默认 IngressClass"
     @handler IngressClassUnsetDefaultHandler
-    post /ingressclass/unset-default (IngressClassNameRequest) returns (string)
+    post /ingressclass/unset-default (IngressClassActionRequest) returns (string) // 使用 JSON Body
 
     @doc "获取 IngressClass 控制器状态"
     @handler IngressClassGetControllerStatusHandler

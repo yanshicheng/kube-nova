@@ -643,6 +643,13 @@ func (p *podOperator) IsTerminating(namespace, name string) (bool, error) {
 
 // Evict 驱逐 Pod
 func (p *podOperator) Evict(namespace, name string) error {
+	if namespace == "" {
+		return fmt.Errorf("命名空间不能为空")
+	}
+	if name == "" {
+		return fmt.Errorf("Pod名称不能为空")
+	}
+
 	eviction := &policyv1.Eviction{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -653,7 +660,7 @@ func (p *podOperator) Evict(namespace, name string) error {
 
 	err := p.client.CoreV1().Pods(namespace).EvictV1(p.ctx, eviction)
 	if err != nil {
-		return fmt.Errorf("驱逐Pod失败: %s/%s", namespace, name)
+		return fmt.Errorf("驱逐Pod失败: %s/%s: %v", namespace, name, err)
 	}
 	return nil
 }

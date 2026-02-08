@@ -15,6 +15,7 @@ type (
     SysMenu {
         Id uint64 `json:"id"`                              // 自增主键
         ParentId uint64 `json:"parentId"`                  // 父菜单ID，顶级菜单为0
+        PlatformId uint64 `json:"platformId"`              // 平台ID
         MenuType int64 `json:"menuType"`                   // 菜单类型（1目录 2菜单 3按钮）
         Name string `json:"name"`                          // 菜单名称（路由name）
         Path string `json:"path"`                          // 路由地址
@@ -53,6 +54,7 @@ type (
     SysMenuTree {
         Id uint64 `json:"id"`                              // 自增主键
         ParentId uint64 `json:"parentId"`                  // 父菜单ID
+        PlatformId uint64 `json:"platformId"`              // 平台ID
         MenuType int64 `json:"menuType"`                   // 菜单类型
         Name string `json:"name"`                          // 菜单名称
         Path string `json:"path"`                          // 路由地址
@@ -131,9 +133,15 @@ type (
 
         // ============== 原有类型定义 ==============
 
+        // 获取角色菜单树请求
+    GetRolesMenuTreeRequest {
+        PlatformId uint64 `form:"platformId" validate:"required,gt=0"`                                    // 平台ID，必填
+    }
+
         // 添加菜单请求 - 大部分字段可选
     AddSysMenuRequest {
         ParentId uint64 `json:"parentId,optional" default:"0" validate:"gte=0"`                           // 父菜单ID
+        PlatformId uint64 `json:"platformId" validate:"required,gt=0"`                                    // 平台ID，必填
         MenuType int64 `json:"menuType" validate:"required,oneof=1 2 3"`                                  // 菜单类型，必填
         Name string `json:"name" validate:"required,min=2,max=50"`                                        // 菜单名称，必填
         Path string `json:"path,optional" validate:"omitempty,max=255"`                                   // 路由地址
@@ -168,6 +176,7 @@ type (
     UpdateSysMenuRequest {
         Id uint64 `path:"id" validate:"required,gt=0"`                                                    // 菜单ID，必填
         ParentId uint64 `json:"parentId,optional" validate:"omitempty,gte=0"`                             // 父菜单ID
+        PlatformId uint64 `json:"platformId,optional" validate:"omitempty,gt=0"`                          // 平台ID（不允许修改，传入用于验证）
         MenuType int64 `json:"menuType,optional" validate:"omitempty,oneof=1 2 3"`                        // 菜单类型
         Name string `json:"name,optional" validate:"omitempty,min=2,max=50"`                              // 菜单名称
         Path string `json:"path,optional" validate:"omitempty,max=255"`                                   // 路由地址
@@ -200,6 +209,7 @@ type (
 
         // 搜索菜单请求（树状结构）
     SearchSysMenuRequest {
+        PlatformId uint64 `form:"platformId" validate:"required,gt=0"`                                    // 平台ID，必填
         ParentId uint64 `form:"parentId,optional" validate:"omitempty,gte=0"`                             // 父菜单ID
         MenuType int64 `form:"menuType,optional" validate:"omitempty,oneof=1 2 3"`                        // 菜单类型
         Name string `form:"name,optional" validate:"omitempty,max=50"`                                    // 菜单名称
@@ -221,6 +231,7 @@ type (
         PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"`         // 每页条数
         OrderStr string `form:"orderStr,optional" default:"sort" validate:"omitempty"`                    // 排序字段
         IsAsc bool `form:"isAsc,optional" default:"true" validate:"omitempty"`                            // 是否升序
+        PlatformId uint64 `form:"platformId" validate:"required,gt=0"`                                    // 平台ID，必填
         ParentId uint64 `form:"parentId,optional" validate:"omitempty,gte=0"`                             // 父菜单ID
         MenuType int64 `form:"menuType,optional" validate:"omitempty,oneof=1 2 3"`                        // 菜单类型
         Name string `form:"name,optional" validate:"omitempty,max=50"`                                    // 菜单名称
@@ -240,6 +251,7 @@ type (
 
         // 获取所有菜单树请求
     GetAllMenuTreeRequest {
+        PlatformId uint64 `form:"platformId" validate:"required,gt=0"`                                    // 平台ID，必填
         Status int64 `form:"status,optional" default:"-1" validate:"omitempty,oneof=-1 0 1"` // 状态过滤
     }
 
@@ -252,6 +264,7 @@ type (
 
         // 获取精简菜单树请求
     GetSysMenuSimpleTreeRequest {
+        PlatformId uint64 `form:"platformId" validate:"required,gt=0"`                                    // 平台ID，必填
         Status int64 `form:"status,optional" default:"-1" validate:"omitempty,oneof=-1 0 1"` // 状态过滤
     }
 )
@@ -288,7 +301,7 @@ service portal-api {
 
     // 获取角色菜单树（返回前端路由格式）
     @handler GetRolesMenuTreeHandler
-    get /roles/tree () returns ([]AppRouteRecord)
+    get /roles/tree (GetRolesMenuTreeRequest) returns ([]AppRouteRecord)
 
     // 获取所有菜单树
     @handler GetAllMenuTreeHandler

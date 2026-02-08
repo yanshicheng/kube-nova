@@ -101,6 +101,9 @@ func (l *UserSearchLogic) UserSearch(in *pb.SearchSysUserReq) (*pb.SearchSysUser
 			UpdatedBy:      user.UpdatedBy,
 			CreatedAt:      user.CreatedAt.Unix(),
 			UpdatedAt:      user.UpdatedAt.Unix(),
+			DingtalkId:     user.DingtalkId.String,
+			WechatId:       user.WechatId.String,
+			FeishuId:       user.FeishuId.String,
 		})
 	}
 

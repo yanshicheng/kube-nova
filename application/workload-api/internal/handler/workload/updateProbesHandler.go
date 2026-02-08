@@ -16,7 +16,7 @@ import (
 // 修改健康检查配置
 func UpdateProbesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.UpdateProbesRequest
+		var req types.CommUpdateProbesRequest
 		if err := httpx.Parse(r, &req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return

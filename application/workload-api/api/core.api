@@ -13,20 +13,26 @@ import "./base.api"
 type (
     // ==================== 通用请求类型 ====================
 
-    // 列表查询请求（workloadId 模式）
+    // 列表查询请求（workloadId 模式，GET 方法）
     ListRequest {
         WorkloadId uint64 `form:"workloadId" validate:"required,min=1"`
         Search string `form:"search,optional"`               // 搜索关键字
         LabelSelector string `form:"labelSelector,optional"` // 标签选择器，如: "app=nginx,env=prod"
     }
 
-        // 通用名称请求（workloadId 模式）
+        // 通用名称请求（workloadId 模式，GET 方法）
     DefaultNameRequest {
         WorkloadId uint64 `form:"workloadId" validate:"required,min=1"`
         Name string `form:"name" validate:"required"`
     }
 
-        // 集群命名空间请求（新增：用于 SA/Role/RoleBinding/PVC）
+        // 通用名称删除请求（workloadId 模式，DELETE 方法）
+    DefaultNameDeleteRequest {
+        WorkloadId uint64 `json:"workloadId" validate:"required,min=1"`
+        Name string `json:"name" validate:"required"`
+    }
+
+        // 集群命名空间请求（GET 方法，用于 SA/Role/RoleBinding/PVC）
     ClusterNamespaceRequest {
         ClusterUuid string `form:"clusterUuid" validate:"required"`
         Namespace string `form:"namespace" validate:"required"`
@@ -34,14 +40,21 @@ type (
         LabelSelector string `form:"labelSelector,optional"`
     }
 
-        // 集群命名空间资源请求
+        // 集群命名空间资源请求（GET 方法）
     ClusterNamespaceResourceRequest {
         ClusterUuid string `form:"clusterUuid" validate:"required"`
         Namespace string `form:"namespace" validate:"required"`
         Name string `form:"name" validate:"required"`
     }
 
-        // 集群命名空间资源更新请求
+        // 集群命名空间资源删除请求（DELETE 方法）
+    ClusterNamespaceResourceDeleteRequest {
+        ClusterUuid string `json:"clusterUuid" validate:"required"`
+        Namespace string `json:"namespace" validate:"required"`
+        Name string `json:"name" validate:"required"`
+    }
+
+        // 集群命名空间资源更新请求（PUT 方法）
     ClusterNamespaceResourceUpdateRequest {
         ClusterUuid string `json:"clusterUuid" validate:"required"`
         Namespace string `json:"namespace" validate:"required"`
@@ -692,7 +705,7 @@ service workload-api {
 
     @doc "删除 ConfigMap"
     @handler ConfigMapDeleteHandler
-    delete /configmap (DefaultNameRequest) returns (string)
+    delete /configmap (DefaultNameDeleteRequest) returns (string)
 
     @doc "获取 ConfigMap 引用情况"
     @handler ConfigMapGetUsageHandler
@@ -726,7 +739,7 @@ service workload-api {
 
     @doc "删除 Secret"
     @handler SecretDeleteHandler
-    delete /secret (DefaultNameRequest) returns (string)
+    delete /secret (DefaultNameDeleteRequest) returns (string)
 
     @doc "获取 Secret 引用情况"
     @handler SecretGetUsageHandler
@@ -760,7 +773,7 @@ service workload-api {
 
     @doc "删除 Service"
     @handler ServiceDeleteHandler
-    delete /service (DefaultNameRequest) returns (string)
+    delete /service (DefaultNameDeleteRequest) returns (string)
 
     @doc "获取 Service Endpoints"
     @handler ServiceGetEndpointsHandler
@@ -808,7 +821,7 @@ service workload-api {
 
     @doc "删除 PVC"
     @handler PVCDeleteHandler
-    delete /pvc (ClusterNamespaceResourceRequest) returns (string)
+    delete /pvc (ClusterNamespaceResourceDeleteRequest) returns (string)
 
     @doc "获取 PVC 详细描述"
     @handler PVCDescribeHandler
@@ -846,7 +859,7 @@ service workload-api {
 
     @doc "删除 Ingress"
     @handler IngressDeleteHandler
-    delete /ingress (DefaultNameRequest) returns (string)
+    delete /ingress (DefaultNameDeleteRequest) returns (string)
 
     // ==================== ServiceAccount 接口 ====================
     // 创建 ServiceAccount
@@ -866,7 +879,7 @@ service workload-api {
 
     @doc "删除 ServiceAccount"
     @handler ServiceAccountDeleteHandler
-    delete /serviceaccount (ClusterNamespaceResourceRequest) returns (string)
+    delete /serviceaccount (ClusterNamespaceResourceDeleteRequest) returns (string)
 
     @doc "获取 ServiceAccount 详细描述"
     @handler ServiceAccountDescribeHandler
@@ -894,7 +907,7 @@ service workload-api {
 
     @doc "删除 Role"
     @handler RoleDeleteHandler
-    delete /role (ClusterNamespaceResourceRequest) returns (string)
+    delete /role (ClusterNamespaceResourceDeleteRequest) returns (string)
 
     @doc "获取 Role 详细描述"
     @handler RoleDescribeHandler
@@ -922,7 +935,7 @@ service workload-api {
 
     @doc "删除 RoleBinding"
     @handler RoleBindingDeleteHandler
-    delete /rolebinding (ClusterNamespaceResourceRequest) returns (string)
+    delete /rolebinding (ClusterNamespaceResourceDeleteRequest) returns (string)
 
     @doc "获取 RoleBinding 详细描述"
     @handler RoleBindingDescribeHandler

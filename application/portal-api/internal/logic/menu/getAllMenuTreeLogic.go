@@ -2,6 +2,7 @@ package menu
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/yanshicheng/kube-nova/application/portal-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/portal-api/internal/types"
@@ -26,12 +27,19 @@ func NewGetAllMenuTreeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ge
 
 func (l *GetAllMenuTreeLogic) GetAllMenuTree(req *types.GetAllMenuTreeRequest) (resp []types.SysMenuTree, err error) {
 
+	// 验证 platformId 参数
+	if req.PlatformId == 0 {
+		l.Errorf("平台ID不能为空")
+		return nil, fmt.Errorf("平台ID不能为空")
+	}
+
 	// 调用 RPC 服务获取所有菜单树
 	res, err := l.svcCtx.PortalRpc.MenuGetAllMenuTree(l.ctx, &pb.GetAllMenuTreeReq{
-		Status: req.Status,
+		PlatformId: req.PlatformId,
+		Status:     req.Status,
 	})
 	if err != nil {
-		l.Errorf("获取所有菜单树失败: error=%v", err)
+		l.Errorf("获取所有菜单树失败: platformId=%d, error=%v", req.PlatformId, err)
 		return nil, err
 	}
 
@@ -41,6 +49,7 @@ func (l *GetAllMenuTreeLogic) GetAllMenuTree(req *types.GetAllMenuTreeRequest) (
 		menu := types.SysMenuTree{
 			Id:            pbMenu.Id,
 			ParentId:      pbMenu.ParentId,
+			PlatformId:    pbMenu.PlatformId,
 			MenuType:      pbMenu.MenuType,
 			Name:          pbMenu.Name,
 			Path:          pbMenu.Path,

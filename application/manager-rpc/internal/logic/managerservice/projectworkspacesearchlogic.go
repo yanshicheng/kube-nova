@@ -24,7 +24,6 @@ func NewProjectWorkspaceSearchLogic(ctx context.Context, svcCtx *svc.ServiceCont
 }
 
 // ProjectWorkspaceSearch 搜索工作空间
-// ProjectWorkspaceSearch 搜索工作空间列表
 func (l *ProjectWorkspaceSearchLogic) ProjectWorkspaceSearch(in *pb.SearchOnecProjectWorkspaceReq) (*pb.SearchOnecProjectWorkspaceResp, error) {
 
 	if in.ProjectClusterId == 0 {
@@ -53,15 +52,23 @@ func (l *ProjectWorkspaceSearchLogic) ProjectWorkspaceSearch(in *pb.SearchOnecPr
 		return nil, errorx.Msg("搜索工作空间失败")
 	}
 
+	clusterUuidSet := make(map[string]struct{})
+	for _, ws := range workspaces {
+		clusterUuidSet[ws.ClusterUuid] = struct{}{}
+	}
+
+	clusterNameMap := make(map[string]string)
+	for uuid := range clusterUuidSet {
+		cluster, err := l.svcCtx.OnecClusterModel.FindOneByUuid(l.ctx, uuid)
+		if err == nil {
+			clusterNameMap[uuid] = cluster.Name
+		}
+	}
+
 	// 转换结果
 	var data []*pb.OnecProjectWorkspace
 	for _, ws := range workspaces {
-		// 查询集群名称
-		cluster, err := l.svcCtx.OnecClusterModel.FindOneByUuid(l.ctx, ws.ClusterUuid)
-		clusterName := ""
-		if err == nil {
-			clusterName = cluster.Name
-		}
+		clusterName := clusterNameMap[ws.ClusterUuid]
 		data = append(data, convertWorkspaceToProto(ws, clusterName))
 	}
 

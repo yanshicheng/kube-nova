@@ -34,6 +34,16 @@ func (l *GetRetentionPolicyLogic) GetRetentionPolicy(req *types.GetRetentionPoli
 		return nil, err
 	}
 
+	// 如果不存在策略，返回 Exists=false, Data=nil
+	if rpcResp == nil || !rpcResp.Exists || rpcResp.Data == nil {
+		l.Infof("项目 %s 没有配置保留策略", req.ProjectName)
+		return &types.GetRetentionPolicyResponse{
+			Exists: false,
+			Data:   nil, // 明确返回 nil
+		}, nil
+	}
+
+	// 转换规则
 	var rules []types.RetentionRule
 	for _, rule := range rpcResp.Data.Rules {
 		rules = append(rules, types.RetentionRule{
@@ -50,7 +60,8 @@ func (l *GetRetentionPolicyLogic) GetRetentionPolicy(req *types.GetRetentionPoli
 
 	l.Infof("保留策略查询成功: PolicyId=%d", rpcResp.Data.Id)
 	return &types.GetRetentionPolicyResponse{
-		Data: types.RetentionPolicy{
+		Exists: true,
+		Data: &types.RetentionPolicy{
 			Id:         rpcResp.Data.Id,
 			Algorithm:  rpcResp.Data.Algorithm,
 			Rules:      rules,

@@ -27,3 +27,6 @@ go.work
 
 local
 local/*
+.claude
+.docs
+tmp

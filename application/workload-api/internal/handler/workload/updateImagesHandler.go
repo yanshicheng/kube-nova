@@ -16,7 +16,7 @@ import (
 // 更新多个镜像
 func UpdateImagesHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.UpdateImagesRequest
+		var req types.CommUpdateImagesRequest
 		if err := httpx.Parse(r, &req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return

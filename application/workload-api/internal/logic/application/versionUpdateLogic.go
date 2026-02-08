@@ -75,12 +75,14 @@ func (l *VersionUpdateLogic) VersionUpdate(req *types.UpdateOnecProjectVersionRe
 
 	// 注入注解（资源级别 + Pod 模板级别）
 	injectAnnotations(k8sObj, versionDetail.ResourceType, &utils.AnnotationsInfo{
-		ServiceName:   versionDetail.ResourceName,
-		ProjectName:   versionDetail.ProjectNameCn,
-		Version:       versionDetail.Version,
-		Description:   versionDetail.ProjectDetails,
-		ProjectUuid:   versionDetail.ProjectNameCn,
-		WorkspaceName: versionDetail.WorkspaceNameCn,
+		ServiceName:     versionDetail.ResourceName,
+		ProjectName:     versionDetail.ProjectNameCn,
+		ApplicationName: versionDetail.ApplicationNameCn,
+		ApplicationEn:   versionDetail.ApplicationNameEn,
+		Version:         versionDetail.Version,
+		Description:     versionDetail.ProjectDetails,
+		ProjectUuid:     versionDetail.ProjectNameCn,
+		WorkspaceName:   versionDetail.WorkspaceNameCn,
 	})
 
 	// 更新 K8s 资源

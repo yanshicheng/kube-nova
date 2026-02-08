@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
@@ -48,6 +49,25 @@ func (l *ServiceDeleteLogic) ServiceDelete(req *types.DefaultNameRequest) (resp 
 	// 初始化 Service 客户端
 	serviceClient := client.Services()
 
+	// 获取 Service 详情用于审计
+	existingSvc, _ := serviceClient.Get(workloadInfo.Data.Namespace, req.Name)
+	var svcType string
+	var portsInfo string
+	var clusterIP string
+	if existingSvc != nil {
+		svcType = string(existingSvc.Spec.Type)
+		clusterIP = existingSvc.Spec.ClusterIP
+
+		var portStrs []string
+		for _, p := range existingSvc.Spec.Ports {
+			portStrs = append(portStrs, fmt.Sprintf("%d→%s", p.Port, p.TargetPort.String()))
+		}
+		portsInfo = strings.Join(portStrs, ", ")
+		if portsInfo == "" {
+			portsInfo = "无"
+		}
+	}
+
 	// 删除 Service
 	deleteErr := serviceClient.Delete(workloadInfo.Data.Namespace, req.Name)
 	if deleteErr != nil {
@@ -56,17 +76,19 @@ func (l *ServiceDeleteLogic) ServiceDelete(req *types.DefaultNameRequest) (resp 
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			WorkspaceId:  req.WorkloadId,
 			Title:        "删除 Service",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 删除 Service %s 失败, 错误原因: %v", username, workloadInfo.Data.Namespace, req.Name, deleteErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 删除 Service %s 失败, 类型: %s, 错误原因: %v", username, workloadInfo.Data.Namespace, req.Name, svcType, deleteErr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("删除 Service 失败")
 	}
 
 	// 记录成功的审计日志
+	auditDetail := fmt.Sprintf("用户 %s 在命名空间 %s 成功删除 Service %s, 类型: %s, ClusterIP: %s, 端口: %s", username, workloadInfo.Data.Namespace, req.Name, svcType, clusterIP, portsInfo)
+
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		WorkspaceId:  req.WorkloadId,
 		Title:        "删除 Service",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功删除 Service %s", username, workloadInfo.Data.Namespace, req.Name),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	if auditErr != nil {

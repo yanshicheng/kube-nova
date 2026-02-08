@@ -259,19 +259,11 @@ func (l *ReceiveAlertmanagerWebhookLogic) resolveAlertContext(clusterUuid, names
 				logx.Errorf("集群不存在: cluster_uuid=%s", clusterUuid)
 			}
 			// TODO: 处理集群不存在的情况
-			// 1. 是否需要记录未知集群的告警？
-			// 2. 是否需要创建占位集群记录？
-			// 3. 是否需要发送告警通知管理员？
 		} else {
 			clusterInfo.Name = cluster.Name
 		}
 	} else {
 		// TODO: 告警中没有 cluster_uuid 标签
-		// 这种情况可能的原因：
-		// 1. Prometheus 配置中没有添加 cluster_uuid 标签
-		// 2. 告警规则配置有误
-		// 3. 某些全局告警不需要关联集群
-		// 建议：检查 Prometheus 的 external_labels 配置
 		logx.Errorf("告警缺少 cluster_uuid 标签")
 	}
 
@@ -321,37 +313,15 @@ func (l *ReceiveAlertmanagerWebhookLogic) resolveAlertContext(clusterUuid, names
 
 			if workspaceInfo.Id == 0 {
 				// TODO: 该集群下找不到对应 namespace 的工作空间
-				// 可能的原因：
-				// 1. namespace 尚未在系统中注册为工作空间
-				// 2. 工作空间已被删除但 namespace 仍存在
-				// 3. 系统级 namespace（如 kube-system）未纳入管理
-				// 建议：
-				// 1. 记录这些告警便于后续分析
-				// 2. 考虑是否需要自动创建工作空间
-				// 3. 对于系统 namespace，可以关联到特殊的系统项目
 				logx.Errorf("未找到工作空间: cluster_uuid=%s, namespace=%s", clusterUuid, namespace)
 			}
 		} else {
 			// TODO: 该集群下没有关联任何项目
-			// 可能的原因：
-			// 1. 新集群刚添加，尚未分配给任何项目
-			// 2. 集群配置有误
-			// 建议：
-			// 1. 告警仍然记录，但标记为未分配项目
-			// 2. 通知管理员处理集群分配
 			logx.Errorf("集群未关联任何项目: cluster_uuid=%s", clusterUuid)
 		}
 	} else {
 		if namespace == "" {
 			// TODO: 告警中没有 namespace 标签
-			// 这种情况可能的原因：
-			// 1. 集群级别的告警（如节点故障、网络问题）
-			// 2. 告警规则配置有误
-			// 3. Prometheus 抓取配置问题
-			// 建议：
-			// 1. 区分集群级告警和应用级告警
-			// 2. 集群级告警可以不关联工作空间，只关联集群
-			// 3. 应用级告警缺少 namespace 可能是配置错误
 			logx.Errorf("告警缺少 namespace 标签，无法关联到工作空间和项目")
 		}
 	}

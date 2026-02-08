@@ -29,7 +29,7 @@ type ListCronJobResponse struct {
 	Items []CronJobInfo
 }
 
-// CronJobScheduleConfig CronJob 调度配置（与 API 定义一致）
+// CronJobScheduleConfig CronJob 调度配置
 type CronJobScheduleConfig struct {
 	Schedule                   string `json:"schedule"`           // Cron 表达式
 	Timezone                   string `json:"timezone,omitempty"` // 时区
@@ -40,7 +40,7 @@ type CronJobScheduleConfig struct {
 	FailedJobsHistoryLimit     int32  `json:"failedJobsHistoryLimit"`     // 失败历史保留数
 }
 
-// UpdateCronJobScheduleRequest 修改 CronJob 调度配置请求（与 API 定义一致）
+// UpdateCronJobScheduleRequest 修改 CronJob 调度配置请求
 type UpdateCronJobScheduleRequest struct {
 	Name                       string `json:"name"`
 	Namespace                  string `json:"namespace"`
@@ -247,4 +247,11 @@ type CronJobOperator interface {
 		svcOp ServiceOperator,
 		ingressOp IngressOperator,
 	) (*WorkloadResourceSummary, error)
+	// GetAdvancedConfig 获取高级容器配置
+	// 返回 Pod 级别配置 + 所有容器（init/main/ephemeral）的高级配置
+	GetAdvancedConfig(namespace, name string) (*AdvancedConfigResponse, error)
+
+	// UpdateAdvancedConfig 更新高级容器配置（全量更新）
+	// 支持同时更新 Pod 级别配置和所有容器的高级配置
+	UpdateAdvancedConfig(req *UpdateAdvancedConfigRequest) error
 }

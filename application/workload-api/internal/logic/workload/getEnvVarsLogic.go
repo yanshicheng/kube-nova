@@ -7,7 +7,7 @@ import (
 
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/types"
-	types2 "github.com/yanshicheng/kube-nova/common/k8smanager/types"
+	k8sTypes "github.com/yanshicheng/kube-nova/common/k8smanager/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -35,7 +35,7 @@ func (l *GetEnvVarsLogic) GetEnvVars(req *types.DefaultIdRequest) (resp *types.E
 
 	resourceType := strings.ToUpper(versionDetail.ResourceType)
 
-	var envVars *types2.EnvVarsResponse
+	var envVars *k8sTypes.EnvVarsResponse
 
 	switch resourceType {
 	case "DEPLOYMENT":
@@ -61,7 +61,8 @@ func (l *GetEnvVarsLogic) GetEnvVars(req *types.DefaultIdRequest) (resp *types.E
 	return resp, nil
 }
 
-func convertToEnvVarsResponse(envVars *types2.EnvVarsResponse) *types.EnvVarsResponse {
+// convertToEnvVarsResponse 将 k8sTypes.EnvVarsResponse 转换为 API 响应类型
+func convertToEnvVarsResponse(envVars *k8sTypes.EnvVarsResponse) *types.EnvVarsResponse {
 	containers := make([]types.ContainerEnvVars, 0, len(envVars.Containers))
 
 	for _, container := range envVars.Containers {
@@ -75,6 +76,7 @@ func convertToEnvVarsResponse(envVars *types2.EnvVarsResponse) *types.EnvVarsRes
 
 		containers = append(containers, types.ContainerEnvVars{
 			ContainerName: container.ContainerName,
+			ContainerType: string(container.ContainerType), // 添加容器类型转换
 			Env:           env,
 		})
 	}
@@ -84,7 +86,8 @@ func convertToEnvVarsResponse(envVars *types2.EnvVarsResponse) *types.EnvVarsRes
 	}
 }
 
-func convertToEnvVarSource(source types2.EnvVarSource) types.EnvVarSource {
+// convertToEnvVarSource 将 k8sTypes.EnvVarSource 转换为 API 类型
+func convertToEnvVarSource(source k8sTypes.EnvVarSource) types.EnvVarSource {
 	result := types.EnvVarSource{
 		Type:  source.Type,
 		Value: source.Value,

@@ -2,6 +2,7 @@ package menu
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/yanshicheng/kube-nova/application/portal-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/portal-api/internal/types"
@@ -24,14 +25,21 @@ func NewGetSysMenuSimpleTreeLogic(ctx context.Context, svcCtx *svc.ServiceContex
 }
 
 func (l *GetSysMenuSimpleTreeLogic) GetSysMenuSimpleTree(req *types.GetSysMenuSimpleTreeRequest) (resp []types.SysMenuSimpleTreeNode, err error) {
+	// 验证 platformId 参数
+	if req.PlatformId == 0 {
+		l.Errorf("平台ID不能为空")
+		return nil, fmt.Errorf("平台ID不能为空")
+	}
+
 	// 调用 RPC 服务获取精简菜单树
 	rpcReq := &pb.GetSysMenuSimpleTreeReq{
-		Status: req.Status,
+		PlatformId: req.PlatformId,
+		Status:     req.Status,
 	}
 
 	rpcResp, err := l.svcCtx.PortalRpc.MenuGetSimpleTree(l.ctx, rpcReq)
 	if err != nil {
-		logx.Errorf("调用 MenuGetSimpleTree RPC 失败: %v", err)
+		logx.Errorf("调用 MenuGetSimpleTree RPC 失败: platformId=%d, error=%v", req.PlatformId, err)
 		return nil, err
 	}
 

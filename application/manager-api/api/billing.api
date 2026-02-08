@@ -31,7 +31,7 @@ type (
         UpdatedAt int64 `json:"updatedAt"`           // 更新时间
     }
 
-    // 新增收费配置请求
+        // 新增收费配置请求
     OnecBillingPriceConfigAddRequest {
         ConfigName string `json:"configName" validate:"required"`      // 配置名称
         Description string `json:"description,optional"`               // 配置描述
@@ -44,11 +44,11 @@ type (
         IsSystem int64 `json:"isSystem,optional"`                      // 是否系统内置：0-否 1-是
     }
 
-    // 新增收费配置响应
+        // 新增收费配置响应
     OnecBillingPriceConfigAddResponse {
     }
 
-    // 更新收费配置请求
+        // 更新收费配置请求
     OnecBillingPriceConfigUpdateRequest {
         Id uint64 `json:"id" validate:"required"`                      // 自增主键
         ConfigName string `json:"configName" validate:"required"`      // 配置名称
@@ -62,42 +62,42 @@ type (
         IsGenerateBilling bool `json:"isGenerateBilling,optional"`     // 是否生成账单
     }
 
-    // 更新收费配置响应
+        // 更新收费配置响应
     OnecBillingPriceConfigUpdateResponse {
     }
 
-    // 删除收费配置请求
+        // 删除收费配置请求
     OnecBillingPriceConfigDelRequest {
         Id uint64 `path:"id" validate:"required"`                      // 配置ID
     }
 
-    // 删除收费配置响应
+        // 删除收费配置响应
     OnecBillingPriceConfigDelResponse {
     }
 
-    // 根据ID获取收费配置请求
+        // 根据ID获取收费配置请求
     OnecBillingPriceConfigGetByIdRequest {
         Id uint64 `path:"id" validate:"required"`                      // 配置ID
     }
 
-    // 根据ID获取收费配置响应
+        // 根据ID获取收费配置响应
     OnecBillingPriceConfigGetByIdResponse {
         Data OnecBillingPriceConfig `json:"data"`                      // 配置信息
     }
 
-    // 搜索收费配置请求
+        // 搜索收费配置请求
     OnecBillingPriceConfigSearchRequest {
         ConfigName string `form:"configName,optional"`                 // 配置名称
     }
 
-    // 搜索收费配置响应
+        // 搜索收费配置响应
     OnecBillingPriceConfigSearchResponse {
         Data []OnecBillingPriceConfig `json:"data"`                    // 配置列表
     }
 
-    // ===================== 计费配置绑定表 =====================
+        // ===================== 计费配置绑定表 =====================
 
-    // 计费配置绑定信息
+        // 计费配置绑定信息
     OnecBillingConfigBinding {
         Id uint64 `json:"id"`                                          // 自增主键
         BindingType string `json:"bindingType"`                        // 绑定类型：cluster/project_cluster
@@ -112,7 +112,7 @@ type (
         UpdatedAt int64 `json:"updatedAt"`                             // 更新时间
     }
 
-    // 新增计费配置绑定请求
+        // 新增计费配置绑定请求
     OnecBillingConfigBindingAddRequest {
         BindingType string `json:"bindingType" validate:"required,oneof=cluster project_cluster"` // 绑定类型
         BindingClusterUuid string `json:"bindingClusterUuid" validate:"required"`                 // 绑定集群UUID
@@ -122,47 +122,47 @@ type (
         IsGenerateBilling bool `json:"isGenerateBilling,optional"`                                // 是否生成账单
     }
 
-    // 新增计费配置绑定响应
+        // 新增计费配置绑定响应
     OnecBillingConfigBindingAddResponse {
     }
 
-    // 更新计费配置绑定请求
+        // 更新计费配置绑定请求
     OnecBillingConfigBindingUpdateRequest {
-        Id uint64 `json:"id" validate:"required"`                      // 绑定ID
-        BindingClusterUuid string `json:"bindingClusterUuid,optional"` // 绑定集群UUID
-        BindingProjectId uint64 `json:"bindingProjectId,optional"`     // 绑定项目ID
+        Id uint64 `json:"id" validate:"required"`                       // 绑定ID
+        BindingClusterUuid string `json:"bindingClusterUuid,optional"`  // 绑定集群UUID
+        BindingProjectId uint64 `json:"bindingProjectId,optional"`      // 绑定项目ID
         PriceConfigId uint64 `json:"priceConfigId" validate:"required"` // 关联的价格配置ID
-        IsGenerateBilling bool `json:"isGenerateBilling,optional"`     // 是否生成账单
+        IsGenerateBilling bool `json:"isGenerateBilling,optional"`      // 是否生成账单
     }
 
-    // 更新计费配置绑定响应
+        // 更新计费配置绑定响应
     OnecBillingConfigBindingUpdateResponse {
     }
 
-    // 删除计费配置绑定请求
+        // 删除计费配置绑定请求
     OnecBillingConfigBindingDelRequest {
         Id uint64 `path:"id" validate:"required"`                      // 绑定ID
     }
 
-    // 删除计费配置绑定响应
+        // 删除计费配置绑定响应
     OnecBillingConfigBindingDelResponse {
     }
 
-    // 获取计费配置绑定请求
+        // 获取计费配置绑定请求
     OnecBillingConfigBindingGetRequest {
         BindingType string `form:"bindingType" validate:"required,oneof=cluster project_cluster"` // 绑定类型
         BindingClusterUuid string `form:"bindingClusterUuid" validate:"required"`                 // 绑定集群UUID
         BindingProjectId uint64 `form:"bindingProjectId,optional"`                                // 绑定项目ID
     }
 
-    // 获取计费配置绑定响应
+        // 获取计费配置绑定响应
     OnecBillingConfigBindingGetResponse {
         Data OnecBillingConfigBinding `json:"data"`                    // 绑定信息
     }
 
-    // ===================== 账单仪表盘 =====================
+        // ===================== 账单仪表盘 =====================
 
-    // 仪表盘统计卡片请求
+        // 仪表盘统计卡片请求
     OnecBillingDashboardStatsRequest {
         Month string `form:"month,optional"`                           // 查询月份，格式：2025-01
         ClusterUuid string `form:"clusterUuid,optional"`               // 集群UUID，为空查全部
@@ -171,7 +171,7 @@ type (
         EndTime int64 `form:"endTime,optional"`                        // 计费结束时间
     }
 
-    // 仪表盘统计卡片响应
+        // 仪表盘统计卡片响应
     OnecBillingDashboardStatsResponse {
         TotalCost float64 `json:"totalCost"`                           // 本月总费用
         TotalCostMom float64 `json:"totalCostMom"`                     // 总费用环比
@@ -183,14 +183,14 @@ type (
         ProjectCount int64 `json:"projectCount"`                       // 涉及项目数量
     }
 
-    // 费用构成项
+        // 费用构成项
     CostCompositionItem {
         CostName string `json:"costName"`                              // 费用名称
         CostAmount float64 `json:"costAmount"`                         // 费用金额
         Percentage float64 `json:"percentage"`                         // 百分比
     }
 
-    // 费用构成请求
+        // 费用构成请求
     OnecBillingCostCompositionRequest {
         Month string `form:"month,optional"`                           // 查询月份，格式：2025-01
         ClusterUuid string `form:"clusterUuid,optional"`               // 集群UUID，为空查全部
@@ -199,13 +199,13 @@ type (
         EndTime int64 `form:"endTime,optional"`                        // 计费结束时间
     }
 
-    // 费用构成响应
+        // 费用构成响应
     OnecBillingCostCompositionResponse {
         Items []CostCompositionItem `json:"items"`                     // 费用构成列表
         TotalCost float64 `json:"totalCost"`                           // 总费用
     }
 
-    // 费用趋势项
+        // 费用趋势项
     CostTrendItem {
         Month string `json:"month"`                                    // 月份
         TotalCost float64 `json:"totalCost"`                           // 总费用
@@ -215,7 +215,7 @@ type (
         EndTime int64 `form:"endTime,optional"`                        // 计费结束时间
     }
 
-    // 费用趋势请求
+        // 费用趋势请求
     OnecBillingCostTrendRequest {
         Months int32 `form:"months,optional"`                          // 查询月数，默认6
         ClusterUuid string `form:"clusterUuid,optional"`               // 集群UUID，为空查全部
@@ -224,12 +224,12 @@ type (
         EndTime int64 `form:"endTime,optional"`                        // 计费结束时间
     }
 
-    // 费用趋势响应
+        // 费用趋势响应
     OnecBillingCostTrendResponse {
         Items []CostTrendItem `json:"items"`                           // 趋势数据列表
     }
 
-    // 项目费用项
+        // 项目费用项
     ProjectCostItem {
         ProjectId uint64 `json:"projectId"`                            // 项目ID
         ProjectName string `json:"projectName"`                        // 项目名称
@@ -237,7 +237,7 @@ type (
         TotalCost float64 `json:"totalCost"`                           // 项目总费用
     }
 
-    // 项目费用TOP请求
+        // 项目费用TOP请求
     OnecBillingProjectTopRequest {
         Month string `form:"month,optional"`                           // 查询月份，格式：2025-01
         ClusterUuid string `form:"clusterUuid,optional"`               // 集群UUID，为空查全部
@@ -246,12 +246,12 @@ type (
         EndTime int64 `form:"endTime,optional"`                        // 计费结束时间
     }
 
-    // 项目费用TOP响应
+        // 项目费用TOP响应
     OnecBillingProjectTopResponse {
         Items []ProjectCostItem `json:"items"`                         // 项目费用列表
     }
 
-    // 集群费用项
+        // 集群费用项
     ClusterCostItem {
         ClusterUuid string `json:"clusterUuid"`                        // 集群UUID
         ClusterName string `json:"clusterName"`                        // 集群名称
@@ -259,7 +259,7 @@ type (
         TotalCost float64 `json:"totalCost"`                           // 集群总费用
     }
 
-    // 集群费用TOP请求
+        // 集群费用TOP请求
     OnecBillingClusterTopRequest {
         Month string `form:"month,optional"`                           // 查询月份，格式：2025-01
         TopN int32 `form:"topN,optional"`                              // TOP数量，默认10
@@ -267,14 +267,14 @@ type (
         EndTime int64 `form:"endTime,optional"`                        // 计费结束时间
     }
 
-    // 集群费用TOP响应
+        // 集群费用TOP响应
     OnecBillingClusterTopResponse {
         Items []ClusterCostItem `json:"items"`                         // 集群费用列表
     }
 
-    // ===================== 账单中心 =====================
+        // ===================== 账单中心 =====================
 
-    // 账单明细
+        // 账单明细
     OnecBillingStatement {
         Id uint64 `json:"id"`                                          // 主键ID
         StatementNo string `json:"statementNo"`                        // 账单编号
@@ -317,7 +317,7 @@ type (
         UpdatedAt int64 `json:"updatedAt"`                             // 更新时间
     }
 
-    // 账单汇总统计
+        // 账单汇总统计
     BillingStatementSummary {
         TotalCount int64 `json:"totalCount"`                           // 账单总数
         TotalAmount float64 `json:"totalAmount"`                       // 总费用
@@ -329,7 +329,7 @@ type (
         ManagementFee float64 `json:"managementFee"`                   // 管理服务费合计
     }
 
-    // 账单搜索请求
+        // 账单搜索请求
     OnecBillingStatementSearchRequest {
         StartTime int64 `form:"startTime,optional"`                    // 计费开始时间
         EndTime int64 `form:"endTime,optional"`                        // 计费结束时间
@@ -342,37 +342,47 @@ type (
         IsAsc bool `form:"isAsc,optional"`                             // 是否升序
     }
 
-    // 账单搜索响应
+        // 账单搜索响应
     OnecBillingStatementSearchResponse {
         Summary BillingStatementSummary `json:"summary"`               // 汇总统计
         List []OnecBillingStatement `json:"list"`                      // 账单列表
         Total int64 `json:"total"`                                     // 总记录数
     }
 
-    // 删除单条账单请求
+        // 删除单条账单请求
     OnecBillingStatementDelRequest {
         Id uint64 `path:"id" validate:"required"`                      // 账单ID
     }
 
-    // 删除单条账单响应
+        // 删除单条账单响应
     OnecBillingStatementDelResponse {
     }
 
-    // 批量删除账单请求
+        // 批量删除账单请求
     OnecBillingStatementBatchDelRequest {
         BeforeTime int64 `json:"beforeTime" validate:"required"`       // 删除此时间之前的账单
         ClusterUuid string `json:"clusterUuid,optional"`               // 集群UUID
         ProjectId uint64 `json:"projectId,optional"`                   // 项目ID
     }
 
-    // 批量删除账单响应
+        // 批量删除账单响应
     OnecBillingStatementBatchDelResponse {
         DeletedCount int64 `json:"deletedCount"`                       // 删除的账单数量
     }
-// 立即生成账单
-   OnecBillingStatementGenerateRequest {
-       ClusterUuid string `json:"clusterUuid,optional"`               // 集群UUID
-       ProjectId uint64 `json:"projectId,optional"`                   // 项目ID
+        // 立即生成账单
+    OnecBillingStatementGenerateRequest {
+        ClusterUuid string `json:"clusterUuid,optional"`               // 集群UUID
+        ProjectId uint64 `json:"projectId,optional"`                   // 项目ID
+    }
+        // 账单导出请求（参数与搜索一致）
+    OnecBillingStatementExportRequest {
+        StartTime int64 `form:"startTime,optional"`                    // 计费开始时间
+        EndTime int64 `form:"endTime,optional"`                        // 计费结束时间
+        ClusterUuid string `form:"clusterUuid,optional"`               // 集群UUID
+        ProjectId uint64 `form:"projectId,optional"`                   // 项目ID
+        StatementType string `form:"statementType,optional"`           // 账单类型
+        OrderField string `form:"orderField,optional"`                 // 排序字段
+        IsAsc bool `form:"isAsc,optional"`                             // 是否升序
     }
 )
 
@@ -456,5 +466,10 @@ service manager-api {
 
     @doc "立即生成账单"
     @handler OnecBillingStatementGenerateHandler
-    post /statement/generate (OnecBillingStatementGenerateRequest) returns (string )
+    post /statement/generate (OnecBillingStatementGenerateRequest) returns (string)
+
+
+    @doc "导出账单Excel"
+    @handler OnecBillingStatementExportHandler
+    get /statement/export (OnecBillingStatementExportRequest)
 }

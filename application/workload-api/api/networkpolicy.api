@@ -1,0 +1,171 @@
+syntax = "v1"
+
+info(
+    title: "NetworkPolicy API"
+    desc: "网络策略管理 API"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // ==================== NetworkPolicy 相关 ====================
+
+    // NetworkPolicy 列表项
+    NetworkPolicyListItem {
+        Name              string            `json:"name"`
+        Namespace         string            `json:"namespace"`
+        Age               string            `json:"age"`
+        CreationTimestamp int64             `json:"creationTimestamp"`
+        Labels            map[string]string `json:"labels,optional"`
+        Annotations       map[string]string `json:"annotations,optional"`
+    }
+
+    // NetworkPolicy 列表响应
+    NetworkPolicyListResponse {
+        Total   int                      `json:"total"`
+        Items   []NetworkPolicyListItem `json:"items"`
+    }
+
+    // NetworkPolicy 详情
+    NetworkPolicyDetail {
+        Name                        string                  `json:"name"`
+        Namespace                   string                  `json:"namespace"`
+        PodSelector                 map[string]string      `json:"podSelector"`
+        PodSelectorMatchExpressions []NPMatchExpression    `json:"podSelectorMatchExpressions,omitempty"`
+        IngressRules                []NPIngressRuleInfo    `json:"ingressRules"`
+        EgressRules                 []NPEgressRuleInfo     `json:"egressRules"`
+        PolicyTypes                 []string                `json:"policyTypes"`
+        Labels                      map[string]string      `json:"labels,optional"`
+        Annotations                 map[string]string      `json:"annotations,optional"`
+        Age                         string                  `json:"age"`
+        CreationTimestamp           int64                   `json:"creationTimestamp"`
+    }
+
+    // NPMatchExpression NetworkPolicy 标签选择器表达式
+    NPMatchExpression {
+        Key      string   `json:"key"`
+        Operator string   `json:"operator"`
+        Values   []string `json:"values,omitempty"`
+    }
+
+    // NPIngressRuleInfo NetworkPolicy 入站规则信息
+    NPIngressRuleInfo {
+        Ports []NPNetworkPolicyPortInfo `json:"ports"`
+        From  []NPNetworkPolicyPeerInfo `json:"from"`
+    }
+
+    // NPEgressRuleInfo NetworkPolicy 出站规则信息
+    NPEgressRuleInfo {
+        Ports []NPNetworkPolicyPortInfo `json:"ports"`
+        To    []NPNetworkPolicyPeerInfo `json:"to"`
+    }
+
+    // NPNetworkPolicyPortInfo NetworkPolicy 端口信息
+    NPNetworkPolicyPortInfo {
+        Protocol  string `json:"protocol,omitempty"`
+        Port      int32  `json:"port,omitempty"`
+        EndPort   int32  `json:"endPort,omitempty"`
+        NamedPort string `json:"namedPort,omitempty"`
+    }
+
+    // NPNetworkPolicyPeerInfo NetworkPolicy 对端信息
+    NPNetworkPolicyPeerInfo {
+        PodSelector             map[string]string    `json:"podSelector,omitempty"`
+        PodSelectorExprs        []NPMatchExpression  `json:"podSelectorExprs,omitempty"`
+        NamespaceSelector       map[string]string    `json:"namespaceSelector,omitempty"`
+        NamespaceSelectorExprs  []NPMatchExpression  `json:"namespaceSelectorExprs,omitempty"`
+        IPBlock                 *NPIPBlockInfo       `json:"ipBlock,omitempty"`
+    }
+
+    // NPIPBlockInfo NetworkPolicy IP 块信息
+    NPIPBlockInfo {
+        CIDR   string   `json:"cidr"`
+        Except []string `json:"except,omitempty"`
+    }
+
+    // NetworkPolicyAffectedPod 受 NetworkPolicy 影响的 Pod
+    NetworkPolicyAffectedPod {
+        Name      string            `json:"name"`
+        Namespace string            `json:"namespace"`
+        Labels    map[string]string `json:"labels"`
+        Matched   bool              `json:"matched"`
+        Reason    string            `json:"reason"`
+    }
+
+    // NetworkPolicyAffectedPodsResponse 受影响的 Pod 响应
+    NetworkPolicyAffectedPodsResponse {
+        NetworkPolicyName string                      `json:"networkPolicyName"`
+        NetworkPolicyNS   string                      `json:"networkPolicyNamespace"`
+        AffectedPods      []NetworkPolicyAffectedPod   `json:"affectedPods"`
+        TotalAffected     int                         `json:"totalAffected"`
+    }
+
+    // NetworkPolicyListRequest 列表请求
+    NetworkPolicyListRequest {
+        ClusterUuid   string `form:"clusterUuid" validate:"required"`
+        Namespace     string `form:"namespace,optional"`
+        Search        string `form:"search,optional"`
+        LabelSelector string `form:"labelSelector,optional"`
+    }
+
+    // NetworkPolicyNameRequest 名称请求（GET 方法）
+    NetworkPolicyNameRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace   string `form:"namespace,optional"`
+        Name        string `form:"name,optional"`
+    }
+
+    // NetworkPolicyDeleteRequest 删除请求（DELETE 方法）
+    NetworkPolicyDeleteRequest {
+        ClusterUuid string `json:"clusterUuid" validate:"required"`
+        Namespace   string `json:"namespace" validate:"required"`
+        Name        string `json:"name" validate:"required"`
+    }
+
+    // NetworkPolicyYamlRequest YAML 请求（POST/PUT 方法）
+    NetworkPolicyYamlRequest {
+        ClusterUuid string `json:"clusterUuid" validate:"required"`
+        Namespace   string `json:"namespace" validate:"required"`
+        YamlStr     string `json:"yamlStr" validate:"required"`
+    }
+)
+
+// ==================== 路由定义 ====================
+@server(
+    middleware: JWTAuthMiddleware
+    group: networkpolicy
+    prefix: /workload/v1/networkpolicy
+)
+
+service workload-api {
+    @doc "获取 NetworkPolicy 列表"
+    @handler NetworkPolicyListHandler
+    get / (NetworkPolicyListRequest) returns (NetworkPolicyListResponse)
+
+    @doc "获取 NetworkPolicy 详情"
+    @handler NetworkPolicyDetailHandler
+    get /detail (NetworkPolicyNameRequest) returns (NetworkPolicyDetail)
+
+    @doc "获取 NetworkPolicy YAML"
+    @handler NetworkPolicyGetYamlHandler
+    get /yaml (NetworkPolicyNameRequest) returns (string)
+
+    @doc "创建 NetworkPolicy"
+    @handler NetworkPolicyCreateHandler
+    post / (NetworkPolicyYamlRequest) returns (string)
+
+    @doc "更新 NetworkPolicy"
+    @handler NetworkPolicyUpdateHandler
+    put / (NetworkPolicyYamlRequest) returns (string)
+
+    @doc "删除 NetworkPolicy"
+    @handler NetworkPolicyDeleteHandler
+    delete / (NetworkPolicyDeleteRequest) returns (string)
+
+    @doc "获取受 NetworkPolicy 影响的 Pod"
+    @handler NetworkPolicyGetAffectedPodsHandler
+    get /affected-pods (NetworkPolicyNameRequest) returns (NetworkPolicyAffectedPodsResponse)
+}

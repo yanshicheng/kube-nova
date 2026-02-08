@@ -22,7 +22,7 @@ const (
 
 // SyncNamespaceResources 同步某个 Namespace 的资源配额和限制
 // 逻辑：从 K8s 读取 ResourceQuota 和 LimitRange，然后同步到数据库
-// 如果 K8s 中不存在，则设置默认值并创建 K8s 资源
+// 注意：此方法只读取 K8s 数据同步到数据库，不会在 K8s 中创建任何资源
 func (s *ClusterResourceSync) SyncNamespaceResources(ctx context.Context, clusterUuid string, namespace string, operator string, enableAudit bool) error {
 	s.Logger.WithContext(ctx).Infof("开始同步 Namespace 资源配额和限制, clusterUuid: %s, namespace: %s, operator: %s", clusterUuid, namespace, operator)
 
@@ -106,22 +106,24 @@ func (s *ClusterResourceSync) SyncNamespaceResources(ctx context.Context, cluste
 	return nil
 }
 
-// syncResourceQuotaFromK8s 从 K8s 读取 ResourceQuota 并同步到数据库，返回是否有变更
+// syncResourceQuotaFromK8s 从 K8s 读取 ResourceQuota 并同步到数据库
+// 注意：此方法只读取 K8s 数据同步到数据库，不会在 K8s 中创建任何资源
+// 【修复】完整的变更检测(18字段) + 资源汇总同步 + 缓存清理
 func (s *ClusterResourceSync) syncResourceQuotaFromK8s(ctx context.Context, k8sClient cluster.Client, cluster *model.OnecCluster, workspace *model.OnecProjectWorkspace, operator string) (bool, error) {
 	namespace := workspace.Namespace
 	resourceQuotaName := ResourceQuotaNamePrefix + namespace
 
 	s.Logger.WithContext(ctx).Infof("从 K8s 读取 ResourceQuota: %s/%s", namespace, resourceQuotaName)
-	// 获取 NamespaceOperator
+
+	// 获取 ResourceQuota Operator
 	resourceQuotaOp := k8sClient.ResourceQuota()
 
 	// 从 K8s 读取 ResourceQuota
 	allocated, err := resourceQuotaOp.GetAllocated(namespace, resourceQuotaName)
 	if err != nil {
-		// K8s 中不存在 ResourceQuota，设置默认值并创建
-		s.Logger.WithContext(ctx).Infof("K8s 中不存在 ResourceQuota，创建默认资源: %s", resourceQuotaName)
+		// K8s 中不存在 ResourceQuota，使用默认值（全量同步不创建 K8s 资源）
+		s.Logger.WithContext(ctx).Infof("K8s 中不存在 ResourceQuota，使用默认值: %s", resourceQuotaName)
 
-		// 设置默认值
 		allocated = &types.ResourceQuotaAllocated{
 			CPUAllocated:              "0",
 			MemoryAllocated:           "0Gi",
@@ -142,21 +144,15 @@ func (s *ClusterResourceSync) syncResourceQuotaFromK8s(ctx context.Context, k8sC
 			StatefulSetsAllocated:     0,
 			IngressesAllocated:        0,
 		}
-
-		// 在 K8s 中创建 ResourceQuota
-		//request := s.buildResourceQuotaRequestFromDefaults(workspace, resourceQuotaName)
-
-		//if err := resourceQuotaOp.CreateOrUpdateResourceQuota(request); err != nil {
-		//}
-
 	}
 
-	// 检查是否有变更
-	changed := workspace.CpuAllocated != allocated.CPUAllocated ||
-		workspace.MemAllocated != allocated.MemoryAllocated ||
-		workspace.StorageAllocated != allocated.StorageAllocated ||
-		workspace.GpuAllocated != allocated.GPUAllocated ||
-		workspace.PodsAllocated != allocated.PodsAllocated
+	// 【修复】完整的变更检测，检查所有 18 个字段
+	changes := s.checkResourceQuotaChanges(workspace, allocated)
+
+	if len(changes) == 0 {
+		s.Logger.WithContext(ctx).Debugf("ResourceQuota 无变更，跳过: %s", resourceQuotaName)
+		return false, nil
+	}
 
 	// 更新数据库中的 workspace 记录
 	workspace.CpuAllocated = allocated.CPUAllocated
@@ -186,61 +182,100 @@ func (s *ClusterResourceSync) syncResourceQuotaFromK8s(ctx context.Context, k8sC
 		return false, fmt.Errorf("更新数据库 Workspace 失败: %v", err)
 	}
 
-	s.Logger.WithContext(ctx).Infof("ResourceQuota 同步成功: %s", resourceQuotaName)
-	return changed, nil
+	// 【修复】同步项目集群资源分配并清除缓存
+	s.syncProjectClusterResourceAndCache(ctx, workspace.ProjectClusterId)
+
+	s.Logger.WithContext(ctx).Infof("ResourceQuota 同步成功: %s, Changes=%v", resourceQuotaName, changes)
+	return true, nil
 }
 
-// buildResourceQuotaRequestFromDefaults 从默认值构建 ResourceQuota 请求
-func (s *ClusterResourceSync) buildResourceQuotaRequestFromDefaults(workspace *model.OnecProjectWorkspace, resourceQuotaName string) *types.ResourceQuotaRequest {
-	return &types.ResourceQuotaRequest{
-		Name:      resourceQuotaName,
-		Namespace: workspace.Namespace,
-		Labels: map[string]string{
-			"managed-by": "ikubeops",
-		},
-		Annotations: map[string]string{
-			"workspace-id":         fmt.Sprintf("%d", workspace.Id),
-			"project-cluster-id":   fmt.Sprintf("%d", workspace.ProjectClusterId),
-			"ikubeops.com/managed": "true",
-		},
-		CPUAllocated:              "0",
-		MemoryAllocated:           "0Gi",
-		StorageAllocated:          "0Gi",
-		GPUAllocated:              "0",
-		EphemeralStorageAllocated: "0Gi",
-		PodsAllocated:             0,
-		ConfigMapsAllocated:       0,
-		SecretsAllocated:          0,
-		PVCsAllocated:             0,
-		ServicesAllocated:         0,
-		LoadBalancersAllocated:    0,
-		NodePortsAllocated:        0,
-		DeploymentsAllocated:      0,
-		JobsAllocated:             0,
-		CronJobsAllocated:         0,
-		DaemonSetsAllocated:       0,
-		StatefulSetsAllocated:     0,
-		IngressesAllocated:        0,
+// checkResourceQuotaChanges 检查 ResourceQuota 是否有变更，返回变更列表
+// 检查所有 18 个字段，与增量同步保持一致
+func (s *ClusterResourceSync) checkResourceQuotaChanges(workspace *model.OnecProjectWorkspace, allocated *types.ResourceQuotaAllocated) []string {
+	var changes []string
+
+	// 基础资源（5个）
+	if workspace.CpuAllocated != allocated.CPUAllocated {
+		changes = append(changes, fmt.Sprintf("CPU: %s -> %s", workspace.CpuAllocated, allocated.CPUAllocated))
 	}
+	if workspace.MemAllocated != allocated.MemoryAllocated {
+		changes = append(changes, fmt.Sprintf("Mem: %s -> %s", workspace.MemAllocated, allocated.MemoryAllocated))
+	}
+	if workspace.StorageAllocated != allocated.StorageAllocated {
+		changes = append(changes, fmt.Sprintf("Storage: %s -> %s", workspace.StorageAllocated, allocated.StorageAllocated))
+	}
+	if workspace.GpuAllocated != allocated.GPUAllocated {
+		changes = append(changes, fmt.Sprintf("GPU: %s -> %s", workspace.GpuAllocated, allocated.GPUAllocated))
+	}
+	if workspace.EphemeralStorageAllocated != allocated.EphemeralStorageAllocated {
+		changes = append(changes, fmt.Sprintf("EphemeralStorage: %s -> %s", workspace.EphemeralStorageAllocated, allocated.EphemeralStorageAllocated))
+	}
+
+	// 对象数量（7个）
+	if workspace.PodsAllocated != allocated.PodsAllocated {
+		changes = append(changes, fmt.Sprintf("Pods: %d -> %d", workspace.PodsAllocated, allocated.PodsAllocated))
+	}
+	if workspace.ConfigmapAllocated != allocated.ConfigMapsAllocated {
+		changes = append(changes, fmt.Sprintf("ConfigMaps: %d -> %d", workspace.ConfigmapAllocated, allocated.ConfigMapsAllocated))
+	}
+	if workspace.SecretAllocated != allocated.SecretsAllocated {
+		changes = append(changes, fmt.Sprintf("Secrets: %d -> %d", workspace.SecretAllocated, allocated.SecretsAllocated))
+	}
+	if workspace.PvcAllocated != allocated.PVCsAllocated {
+		changes = append(changes, fmt.Sprintf("PVCs: %d -> %d", workspace.PvcAllocated, allocated.PVCsAllocated))
+	}
+	if workspace.ServiceAllocated != allocated.ServicesAllocated {
+		changes = append(changes, fmt.Sprintf("Services: %d -> %d", workspace.ServiceAllocated, allocated.ServicesAllocated))
+	}
+	if workspace.LoadbalancersAllocated != allocated.LoadBalancersAllocated {
+		changes = append(changes, fmt.Sprintf("LoadBalancers: %d -> %d", workspace.LoadbalancersAllocated, allocated.LoadBalancersAllocated))
+	}
+	if workspace.NodeportsAllocated != allocated.NodePortsAllocated {
+		changes = append(changes, fmt.Sprintf("NodePorts: %d -> %d", workspace.NodeportsAllocated, allocated.NodePortsAllocated))
+	}
+
+	// 工作负载数量（6个）
+	if workspace.DeploymentsAllocated != allocated.DeploymentsAllocated {
+		changes = append(changes, fmt.Sprintf("Deployments: %d -> %d", workspace.DeploymentsAllocated, allocated.DeploymentsAllocated))
+	}
+	if workspace.JobsAllocated != allocated.JobsAllocated {
+		changes = append(changes, fmt.Sprintf("Jobs: %d -> %d", workspace.JobsAllocated, allocated.JobsAllocated))
+	}
+	if workspace.CronjobsAllocated != allocated.CronJobsAllocated {
+		changes = append(changes, fmt.Sprintf("CronJobs: %d -> %d", workspace.CronjobsAllocated, allocated.CronJobsAllocated))
+	}
+	if workspace.DaemonsetsAllocated != allocated.DaemonSetsAllocated {
+		changes = append(changes, fmt.Sprintf("DaemonSets: %d -> %d", workspace.DaemonsetsAllocated, allocated.DaemonSetsAllocated))
+	}
+	if workspace.StatefulsetsAllocated != allocated.StatefulSetsAllocated {
+		changes = append(changes, fmt.Sprintf("StatefulSets: %d -> %d", workspace.StatefulsetsAllocated, allocated.StatefulSetsAllocated))
+	}
+	if workspace.IngressesAllocated != allocated.IngressesAllocated {
+		changes = append(changes, fmt.Sprintf("Ingresses: %d -> %d", workspace.IngressesAllocated, allocated.IngressesAllocated))
+	}
+
+	return changes
 }
 
-// syncLimitRangeFromK8s 从 K8s 读取 LimitRange 并同步到数据库，返回是否有变更
+// syncLimitRangeFromK8s 从 K8s 读取 LimitRange 并同步到数据库
+// 注意：此方法只读取 K8s 数据同步到数据库，不会在 K8s 中创建任何资源
+// 【修复】完整的变更检测（18个字段）
 func (s *ClusterResourceSync) syncLimitRangeFromK8s(ctx context.Context, k8sClient cluster.Client, cluster *model.OnecCluster, workspace *model.OnecProjectWorkspace, operator string) (bool, error) {
 	namespace := workspace.Namespace
 	limitRangeName := LimitRangeNamePrefix + namespace
 
 	s.Logger.WithContext(ctx).Infof("从 K8s 读取 LimitRange: %s/%s", namespace, limitRangeName)
 
-	// 获取 NamespaceOperator
+	// 获取 LimitRange Operator
 	limitRangeOp := k8sClient.LimitRange()
 
 	// 从 K8s 读取 LimitRange
 	limits, err := limitRangeOp.GetLimits(namespace, limitRangeName)
 	if err != nil {
-		// K8s 中不存在 LimitRange，设置默认值并创建
-		s.Logger.WithContext(ctx).Infof("K8s 中不存在 LimitRange，创建默认资源: %s", limitRangeName)
+		// K8s 中不存在 LimitRange，使用默认值（全量同步不创建 K8s 资源）
+		s.Logger.WithContext(ctx).Infof("K8s 中不存在 LimitRange，使用默认值: %s", limitRangeName)
 
-		// 设置默认值
+		// 默认值与增量同步保持一致
 		limits = &types.LimitRangeLimits{
 			PodMaxCPU:                               "0",
 			PodMaxMemory:                            "0Gi",
@@ -254,23 +289,22 @@ func (s *ClusterResourceSync) syncLimitRangeFromK8s(ctx context.Context, k8sClie
 			ContainerMinCPU:                         "0",
 			ContainerMinMemory:                      "0Mi",
 			ContainerMinEphemeralStorage:            "0Mi",
-			ContainerDefaultCPU:                     "0",
-			ContainerDefaultMemory:                  "0Mi",
+			ContainerDefaultCPU:                     "100m",
+			ContainerDefaultMemory:                  "128Mi",
 			ContainerDefaultEphemeralStorage:        "0Gi",
-			ContainerDefaultRequestCPU:              "0",
-			ContainerDefaultRequestMemory:           "0Mi",
+			ContainerDefaultRequestCPU:              "50m",
+			ContainerDefaultRequestMemory:           "64Mi",
 			ContainerDefaultRequestEphemeralStorage: "0Mi",
 		}
-
-		// 在 K8s 中创建 LimitRange
-		//request := s.buildLimitRangeRequestFromDefaults(workspace, limitRangeName)
 	}
 
-	// 检查是否有变更
-	changed := workspace.PodMaxCpu != limits.PodMaxCPU ||
-		workspace.PodMaxMemory != limits.PodMaxMemory ||
-		workspace.ContainerMaxCpu != limits.ContainerMaxCPU ||
-		workspace.ContainerMaxMemory != limits.ContainerMaxMemory
+	// 【修复】完整的变更检测，检查所有 18 个字段
+	changes := s.checkLimitRangeChanges(workspace, limits)
+
+	if len(changes) == 0 {
+		s.Logger.WithContext(ctx).Debugf("LimitRange 无变更，跳过: %s", limitRangeName)
+		return false, nil
+	}
 
 	// 更新数据库中的 workspace 记录
 	workspace.PodMaxCpu = limits.PodMaxCPU
@@ -300,42 +334,85 @@ func (s *ClusterResourceSync) syncLimitRangeFromK8s(ctx context.Context, k8sClie
 		return false, fmt.Errorf("更新数据库 Workspace 失败: %v", err)
 	}
 
-	s.Logger.WithContext(ctx).Infof("LimitRange 同步成功: %s", limitRangeName)
-	return changed, nil
+	// 【注意】LimitRange 是限制配置，不是资源配额，因此不触发项目集群资源同步
+	// 这与增量同步的设计保持一致
+
+	s.Logger.WithContext(ctx).Infof("LimitRange 同步成功: %s, Changes=%v", limitRangeName, changes)
+	return true, nil
 }
 
-// buildLimitRangeRequestFromDefaults 从默认值构建 LimitRange 请求
-func (s *ClusterResourceSync) buildLimitRangeRequestFromDefaults(workspace *model.OnecProjectWorkspace, limitRangeName string) *types.LimitRangeRequest {
-	return &types.LimitRangeRequest{
-		Name:      limitRangeName,
-		Namespace: workspace.Namespace,
-		Labels: map[string]string{
-			"managed-by": "ikubeops",
-		},
-		Annotations: map[string]string{
-			"workspace-id":         fmt.Sprintf("%d", workspace.Id),
-			"project-cluster-id":   fmt.Sprintf("%d", workspace.ProjectClusterId),
-			"ikubeops.com/managed": "true",
-		},
-		PodMaxCPU:                               "0",
-		PodMaxMemory:                            "0Gi",
-		PodMaxEphemeralStorage:                  "0Gi",
-		PodMinCPU:                               "0",
-		PodMinMemory:                            "0Mi",
-		PodMinEphemeralStorage:                  "0Mi",
-		ContainerMaxCPU:                         "0",
-		ContainerMaxMemory:                      "0Gi",
-		ContainerMaxEphemeralStorage:            "0Gi",
-		ContainerMinCPU:                         "0",
-		ContainerMinMemory:                      "0Mi",
-		ContainerMinEphemeralStorage:            "0Mi",
-		ContainerDefaultCPU:                     "0",
-		ContainerDefaultMemory:                  "0Mi",
-		ContainerDefaultEphemeralStorage:        "0Gi",
-		ContainerDefaultRequestCPU:              "0",
-		ContainerDefaultRequestMemory:           "0Mi",
-		ContainerDefaultRequestEphemeralStorage: "0Mi",
+// checkLimitRangeChanges 检查 LimitRange 是否有变更，返回变更列表
+// 检查所有 18 个字段，与增量同步保持一致
+func (s *ClusterResourceSync) checkLimitRangeChanges(workspace *model.OnecProjectWorkspace, limits *types.LimitRangeLimits) []string {
+	var changes []string
+
+	// Pod 级别最大限制（3个）
+	if workspace.PodMaxCpu != limits.PodMaxCPU {
+		changes = append(changes, fmt.Sprintf("PodMaxCpu: %s -> %s", workspace.PodMaxCpu, limits.PodMaxCPU))
 	}
+	if workspace.PodMaxMemory != limits.PodMaxMemory {
+		changes = append(changes, fmt.Sprintf("PodMaxMemory: %s -> %s", workspace.PodMaxMemory, limits.PodMaxMemory))
+	}
+	if workspace.PodMaxEphemeralStorage != limits.PodMaxEphemeralStorage {
+		changes = append(changes, fmt.Sprintf("PodMaxEphemeralStorage: %s -> %s", workspace.PodMaxEphemeralStorage, limits.PodMaxEphemeralStorage))
+	}
+
+	// Pod 级别最小限制（3个）
+	if workspace.PodMinCpu != limits.PodMinCPU {
+		changes = append(changes, fmt.Sprintf("PodMinCpu: %s -> %s", workspace.PodMinCpu, limits.PodMinCPU))
+	}
+	if workspace.PodMinMemory != limits.PodMinMemory {
+		changes = append(changes, fmt.Sprintf("PodMinMemory: %s -> %s", workspace.PodMinMemory, limits.PodMinMemory))
+	}
+	if workspace.PodMinEphemeralStorage != limits.PodMinEphemeralStorage {
+		changes = append(changes, fmt.Sprintf("PodMinEphemeralStorage: %s -> %s", workspace.PodMinEphemeralStorage, limits.PodMinEphemeralStorage))
+	}
+
+	// Container 级别最大限制（3个）
+	if workspace.ContainerMaxCpu != limits.ContainerMaxCPU {
+		changes = append(changes, fmt.Sprintf("ContainerMaxCpu: %s -> %s", workspace.ContainerMaxCpu, limits.ContainerMaxCPU))
+	}
+	if workspace.ContainerMaxMemory != limits.ContainerMaxMemory {
+		changes = append(changes, fmt.Sprintf("ContainerMaxMemory: %s -> %s", workspace.ContainerMaxMemory, limits.ContainerMaxMemory))
+	}
+	if workspace.ContainerMaxEphemeralStorage != limits.ContainerMaxEphemeralStorage {
+		changes = append(changes, fmt.Sprintf("ContainerMaxEphemeralStorage: %s -> %s", workspace.ContainerMaxEphemeralStorage, limits.ContainerMaxEphemeralStorage))
+	}
+
+	// Container 级别最小限制（3个）
+	if workspace.ContainerMinCpu != limits.ContainerMinCPU {
+		changes = append(changes, fmt.Sprintf("ContainerMinCpu: %s -> %s", workspace.ContainerMinCpu, limits.ContainerMinCPU))
+	}
+	if workspace.ContainerMinMemory != limits.ContainerMinMemory {
+		changes = append(changes, fmt.Sprintf("ContainerMinMemory: %s -> %s", workspace.ContainerMinMemory, limits.ContainerMinMemory))
+	}
+	if workspace.ContainerMinEphemeralStorage != limits.ContainerMinEphemeralStorage {
+		changes = append(changes, fmt.Sprintf("ContainerMinEphemeralStorage: %s -> %s", workspace.ContainerMinEphemeralStorage, limits.ContainerMinEphemeralStorage))
+	}
+
+	// Container 默认限制（3个）
+	if workspace.ContainerDefaultCpu != limits.ContainerDefaultCPU {
+		changes = append(changes, fmt.Sprintf("ContainerDefaultCpu: %s -> %s", workspace.ContainerDefaultCpu, limits.ContainerDefaultCPU))
+	}
+	if workspace.ContainerDefaultMemory != limits.ContainerDefaultMemory {
+		changes = append(changes, fmt.Sprintf("ContainerDefaultMemory: %s -> %s", workspace.ContainerDefaultMemory, limits.ContainerDefaultMemory))
+	}
+	if workspace.ContainerDefaultEphemeralStorage != limits.ContainerDefaultEphemeralStorage {
+		changes = append(changes, fmt.Sprintf("ContainerDefaultEphemeralStorage: %s -> %s", workspace.ContainerDefaultEphemeralStorage, limits.ContainerDefaultEphemeralStorage))
+	}
+
+	// Container 默认请求（3个）
+	if workspace.ContainerDefaultRequestCpu != limits.ContainerDefaultRequestCPU {
+		changes = append(changes, fmt.Sprintf("ContainerDefaultRequestCpu: %s -> %s", workspace.ContainerDefaultRequestCpu, limits.ContainerDefaultRequestCPU))
+	}
+	if workspace.ContainerDefaultRequestMemory != limits.ContainerDefaultRequestMemory {
+		changes = append(changes, fmt.Sprintf("ContainerDefaultRequestMemory: %s -> %s", workspace.ContainerDefaultRequestMemory, limits.ContainerDefaultRequestMemory))
+	}
+	if workspace.ContainerDefaultRequestEphemeralStorage != limits.ContainerDefaultRequestEphemeralStorage {
+		changes = append(changes, fmt.Sprintf("ContainerDefaultRequestEphemeralStorage: %s -> %s", workspace.ContainerDefaultRequestEphemeralStorage, limits.ContainerDefaultRequestEphemeralStorage))
+	}
+
+	return changes
 }
 
 // ==================== 批量同步方法 ====================

@@ -70,11 +70,13 @@ func (l *CanaryCreateLogic) CanaryCreate(req *types.CreateCanaryRequest) (resp s
 
 	// 注入注解
 	utils.AddAnnotations(&canary.ObjectMeta, &utils.AnnotationsInfo{
-		ServiceName:   canary.Name,
-		ProjectName:   versionDetail.ProjectNameCn,
-		WorkspaceName: versionDetail.WorkspaceNameCn,
-		ProjectUuid:   versionDetail.ProjectUuid,
-		OwnedByApp:    versionDetail.ApplicationNameCn,
+		ServiceName:     canary.Name,
+		ProjectName:     versionDetail.ProjectNameCn,
+		ApplicationName: versionDetail.ApplicationNameCn,
+		ApplicationEn:   versionDetail.ApplicationNameEn,
+		WorkspaceName:   versionDetail.WorkspaceNameCn,
+		ProjectUuid:     versionDetail.ProjectUuid,
+		OwnedByApp:      versionDetail.ApplicationNameCn,
 	})
 
 	// 创建 Canary 资源

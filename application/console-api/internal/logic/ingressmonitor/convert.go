@@ -464,3 +464,124 @@ func convertHostRankingItemList(list []pmtypes.HostRankingItem) []types.HostRank
 	}
 	return result
 }
+
+// ==================== Host 级别监控转换 ====================
+
+// convertHostMetrics 转换新的 Host 级别监控指标
+func convertHostMetrics(m *pmtypes.HostMetrics) types.HostMetrics {
+	return types.HostMetrics{
+		Host:        m.Host,
+		Start:       m.Start,
+		End:         m.End,
+		Current:     convertHostMetricSnapshot(&m.Current),
+		StatusCodes: convertHostStatusCodeDistribution(&m.StatusCodes),
+		ErrorRate:   convertHostErrorRateStats(&m.ErrorRate),
+		Latency:     convertHostLatencyStats(&m.Latency),
+		Summary:     convertHostMetricsSummary(&m.Summary),
+		Trend:       convertHostMetricDataPoints(m.Trend),
+		ByPath:      convertHostPathMetricsList(m.ByPath),
+	}
+}
+
+// convertHostMetricsList 转换 Host 级别监控指标列表
+func convertHostMetricsList(list []pmtypes.HostMetrics) []types.HostMetrics {
+	result := make([]types.HostMetrics, len(list))
+	for i, m := range list {
+		result[i] = convertHostMetrics(&m)
+	}
+	return result
+}
+
+func convertHostMetricSnapshot(s *pmtypes.HostMetricSnapshot) types.HostMetricSnapshot {
+	return types.HostMetricSnapshot{
+		Timestamp:          s.Timestamp,
+		RequestsPerSecond:  s.RequestsPerSecond,
+		IngressBytesPerSec: s.IngressBytesPerSec,
+		EgressBytesPerSec:  s.EgressBytesPerSec,
+		ActiveConnections:  s.ActiveConnections,
+	}
+}
+
+func convertHostStatusCodeDistribution(d *pmtypes.HostStatusCodeDistribution) types.HostStatusCodeDistribution {
+	return types.HostStatusCodeDistribution{
+		Status2xx: d.Status2xx,
+		Status3xx: d.Status3xx,
+		Status4xx: d.Status4xx,
+		Status5xx: d.Status5xx,
+	}
+}
+
+func convertHostErrorRateStats(e *pmtypes.HostErrorRateStats) types.HostErrorRateStats {
+	return types.HostErrorRateStats{
+		TotalErrorRate: e.TotalErrorRate,
+		Error4xxRate:   e.Error4xxRate,
+		Error5xxRate:   e.Error5xxRate,
+		TopErrors:      convertHostTopErrorList(e.TopErrors),
+		Top4xxErrors:   convertHostTopErrorList(e.Top4xxErrors),
+		Top5xxErrors:   convertHostTopErrorList(e.Top5xxErrors),
+	}
+}
+
+func convertHostTopErrorList(list []pmtypes.HostTopError) []types.HostTopError {
+	result := make([]types.HostTopError, len(list))
+	for i, e := range list {
+		result[i] = types.HostTopError{
+			StatusCode: e.StatusCode,
+			Count:      e.Count,
+			Percent:    e.Percent,
+		}
+	}
+	return result
+}
+
+func convertHostLatencyStats(l *pmtypes.HostLatencyStats) types.HostLatencyStats {
+	return types.HostLatencyStats{
+		P50: l.P50,
+		P95: l.P95,
+		P99: l.P99,
+		Avg: l.Avg,
+		Max: l.Max,
+	}
+}
+
+func convertHostMetricsSummary(s *pmtypes.HostMetricsSummary) types.HostMetricsSummary {
+	return types.HostMetricsSummary{
+		TotalRequests:     s.TotalRequests,
+		TotalIngressBytes: s.TotalIngressBytes,
+		TotalEgressBytes:  s.TotalEgressBytes,
+		AvgRequestsPerSec: s.AvgRequestsPerSec,
+		MaxRequestsPerSec: s.MaxRequestsPerSec,
+		AvgRequestSize:    s.AvgRequestSize,
+		AvgResponseSize:   s.AvgResponseSize,
+	}
+}
+
+func convertHostMetricDataPoints(points []pmtypes.HostMetricDataPoint) []types.HostMetricDataPoint {
+	result := make([]types.HostMetricDataPoint, len(points))
+	for i, p := range points {
+		result[i] = types.HostMetricDataPoint{
+			Timestamp:          p.Timestamp,
+			RequestsPerSecond:  p.RequestsPerSecond,
+			IngressBytesPerSec: p.IngressBytesPerSec,
+			EgressBytesPerSec:  p.EgressBytesPerSec,
+			Error4xxRate:       p.Error4xxRate,
+			Error5xxRate:       p.Error5xxRate,
+			P95Latency:         p.P95Latency,
+		}
+	}
+	return result
+}
+
+func convertHostPathMetricsList(list []pmtypes.HostPathMetrics) []types.HostPathMetrics {
+	result := make([]types.HostPathMetrics, len(list))
+	for i, m := range list {
+		result[i] = types.HostPathMetrics{
+			Path:              m.Path,
+			RequestsPerSecond: m.RequestsPerSecond,
+			ErrorRate:         m.ErrorRate,
+			ErrorRatePercent:  m.ErrorRatePercent,
+			P95Latency:        m.P95Latency,
+		}
+	}
+	return result
+}

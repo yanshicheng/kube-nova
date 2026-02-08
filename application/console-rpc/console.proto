@@ -844,6 +844,7 @@ message GetRetentionPolicyReq {
 }
 message GetRetentionPolicyResp {
   RetentionPolicy data = 1;
+  bool Exists = 2;
 }
 
 // 创建保留策略
@@ -866,9 +867,11 @@ message UpdateRetentionPolicyReq {
   string algorithm = 3;
   repeated RetentionRule rules = 4;
   string schedule = 5;
+  string projectName = 6;
 }
 message UpdateRetentionPolicyResp {
-  string message = 1;
+  int64 id = 1;
+  string message = 2;
 }
 
 // 执行保留策略

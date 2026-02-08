@@ -67,9 +67,13 @@ func (l *ListProjectRegistryBindingsLogic) ListProjectRegistryBindings(in *pb.Li
 	projectIdSet := make(map[uint64]bool) // 使用 map 去重
 
 	for _, binding := range bindings {
+		l.Infof("项目仓库绑定: %+v", binding)
 		// 去重：同一个项目只返回一次
 		if !projectIdSet[binding.AppProjectId] {
-			data = append(data, &pb.BindProjectIds{})
+			data = append(data, &pb.BindProjectIds{
+				Id:        binding.Id,
+				ProjectId: binding.AppProjectId,
+			})
 			projectIdSet[binding.AppProjectId] = true
 		}
 	}

@@ -48,23 +48,31 @@ func (l *IngressClassCreateLogic) IngressClassCreate(req *types.ClusterResourceY
 		l.Errorf("解析 YAML 失败: %v", err)
 		return "", fmt.Errorf("解析 YAML 失败: %v", err)
 	}
-	// 获取项目详情
-	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
-		ClusterUuid: req.ClusterUuid,
-		Namespace:   ic.Namespace,
+
+	// 注入注解
+	utils.AddAnnotations(&ic.ObjectMeta, &utils.AnnotationsInfo{
+		ServiceName: ic.Name,
 	})
-	if err != nil {
-		l.Errorf("获取项目详情失败: %v", err)
-		return "", fmt.Errorf("获取项目详情失败")
-	} else {
-		// 注入注解
-		utils.AddAnnotations(&ic.ObjectMeta, &utils.AnnotationsInfo{
-			ServiceName:   ic.Name,
-			ProjectName:   projectDetail.ProjectNameCn,
-			WorkspaceName: projectDetail.WorkspaceNameCn,
-			ProjectUuid:   projectDetail.ProjectUuid,
-		})
+
+	// 检查是否设置为默认
+	isDefault := false
+	if ic.Annotations != nil {
+		if val, ok := ic.Annotations["ingressclass.kubernetes.io/is-default-class"]; ok && val == "true" {
+			isDefault = true
+		}
 	}
+
+	// 检查是否有参数配置
+	hasParams := ic.Spec.Parameters != nil
+
+	configDetail := FormatIngressClassConfig(ic.Spec.Controller, isDefault, hasParams)
+
+	// 如果有参数，添加参数详情
+	var paramsDetail string
+	if hasParams {
+		paramsDetail = fmt.Sprintf(", 参数: Kind=%s, Name=%s", ic.Spec.Parameters.Kind, ic.Spec.Parameters.Name)
+	}
+
 	_, err = icOp.Create(&ic)
 	if err != nil {
 		l.Errorf("创建 IngressClass 失败: %v", err)
@@ -72,18 +80,22 @@ func (l *IngressClassCreateLogic) IngressClassCreate(req *types.ClusterResourceY
 		l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "创建 IngressClass",
-			ActionDetail: fmt.Sprintf("创建 IngressClass %s 失败，控制器: %s，错误: %v", ic.Name, ic.Spec.Controller, err),
+			ActionDetail: fmt.Sprintf("用户 %s 创建 IngressClass %s 失败, 控制器: %s, 错误: %v", username, ic.Name, ic.Spec.Controller, err),
 			Status:       0,
 		})
 		return "", fmt.Errorf("创建 IngressClass 失败")
 	}
 
 	l.Infof("用户: %s, 成功创建 IngressClass: %s", username, ic.Name)
+
+	// 构建详细审计信息
+	auditDetail := fmt.Sprintf("用户 %s 成功创建 IngressClass %s, %s%s", username, ic.Name, configDetail, paramsDetail)
+
 	// 记录成功审计日志
 	l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "创建 IngressClass",
-		ActionDetail: fmt.Sprintf("创建 IngressClass %s 成功，控制器: %s", ic.Name, ic.Spec.Controller),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	return "创建 IngressClass 成功", nil

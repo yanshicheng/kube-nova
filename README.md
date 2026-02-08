@@ -1,338 +1,376 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="License">
-  <img src="https://img.shields.io/badge/Go-1.25.5-00ADD8?logo=go&logoColor=white" alt="Go">
-  <img src="https://img.shields.io/badge/Gozero-v1.9.4-1E88E5" alt="Gozero">
-  <img src="https://img.shields.io/badge/Vue-3.x-4FC08D?logo=vue.js&logoColor=white" alt="Vue">
-  <img src="https://img.shields.io/badge/Kubernetes-1.21+-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes">
-  <br/>
-  <img src="https://img.shields.io/badge/MySQL-8.0+-4479A1?logo=mysql&logoColor=white" alt="MySQL">
-  <img src="https://img.shields.io/badge/Redis-7.0+-DC382D?logo=redis&logoColor=white" alt="Redis">
-  <a target="_blank" href="https://github.com/yanshicheng/kube-nova">
-    <img src="https://img.shields.io/github/stars/yanshicheng/kube-nova?style=social" alt="GitHub Stars">
-  </a>
+  <b>🚀 新一代企业级 Kubernetes 多集群管理平台</b>
 </p>
 
 <p align="center">
-  <b>企业级 Kubernetes 多集群管理平台</b>
+  <a href="https://opensource.org/licenses/Apache-2.0"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+  <a href="https://golang.org/"><img src="https://img.shields.io/badge/Go-1.25.5-00ADD8?logo=go&logoColor=white" alt="Go"></a>
+  <a href="https://go-zero.dev/"><img src="https://img.shields.io/badge/Go--Zero-v1.9.4-1E88E5" alt="Go-Zero"></a>
+  <a href="https://kubernetes.io/"><img src="https://img.shields.io/badge/Kubernetes-1.21+-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes"></a>
+  <a href="https://vuejs.org/"><img src="https://img.shields.io/badge/Vue-3.x-4FC08D?logo=vue.js&logoColor=white" alt="Vue"></a>
+  <br>
+  <a href="https://www.mysql.com/"><img src="https://img.shields.io/badge/MySQL-8.0+-4479A1?logo=mysql&logoColor=white" alt="MySQL"></a>
+  <a href="https://redis.io/"><img src="https://img.shields.io/badge/Redis-7.0+-DC382D?logo=redis&logoColor=white" alt="Redis"></a>
+  <a href="https://grpc.io/"><img src="https://img.shields.io/badge/gRPC-Protocol-244c5a?logo=grpc" alt="gRPC"></a>
+  <a href="https://github.com/yanshicheng/kube-nova"><img src="https://img.shields.io/github/stars/yanshicheng/kube-nova?style=social" alt="GitHub Stars"></a>
 </p>
 
 <p align="center">
-  <a href="https://kube-nova.ikubeops.com"><b>🌐 在线演示</b></a> |
-  <a href="https://www.ikubeops.com"><b>📖 部署文档</b></a> |
-  <a href="https://wiki-images.yanshicheng.com/common/kube-nova-wechat.png"><b>💬 加入我们</b></a>
+  <a href="https://kube-nova.ikubeops.com">🌐 在线演示</a> | 
+  <a href="https://www.ikubeops.com">📖 文档中心</a> | 
+  <a href="https://wiki-images.yanshicheng.com/common/kube-nova-wechat.png">💬 加入社区</a>
 </p>
 
-------
+---
 
-## 📦 代码仓库
+## 🎯 什么是 Kube-Nova？
 
-| 仓库       | GitHub                                                                              | Gitee                                                                        |
-|----------|-------------------------------------------------------------------------------------|------------------------------------------------------------------------------|
-| 后端代码     | [yanshicheng/kube-nova](https://github.com/yanshicheng/kube-nova)                   | [ikubeops/kube-nova](https://gitee.com/ikubeops/kube-nova)                   |
-| 前端代码     | [yanshicheng/kube-nova-web](https://github.com/yanshicheng/kube-nova-web)           | [ikubeops/kube-nova-web](https://gitee.com/ikubeops/kube-nova-web)           |
-| operator | [yanshicheng/kube-nova-operator](https://github.com/yanshicheng/kube-nova-operator) | [ikubeops/kube-nova-operator](https://gitee.com/ikubeops/kube-nova-operator) |
+**Kube-Nova** 是一个生产就绪的企业级 Kubernetes 多集群管理平台，重新定义了组织如何大规模管理容器化工作负载。采用前沿的微服务架构，基于 Go-Zero 框架构建，提供无与伦比的性能、灵活性和卓越的运维能力。
 
-------
+### 💡 为什么选择 Kube-Nova
 
-## 📖 项目简介
+传统的 Kubernetes 管理平台在企业场景中存在诸多不足。Kube-Nova 通过创新解决方案填补了这些关键空白：
 
-Kube-Nova 是一个企业级 Kubernetes 多集群管理平台，以**项目为视角**实现多租户、多集群的资源隔离与统一管理。平台采用**项目 → 集群配额 → 工作空间**三级架构，提供完整的 RBAC 权限体系、资源超分、告警中心、灰度发布等企业级特性。
+| 🏗️ 革命性架构                                                 | ⚡ 企业级运维                                                 |
+| :----------------------------------------------------------- | :----------------------------------------------------------- |
+| **三层多租户隔离**：项目 → 集群配额 → 工作空间，支持资源超分 | **五维监控体系**：Pod、节点、命名空间、集群、Ingress 全方位指标 |
+| **微服务卓越性**：7 个专业化服务，gRPC 高性能通信            | **智能告警系统**：6 种通知渠道，智能路由和聚合               |
+| **事件驱动同步**：增量监听系统，Leader 选举实现实时集群状态管理 | **高级 Pod 操作**：分片文件上传、实时日志、交互式终端        |
 
-### 🎯 核心亮点
+### 🚀 即将上线
 
-- 🏢 **多租户隔离** - 三级资源隔离架构，支持 CPU/内存/GPU 超分配置
-- ☸️ **多集群管理** - 统一管理多个 K8s 集群，支持多种认证方式
-- 📄 **YAML 支持** - 平台所有资源均支持 YAML 导入，表单与 YAML 无缝转换
-- ⛵ **Istio 智能运维** - 服务网格可视化管理，流量治理、熔断限流、链路追踪一站式配置
-- 📊 **五维监控** - Pod/Node/Namespace/Cluster/Ingress/Istio 全方位监控
-- 🔔 **智能告警** - 支持 微信、钉钉、飞书、邮件、站内信等多种通知渠道，支持告警分组、分级路由
-- 🚀 **灰度发布** - 自动化金丝雀部署，蓝绿部署等
-- 📦 **镜像管理** - Harbor 多仓库统一管理
-- 🔍 **完整审计** - 四级审计日志（集群/项目/工作空间/应用）
-- 🐳 **Pod 运维** - 日志查看、交互终端、文件管理、全方位 Pod 运维支持
+* **DevOps CI/CD 平台**：集成持续集成和部署流水线
+* **Istio 服务网格**：高级流量管理、可观测性和安全性
 
-------
+---
 
-## 🏗️ 技术架构
+## ✨ 核心功能
 
-### 后端技术栈
+### 🏢 多租户与资源管理
 
-- **语言**: Go
-- **框架**: [Gozero](https://go-zero.dev/) （微服务框架）
-- **数据库**: MySQL
-- **缓存**: Redis
-- **架构**: 微服务 RPC 架构
+**三层隔离架构**
 
-### 前端技术栈
-
-- **框架**: [Art Design Pro](https://www.artd.pro/docs/zh/)（企业级 UI 框架）
-
-### 服务架构
-
-```
-kube-nova/
-├── application/              # 微服务应用
-│   ├── portal-api           # 门户 API（用户/权限/告警）
-│   ├── portal-rpc           # 门户 RPC 服务
-│   ├── manager-api          # 管理 API（集群/项目）
-│   ├── manager-rpc          # 管理 RPC 服务
-│   ├── console-api          # 控制台 API
-│   ├── console-rpc          # 控制台 RPC 服务
-│   └── workload-api         # 工作负载 API
-├── common/                   # 公共代码
-│   ├── handler              # HTTP 处理器
-│   ├── interceptors         # RPC 拦截器
-│   ├── k8smanager          # K8s 客户端管理
-│   ├── middleware          # 中间件
-│   ├── prometheusmanager   # Prometheus 客户端
-│   ├── utils               # 工具函数
-│   └── vars                # 全局变量
-├── pkg/                      # 第三方包封装
-│   ├── casbinadapter        # Casbin 适配器
-│   ├── jwt                  # JWT 认证
-│   ├── storage              # 对象存储
-│   └── utils                # 通用工具
-├── manifests/                # K8s 部署清单
-├── dockerfile/               # 容器镜像构建
-├── scripts/                  # 脚本工具
-└── sql/                      # 数据库脚本
+```text
+项目（租户）
+ ├─ 集群配额（资源池）
+ │   ├─ CPU/内存/GPU 超分配置
+ │   └─ 跨集群资源分配
+ └─ 工作空间（命名空间组）
+     ├─ 细粒度 RBAC
+     └─ 资源配额强制执行
 ```
 
-------
+**核心能力**
+
+* ✅ 可配置的资源超分比例
+* ✅ 分层权限继承
+* ✅ 自动成本分配和计费
+* ✅ 多平台动态菜单管理
+* ✅ 基于部门的组织架构
+
+### 🌐 统一多集群管理
+
+* **灵活认证方式**：支持 Kubeconfig、Token 和证书方式接入集群
+* **集群元数据**：环境标签（dev/test/staging/prod）、云厂商追踪、区域/可用区管理
+* **实时监控**：控制平面健康状态（API Server、etcd、Scheduler、Controller Manager）
+* **节点操作**：标签、污点、隔离和高级调度控制
+* **网络发现**：自动集群网络拓扑可视化
+
+### 🔔 智能告警系统
+
+| 渠道类型 | 支持平台 | 高级特性 |
+| --- | --- | --- |
+| **即时通讯** |  | • 基于严重级别的路由（信息/警告/严重）<br>
+
+<br>• 告警分组和聚合 |
+| **通知推送** |  | • 实时 WebSocket 推送<br>
+
+<br>• 值班排班管理<br>
+
+<br>• 通知历史追踪 |
+| **开发中** |  |  |
+
+### 📦 容器镜像仓库管理（Harbor 深度集成）
+
+| 核心功能 | 高级策略 |
+| --- | --- |
+| • **多仓库统一管理**（Harbor、Docker Registry、Nexus）<br>
+
+<br>• **三层权限控制**（仓库 → 项目 → 镜像库）<br>
+
+<br>• **项目级配额管理**<br>
+
+<br>• **全局/项目镜像搜索**<br>
+
+<br>• **成员角色管理** | • **垃圾回收**：定时/手动 GC<br>
+
+<br>• **保留策略**：基于模板规则（最新K个/N天未拉取）<br>
+
+<br>• **复制策略**：跨仓库复制，支持过滤器<br>
+
+<br>• **用户管理**：Harbor 用户与角色分配 |
+
+### 🚀 工作负载生命周期管理
+
+* **完整工作负载支持**：Deployment, StatefulSet, DaemonSet, Job, CronJob
+* **高级操作**：启动/停止、重启、扩缩容、滚动更新、一键回滚
+* **批量镜像更新**：同时更新多个工作负载的镜像
+* **版本历史**：追踪并回滚到之前的配置，支持 Diff 对比
+* **YAML 优先**：表单与 YAML 无缝转换
+
+### 🐳 高级 Pod 操作
+
+| 日志管理 | 文件操作 | 交互式终端 |
+| --- | --- | --- |
+| • 实时流式日志<br>
+
+<br>• 历史日志查看<br>
+
+<br>• 多容器支持<br>
+
+<br>• 日志下载<br>
+
+<br>• 高级过滤 | • 浏览容器文件系统<br>
+
+<br>• 在线编辑文件<br>
+
+<br>• **分片文件上传**（大文件）<br>
+
+<br>• 文件下载<br>
+
+<br>• 压缩/解压归档 | • Web 终端访问<br>
+
+<br>• 多容器选择<br>
+
+<br>• 终端大小调整<br>
+
+<br>• 会话持久化<br>
+
+<br>• 复制/粘贴支持 |
+
+### 📊 五维监控体系
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  Pod 级别      → CPU、内存、网络 I/O、磁盘 I/O、重启次数          │
+│  节点级别      → 系统指标、资源利用率、Kubelet 状态               │
+│  命名空间级别  → 配额使用、工作负载分布、Top 资源消耗             │
+│  集群级别      → 控制平面健康、资源容量、API 延迟                 │
+│  Ingress 级别  → 流量、响应时间、错误率、SSL 证书                 │
+└─────────────────────────────────────────────────────────────────┘
+
+```
+
+### 🎯 自动化与安全
+
+* **金丝雀部署 (Flagger)**：渐进式交付、基于指标的自动回滚、蓝绿部署。
+* **自动扩缩容**：HPA（水平）、VPA（垂直）、自定义指标支持。
+* **全面审计日志**：四级审计（集群/项目/空间/应用）、操作追踪、Diff 历史。
+* **网络策略管理**：可视化策略编辑、受影响 Pod 分析、实时验证。
+* **成本管理**：基于资源的计费、多维度定价、预算告警。
+
+---
+
+## 🏗️ 架构亮点
+
+### 微服务架构
+
+Kube-Nova 通过 7 个专业化微服务实现清晰的关注点分离：
+
+| 架构层级 | 服务组件 | 职责描述 |
+| --- | --- | --- |
+| **前端** | Vue 3 + Art Design | 用户交互界面 |
+| **接入层** | **Portal-API/RPC** | 用户认证、RBAC、告警管理、站内消息 |
+| **管理层** | **Manager-API/RPC** | 集群/项目管理、计费、审计日志、资源同步 |
+| **控制层** | **Console-API/RPC** | 监控仪表板、Pod 操作、镜像仓库管理 |
+| **工作负载** | **Workload-API** | 工作负载 CRUD、扩缩容、更新、回滚、金丝雀部署 |
+
+### 关键架构创新
+
+1. **增量监听系统**：分布式资源变更追踪，Leader 选举实现高可用。
+2. **事件驱动同步**：Kubernetes 监听事件触发实时数据库更新。
+3. **多 Prometheus 支持**：每个集群可拥有独立的 Prometheus 实例，统一查询。
+4. **gRPC 内部通信**：低延迟、类型安全的微服务间通信。
+
+---
+
+## 🛠️ 技术栈
+
+| 领域 | 核心技术 |
+| --- | --- |
+| **后端** | Go 1.25.5, Go-Zero 1.9.4, gRPC, MySQL 8.0+, Redis 7.0+ |
+| **前端** | Vue 3.x, Art Design Pro, Pinia, Axios, WebSocket |
+| **基础设施** | Kubernetes 1.21+, Docker, Harbor 2.0+, GitLab CI/GitHub Actions |
+| **关键依赖** | Client-go, Prometheus, JWT + Casbin, MinIO, Istio (可选) |
+
+---
 
 ## 🚀 快速开始
 
 ### 前置要求
 
-- Kubernetes 1.21+
-- MySQL 8.0+
-- Redis 7.0+
-- Go 1.25.5+
+* Kubernetes 集群 1.21+
+* MySQL 8.0+
+* Redis 7.0+
+* Go 1.25.5+（开发用）
 
-### 📚 部署文档
+### 安装方式
 
-- **部署文档**: [部署指南](https://www.cnblogs.com/yanshicheng/articles/19363328)
+#### 1. Kubernetes 部署（推荐）
 
-### 🐳 Docker 镜像
+```bash
+# 克隆仓库
+git clone [https://github.com/yanshicheng/kube-nova.git](https://github.com/yanshicheng/kube-nova.git)
+cd kube-nova
 
-| 服务模块               | Docker Hub                           | 阿里云镜像                                                                   |
-|--------------------|--------------------------------------|-------------------------------------------------------------------------|
-| portal-api         | `ikubeops/portal-api:latest`         | `registry.cn-hangzhou.aliyuncs.com/kube-nova/portal-api:latest`         |
-| portal-rpc         | `ikubeops/portal-rpc:latest`         | `registry.cn-hangzhou.aliyuncs.com/kube-nova/portal-rpc:latest`         |
-| console-api        | `ikubeops/console-api:latest`        | `registry.cn-hangzhou.aliyuncs.com/kube-nova/console-api:latest`        |
-| console-rpc        | `ikubeops/console-rpc:latest`        | `registry.cn-hangzhou.aliyuncs.com/kube-nova/console-rpc:latest`        |
-| manager-api        | `ikubeops/manager-api:latest`        | `registry.cn-hangzhou.aliyuncs.com/kube-nova/manager-api:latest`        |
-| manager-rpc        | `ikubeops/manager-rpc:latest`        | `registry.cn-hangzhou.aliyuncs.com/kube-nova/manager-rpc:latest`        |
-| workload-api       | `ikubeops/workload-api:latest`       | `registry.cn-hangzhou.aliyuncs.com/kube-nova/workload-api:latest`       |
-| kube-nova-web      | `ikubeops/kube-nova-web:latest`      | `registry.cn-hangzhou.aliyuncs.com/kube-nova/kube-nova-web:latest`      |
-| kube-nova-operator | `ikubeops/kube-nova-operator:latest` | `registry.cn-hangzhou.aliyuncs.com/kube-nova/kube-nova-operator:latest` |
+# 应用 Kubernetes 清单
+kubectl apply -f manifests/
 
-------
+# 检查部署状态
+kubectl get pods -n kube-nova
 
-## 💡 功能特性
+# 访问平台 (端口转发)
+kubectl port-forward -n kube-nova svc/kube-nova-web 8080:80
 
-### 一、核心平台能力
+```
 
-**1. 多租户管理**
+#### 2. Docker Compose
 
-- 项目 → 集群配额 → 工作空间 三级隔离
-- 支持资源超分（CPU/内存/GPU）
-- 完整的 RBAC 权限体系
+```bash
+git clone [https://github.com/yanshicheng/kube-nova.git](https://github.com/yanshicheng/kube-nova.git)
+cd kube-nova
+docker-compose up -d
+# 访问 http://localhost:8080
 
-**2. 多集群管理**
+```
 
-- 支持多集群接入（Kubeconfig/Token/证书）
-- 集群资源监控和配额管理
-- 节点标签、污点、调度控制
+#### 3. 本地开发
 
-**3. 告警中心**
+```bash
+# 初始化数据库
+mysql -u root -p < sql/kube_nova.sql
 
-- 8 种通知渠道（钉钉/企微/飞书/邮件/短信/语音/Webhook/站内信）
-- 告警分组、分级路由
-- 实时消息推送（WebSocket）
+# 启动各个服务 (示例)
+cd application/portal-api && go run portal.go &
+# ... 重复启动其他服务
 
-### 二、应用管理
+```
 
-**4. 工作负载全生命周期**
+### 访问平台
 
-- 支持 Deployment/StatefulSet/DaemonSet/Job/CronJob
-- 启停、重启、扩缩容、滚动更新
-- 版本历史和一键回滚
-- 镜像批量更新
+* **URL**：`http://your-domain:8080`
+* **默认凭证**：`admin` / `admin123` （请首次登录后修改）
 
-**5. 核心资源管理**
+---
 
-- ConfigMap/Secret 配置管理
-- Service/Ingress 流量管理
-- PVC 存储管理
-- ServiceAccount/RBAC 权限
+## 📁 项目结构
 
-**6. 应用编排增强**
+```text
+kube-nova/
+├── application/           # 微服务应用 (API & RPC)
+│   ├── portal-api/        # 认证与基础服务
+│   ├── manager-api/       # 集群与项目管理
+│   ├── console-api/       # 控制台与监控
+│   └── workload-api/      # 工作负载管理
+├── common/                # 共享库 (K8s Client, Utils, Middleware)
+├── pkg/                   # 第三方封装 (Casbin, JWT, MinIO)
+├── manifests/             # K8s 部署清单
+├── dockerfile/            # Docker 构建文件
+└── sql/                   # 数据库脚本
 
-- 环境变量注入（多种来源）
-- 健康检查（Liveness/Readiness/Startup）
-- 调度策略（亲和性/反亲和性/容忍度）
-- 存储卷配置
+```
 
-### 三、自动化能力
-
-**7. 弹性伸缩**
-
-- HPA：基于多种指标（CPU/内存/自定义）
-- VPA：自动资源推荐和调整
-
-**8. 灰度发布**
-
-- 金丝雀发布流程控制
-- 指标分析和自动回滚
-- 流量权重动态调整
-
-### 四、运维工具
-
-**9. 容器镜像仓库（Harbor）**
-
-- 多仓库统一管理
-- 项目级权限隔离
-- GC、保留策略、镜像复制
-
-**10. Pod 运维**
-
-- 日志查看（实时流/历史/下载）
-- 交互式终端（Exec）
-- 文件管理（浏览/编辑/上传/下载/压缩）
-
-**11. 监控体系（5 个维度）**
-
-- **Pod 监控**: 资源、网络、存储、健康状态
-- **Node 监控**: CPU/内存/磁盘/网络/系统指标
-- **Namespace 监控**: 配额、工作负载、Top 排行
-- **集群监控**: 控制面（API/etcd/调度器/控制器）、资源容量
-- **Ingress 监控**: 流量、性能、错误率、证书
-
-**12. 审计日志**
-
-- 四级审计（集群/项目/工作空间/应用）
-- 多维度查询和过滤
-- 操作记录追溯
-
-------
-
-## 🌟 平台特色
-
-| 特性                  | 说明                      |
-| --------------------- | ------------------------- |
-| ✅ **多租户隔离**      | 三级隔离 + 资源超卖       |
-| ✅ **统一告警**        | 8 种渠道 + 智能路由       |
-| ✅ **镜像全生命周期**  | 多仓库 + 策略管理         |
-| ✅ **完整的 Pod 运维** | 日志 + 终端 + 文件管理    |
-| ✅ **五维监控**        | 覆盖 Pod 到集群的完整视图 |
-| ✅ **灰度发布**        | 自动化金丝雀部署          |
-| ✅ **审计合规**        | 全链路操作追溯            |
-
-------
+---
 
 ## 📸 平台截图
 
 <details>
-<summary>点击查看更多截图</summary>
+<summary><b>🖱️ 点击展开查看详细截图</b></summary>
 
-### 登录页面
+| 仪表板与集群管理 |  |
+| --- | --- |
+| 
 
-![登录页面](https://images.ikubeops.com/kube-nova/login.png)
+<br><b>登录页面</b> | 
 
-### 集群管理
+<br><b>集群管理</b> |
+| 
 
-![集群管理](https://images.ikubeops.com/kube-nova/cluster-manager.png)
-![集群节点](https://images.ikubeops.com/kube-nova/cluster-node.png)
-![集群监控](https://images.ikubeops.com/kube-nova/cluster-monitor.png)
-![集群中间件](https://images.ikubeops.com/kube-nova/cluster-m.png)
+<br><b>集群节点</b> | 
 
-### 项目管理
+<br><b>集群监控</b> |
 
-![项目资源池](https://images.ikubeops.com/kube-nova/project-resource.png)
-![项目工作空间](https://images.ikubeops.com/kube-nova/project-workspace.png)
+| 项目与应用管理 |  |
+| --- | --- |
+| 
 
-### 应用管理
+<br><b>项目资源</b> | 
 
-![应用详情](https://images.ikubeops.com/kube-nova/app-info.png)
-![服务版本](https://images.ikubeops.com/kube-nova/app-version.png)
+<br><b>项目工作空间</b> |
+| 
 
-### Pod 运维
+<br><b>应用详情</b> | 
 
-![Pod 日志管理](https://images.ikubeops.com/kube-nova/pod-log.png)
-![Pod 终端](https://images.ikubeops.com/kube-nova/pod-terminal.png)
-![Pod 文件管理](https://images.ikubeops.com/kube-nova/pod-file-manager.png)
+<br><b>服务版本</b> |
 
-### 监控体系
+| Pod 操作与监控 |  |
+| --- | --- |
+| 
 
-![Namespace 监控](https://images.ikubeops.com/kube-nova/namespace-monitor.png)
-![Pod 监控](https://images.ikubeops.com/kube-nova/pod-monirot.png)
+<br><b>Pod 日志</b> | 
 
-### 告警中心
+<br><b>Pod 终端</b> |
+| 
 
-![告警渠道](https://images.ikubeops.com/kube-nova/monitor-channel.png)
-![钉钉告警](https://images.ikubeops.com/kube-nova/dingding-notifcation.png)
-![飞书告警](https://images.ikubeops.com/kube-nova/feishu-notification.png)
-![邮件告警](https://images.ikubeops.com/kube-nova/email-notification.png)
+<br><b>文件管理</b> | 
+
+<br><b>钉钉告警</b> |
 
 </details>
 
-------
+---
 
-## 🤝 贡献与加入
+## 🤝 贡献指南
 
-我们欢迎任何形式的贡献！无论是报告 Bug、提出新功能建议，还是直接提交代码，我们都非常感谢。
+1. **Fork** 本仓库
+2. **创建分支**: `git checkout -b feature/amazing-feature`
+3. **提交更改**: `git commit -m "feat: add amazing feature"`
+4. **推送**: `git push origin feature/amazing-feature`
+5. **提交 PR**: 确保所有测试通过，并遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范。
 
-### 如何贡献
+---
 
-1. Fork 本仓库
-2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交你的改动 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 提交 Pull Request
+## 📦 代码仓库
 
-### 加入我们
+| 组件 | GitHub | Gitee |
+| --- | --- | --- |
+| **后端** | [yanshicheng/kube-nova](https://github.com/yanshicheng/kube-nova) | [ikubeops/kube-nova](https://gitee.com/ikubeops/kube-nova) |
+| **前端** | [yanshicheng/kube-nova-web](https://github.com/yanshicheng/kube-nova-web) | [ikubeops/kube-nova-web](https://gitee.com/ikubeops/kube-nova-web) |
+| **Operator** | [yanshicheng/kube-nova-operator](https://github.com/yanshicheng/kube-nova-operator) | [ikubeops/kube-nova-operator](https://gitee.com/ikubeops/kube-nova-operator) |
 
-如果你对 Kubernetes、云原生、微服务架构感兴趣，欢迎加入我们一起完善这个项目！
-
-**项目维护者**
-
-- **YanShicheng** - [ikubeops@gmail.com](mailto:ikubeops@gmail.com)
-
-------
+---
 
 ## 📄 开源协议
 
-本项目采用 [GNU Affero General Public License v3.0](https://www.gnu.org/licenses/agpl-3.0.html) 协议开源。
+本项目采用 [Apache License 2.0](https://www.google.com/search?q=LICENSE) 开源协议。
+
+Copyright 2025 YanShicheng
+
+---
+
+## 🌟 Star 历史
+
+---
+
+<p align="center">
+<b>用 ❤️ 由 Kube-Nova 团队构建</b>
+
+
+
+
+<a href="#kube-nova">⬆ 回到顶部</a>
+</p>
 
 ```
-KubeNova - 企业级 Kubernetes 多集群管理平台
-Copyright (C) 2025  YanShicheng
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published
-by the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ```
-
-------
-
-## 🔗 相关链接
-
-- 🌐 [在线演示](https://kube-nova.ikubeops.com/)
-- 📖 [Gozero 框架](https://go-zero.dev/)
-- 🎨 [Art Design Pro](https://www.artd.pro/docs/zh/)
-
-------
-
-**如果这个项目对你有帮助，请给个 ⭐ Star 支持一下！**
-
-**期待你的贡献和反馈 🎉**

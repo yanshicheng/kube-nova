@@ -48,23 +48,11 @@ func (l *ClusterRoleUpdateLogic) ClusterRoleUpdate(req *types.ClusterResourceYam
 		l.Errorf("解析 YAML 失败: %v", err)
 		return "", fmt.Errorf("解析 YAML 失败: %v", err)
 	}
-	// 获取项目详情
-	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
-		ClusterUuid: req.ClusterUuid,
-		Namespace:   cr.Namespace,
+
+	// 注入注解
+	utils.AddAnnotations(&cr.ObjectMeta, &utils.AnnotationsInfo{
+		ServiceName: cr.Name,
 	})
-	if err != nil {
-		l.Errorf("获取项目详情失败: %v", err)
-		return "", fmt.Errorf("获取项目详情失败")
-	} else {
-		// 注入注解
-		utils.AddAnnotations(&cr.ObjectMeta, &utils.AnnotationsInfo{
-			ServiceName:   cr.Name,
-			ProjectName:   projectDetail.ProjectNameCn,
-			WorkspaceName: projectDetail.WorkspaceNameCn,
-			ProjectUuid:   projectDetail.ProjectUuid,
-		})
-	}
 	_, err = crOp.Update(&cr)
 	if err != nil {
 		l.Errorf("更新 ClusterRole 失败: %v", err)

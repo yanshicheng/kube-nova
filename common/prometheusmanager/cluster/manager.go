@@ -44,17 +44,19 @@ type PrometheusManager struct {
 	redis      *redis.Redis             // Redis 存储
 	log        logx.Logger
 	ctx        context.Context
+	cancel     context.CancelFunc // 用于关闭 cleanupLoop
 	managerRpc managerservice.ManagerService
 }
 
 // NewPrometheusManager 创建 Prometheus 管理器
 func NewPrometheusManager(managerRpc managerservice.ManagerService, redisClient *redis.Redis) *PrometheusManager {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	pm := &PrometheusManager{
 		localCache: make(map[string]*cachedClient),
 		redis:      redisClient,
 		log:        logx.WithContext(ctx),
 		ctx:        ctx,
+		cancel:     cancel,
 		managerRpc: managerRpc,
 	}
 
@@ -282,15 +284,7 @@ func (m *PrometheusManager) loadFromRPC(uuid string) (types.PrometheusClient, er
 		Insecure: prom.InsecureSkipVerify == 1,
 		Timeout:  3,
 	}
-	fmt.Println(prom.AppUrl)
-	fmt.Println(prom.AppUrl)
-	fmt.Println(prom.AppUrl)
-	fmt.Println(prom.AppUrl)
-	fmt.Println(prom.AppUrl)
-	fmt.Println(config)
-	fmt.Println(config)
-	fmt.Println(config)
-	fmt.Println(config)
+
 	// 添加到 Redis 和本地缓存
 	if err := m.Add(config); err != nil {
 		m.log.Errorf("添加 Prometheus 客户端失败: uuid=%s, error=%v", uuid, err)
@@ -313,8 +307,39 @@ func (m *PrometheusManager) loadFromRPC(uuid string) (types.PrometheusClient, er
 
 // GetByID 通过数据库 ID 获取 Prometheus 客户端
 func (m *PrometheusManager) GetByID(id uint64) (types.PrometheusClient, error) {
-	// TODO: 实现通过 ID 查询的逻辑
-	return m.Get("123")
+	if id == 0 {
+		return nil, fmt.Errorf("ID 不能为空或为0")
+	}
+
+	m.log.Debugf("通过 ID 获取 Prometheus 客户端: id=%d", id)
+
+	// 通过 RPC 获取项目集群信息（包含 ClusterUuid）
+	resp, err := m.managerRpc.ProjectClusterGetById(m.ctx, &managerservice.GetOnecProjectClusterByIdReq{
+		Id: id,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			m.log.Errorf("数据库中不存在该集群记录: id=%d", id)
+			return nil, fmt.Errorf("集群记录不存在: id=%d", id)
+		}
+		m.log.Errorf("查询集群记录失败: id=%d, error=%v", id, err)
+		return nil, fmt.Errorf("查询集群记录失败: %v", err)
+	}
+
+	if resp.Data == nil {
+		m.log.Errorf("返回的集群数据为空: id=%d", id)
+		return nil, fmt.Errorf("集群数据为空")
+	}
+
+	clusterUuid := resp.Data.ClusterUuid
+	if clusterUuid == "" {
+		m.log.Errorf("集群 UUID 为空: id=%d", id)
+		return nil, fmt.Errorf("集群 UUID 为空")
+	}
+
+	// 使用 ClusterUuid 获取 Prometheus 客户端
+	m.log.Debugf("获取到集群 UUID: id=%d, uuid=%s", id, clusterUuid)
+	return m.Get(clusterUuid)
 }
 
 // List 列出所有 Prometheus 实例的 UUID
@@ -373,6 +398,11 @@ func (m *PrometheusManager) Reload(uuid string) error {
 
 // Close 关闭所有本地缓存的客户端
 func (m *PrometheusManager) Close() error {
+	// 首先取消 context，停止 cleanupLoop
+	if m.cancel != nil {
+		m.cancel()
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

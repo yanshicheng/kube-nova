@@ -52,31 +52,55 @@ func (l *RoleSearchMenuLogic) RoleSearchMenu(in *pb.SearchSysRoleMenuReq) (*pb.S
 		return nil, errorx.Msg("查询角色菜单关联失败")
 	}
 
-	// 提取菜单ID列表
-	var menuIds []uint64
-	validMenuIds := make([]uint64, 0, len(roleMenus))
+	// 如果没有关联菜单，直接返回空列表
+	if len(roleMenus) == 0 {
+		return &pb.SearchSysRoleMenuResp{
+			MenuIds: []uint64{},
+		}, nil
+	}
 
+	// 提取菜单ID列表
+	menuIds := make([]uint64, 0, len(roleMenus))
+	menuIdToRoleMenuId := make(map[uint64]uint64, len(roleMenus)) // 用于记录关联关系ID，便于清理无效数据
 	for _, roleMenu := range roleMenus {
 		menuIds = append(menuIds, roleMenu.MenuId)
+		menuIdToRoleMenuId[roleMenu.MenuId] = roleMenu.Id
+	}
 
-		// 验证菜单是否还存在（清理无效关联）
-		_, err := l.svcCtx.SysMenu.FindOne(l.ctx, roleMenu.MenuId)
-		if err != nil {
-			if errors.Is(err, model.ErrNotFound) {
-				l.Errorf("菜单不存在，关联数据可能已过期, menuId: %d", roleMenu.MenuId)
-				// 可以选择在这里删除无效的关联关系
-				if delErr := l.svcCtx.SysRoleMenu.DeleteSoft(l.ctx, roleMenu.Id); delErr != nil {
+	// 批量查询存在的菜单ID（单次数据库查询，解决 N+1 问题）
+	existingIds, err := l.svcCtx.SysMenu.FindExistingIds(l.ctx, menuIds)
+	if err != nil {
+		l.Errorf("批量查询菜单失败: %v", err)
+		return nil, errorx.Msg("查询菜单信息失败")
+	}
+
+	// 构建存在的菜单ID集合
+	existingIdSet := make(map[uint64]struct{}, len(existingIds))
+	for _, id := range existingIds {
+		existingIdSet[id] = struct{}{}
+	}
+
+	// 找出无效的关联关系并异步清理
+	var invalidRoleMenuIds []uint64
+	for _, menuId := range menuIds {
+		if _, exists := existingIdSet[menuId]; !exists {
+			l.Infof("菜单不存在，关联数据已过期, menuId: %d", menuId)
+			invalidRoleMenuIds = append(invalidRoleMenuIds, menuIdToRoleMenuId[menuId])
+		}
+	}
+
+	// 异步清理无效的关联关系，不阻塞主流程
+	if len(invalidRoleMenuIds) > 0 {
+		go func(ids []uint64) {
+			for _, id := range ids {
+				if delErr := l.svcCtx.SysRoleMenu.DeleteSoft(l.ctx, id); delErr != nil {
 					l.Errorf("删除无效的角色菜单关联失败: %v", delErr)
 				}
-				continue
 			}
-			l.Errorf("查询菜单信息失败: %v", err)
-			return nil, errorx.Msg("查询菜单信息失败")
-		}
-		validMenuIds = append(validMenuIds, roleMenu.MenuId)
+		}(invalidRoleMenuIds)
 	}
 
 	return &pb.SearchSysRoleMenuResp{
-		MenuIds: validMenuIds, // 只返回有效的菜单ID
+		MenuIds: existingIds, // 只返回有效的菜单ID
 	}, nil
 }

@@ -83,5 +83,6 @@ func (l *VersionDetailLogic) VersionDetail(in *pb.GetOnecProjectVersionDetailReq
 		ResourceType:      application.ResourceType,
 		ApplicationId:     application.Id,
 		ApplicationNameCn: application.NameCn,
+		ApplicationNameEn: application.NameEn,
 	}, nil
 }

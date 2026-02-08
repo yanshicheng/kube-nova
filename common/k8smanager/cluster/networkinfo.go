@@ -41,10 +41,14 @@ type networkDetector interface {
 }
 
 func (c *clusterClient) GetNetworkInfo() (*ClusterNetworkInfo, error) {
-	ctx := context.Background()
 	if atomic.LoadInt32(&c.closed) == 1 {
 		return nil, fmt.Errorf("cluster %s is closed", c.config.ID)
 	}
+
+	// 使用结构体中存储的 context，支持上下文传播和取消
+	c.ctxMutex.RLock()
+	ctx := c.ctx
+	c.ctxMutex.RUnlock()
 
 	detectCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()

@@ -3,6 +3,7 @@ package operator
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"time"
@@ -762,38 +763,64 @@ func (i *IngressOperator) GetIngressBackends(namespace, ingressName string, time
 	upstreamQuery := fmt.Sprintf(
 		`avg(nginx_ingress_controller_ingress_upstream_latency_seconds{namespace="%s",ingress="%s"})`,
 		namespace, ingressName)
-	upstreamResult, _ := i.query(upstreamQuery, nil)
-	if len(upstreamResult) > 0 {
+	upstreamResult, err := i.query(upstreamQuery, nil)
+	if err != nil {
+		i.log.Debugf("查询 Upstream 延迟失败: %v", err)
+	} else if len(upstreamResult) > 0 {
 		backends.UpstreamLatency = upstreamResult[0].Value
 	}
 
-	// 查询 Endpoints
-	endpointsQuery := fmt.Sprintf(
-		`sum(kube_endpoint_address_available{namespace="%s"}) by (endpoint)`,
-		namespace)
-	endpointsResult, _ := i.query(endpointsQuery, nil)
-	for _, r := range endpointsResult {
-		if serviceName, ok := r.Metric["endpoint"]; ok {
-			backends.EndpointsByService = append(backends.EndpointsByService, types.ServiceEndpoints{
-				ServiceName:        serviceName,
-				Namespace:          namespace,
-				AvailableEndpoints: int64(r.Value),
-				HasEndpoints:       r.Value > 0,
-			})
+	// 从请求指标中提取 Service 信息，而不是使用可能不存在的 kube_endpoint 指标
+	// 通过 nginx_ingress_controller_requests 获取关联的 service
+	serviceQuery := fmt.Sprintf(
+		`group(nginx_ingress_controller_requests{namespace="%s",ingress="%s"}) by (service)`,
+		namespace, ingressName)
+	serviceResult, err := i.query(serviceQuery, nil)
+	if err != nil {
+		i.log.Debugf("查询 Service 列表失败: %v", err)
+	} else {
+		for _, r := range serviceResult {
+			if serviceName, ok := r.Metric["service"]; ok && serviceName != "" {
+				// 查询该 service 的成功率作为健康状态
+				healthQuery := fmt.Sprintf(
+					`sum(rate(nginx_ingress_controller_requests{namespace="%s",ingress="%s",service="%s",status=~"2.."}[%s])) / sum(rate(nginx_ingress_controller_requests{namespace="%s",ingress="%s",service="%s"}[%s]))`,
+					namespace, ingressName, serviceName, window, namespace, ingressName, serviceName, window)
+				healthResult, _ := i.query(healthQuery, nil)
+
+				successRate := 0.0
+				if len(healthResult) > 0 && healthResult[0].Value > 0 {
+					successRate = healthResult[0].Value * 100
+				}
+
+				backends.BackendHealth = append(backends.BackendHealth, types.BackendHealthStatus{
+					Upstream:    serviceName,
+					SuccessRate: successRate,
+				})
+
+				// 添加到 Endpoints 列表（使用 upstream latency 作为参考）
+				backends.EndpointsByService = append(backends.EndpointsByService, types.ServiceEndpoints{
+					ServiceName:        serviceName,
+					Namespace:          namespace,
+					AvailableEndpoints: 1, // 默认值，实际应该从 k8s API 获取
+					HasEndpoints:       true,
+				})
+			}
 		}
 	}
 
-	// 后端健康状态
-	healthQuery := fmt.Sprintf(
-		`sum(rate(nginx_ingress_controller_requests{namespace="%s",ingress="%s",status=~"2.."}[%s])) by (service) / sum(rate(nginx_ingress_controller_requests{namespace="%s",ingress="%s"}[%s])) by (service)`,
-		namespace, ingressName, window, namespace, ingressName, window)
-	healthResult, _ := i.query(healthQuery, nil)
-	for _, r := range healthResult {
-		if upstream, ok := r.Metric["service"]; ok {
-			backends.BackendHealth = append(backends.BackendHealth, types.BackendHealthStatus{
-				Upstream:    upstream,
-				SuccessRate: r.Value * 100,
-			})
+	// 如果没有通过 service 查询到数据，尝试通过 upstream 获取
+	if len(backends.BackendHealth) == 0 {
+		upstreamHealthQuery := fmt.Sprintf(
+			`sum(rate(nginx_ingress_controller_requests{namespace="%s",ingress="%s",status=~"2.."}[%s])) by (upstream) / sum(rate(nginx_ingress_controller_requests{namespace="%s",ingress="%s"}[%s])) by (upstream)`,
+			namespace, ingressName, window, namespace, ingressName, window)
+		upstreamHealthResult, _ := i.query(upstreamHealthQuery, nil)
+		for _, r := range upstreamHealthResult {
+			if upstream, ok := r.Metric["upstream"]; ok {
+				backends.BackendHealth = append(backends.BackendHealth, types.BackendHealthStatus{
+					Upstream:    upstream,
+					SuccessRate: r.Value * 100,
+				})
+			}
 		}
 	}
 
@@ -1178,15 +1205,232 @@ func (i *IngressOperator) GetHostRanking(limit int, timeRange *types.TimeRange) 
 	return ranking, nil
 }
 
+// GetHostMetrics 获取 Host 级别的完整监控指标
+func (i *IngressOperator) GetHostMetrics(namespace, host string, timeRange *types.TimeRange) (*types.HostMetricsDetail, error) {
+	i.log.Infof(" 查询 Host 指标: namespace=%s, host=%s", namespace, host)
+
+	detail := &types.HostMetricsDetail{
+		Host:         host,
+		Namespace:    namespace,
+		IngressNames: []string{},
+		Traffic: types.IngressTrafficMetrics{
+			Trend:     []types.IngressTrafficDataPoint{},
+			ByHost:    []types.TrafficByDimension{},
+			ByPath:    []types.TrafficByDimension{},
+			ByService: []types.TrafficByDimension{},
+			ByMethod:  []types.TrafficByMethod{},
+		},
+		Performance: types.IngressLatencyStats{},
+		Errors:      types.IngressErrorRateStats{},
+		Backends:    []types.BackendHealthStatus{},
+		StatusCodes: types.IngressStatusCodeDistribution{
+			Status2xx: make(map[string]float64),
+			Status3xx: make(map[string]float64),
+			Status4xx: make(map[string]float64),
+			Status5xx: make(map[string]float64),
+		},
+	}
+
+	window := i.calculateRateWindow(timeRange)
+
+	// 1. 查询该 host 关联的 Ingress 名称
+	ingressNamesQuery := fmt.Sprintf(`nginx_ingress_controller_requests{namespace="%s",host="%s"}`, namespace, host)
+	ingressNamesResult, _ := i.query(ingressNamesQuery, nil)
+
+	ingressNameMap := make(map[string]bool)
+	for _, r := range ingressNamesResult {
+		if ingressName, ok := r.Metric["ingress"]; ok {
+			ingressNameMap[ingressName] = true
+		}
+	}
+	for ingressName := range ingressNameMap {
+		detail.IngressNames = append(detail.IngressNames, ingressName)
+	}
+
+	// 2. 查询流量指标
+	qpsQuery := fmt.Sprintf(`sum(rate(nginx_ingress_controller_requests{namespace="%s",host="%s"}[%s]))`,
+		namespace, host, window)
+	qpsResult, _ := i.query(qpsQuery, nil)
+	if len(qpsResult) > 0 {
+		detail.Traffic.Current.RequestsPerSecond = qpsResult[0].Value
+		detail.Traffic.Current.Timestamp = qpsResult[0].Time
+	}
+
+	// 流入流出字节
+	ingressBytesQuery := fmt.Sprintf(`sum(rate(nginx_ingress_controller_request_size_sum{namespace="%s",host="%s"}[%s]))`,
+		namespace, host, window)
+	ingressBytesResult, _ := i.query(ingressBytesQuery, nil)
+	if len(ingressBytesResult) > 0 {
+		detail.Traffic.Current.IngressBytesPerSec = ingressBytesResult[0].Value
+	}
+
+	egressBytesQuery := fmt.Sprintf(`sum(rate(nginx_ingress_controller_response_size_sum{namespace="%s",host="%s"}[%s]))`,
+		namespace, host, window)
+	egressBytesResult, _ := i.query(egressBytesQuery, nil)
+	if len(egressBytesResult) > 0 {
+		detail.Traffic.Current.EgressBytesPerSec = egressBytesResult[0].Value
+	}
+
+	// 按 Path 统计流量
+	byPathQuery := fmt.Sprintf(`sum(rate(nginx_ingress_controller_requests{namespace="%s",host="%s"}[%s])) by (path)`,
+		namespace, host, window)
+	byPathResult, _ := i.query(byPathQuery, nil)
+	for _, r := range byPathResult {
+		if path, ok := r.Metric["path"]; ok {
+			detail.Traffic.ByPath = append(detail.Traffic.ByPath, types.TrafficByDimension{
+				Name:              path,
+				Namespace:         namespace,
+				RequestsPerSecond: r.Value,
+			})
+		}
+	}
+
+	// 按 Method 统计
+	byMethodQuery := fmt.Sprintf(`sum(rate(nginx_ingress_controller_requests{namespace="%s",host="%s"}[%s])) by (method)`,
+		namespace, host, window)
+	byMethodResult, _ := i.query(byMethodQuery, nil)
+	for _, r := range byMethodResult {
+		if method, ok := r.Metric["method"]; ok {
+			detail.Traffic.ByMethod = append(detail.Traffic.ByMethod, types.TrafficByMethod{
+				Method:            method,
+				RequestsPerSecond: r.Value,
+			})
+		}
+	}
+
+	// 趋势数据
+	if timeRange != nil && !timeRange.Start.IsZero() && !timeRange.End.IsZero() {
+		step := timeRange.Step
+		if step == "" {
+			step = i.calculateStep(timeRange.Start, timeRange.End)
+		}
+
+		trendResult, err := i.queryRange(qpsQuery, timeRange.Start, timeRange.End, step)
+		if err == nil && len(trendResult) > 0 {
+			detail.Traffic.Trend = i.parseTrafficTrend(trendResult[0].Values)
+		}
+	}
+
+	// 3. 查询性能指标（P95延迟）
+	p95Query := fmt.Sprintf(
+		`histogram_quantile(0.95, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{namespace="%s",host="%s"}[%s])) by (le))`,
+		namespace, host, window)
+	p95Result, _ := i.query(p95Query, nil)
+	if len(p95Result) > 0 {
+		detail.Performance.P95 = p95Result[0].Value
+	}
+
+	// P50延迟
+	p50Query := fmt.Sprintf(
+		`histogram_quantile(0.50, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{namespace="%s",host="%s"}[%s])) by (le))`,
+		namespace, host, window)
+	p50Result, _ := i.query(p50Query, nil)
+	if len(p50Result) > 0 {
+		detail.Performance.P50 = p50Result[0].Value
+	}
+
+	// P99延迟
+	p99Query := fmt.Sprintf(
+		`histogram_quantile(0.99, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{namespace="%s",host="%s"}[%s])) by (le))`,
+		namespace, host, window)
+	p99Result, _ := i.query(p99Query, nil)
+	if len(p99Result) > 0 {
+		detail.Performance.P99 = p99Result[0].Value
+	}
+
+	// 平均延迟
+	avgQuery := fmt.Sprintf(
+		`sum(rate(nginx_ingress_controller_request_duration_seconds_sum{namespace="%s",host="%s"}[%s])) / sum(rate(nginx_ingress_controller_request_duration_seconds_count{namespace="%s",host="%s"}[%s]))`,
+		namespace, host, window, namespace, host, window)
+	avgResult, _ := i.query(avgQuery, nil)
+	if len(avgResult) > 0 {
+		detail.Performance.Avg = avgResult[0].Value
+	}
+
+	// 4. 查询错误率
+	totalErrorQuery := fmt.Sprintf(
+		`sum(rate(nginx_ingress_controller_requests{namespace="%s",host="%s",status=~"[4-5].."}[%s])) / sum(rate(nginx_ingress_controller_requests{namespace="%s",host="%s"}[%s]))`,
+		namespace, host, window, namespace, host, window)
+	totalErrorResult, _ := i.query(totalErrorQuery, nil)
+	if len(totalErrorResult) > 0 {
+		detail.Errors.TotalErrorRate = totalErrorResult[0].Value * 100
+	}
+
+	error4xxQuery := fmt.Sprintf(
+		`sum(rate(nginx_ingress_controller_requests{namespace="%s",host="%s",status=~"4.."}[%s])) / sum(rate(nginx_ingress_controller_requests{namespace="%s",host="%s"}[%s]))`,
+		namespace, host, window, namespace, host, window)
+	error4xxResult, _ := i.query(error4xxQuery, nil)
+	if len(error4xxResult) > 0 {
+		detail.Errors.Error4xxRate = error4xxResult[0].Value * 100
+	}
+
+	error5xxQuery := fmt.Sprintf(
+		`sum(rate(nginx_ingress_controller_requests{namespace="%s",host="%s",status=~"5.."}[%s])) / sum(rate(nginx_ingress_controller_requests{namespace="%s",host="%s"}[%s]))`,
+		namespace, host, window, namespace, host, window)
+	error5xxResult, _ := i.query(error5xxQuery, nil)
+	if len(error5xxResult) > 0 {
+		detail.Errors.Error5xxRate = error5xxResult[0].Value * 100
+	}
+
+	// 5. 状态码分布
+	statusQuery := fmt.Sprintf(
+		`sum(rate(nginx_ingress_controller_requests{namespace="%s",host="%s"}[%s])) by (status)`,
+		namespace, host, window)
+	statusResult, _ := i.query(statusQuery, nil)
+	for _, r := range statusResult {
+		if status, ok := r.Metric["status"]; ok {
+			if len(status) < 1 {
+				continue
+			}
+			switch status[0] {
+			case '2':
+				detail.StatusCodes.Status2xx[status] = r.Value
+			case '3':
+				detail.StatusCodes.Status3xx[status] = r.Value
+			case '4':
+				detail.StatusCodes.Status4xx[status] = r.Value
+			case '5':
+				detail.StatusCodes.Status5xx[status] = r.Value
+			}
+		}
+	}
+
+	// 6. 后端健康状态
+	backendQuery := fmt.Sprintf(
+		`sum(rate(nginx_ingress_controller_requests{namespace="%s",host="%s",status=~"2.."}[%s])) by (service) / sum(rate(nginx_ingress_controller_requests{namespace="%s",host="%s"}[%s])) by (service)`,
+		namespace, host, window, namespace, host, window)
+	backendResult, _ := i.query(backendQuery, nil)
+	for _, r := range backendResult {
+		if upstream, ok := r.Metric["service"]; ok {
+			detail.Backends = append(detail.Backends, types.BackendHealthStatus{
+				Upstream:    upstream,
+				SuccessRate: r.Value * 100,
+			})
+		}
+	}
+
+	return detail, nil
+}
+
 // ==================== 列表查询 ====================
 
 // ListIngressMetrics 列出命名空间下的所有 Ingress
 func (i *IngressOperator) ListIngressMetrics(namespace string, timeRange *types.TimeRange) ([]types.IngressMetrics, error) {
 	metrics := []types.IngressMetrics{}
 
-	// 查询命名空间下的所有 Ingress
-	ingressQuery := fmt.Sprintf(`nginx_ingress_controller_ingress_upstream_latency_seconds{namespace="%s"}`, namespace)
-	ingressResult, _ := i.query(ingressQuery, nil)
+	// 使用更通用的方式查询命名空间下的所有 Ingress
+	// 优先使用 requests 指标，因为它是基础指标
+	ingressQuery := fmt.Sprintf(`nginx_ingress_controller_requests{namespace="%s"}`, namespace)
+	ingressResult, err := i.query(ingressQuery, nil)
+	if err != nil {
+		i.log.Errorf("查询 Ingress 列表失败: %v", err)
+		// 如果失败，尝试使用 kube_ingress_info
+		ingressQuery = fmt.Sprintf(`kube_ingress_info{namespace="%s"}`, namespace)
+		ingressResult, err = i.query(ingressQuery, nil)
+		if err != nil {
+			return metrics, err
+		}
+	}
 
 	// 去重获取 ingress 名称
 	ingressNames := make(map[string]bool)
@@ -1195,6 +1439,8 @@ func (i *IngressOperator) ListIngressMetrics(namespace string, timeRange *types.
 			ingressNames[ingressName] = true
 		}
 	}
+
+	i.log.Infof("发现 %d 个 Ingress", len(ingressNames))
 
 	// 获取每个 Ingress 的指标
 	for ingressName := range ingressNames {
@@ -1360,4 +1606,613 @@ func (i *IngressOperator) calculateTrafficSummary(traffic *types.IngressTrafficM
 	}
 
 	return summary
+}
+
+// ==================== Host 级别监控查询 ====================
+
+// GetHostMetricsDetail 获取单个 Host 的详细监控指标
+func (i *IngressOperator) GetHostMetricsDetail(host string, timeRange *types.TimeRange) (*types.HostMetrics, error) {
+	i.log.Infof("查询 Host 监控指标: host=%s", host)
+
+	metrics := &types.HostMetrics{
+		Host:   host,
+		Trend:  []types.HostMetricDataPoint{},
+		ByPath: []types.HostPathMetrics{},
+	}
+
+	// 设置时间范围
+	if timeRange != nil {
+		metrics.Start = timeRange.Start.Unix()
+		metrics.End = timeRange.End.Unix()
+	}
+
+	window := i.calculateRateWindow(timeRange)
+
+	// 并发查询各项指标
+	errCh := make(chan error, 5)
+
+	go func() {
+		current, err := i.getHostCurrentSnapshot(host, window)
+		if err == nil {
+			metrics.Current = *current
+		}
+		errCh <- err
+	}()
+
+	go func() {
+		statusCodes, err := i.getHostStatusCodes(host, timeRange)
+		if err == nil {
+			metrics.StatusCodes = *statusCodes
+		}
+		errCh <- err
+	}()
+
+	go func() {
+		errorRate, err := i.getHostErrorRate(host, window, timeRange)
+		if err == nil {
+			metrics.ErrorRate = *errorRate
+		}
+		errCh <- err
+	}()
+
+	go func() {
+		latency, err := i.getHostLatency(host, window)
+		if err == nil {
+			metrics.Latency = *latency
+		}
+		errCh <- err
+	}()
+
+	go func() {
+		byPath, err := i.getHostByPath(host, window)
+		if err == nil {
+			metrics.ByPath = *byPath
+		}
+		errCh <- err
+	}()
+
+	// 收集错误
+	for j := 0; j < 5; j++ {
+		if err := <-errCh; err != nil {
+			i.log.Errorf("获取 Host 指标失败: %v", err)
+		}
+	}
+
+	// 查询趋势数据
+	if timeRange != nil && !timeRange.Start.IsZero() && !timeRange.End.IsZero() {
+		step := timeRange.Step
+		if step == "" {
+			step = i.calculateStep(timeRange.Start, timeRange.End)
+		}
+
+		trend, err := i.getHostTrend(host, timeRange.Start, timeRange.End, step, window)
+		if err == nil {
+			metrics.Trend = *trend
+		}
+
+		// 计算汇总
+		metrics.Summary = i.calculateHostSummary(metrics, timeRange)
+	}
+
+	return metrics, nil
+}
+
+// GetMultiHostMetrics 批量获取多个 Host 的监控指标
+func (i *IngressOperator) GetMultiHostMetrics(hosts []string, timeRange *types.TimeRange) ([]types.HostMetrics, error) {
+	i.log.Infof("批量查询 Host 监控指标: hosts=%v", hosts)
+
+	result := make([]types.HostMetrics, 0, len(hosts))
+
+	for _, host := range hosts {
+		metrics, err := i.GetHostMetricsDetail(host, timeRange)
+		if err != nil {
+			i.log.Errorf("获取 Host 指标失败: host=%s, error=%v", host, err)
+			continue
+		}
+		result = append(result, *metrics)
+	}
+
+	return result, nil
+}
+
+// getHostCurrentSnapshot 获取 Host 当前快照
+func (i *IngressOperator) getHostCurrentSnapshot(host string, window string) (*types.HostMetricSnapshot, error) {
+	snapshot := &types.HostMetricSnapshot{
+		Timestamp: time.Now().Unix(),
+	}
+
+	// QPS
+	qpsQuery := fmt.Sprintf(`sum(rate(nginx_ingress_controller_requests{host="%s"}[%s]))`, host, window)
+	qpsResult, _ := i.query(qpsQuery, nil)
+	if len(qpsResult) > 0 {
+		snapshot.RequestsPerSecond = sanitizeFloat64(qpsResult[0].Value)
+		snapshot.Timestamp = qpsResult[0].Time.Unix()
+	}
+
+	// 入站流量
+	ingressBytesQuery := fmt.Sprintf(`sum(rate(nginx_ingress_controller_request_size_sum{host="%s"}[%s]))`, host, window)
+	ingressBytesResult, _ := i.query(ingressBytesQuery, nil)
+	if len(ingressBytesResult) > 0 {
+		snapshot.IngressBytesPerSec = sanitizeFloat64(ingressBytesResult[0].Value)
+	}
+
+	// 出站流量
+	egressBytesQuery := fmt.Sprintf(`sum(rate(nginx_ingress_controller_response_size_sum{host="%s"}[%s]))`, host, window)
+	egressBytesResult, _ := i.query(egressBytesQuery, nil)
+	if len(egressBytesResult) > 0 {
+		snapshot.EgressBytesPerSec = sanitizeFloat64(egressBytesResult[0].Value)
+	}
+
+	// 活动连接数
+	connQuery := fmt.Sprintf(`sum(nginx_ingress_controller_connections{host="%s",status="active"})`, host)
+	connResult, _ := i.query(connQuery, nil)
+	if len(connResult) > 0 {
+		snapshot.ActiveConnections = int64(sanitizeFloat64(connResult[0].Value))
+	}
+
+	return snapshot, nil
+}
+
+// getHostStatusCodes 获取 Host 状态码分布（返回数量）
+func (i *IngressOperator) getHostStatusCodes(host string, timeRange *types.TimeRange) (*types.HostStatusCodeDistribution, error) {
+	dist := &types.HostStatusCodeDistribution{
+		Status2xx: make(map[string]int64),
+		Status3xx: make(map[string]int64),
+		Status4xx: make(map[string]int64),
+		Status5xx: make(map[string]int64),
+	}
+
+	// 计算实际的时间范围
+	var query string
+	if timeRange != nil && !timeRange.Start.IsZero() && !timeRange.End.IsZero() {
+		// 使用用户指定的完整时间范围
+		duration := timeRange.End.Sub(timeRange.Start)
+		durationStr := fmt.Sprintf("%.0fs", duration.Seconds())
+
+		// 查询状态码数量（使用 increase 获取整个时间范围内的增量）
+		query = fmt.Sprintf(
+			`sum(increase(nginx_ingress_controller_requests{host="%s"}[%s])) by (status)`,
+			host, durationStr)
+	} else {
+		// 如果没有指定时间范围，使用默认的5分钟窗口
+		query = fmt.Sprintf(
+			`sum(increase(nginx_ingress_controller_requests{host="%s"}[5m])) by (status)`,
+			host)
+	}
+
+	result, _ := i.query(query, nil)
+
+	for _, r := range result {
+		if status, ok := r.Metric["status"]; ok {
+			if len(status) < 1 {
+				continue
+			}
+
+			count := int64(r.Value)
+
+			switch status[0] {
+			case '2':
+				dist.Status2xx[status] = count
+			case '3':
+				dist.Status3xx[status] = count
+			case '4':
+				dist.Status4xx[status] = count
+			case '5':
+				dist.Status5xx[status] = count
+			}
+		}
+	}
+
+	return dist, nil
+}
+
+// getHostErrorRate 获取 Host 错误率
+func (i *IngressOperator) getHostErrorRate(host string, window string, timeRange *types.TimeRange) (*types.HostErrorRateStats, error) {
+	errorRate := &types.HostErrorRateStats{
+		TopErrors:    []types.HostTopError{},
+		Top4xxErrors: []types.HostTopError{},
+		Top5xxErrors: []types.HostTopError{},
+	}
+
+	// 总错误率
+	totalErrorQuery := fmt.Sprintf(
+		`sum(rate(nginx_ingress_controller_requests{host="%s",status=~"[4-5].."}[%s])) / sum(rate(nginx_ingress_controller_requests{host="%s"}[%s]))`,
+		host, window, host, window)
+	totalErrorResult, _ := i.query(totalErrorQuery, nil)
+	if len(totalErrorResult) > 0 {
+		errorRate.TotalErrorRate = roundToTwoDecimals(sanitizeFloat64(totalErrorResult[0].Value * 100))
+	}
+
+	// 4xx 错误率
+	error4xxQuery := fmt.Sprintf(
+		`sum(rate(nginx_ingress_controller_requests{host="%s",status=~"4.."}[%s])) / sum(rate(nginx_ingress_controller_requests{host="%s"}[%s]))`,
+		host, window, host, window)
+	error4xxResult, _ := i.query(error4xxQuery, nil)
+	if len(error4xxResult) > 0 {
+		errorRate.Error4xxRate = roundToTwoDecimals(sanitizeFloat64(error4xxResult[0].Value * 100))
+	}
+
+	// 5xx 错误率
+	error5xxQuery := fmt.Sprintf(
+		`sum(rate(nginx_ingress_controller_requests{host="%s",status=~"5.."}[%s])) / sum(rate(nginx_ingress_controller_requests{host="%s"}[%s]))`,
+		host, window, host, window)
+	error5xxResult, _ := i.query(error5xxQuery, nil)
+	if len(error5xxResult) > 0 {
+		errorRate.Error5xxRate = roundToTwoDecimals(sanitizeFloat64(error5xxResult[0].Value * 100))
+	}
+
+	// 确定查询时间范围
+	var durationStr string
+	if timeRange != nil && !timeRange.Start.IsZero() && !timeRange.End.IsZero() {
+		duration := timeRange.End.Sub(timeRange.Start)
+		durationStr = fmt.Sprintf("%.0fs", duration.Seconds())
+	} else {
+		durationStr = window
+	}
+
+	// Top 所有错误状态码
+	topErrorsQuery := fmt.Sprintf(
+		`topk(10, sum(increase(nginx_ingress_controller_requests{host="%s",status=~"[4-5].."}[%s])) by (status))`,
+		host, durationStr)
+	topErrorsResult, _ := i.query(topErrorsQuery, nil)
+
+	// 计算总错误数
+	var totalErrors float64
+	for _, r := range topErrorsResult {
+		totalErrors += sanitizeFloat64(r.Value)
+	}
+
+	for _, r := range topErrorsResult {
+		if status, ok := r.Metric["status"]; ok {
+			percent := float64(0)
+			if totalErrors > 0 {
+				percent = roundToTwoDecimals((r.Value / totalErrors) * 100)
+			}
+			errorRate.TopErrors = append(errorRate.TopErrors, types.HostTopError{
+				StatusCode: status,
+				Count:      int64(sanitizeFloat64(r.Value)),
+				Percent:    percent,
+			})
+		}
+	}
+
+	// Top 4xx 错误状态码
+	top4xxQuery := fmt.Sprintf(
+		`topk(10, sum(increase(nginx_ingress_controller_requests{host="%s",status=~"4.."}[%s])) by (status))`,
+		host, durationStr)
+	top4xxResult, _ := i.query(top4xxQuery, nil)
+
+	var total4xxErrors float64
+	for _, r := range top4xxResult {
+		total4xxErrors += sanitizeFloat64(r.Value)
+	}
+
+	for _, r := range top4xxResult {
+		if status, ok := r.Metric["status"]; ok {
+			percent := float64(0)
+			if total4xxErrors > 0 {
+				percent = roundToTwoDecimals((r.Value / total4xxErrors) * 100)
+			}
+			errorRate.Top4xxErrors = append(errorRate.Top4xxErrors, types.HostTopError{
+				StatusCode: status,
+				Count:      int64(sanitizeFloat64(r.Value)),
+				Percent:    percent,
+			})
+		}
+	}
+
+	// Top 5xx 错误状态码
+	top5xxQuery := fmt.Sprintf(
+		`topk(10, sum(increase(nginx_ingress_controller_requests{host="%s",status=~"5.."}[%s])) by (status))`,
+		host, durationStr)
+	top5xxResult, _ := i.query(top5xxQuery, nil)
+
+	var total5xxErrors float64
+	for _, r := range top5xxResult {
+		total5xxErrors += sanitizeFloat64(r.Value)
+	}
+
+	for _, r := range top5xxResult {
+		if status, ok := r.Metric["status"]; ok {
+			percent := float64(0)
+			if total5xxErrors > 0 {
+				percent = roundToTwoDecimals((r.Value / total5xxErrors) * 100)
+			}
+			errorRate.Top5xxErrors = append(errorRate.Top5xxErrors, types.HostTopError{
+				StatusCode: status,
+				Count:      int64(sanitizeFloat64(r.Value)),
+				Percent:    percent,
+			})
+		}
+	}
+
+	return errorRate, nil
+}
+
+// getHostLatency 获取 Host 延迟统计
+func (i *IngressOperator) getHostLatency(host string, window string) (*types.HostLatencyStats, error) {
+	latency := &types.HostLatencyStats{}
+
+	// P50
+	p50Query := fmt.Sprintf(
+		`histogram_quantile(0.50, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{host="%s"}[%s])) by (le))`,
+		host, window)
+	p50Result, _ := i.query(p50Query, nil)
+	if len(p50Result) > 0 {
+		latency.P50 = sanitizeFloat64(p50Result[0].Value)
+	}
+
+	// P95
+	p95Query := fmt.Sprintf(
+		`histogram_quantile(0.95, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{host="%s"}[%s])) by (le))`,
+		host, window)
+	p95Result, _ := i.query(p95Query, nil)
+	if len(p95Result) > 0 {
+		latency.P95 = sanitizeFloat64(p95Result[0].Value)
+	}
+
+	// P99
+	p99Query := fmt.Sprintf(
+		`histogram_quantile(0.99, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{host="%s"}[%s])) by (le))`,
+		host, window)
+	p99Result, _ := i.query(p99Query, nil)
+	if len(p99Result) > 0 {
+		latency.P99 = sanitizeFloat64(p99Result[0].Value)
+	}
+
+	// 平均延迟
+	avgQuery := fmt.Sprintf(
+		`sum(rate(nginx_ingress_controller_request_duration_seconds_sum{host="%s"}[%s])) / sum(rate(nginx_ingress_controller_request_duration_seconds_count{host="%s"}[%s]))`,
+		host, window, host, window)
+	avgResult, _ := i.query(avgQuery, nil)
+	if len(avgResult) > 0 {
+		latency.Avg = sanitizeFloat64(avgResult[0].Value)
+	}
+
+	// 最大延迟
+	maxQuery := fmt.Sprintf(
+		`max(nginx_ingress_controller_request_duration_seconds{host="%s"})`,
+		host)
+	maxResult, _ := i.query(maxQuery, nil)
+	if len(maxResult) > 0 {
+		latency.Max = sanitizeFloat64(maxResult[0].Value)
+	}
+
+	return latency, nil
+}
+
+// getHostByPath 获取 Host 按 Path 分组的指标
+func (i *IngressOperator) getHostByPath(host string, window string) (*[]types.HostPathMetrics, error) {
+	byPath := &[]types.HostPathMetrics{}
+
+	// 查询每个 path 的 QPS
+	qpsByPathQuery := fmt.Sprintf(
+		`sum(rate(nginx_ingress_controller_requests{host="%s"}[%s])) by (path)`,
+		host, window)
+	qpsResult, _ := i.query(qpsByPathQuery, nil)
+
+	// 查询每个 path 的错误率
+	errorByPathQuery := fmt.Sprintf(
+		`sum(rate(nginx_ingress_controller_requests{host="%s",status=~"[4-5].."}[%s])) by (path) / sum(rate(nginx_ingress_controller_requests{host="%s"}[%s])) by (path)`,
+		host, window, host, window)
+	errorResult, _ := i.query(errorByPathQuery, nil)
+
+	// 查询每个 path 的 P95 延迟
+	latencyByPathQuery := fmt.Sprintf(
+		`histogram_quantile(0.95, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{host="%s"}[%s])) by (path, le))`,
+		host, window)
+	latencyResult, _ := i.query(latencyByPathQuery, nil)
+
+	// 合并结果
+	pathMetrics := make(map[string]*types.HostPathMetrics)
+
+	// 处理 QPS
+	for _, r := range qpsResult {
+		if path, ok := r.Metric["path"]; ok {
+			if _, exists := pathMetrics[path]; !exists {
+				pathMetrics[path] = &types.HostPathMetrics{Path: path}
+			}
+			pathMetrics[path].RequestsPerSecond = sanitizeFloat64(r.Value)
+		}
+	}
+
+	// 处理错误率
+	for _, r := range errorResult {
+		if path, ok := r.Metric["path"]; ok {
+			if _, exists := pathMetrics[path]; !exists {
+				pathMetrics[path] = &types.HostPathMetrics{Path: path}
+			}
+			errorRate := sanitizeFloat64(r.Value * 100)
+			pathMetrics[path].ErrorRate = errorRate
+			pathMetrics[path].ErrorRatePercent = roundToTwoDecimals(errorRate)
+		}
+	}
+
+	// 处理延迟
+	for _, r := range latencyResult {
+		if path, ok := r.Metric["path"]; ok {
+			if _, exists := pathMetrics[path]; !exists {
+				pathMetrics[path] = &types.HostPathMetrics{Path: path}
+			}
+			pathMetrics[path].P95Latency = sanitizeFloat64(r.Value)
+		}
+	}
+
+	// 转换为切片
+	for _, metric := range pathMetrics {
+		*byPath = append(*byPath, *metric)
+	}
+
+	return byPath, nil
+}
+
+// getHostTrend 获取 Host 趋势数据
+func (i *IngressOperator) getHostTrend(host string, start, end time.Time, step, window string) (*[]types.HostMetricDataPoint, error) {
+	trend := &[]types.HostMetricDataPoint{}
+
+	// 并发查询各项趋势
+	errCh := make(chan error, 6)
+
+	var qpsTrend, ingressBytesTrend, egressBytesTrend, error4xxTrend, error5xxTrend, p95Trend []types.MetricValue
+
+	go func() {
+		qpsQuery := fmt.Sprintf(`sum(rate(nginx_ingress_controller_requests{host="%s"}[%s]))`, host, window)
+		result, err := i.queryRange(qpsQuery, start, end, step)
+		if err == nil && len(result) > 0 {
+			qpsTrend = result[0].Values
+		}
+		errCh <- err
+	}()
+
+	go func() {
+		ingressBytesQuery := fmt.Sprintf(`sum(rate(nginx_ingress_controller_request_size_sum{host="%s"}[%s]))`, host, window)
+		result, err := i.queryRange(ingressBytesQuery, start, end, step)
+		if err == nil && len(result) > 0 {
+			ingressBytesTrend = result[0].Values
+		}
+		errCh <- err
+	}()
+
+	go func() {
+		egressBytesQuery := fmt.Sprintf(`sum(rate(nginx_ingress_controller_response_size_sum{host="%s"}[%s]))`, host, window)
+		result, err := i.queryRange(egressBytesQuery, start, end, step)
+		if err == nil && len(result) > 0 {
+			egressBytesTrend = result[0].Values
+		}
+		errCh <- err
+	}()
+
+	go func() {
+		error4xxQuery := fmt.Sprintf(
+			`sum(rate(nginx_ingress_controller_requests{host="%s",status=~"4.."}[%s])) / sum(rate(nginx_ingress_controller_requests{host="%s"}[%s]))`,
+			host, window, host, window)
+		result, err := i.queryRange(error4xxQuery, start, end, step)
+		if err == nil && len(result) > 0 {
+			error4xxTrend = result[0].Values
+		}
+		errCh <- err
+	}()
+
+	go func() {
+		error5xxQuery := fmt.Sprintf(
+			`sum(rate(nginx_ingress_controller_requests{host="%s",status=~"5.."}[%s])) / sum(rate(nginx_ingress_controller_requests{host="%s"}[%s]))`,
+			host, window, host, window)
+		result, err := i.queryRange(error5xxQuery, start, end, step)
+		if err == nil && len(result) > 0 {
+			error5xxTrend = result[0].Values
+		}
+		errCh <- err
+	}()
+
+	go func() {
+		p95Query := fmt.Sprintf(
+			`histogram_quantile(0.95, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{host="%s"}[%s])) by (le))`,
+			host, window)
+		result, err := i.queryRange(p95Query, start, end, step)
+		if err == nil && len(result) > 0 {
+			p95Trend = result[0].Values
+		}
+		errCh <- err
+	}()
+
+	// 等待所有查询完成
+	for j := 0; j < 6; j++ {
+		<-errCh
+	}
+
+	// 合并趋势数据（以 QPS 趋势为基准）
+	if len(qpsTrend) > 0 {
+		*trend = make([]types.HostMetricDataPoint, 0, len(qpsTrend))
+		for idx, qpsPoint := range qpsTrend {
+			dataPoint := types.HostMetricDataPoint{
+				Timestamp:         qpsPoint.Timestamp.Unix(),
+				RequestsPerSecond: sanitizeFloat64(qpsPoint.Value),
+			}
+
+			if idx < len(ingressBytesTrend) {
+				dataPoint.IngressBytesPerSec = sanitizeFloat64(ingressBytesTrend[idx].Value)
+			}
+			if idx < len(egressBytesTrend) {
+				dataPoint.EgressBytesPerSec = sanitizeFloat64(egressBytesTrend[idx].Value)
+			}
+			if idx < len(error4xxTrend) {
+				dataPoint.Error4xxRate = sanitizeFloat64(error4xxTrend[idx].Value * 100)
+			}
+			if idx < len(error5xxTrend) {
+				dataPoint.Error5xxRate = sanitizeFloat64(error5xxTrend[idx].Value * 100)
+			}
+			if idx < len(p95Trend) {
+				dataPoint.P95Latency = sanitizeFloat64(p95Trend[idx].Value)
+			}
+
+			*trend = append(*trend, dataPoint)
+		}
+	}
+
+	return trend, nil
+}
+
+// calculateHostSummary 计算 Host 汇总统计
+func (i *IngressOperator) calculateHostSummary(metrics *types.HostMetrics, timeRange *types.TimeRange) types.HostMetricsSummary {
+	summary := types.HostMetricsSummary{}
+
+	if len(metrics.Trend) == 0 {
+		return summary
+	}
+
+	var sumQPS, maxQPS float64
+	for _, point := range metrics.Trend {
+		sumQPS += point.RequestsPerSecond
+		if point.RequestsPerSecond > maxQPS {
+			maxQPS = point.RequestsPerSecond
+		}
+	}
+
+	summary.AvgRequestsPerSec = sumQPS / float64(len(metrics.Trend))
+	summary.MaxRequestsPerSec = maxQPS
+
+	// 计算总请求数和总字节数（基于 QPS 和时间范围）
+	var duration float64
+	if timeRange != nil && !timeRange.Start.IsZero() && !timeRange.End.IsZero() {
+		duration = timeRange.End.Sub(timeRange.Start).Seconds()
+		summary.TotalRequests = int64(sumQPS / float64(len(metrics.Trend)) * duration)
+	}
+
+	// 计算平均请求/响应大小
+	totalRequests := float64(summary.TotalRequests)
+	if totalRequests > 0 {
+		var sumIngress, sumEgress float64
+		for _, point := range metrics.Trend {
+			sumIngress += point.IngressBytesPerSec
+			sumEgress += point.EgressBytesPerSec
+		}
+
+		avgIngressBytesPerSec := sumIngress / float64(len(metrics.Trend))
+		avgEgressBytesPerSec := sumEgress / float64(len(metrics.Trend))
+
+		summary.TotalIngressBytes = int64(avgIngressBytesPerSec * duration)
+		summary.TotalEgressBytes = int64(avgEgressBytesPerSec * duration)
+
+		if summary.TotalRequests > 0 {
+			summary.AvgRequestSize = float64(summary.TotalIngressBytes) / float64(summary.TotalRequests)
+			summary.AvgResponseSize = float64(summary.TotalEgressBytes) / float64(summary.TotalRequests)
+		}
+	}
+
+	return summary
+}
+
+// ==================== 辅助函数 ====================
+
+// sanitizeFloat64 清理 float64 值，将 NaN 和 Inf 转换为 0
+func sanitizeFloat64(v float64) float64 {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return 0
+	}
+	return v
+}
+
+// roundToTwoDecimals 将 float64 值四舍五入到两位小数
+func roundToTwoDecimals(v float64) float64 {
+	return math.Round(v*100) / 100
 }

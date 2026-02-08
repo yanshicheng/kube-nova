@@ -428,6 +428,9 @@ message SysUser {
   string updatedBy = 15; //记录更新人
   int64 createdAt = 16; //创建时间
   int64 updatedAt = 17; //更新时间
+  string dingtalkId = 18; //钉钉用户ID
+  string wechatId = 19; //微信用户ID
+  string feishuId = 20; //飞书用户ID
 }
 
 message AddSysUserReq {
@@ -439,6 +442,9 @@ message AddSysUserReq {
   uint64 deptId = 8; //部门ID
   string createdBy = 13; //记录创建人
   string updatedBy = 14; //记录更新人
+  string dingtalkId = 15; //钉钉用户ID
+  string wechatId = 16; //微信用户ID
+  string feishuId = 17; //飞书用户ID
 }
 
 message AddSysUserResp {
@@ -454,6 +460,9 @@ message UpdateSysUserReq {
   int64 status = 10; //状态: 0-禁用, 1-启用
   int64 isNeedResetPwd = 11; //是否需要重置密码: 0-否, 1-是
   string updatedBy = 14;
+  string dingtalkId = 15; //钉钉用户ID
+  string wechatId = 16; //微信用户ID
+  string feishuId = 17; //飞书用户ID
 }
 
 message UpdateSysUserResp {
@@ -567,6 +576,10 @@ message GetSysUserInfoResp {
   string deptNames = 18;
   // 角色列表names
   string roleNames = 19;
+  // 第三方平台ID
+  string dingtalkId = 20; //钉钉用户ID
+  string wechatId = 21; //微信用户ID
+  string feishuId = 22; //飞书用户ID
 }
 
 // 重置密码 ResetSysUserPwdReq
@@ -711,44 +724,84 @@ service SysAuthService {
 message SysMenu {
   uint64 id = 1; //自增主键
   uint64 parentId = 2; //父菜单ID，顶级菜单为0
-  int64 menuType = 3; //菜单类型（1目录 2菜单 3按钮）
-  string name = 4; //菜单名称（路由name）
-  string path = 5; //路由地址
-  string component = 6; //组件路径
-  string redirect = 7; //重定向地址
-  string label = 8; //权限标识
-  string title = 9; //菜单标题（meta.title）
-  string icon = 10; //菜单图标
-  int64 sort = 11; //排序
-  string link = 12; //外部链接/内嵌地址
-  int64 isEnable = 13; //是否启用（0否 1是）
-  int64 isMenu = 14; //是否为菜单（0否 1是）
-  int64 keepAlive = 15; //页面缓存（0否 1是）
-  int64 isHide = 16; //是否隐藏（0否 1是）
-  int64 isIframe = 17; //是否内嵌（0否 1是）
-  int64 isHideTab = 18; //是否在标签页中隐藏（0否 1是）
-  int64 showBadge = 19; //是否显示徽章（0否 1是）
-  string showTextBadge = 20; //文本徽章内容
-  int64 isFirstLevel = 21; //是否为一级菜单（0否 1是）
-  int64 fixedTab = 22; //是否固定标签页（0否 1是）
-  int64 isFullPage = 23; //是否为全屏页面（0否 1是）
-  string activePath = 24; //激活菜单路径
-  string roles = 25; //角色权限（JSON格式存储）
-  string authName = 26; //按钮权限名称
-  string authLabel = 27; //按钮权限标识
-  string authIcon = 28; //按钮图标
-  int64 authSort = 29; //按钮权限排序
-  int64 status = 30; //状态（0停用 1启用）
-  int64 createTime = 31; //创建时间
-  int64 updateTime = 32; //更新时间
-  string createBy = 33; //创建人
-  string updateBy = 34; //更新人
+  uint64 platformId = 3; //平台ID（关联sys_platform表）
+  int64 menuType = 4; //菜单类型（1目录 2菜单 3按钮）
+  string name = 5; //菜单名称（路由name）
+  string path = 6; //路由地址
+  string component = 7; //组件路径
+  string redirect = 8; //重定向地址
+  string label = 9; //权限标识
+  string title = 10; //菜单标题（meta.title）
+  string icon = 11; //菜单图标
+  int64 sort = 12; //排序
+  string link = 13; //外部链接/内嵌地址
+  int64 isEnable = 14; //是否启用（0否 1是）
+  int64 isMenu = 15; //是否为菜单（0否 1是）
+  int64 keepAlive = 16; //页面缓存（0否 1是）
+  int64 isHide = 17; //是否隐藏（0否 1是）
+  int64 isIframe = 18; //是否内嵌（0否 1是）
+  int64 isHideTab = 19; //是否在标签页中隐藏（0否 1是）
+  int64 showBadge = 20; //是否显示徽章（0否 1是）
+  string showTextBadge = 21; //文本徽章内容
+  int64 isFirstLevel = 22; //是否为一级菜单（0否 1是）
+  int64 fixedTab = 23; //是否固定标签页（0否 1是）
+  int64 isFullPage = 24; //是否为全屏页面（0否 1是）
+  string activePath = 25; //激活菜单路径
+  string roles = 26; //角色权限（JSON格式存储）
+  string authName = 27; //按钮权限名称
+  string authLabel = 28; //按钮权限标识
+  string authIcon = 29; //按钮图标
+  int64 authSort = 30; //按钮权限排序
+  int64 status = 31; //状态（0停用 1启用）
+  int64 createTime = 32; //创建时间
+  int64 updateTime = 33; //更新时间
+  string createBy = 34; //创建人
+  string updateBy = 35; //更新人
 }
 
 // 菜单树节点
 message SysMenuTree {
   uint64 id = 1; //自增主键
   uint64 parentId = 2; //父菜单ID，顶级菜单为0
+  uint64 platformId = 3; //平台ID（关联sys_platform表）
+  int64 menuType = 4; //菜单类型（1目录 2菜单 3按钮）
+  string name = 5; //菜单名称（路由name）
+  string path = 6; //路由地址
+  string component = 7; //组件路径
+  string redirect = 8; //重定向地址
+  string label = 9; //权限标识
+  string title = 10; //菜单标题（meta.title）
+  string icon = 11; //菜单图标
+  int64 sort = 12; //排序
+  string link = 13; //外部链接/内嵌地址
+  int64 isEnable = 14; //是否启用（0否 1是）
+  int64 isMenu = 15; //是否为菜单（0否 1是）
+  int64 keepAlive = 16; //页面缓存（0否 1是）
+  int64 isHide = 17; //是否隐藏（0否 1是）
+  int64 isIframe = 18; //是否内嵌（0否 1是）
+  int64 isHideTab = 19; //是否在标签页中隐藏（0否 1是）
+  int64 showBadge = 20; //是否显示徽章（0否 1是）
+  string showTextBadge = 21; //文本徽章内容
+  int64 isFirstLevel = 22; //是否为一级菜单（0否 1是）
+  int64 fixedTab = 23; //是否固定标签页（0否 1是）
+  int64 isFullPage = 24; //是否为全屏页面（0否 1是）
+  string activePath = 25; //激活菜单路径
+  string roles = 26; //角色权限（JSON格式存储）
+  string authName = 27; //按钮权限名称
+  string authLabel = 28; //按钮权限标识
+  string authIcon = 29; //按钮图标
+  int64 authSort = 30; //按钮权限排序
+  int64 status = 31; //状态（0停用 1启用）
+  int64 createTime = 32; //创建时间
+  int64 updateTime = 33; //更新时间
+  string createBy = 34; //创建人
+  string updateBy = 35; //更新人
+  repeated SysMenuTree children = 36; //子菜单列表
+}
+
+message AddSysMenuReq {
+  uint64 parentId = 1; //父菜单ID，顶级菜单为0
+  uint64 platformId = 2; //平台ID（关联sys_platform表，必填）
   int64 menuType = 3; //菜单类型（1目录 2菜单 3按钮）
   string name = 4; //菜单名称（路由name）
   string path = 5; //路由地址
@@ -777,45 +830,8 @@ message SysMenuTree {
   string authIcon = 28; //按钮图标
   int64 authSort = 29; //按钮权限排序
   int64 status = 30; //状态（0停用 1启用）
-  int64 createTime = 31; //创建时间
-  int64 updateTime = 32; //更新时间
-  string createBy = 33; //创建人
-  string updateBy = 34; //更新人
-  repeated SysMenuTree children = 35; //子菜单列表
-}
-
-message AddSysMenuReq {
-  uint64 parentId = 1; //父菜单ID，顶级菜单为0
-  int64 menuType = 2; //菜单类型（1目录 2菜单 3按钮）
-  string name = 3; //菜单名称（路由name）
-  string path = 4; //路由地址
-  string component = 5; //组件路径
-  string redirect = 6; //重定向地址
-  string label = 7; //权限标识
-  string title = 8; //菜单标题（meta.title）
-  string icon = 9; //菜单图标
-  int64 sort = 10; //排序
-  string link = 11; //外部链接/内嵌地址
-  int64 isEnable = 12; //是否启用（0否 1是）
-  int64 isMenu = 13; //是否为菜单（0否 1是）
-  int64 keepAlive = 14; //页面缓存（0否 1是）
-  int64 isHide = 15; //是否隐藏（0否 1是）
-  int64 isIframe = 16; //是否内嵌（0否 1是）
-  int64 isHideTab = 17; //是否在标签页中隐藏（0否 1是）
-  int64 showBadge = 18; //是否显示徽章（0否 1是）
-  string showTextBadge = 19; //文本徽章内容
-  int64 isFirstLevel = 20; //是否为一级菜单（0否 1是）
-  int64 fixedTab = 21; //是否固定标签页（0否 1是）
-  int64 isFullPage = 22; //是否为全屏页面（0否 1是）
-  string activePath = 23; //激活菜单路径
-  string roles = 24; //角色权限（JSON格式存储）
-  string authName = 25; //按钮权限名称
-  string authLabel = 26; //按钮权限标识
-  string authIcon = 27; //按钮图标
-  int64 authSort = 28; //按钮权限排序
-  int64 status = 29; //状态（0停用 1启用）
-  string createBy = 30; //创建人
-  string updateBy = 31; //更新人
+  string createBy = 31; //创建人
+  string updateBy = 32; //更新人
 }
 
 message AddSysMenuResp {
@@ -824,35 +840,36 @@ message AddSysMenuResp {
 message UpdateSysMenuReq {
   uint64 id = 1; //自增主键
   uint64 parentId = 2; //父菜单ID，顶级菜单为0
-  int64 menuType = 3; //菜单类型（1目录 2菜单 3按钮）
-  string name = 4; //菜单名称（路由name）
-  string path = 5; //路由地址
-  string component = 6; //组件路径
-  string redirect = 7; //重定向地址
-  string label = 8; //权限标识
-  string title = 9; //菜单标题（meta.title）
-  string icon = 10; //菜单图标
-  int64 sort = 11; //排序
-  string link = 12; //外部链接/内嵌地址
-  int64 isEnable = 13; //是否启用（0否 1是）
-  int64 isMenu = 14; //是否为菜单（0否 1是）
-  int64 keepAlive = 15; //页面缓存（0否 1是）
-  int64 isHide = 16; //是否隐藏（0否 1是）
-  int64 isIframe = 17; //是否内嵌（0否 1是）
-  int64 isHideTab = 18; //是否在标签页中隐藏（0否 1是）
-  int64 showBadge = 19; //是否显示徽章（0否 1是）
-  string showTextBadge = 20; //文本徽章内容
-  int64 isFirstLevel = 21; //是否为一级菜单（0否 1是）
-  int64 fixedTab = 22; //是否固定标签页（0否 1是）
-  int64 isFullPage = 23; //是否为全屏页面（0否 1是）
-  string activePath = 24; //激活菜单路径
-  string roles = 25; //角色权限（JSON格式存储）
-  string authName = 26; //按钮权限名称
-  string authLabel = 27; //按钮权限标识
-  string authIcon = 28; //按钮图标
-  int64 authSort = 29; //按钮权限排序
-  int64 status = 30; //状态（0停用 1启用）
-  string updateBy = 31; //更新人
+  uint64 platformId = 3; //平台ID（关联sys_platform表，不允许修改，传入用于验证）
+  int64 menuType = 4; //菜单类型（1目录 2菜单 3按钮）
+  string name = 5; //菜单名称（路由name）
+  string path = 6; //路由地址
+  string component = 7; //组件路径
+  string redirect = 8; //重定向地址
+  string label = 9; //权限标识
+  string title = 10; //菜单标题（meta.title）
+  string icon = 11; //菜单图标
+  int64 sort = 12; //排序
+  string link = 13; //外部链接/内嵌地址
+  int64 isEnable = 14; //是否启用（0否 1是）
+  int64 isMenu = 15; //是否为菜单（0否 1是）
+  int64 keepAlive = 16; //页面缓存（0否 1是）
+  int64 isHide = 17; //是否隐藏（0否 1是）
+  int64 isIframe = 18; //是否内嵌（0否 1是）
+  int64 isHideTab = 19; //是否在标签页中隐藏（0否 1是）
+  int64 showBadge = 20; //是否显示徽章（0否 1是）
+  string showTextBadge = 21; //文本徽章内容
+  int64 isFirstLevel = 22; //是否为一级菜单（0否 1是）
+  int64 fixedTab = 23; //是否固定标签页（0否 1是）
+  int64 isFullPage = 24; //是否为全屏页面（0否 1是）
+  string activePath = 25; //激活菜单路径
+  string roles = 26; //角色权限（JSON格式存储）
+  string authName = 27; //按钮权限名称
+  string authLabel = 28; //按钮权限标识
+  string authIcon = 29; //按钮图标
+  int64 authSort = 30; //按钮权限排序
+  int64 status = 31; //状态（0停用 1启用）
+  string updateBy = 32; //更新人
 }
 
 message UpdateSysMenuResp {
@@ -875,37 +892,38 @@ message GetSysMenuByIdResp {
 
 // 搜索系统菜单请求（返回树状结构）
 message SearchSysMenuReq {
-  uint64 parentId = 1; //父菜单ID，顶级菜单为0
-  int64 menuType = 2; //菜单类型（1目录 2菜单 3按钮）
-  string name = 3; //菜单名称（路由name）
-  string path = 4; //路由地址
-  string component = 5; //组件路径
-  string redirect = 6; //重定向地址
-  string label = 7; //权限标识
-  string title = 8; //菜单标题（meta.title）
-  string icon = 9; //菜单图标
-  int64 sort = 10; //排序
-  string link = 11; //外部链接/内嵌地址
-  int64 isEnable = 12; //是否启用（0否 1是）
-  int64 isMenu = 13; //是否为菜单（0否 1是）
-  int64 keepAlive = 14; //页面缓存（0否 1是）
-  int64 isHide = 15; //是否隐藏（0否 1是）
-  int64 isIframe = 16; //是否内嵌（0否 1是）
-  int64 isHideTab = 17; //是否在标签页中隐藏（0否 1是）
-  int64 showBadge = 18; //是否显示徽章（0否 1是）
-  string showTextBadge = 19; //文本徽章内容
-  int64 isFirstLevel = 20; //是否为一级菜单（0否 1是）
-  int64 fixedTab = 21; //是否固定标签页（0否 1是）
-  int64 isFullPage = 22; //是否为全屏页面（0否 1是）
-  string activePath = 23; //激活菜单路径
-  string roles = 24; //角色权限（JSON格式存储）
-  string authName = 25; //按钮权限名称
-  string authLabel = 26; //按钮权限标识
-  string authIcon = 27; //按钮图标
-  int64 authSort = 28; //按钮权限排序
-  int64 status = 29; //状态（0停用 1启用）
-  string createBy = 30; //创建人
-  string updateBy = 31; //更新人
+  uint64 platformId = 1; //平台ID（必填，按平台过滤菜单）
+  uint64 parentId = 2; //父菜单ID，顶级菜单为0
+  int64 menuType = 3; //菜单类型（1目录 2菜单 3按钮）
+  string name = 4; //菜单名称（路由name）
+  string path = 5; //路由地址
+  string component = 6; //组件路径
+  string redirect = 7; //重定向地址
+  string label = 8; //权限标识
+  string title = 9; //菜单标题（meta.title）
+  string icon = 10; //菜单图标
+  int64 sort = 11; //排序
+  string link = 12; //外部链接/内嵌地址
+  int64 isEnable = 13; //是否启用（0否 1是）
+  int64 isMenu = 14; //是否为菜单（0否 1是）
+  int64 keepAlive = 15; //页面缓存（0否 1是）
+  int64 isHide = 16; //是否隐藏（0否 1是）
+  int64 isIframe = 17; //是否内嵌（0否 1是）
+  int64 isHideTab = 18; //是否在标签页中隐藏（0否 1是）
+  int64 showBadge = 19; //是否显示徽章（0否 1是）
+  string showTextBadge = 20; //文本徽章内容
+  int64 isFirstLevel = 21; //是否为一级菜单（0否 1是）
+  int64 fixedTab = 22; //是否固定标签页（0否 1是）
+  int64 isFullPage = 23; //是否为全屏页面（0否 1是）
+  string activePath = 24; //激活菜单路径
+  string roles = 25; //角色权限（JSON格式存储）
+  string authName = 26; //按钮权限名称
+  string authLabel = 27; //按钮权限标识
+  string authIcon = 28; //按钮图标
+  int64 authSort = 29; //按钮权限排序
+  int64 status = 30; //状态（0停用 1启用）
+  string createBy = 31; //创建人
+  string updateBy = 32; //更新人
 }
 
 // 搜索系统菜单响应（返回树状结构）
@@ -916,7 +934,8 @@ message SearchSysMenuResp {
 
 // 获取角色菜单树请求
 message GetRolesMenuTreeReq {
-  repeated string roleCodes = 1; //角色编码列表
+  uint64 platformId = 1; //平台ID（必填，获取指定平台的菜单树）
+  repeated string roleCodes = 2; //角色编码列表
 }
 
 // 获取角色菜单树响应
@@ -930,14 +949,15 @@ message GetSysMenuListReq {
   uint64 pageSize = 2; //页大小
   string orderField = 3; //排序字段
   bool isAsc = 4; //是否升序
-  uint64 parentId = 5; //父菜单ID，顶级菜单为0
-  int64 menuType = 6; //菜单类型（1目录 2菜单 3按钮）
-  string name = 7; //菜单名称（路由name）
-  string title = 8; //菜单标题（meta.title）
-  string label = 9; //权限标识
-  int64 status = 10; //状态（0停用 1启用）
-  string roles = 11; //角色权限（JSON格式存储）
-  int64 isMenu = 12; //是否为菜单（0否 1是）
+  uint64 platformId = 5; //平台ID（必填，按平台过滤菜单）
+  uint64 parentId = 6; //父菜单ID，顶级菜单为0
+  int64 menuType = 7; //菜单类型（1目录 2菜单 3按钮）
+  string name = 8; //菜单名称（路由name）
+  string title = 9; //菜单标题（meta.title）
+  string label = 10; //权限标识
+  int64 status = 11; //状态（0停用 1启用）
+  string roles = 12; //角色权限（JSON格式存储）
+  int64 isMenu = 13; //是否为菜单（0否 1是）
 }
 
 // 获取系统菜单列表响应（扁平结构）
@@ -950,7 +970,8 @@ message GetSysMenuListResp {
 
 // 获取所有菜单树请求
 message GetAllMenuTreeReq {
-  int64 status = 1; //状态过滤（0停用 1启用，-1或不传表示全部）
+  uint64 platformId = 1; //平台ID（必填，获取指定平台的菜单树）
+  int64 status = 2; //状态过滤（0停用 1启用，-1或不传表示全部）
 }
 
 // 获取所有菜单树响应
@@ -964,7 +985,8 @@ message SysAPITreeNode {
   uint64 id = 1; //主键ID
   string name = 2; //API名称
   int64 isPermission = 3; //是否为权限(权限 or 分组) 0: 分组 1: 权限
-  repeated SysAPITreeNode children = 4; //子节点
+  string Method = 4;
+  repeated SysAPITreeNode children = 5; //子节点
 }
 
 // 获取API权限树请求
@@ -986,7 +1008,8 @@ message SysMenuSimpleTreeNode {
 
 // 获取精简菜单树请求
 message GetSysMenuSimpleTreeReq {
-  int64 status = 1; //状态过滤（0停用 1启用，-1或不传表示全部）
+  uint64 platformId = 1; //平台ID（必填，获取指定平台的菜单树）
+  int64 status = 2; //状态过滤（0停用 1启用，-1或不传表示全部）
 }
 
 // 获取精简菜单树响应
@@ -1008,7 +1031,223 @@ message GetPlatformUrlReq  {}
 message GetPlatformUrlResp {
   string url = 1;
 }
+
+
+
+
+
+
+
+
+//--------------------------------系统平台表--------------------------------
+message SysPlatform {
+  uint64 id = 1; //自增主键
+  string platformCode = 2; //平台编码（唯一标识，如：container、microservice、devops）
+  string platformName = 3; //平台名称（如：容器平台、微服务平台、DevOps平台）
+  string platformDesc = 4; //平台描述
+  string platformIcon = 5; //平台图标
+  int64 sort = 6; //排序（数字越小越靠前）
+  int64 isEnable = 7; //是否启用（0:禁用 1:启用）
+  int64 isDefault = 8; //是否为默认平台（0:否 1:是，全局只能有一个默认平台）
+  int64 createTime = 11; //创建时间
+  int64 updateTime = 12; //更新时间
+  string createBy = 13; //创建人
+  string updateBy = 14; //更新人
+}
+
+// 新增平台
+message AddSysPlatformReq {
+  string platformCode = 1; //平台编码（唯一标识，如：container、microservice、devops）
+  string platformName = 2; //平台名称（如：容器平台、微服务平台、DevOps平台）
+  string platformDesc = 3; //平台描述
+  string platformIcon = 4; //平台图标  可以为空 暂时不考虑图标相关
+  int64 sort = 5; // 排序（数字越小越靠前）
+  int64 isEnable = 6; //是否启用（0:禁用 1:启用）
+  int64 isDefault = 7; //是否为默认平台（0:否 1:是，全局只能有一个默认平台）
+  string createBy = 9; //创建人
+}
+
+message AddSysPlatformResp {
+}
+
+// 更新平台
+message UpdateSysPlatformReq {
+  uint64 id = 1; //自增主键
+  string platformCode = 2; //平台编码（唯一标识，如：container、microservice、devops）
+  string platformName = 3; //平台名称（如：容器平台、微服务平台、DevOps平台）
+  string platformDesc = 4; //平台描述
+  string platformIcon = 5; //平台图标
+  int64 sort = 6; //排序（数字越小越靠前）
+  int64 isEnable = 7; //是否启用（0:禁用 1:启用）
+  int64 isDefault = 8; //是否为默认平台（0:否 1:是，全局只能有一个默认平台）
+  string updateBy = 10; //更新人
+}
+
+message UpdateSysPlatformResp {
+}
+
+// 删除平台
+message DelSysPlatformReq {
+  uint64 id = 1; //id
+}
+
+message DelSysPlatformResp {
+}
+
+// 根据ID获取平台
+message GetSysPlatformByIdReq {
+  uint64 id = 1; //id
+}
+
+message GetSysPlatformByIdResp {
+  SysPlatform data = 1; //sysPlatform
+}
+
+// 搜索平台
+message SearchSysPlatformReq {
+  uint64 page = 1; //page
+  uint64 pageSize = 2; //pageSize
+  string orderField = 3; //orderField
+  bool isAsc = 4; //isAsc
+  string platformCode = 5; //平台编码
+  string platformName = 6; //平台名称
+  int64 isEnable = 7; //是否启用（0:禁用 1:启用）
+  int64 isDefault = 8; //是否为默认平台（0:否 1:是）
+}
+
+message SearchSysPlatformResp {
+  repeated SysPlatform data = 1; //sysPlatform
+  uint64 total = 2; //total
+}
+
+// 启用平台
+message EnableSysPlatformReq {
+  uint64 id = 1; //id
+  string updateBy = 2; //更新人
+}
+
+message EnableSysPlatformResp {
+}
+
+// 禁用平台
+message DisableSysPlatformReq {
+  uint64 id = 1; //id
+  string updateBy = 2; //更新人
+}
+
+message DisableSysPlatformResp {
+}
+
+// 设置为默认平台
+message SetDefaultSysPlatformReq {
+  uint64 id = 1; //id
+  string updateBy = 2; //更新人
+}
+
+message SetDefaultSysPlatformResp {
+}
+
+// 取消默认平台
+message UnsetDefaultSysPlatformReq {
+  uint64 id = 1; //id
+  string updateBy = 2; //更新人
+}
+
+message UnsetDefaultSysPlatformResp {
+}
+
+// 获取默认平台
+message GetDefaultSysPlatformReq {
+}
+
+message GetDefaultSysPlatformResp {
+  SysPlatform data = 1; //默认平台
+}
+
+// 获取所有启用的平台列表（不分页）
+message GetAllEnabledPlatformsReq {
+}
+
+message GetAllEnabledPlatformsResp {
+  repeated SysPlatform data = 1; //所有启用的平台
+}
+
+
+//--------------------------------用户平台权限表--------------------------------
+message SysUserPlatform {
+  uint64 id = 1; //自增主键
+  uint64 userId = 2; //用户ID（关联sys_user表）
+  uint64 platformId = 3; //平台ID（关联sys_platform表）
+  int64 createTime = 7; //创建时间
+  int64 updateTime = 8; //更新时间
+  string createBy = 9; //创建人
+  string updateBy = 10; //更新人
+}
+
+// 用户绑定平台（支持批量）
+message BindUserPlatformReq {
+  uint64 userId = 1; //用户ID
+  repeated uint64 platformIds = 2; //平台ID列表
+  string createBy = 3; //创建人
+}
+
+message BindUserPlatformResp {
+}
+
+// 用户解绑平台（支持批量）
+message UnbindUserPlatformReq {
+  uint64 userId = 1; //用户ID
+  repeated uint64 platformIds = 2; //平台ID列表
+}
+
+message UnbindUserPlatformResp {
+}
+
+// 查询用户绑定的平台列表  通过 context 获取用户 id 查询 用户绑定的平台列表，启用状态的。
+message GetUserPlatformsReq {
+}
+
+message GetUserPlatformsResp {
+  repeated SysPlatform data = 1; //用户绑定的平台列表
+}
+
+
+// 查询平台下的所有用户
+message GetPlatformUsersReq {
+  uint64 platformId = 1; //平台ID
+  uint64 page = 2; //page
+  uint64 pageSize = 3; //pageSize
+}
+
+message GetPlatformUsersResp {
+  repeated uint64 userIds = 1; //用户ID列表
+  uint64 total = 2; //total
+}
+
 service PortalService {
+  //-----------------------系统平台表-----------------------
+  // 基础CRUD操作
+  rpc PlatformAdd(AddSysPlatformReq) returns (AddSysPlatformResp); //添加平台
+  rpc PlatformUpdate(UpdateSysPlatformReq) returns (UpdateSysPlatformResp); //更新平台
+  rpc PlatformDel(DelSysPlatformReq) returns (DelSysPlatformResp); //删除平台
+  rpc PlatformGetById(GetSysPlatformByIdReq) returns (GetSysPlatformByIdResp); //根据ID获取平台
+  rpc PlatformSearch(SearchSysPlatformReq) returns (SearchSysPlatformResp); //搜索平台（支持分页）
+
+  // 快捷操作
+  rpc PlatformEnable(EnableSysPlatformReq) returns (EnableSysPlatformResp); //启用平台
+  rpc PlatformDisable(DisableSysPlatformReq) returns (DisableSysPlatformResp); //禁用平台
+  rpc PlatformSetDefault(SetDefaultSysPlatformReq) returns (SetDefaultSysPlatformResp); //设置为默认平台
+  rpc PlatformUnsetDefault(UnsetDefaultSysPlatformReq) returns (UnsetDefaultSysPlatformResp); //取消默认平台
+  rpc PlatformGetDefault(GetDefaultSysPlatformReq) returns (GetDefaultSysPlatformResp); //获取默认平台
+  rpc PlatformGetAllEnabled(GetAllEnabledPlatformsReq) returns (GetAllEnabledPlatformsResp); //获取所有启用的平台
+
+  //-----------------------用户平台权限表-----------------------
+  // 用户平台绑定操作
+  rpc UserPlatformBind(BindUserPlatformReq) returns (BindUserPlatformResp); //用户绑定平台
+  rpc UserPlatformUnbind(UnbindUserPlatformReq) returns (UnbindUserPlatformResp); //用户解绑平台
+  rpc UserPlatformGet(GetUserPlatformsReq) returns (GetUserPlatformsResp); //查询用户绑定的平台列表
+  rpc PlatformUsersGet(GetPlatformUsersReq) returns (GetPlatformUsersResp); //查询平台下的所有用户
+
   //-----------------------系统API权限表-----------------------
   rpc APIAdd(AddSysAPIReq) returns (AddSysAPIResp);
   rpc APIUpdate(UpdateSysAPIReq) returns (UpdateSysAPIResp);

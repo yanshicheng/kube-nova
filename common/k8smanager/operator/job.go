@@ -11,10 +11,8 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -462,8 +460,24 @@ func (j *jobOperator) GetContainerImages(namespace, name string) (*types.Contain
 }
 
 func (j *jobOperator) UpdateImage(req *types.UpdateImageRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" || req.Image == "" {
-		return fmt.Errorf("请求参数不完整")
+	if req == nil {
+		return fmt.Errorf("请求不能为空")
+	}
+	if req.Namespace == "" {
+		return fmt.Errorf("命名空间不能为空")
+	}
+	if req.Name == "" {
+		return fmt.Errorf("Job名称不能为空")
+	}
+	if req.ContainerName == "" {
+		return fmt.Errorf("容器名称不能为空")
+	}
+	if req.Image == "" {
+		return fmt.Errorf("镜像不能为空")
+	}
+
+	if err := validateImageFormat(req.Image); err != nil {
+		return fmt.Errorf("镜像格式无效: %v", err)
 	}
 
 	job, err := j.Get(req.Namespace, req.Name)
@@ -471,55 +485,74 @@ func (j *jobOperator) UpdateImage(req *types.UpdateImageRequest) error {
 		return err
 	}
 
-	updated := false
-	for i := range job.Spec.Template.Spec.Containers {
-		if req.ContainerName == "" || job.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
-			job.Spec.Template.Spec.Containers[i].Image = req.Image
-			updated = true
-			if req.ContainerName != "" {
-				break
-			}
+	var oldImage string
+	found := false
+
+	// 先在 InitContainers 中查找
+	for i := range job.Spec.Template.Spec.InitContainers {
+		container := &job.Spec.Template.Spec.InitContainers[i]
+		if container.Name == req.ContainerName {
+			oldImage = container.Image
+			container.Image = req.Image
+			found = true
+			break
 		}
 	}
 
-	if !updated {
-		return fmt.Errorf("未找到容器: %s", req.ContainerName)
-	}
-
-	_, err = j.Update(job)
-	return err
-}
-
-func (j *jobOperator) UpdateImages(req *types.UpdateImagesRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" {
-		return fmt.Errorf("请求参数不完整")
-	}
-
-	job, err := j.Get(req.Namespace, req.Name)
-	if err != nil {
-		return err
-	}
-
-	for _, img := range req.Containers.InitContainers {
-		for i := range job.Spec.Template.Spec.InitContainers {
-			if job.Spec.Template.Spec.InitContainers[i].Name == img.Name {
-				job.Spec.Template.Spec.InitContainers[i].Image = img.Image
-				break
-			}
-		}
-	}
-
-	for _, img := range req.Containers.Containers {
+	// 再在普通 Containers 中查找
+	if !found {
 		for i := range job.Spec.Template.Spec.Containers {
-			if job.Spec.Template.Spec.Containers[i].Name == img.Name {
-				job.Spec.Template.Spec.Containers[i].Image = img.Image
+			container := &job.Spec.Template.Spec.Containers[i]
+			if container.Name == req.ContainerName {
+				oldImage = container.Image
+				container.Image = req.Image
+				found = true
 				break
 			}
 		}
 	}
 
+	// 最后在 EphemeralContainers 中查找
+	if !found {
+		for i := range job.Spec.Template.Spec.EphemeralContainers {
+			container := &job.Spec.Template.Spec.EphemeralContainers[i]
+			if container.Name == req.ContainerName {
+				oldImage = container.Image
+				container.Image = req.Image
+				found = true
+				break
+			}
+		}
+	}
+
+	if !found {
+		availableContainers := j.getAvailableContainerNames(job)
+		return fmt.Errorf("未找到容器 '%s'，可用容器: %v", req.ContainerName, availableContainers)
+	}
+
+	// 如果镜像没有变化，直接返回（幂等）
+	if oldImage == req.Image {
+		return nil
+	}
+
+	// 设置变更原因
+	if job.Annotations == nil {
+		job.Annotations = make(map[string]string)
+	}
+
+	changeCause := req.Reason
+	if changeCause == "" {
+		changeCause = fmt.Sprintf("image updated: %s %s -> %s",
+			req.ContainerName, extractImageTag(oldImage), extractImageTag(req.Image))
+	}
+	job.Annotations["kubernetes.io/change-cause"] = changeCause
+
 	_, err = j.Update(job)
-	return err
+	if err != nil {
+		return fmt.Errorf("更新Job失败: %v", err)
+	}
+
+	return nil
 }
 
 func (j *jobOperator) GetStatus(namespace, name string) (*types.JobStatusInfo, error) {
@@ -680,85 +713,6 @@ func (j *jobOperator) GetEnvVars(namespace, name string) (*types.EnvVarsResponse
 	return response, nil
 }
 
-func (j *jobOperator) UpdateEnvVars(req *types.UpdateEnvVarsRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" || req.ContainerName == "" {
-		return fmt.Errorf("请求参数不完整")
-	}
-
-	job, err := j.Get(req.Namespace, req.Name)
-	if err != nil {
-		return err
-	}
-
-	found := false
-	for i := range job.Spec.Template.Spec.Containers {
-		if job.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
-			envVars := make([]corev1.EnvVar, 0)
-			for _, env := range req.Env {
-				envVar := corev1.EnvVar{Name: env.Name}
-
-				switch env.Source.Type {
-				case "value":
-					envVar.Value = env.Source.Value
-				case "configMapKeyRef":
-					if env.Source.ConfigMapKeyRef != nil {
-						envVar.ValueFrom = &corev1.EnvVarSource{
-							ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-								LocalObjectReference: corev1.LocalObjectReference{Name: env.Source.ConfigMapKeyRef.Name},
-								Key:                  env.Source.ConfigMapKeyRef.Key,
-								Optional:             &env.Source.ConfigMapKeyRef.Optional,
-							},
-						}
-					}
-				case "secretKeyRef":
-					if env.Source.SecretKeyRef != nil {
-						envVar.ValueFrom = &corev1.EnvVarSource{
-							SecretKeyRef: &corev1.SecretKeySelector{
-								LocalObjectReference: corev1.LocalObjectReference{Name: env.Source.SecretKeyRef.Name},
-								Key:                  env.Source.SecretKeyRef.Key,
-								Optional:             &env.Source.SecretKeyRef.Optional,
-							},
-						}
-					}
-				case "fieldRef":
-					if env.Source.FieldRef != nil {
-						envVar.ValueFrom = &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{FieldPath: env.Source.FieldRef.FieldPath},
-						}
-					}
-				case "resourceFieldRef":
-					if env.Source.ResourceFieldRef != nil {
-						var divisor resource.Quantity
-						if env.Source.ResourceFieldRef.Divisor != "" {
-							divisor, _ = resource.ParseQuantity(env.Source.ResourceFieldRef.Divisor)
-						}
-						envVar.ValueFrom = &corev1.EnvVarSource{
-							ResourceFieldRef: &corev1.ResourceFieldSelector{
-								ContainerName: env.Source.ResourceFieldRef.ContainerName,
-								Resource:      env.Source.ResourceFieldRef.Resource,
-								Divisor:       divisor,
-							},
-						}
-					}
-				}
-
-				envVars = append(envVars, envVar)
-			}
-
-			job.Spec.Template.Spec.Containers[i].Env = envVars
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return fmt.Errorf("未找到容器: %s", req.ContainerName)
-	}
-
-	_, err = j.Update(job)
-	return err
-}
-
 func (j *jobOperator) GetPauseStatus(namespace, name string) (*types.PauseStatusResponse, error) {
 	job, err := j.Get(namespace, name)
 	if err != nil {
@@ -830,230 +784,6 @@ func (j *jobOperator) GetResources(namespace, name string) (*types.ResourcesResp
 	}
 
 	return response, nil
-}
-
-func (j *jobOperator) UpdateResources(req *types.UpdateResourcesRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" || req.ContainerName == "" {
-		return fmt.Errorf("请求参数不完整")
-	}
-
-	job, err := j.Get(req.Namespace, req.Name)
-	if err != nil {
-		return err
-	}
-
-	found := false
-	for i := range job.Spec.Template.Spec.Containers {
-		if job.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
-			if req.Resources.Limits.Cpu != "" {
-				cpuLimit, err := resource.ParseQuantity(req.Resources.Limits.Cpu)
-				if err != nil {
-					return fmt.Errorf("解析CPU限制失败: %v", err)
-				}
-				if job.Spec.Template.Spec.Containers[i].Resources.Limits == nil {
-					job.Spec.Template.Spec.Containers[i].Resources.Limits = corev1.ResourceList{}
-				}
-				job.Spec.Template.Spec.Containers[i].Resources.Limits[corev1.ResourceCPU] = cpuLimit
-			}
-
-			if req.Resources.Limits.Memory != "" {
-				memLimit, err := resource.ParseQuantity(req.Resources.Limits.Memory)
-				if err != nil {
-					return fmt.Errorf("解析内存限制失败: %v", err)
-				}
-				if job.Spec.Template.Spec.Containers[i].Resources.Limits == nil {
-					job.Spec.Template.Spec.Containers[i].Resources.Limits = corev1.ResourceList{}
-				}
-				job.Spec.Template.Spec.Containers[i].Resources.Limits[corev1.ResourceMemory] = memLimit
-			}
-
-			if req.Resources.Requests.Cpu != "" {
-				cpuRequest, err := resource.ParseQuantity(req.Resources.Requests.Cpu)
-				if err != nil {
-					return fmt.Errorf("解析CPU请求失败: %v", err)
-				}
-				if job.Spec.Template.Spec.Containers[i].Resources.Requests == nil {
-					job.Spec.Template.Spec.Containers[i].Resources.Requests = corev1.ResourceList{}
-				}
-				job.Spec.Template.Spec.Containers[i].Resources.Requests[corev1.ResourceCPU] = cpuRequest
-			}
-
-			if req.Resources.Requests.Memory != "" {
-				memRequest, err := resource.ParseQuantity(req.Resources.Requests.Memory)
-				if err != nil {
-					return fmt.Errorf("解析内存请求失败: %v", err)
-				}
-				if job.Spec.Template.Spec.Containers[i].Resources.Requests == nil {
-					job.Spec.Template.Spec.Containers[i].Resources.Requests = corev1.ResourceList{}
-				}
-				job.Spec.Template.Spec.Containers[i].Resources.Requests[corev1.ResourceMemory] = memRequest
-			}
-
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return fmt.Errorf("未找到容器: %s", req.ContainerName)
-	}
-
-	_, err = j.Update(job)
-	return err
-}
-
-func (j *jobOperator) GetProbes(namespace, name string) (*types.ProbesResponse, error) {
-	job, err := j.Get(namespace, name)
-	if err != nil {
-		return nil, err
-	}
-
-	response := &types.ProbesResponse{
-		Containers: make([]types.ContainerProbes, 0),
-	}
-
-	for _, container := range job.Spec.Template.Spec.Containers {
-		containerProbes := types.ContainerProbes{
-			ContainerName: container.Name,
-		}
-
-		if container.LivenessProbe != nil {
-			containerProbes.LivenessProbe = j.convertProbe(container.LivenessProbe)
-		}
-		if container.ReadinessProbe != nil {
-			containerProbes.ReadinessProbe = j.convertProbe(container.ReadinessProbe)
-		}
-		if container.StartupProbe != nil {
-			containerProbes.StartupProbe = j.convertProbe(container.StartupProbe)
-		}
-
-		response.Containers = append(response.Containers, containerProbes)
-	}
-
-	return response, nil
-}
-
-func (j *jobOperator) convertProbe(probe *corev1.Probe) *types.Probe {
-	result := &types.Probe{
-		InitialDelaySeconds: probe.InitialDelaySeconds,
-		TimeoutSeconds:      probe.TimeoutSeconds,
-		PeriodSeconds:       probe.PeriodSeconds,
-		SuccessThreshold:    probe.SuccessThreshold,
-		FailureThreshold:    probe.FailureThreshold,
-	}
-
-	if probe.HTTPGet != nil {
-		result.Type = "httpGet"
-		headers := make([]types.HTTPHeader, 0)
-		for _, h := range probe.HTTPGet.HTTPHeaders {
-			headers = append(headers, types.HTTPHeader{Name: h.Name, Value: h.Value})
-		}
-		result.HttpGet = &types.HTTPGetAction{
-			Path:        probe.HTTPGet.Path,
-			Port:        probe.HTTPGet.Port.IntVal,
-			Host:        probe.HTTPGet.Host,
-			Scheme:      string(probe.HTTPGet.Scheme),
-			HttpHeaders: headers,
-		}
-	} else if probe.TCPSocket != nil {
-		result.Type = "tcpSocket"
-		result.TcpSocket = &types.TCPSocketAction{
-			Port: probe.TCPSocket.Port.IntVal,
-			Host: probe.TCPSocket.Host,
-		}
-	} else if probe.Exec != nil {
-		result.Type = "exec"
-		result.Exec = &types.ExecAction{Command: probe.Exec.Command}
-	} else if probe.GRPC != nil {
-		result.Type = "grpc"
-		service := ""
-		if probe.GRPC.Service != nil {
-			service = *probe.GRPC.Service
-		}
-		result.Grpc = &types.GRPCAction{Port: probe.GRPC.Port, Service: service}
-	}
-
-	return result
-}
-
-func (j *jobOperator) UpdateProbes(req *types.UpdateProbesRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" || req.ContainerName == "" {
-		return fmt.Errorf("请求参数不完整")
-	}
-
-	job, err := j.Get(req.Namespace, req.Name)
-	if err != nil {
-		return err
-	}
-
-	found := false
-	for i := range job.Spec.Template.Spec.Containers {
-		if job.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
-			if req.LivenessProbe != nil {
-				job.Spec.Template.Spec.Containers[i].LivenessProbe = j.buildProbe(req.LivenessProbe)
-			}
-			if req.ReadinessProbe != nil {
-				job.Spec.Template.Spec.Containers[i].ReadinessProbe = j.buildProbe(req.ReadinessProbe)
-			}
-			if req.StartupProbe != nil {
-				job.Spec.Template.Spec.Containers[i].StartupProbe = j.buildProbe(req.StartupProbe)
-			}
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return fmt.Errorf("未找到容器: %s", req.ContainerName)
-	}
-
-	_, err = j.Update(job)
-	return err
-}
-
-func (j *jobOperator) buildProbe(probe *types.Probe) *corev1.Probe {
-	result := &corev1.Probe{
-		InitialDelaySeconds: probe.InitialDelaySeconds,
-		TimeoutSeconds:      probe.TimeoutSeconds,
-		PeriodSeconds:       probe.PeriodSeconds,
-		SuccessThreshold:    probe.SuccessThreshold,
-		FailureThreshold:    probe.FailureThreshold,
-	}
-
-	switch probe.Type {
-	case "httpGet":
-		if probe.HttpGet != nil {
-			headers := make([]corev1.HTTPHeader, 0)
-			for _, h := range probe.HttpGet.HttpHeaders {
-				headers = append(headers, corev1.HTTPHeader{Name: h.Name, Value: h.Value})
-			}
-			result.HTTPGet = &corev1.HTTPGetAction{
-				Path:        probe.HttpGet.Path,
-				Port:        intstr.FromInt(int(probe.HttpGet.Port)),
-				Host:        probe.HttpGet.Host,
-				Scheme:      corev1.URIScheme(probe.HttpGet.Scheme),
-				HTTPHeaders: headers,
-			}
-		}
-	case "tcpSocket":
-		if probe.TcpSocket != nil {
-			result.TCPSocket = &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(probe.TcpSocket.Port)),
-				Host: probe.TcpSocket.Host,
-			}
-		}
-	case "exec":
-		if probe.Exec != nil {
-			result.Exec = &corev1.ExecAction{Command: probe.Exec.Command}
-		}
-	case "grpc":
-		if probe.Grpc != nil {
-			service := probe.Grpc.Service
-			result.GRPC = &corev1.GRPCAction{Port: probe.Grpc.Port, Service: &service}
-		}
-	}
-
-	return result
 }
 
 func (j *jobOperator) Stop(namespace, name string) error {
@@ -1311,115 +1041,34 @@ func (j *jobOperator) GetVersionStatus(namespace, name string) (*types.ResourceS
 func (j *jobOperator) GetSchedulingConfig(namespace, name string) (*types.SchedulingConfig, error) {
 	job, err := j.Get(namespace, name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("获取 Job 失败: %w", err)
 	}
 
-	return convertPodSpecToSchedulingConfig(&job.Spec.Template.Spec), nil
+	return types.ConvertPodSpecToSchedulingConfig(&job.Spec.Template.Spec), nil
 }
 
-// UpdateSchedulingConfig 更新调度配置
-func (j *jobOperator) UpdateSchedulingConfig(namespace, name string, config *types.UpdateSchedulingConfigRequest) error {
-	if config == nil {
-		return fmt.Errorf("调度配置不能为空")
+// UpdateSchedulingConfig 更新 Job 调度配置
+func (j *jobOperator) UpdateSchedulingConfig(namespace, name string, req *types.UpdateSchedulingConfigRequest) error {
+	if req == nil {
+		return fmt.Errorf("调度配置请求不能为空")
 	}
 
 	job, err := j.Get(namespace, name)
 	if err != nil {
-		return err
+		return fmt.Errorf("获取 Job 失败: %w", err)
 	}
 
-	// 更新 NodeSelector
-	if config.NodeSelector != nil {
-		job.Spec.Template.Spec.NodeSelector = config.NodeSelector
-	}
-
-	// 更新 NodeName
-	if config.NodeName != "" {
-		job.Spec.Template.Spec.NodeName = config.NodeName
-	}
-
-	// 更新 Affinity
-	if config.Affinity != nil {
-		job.Spec.Template.Spec.Affinity = convertAffinityConfigToK8s(config.Affinity)
-	}
-
-	// 更新 Tolerations
-	if config.Tolerations != nil {
-		job.Spec.Template.Spec.Tolerations = convertTolerationsConfigToK8s(config.Tolerations)
-	}
-
-	// 更新 TopologySpreadConstraints
-	if config.TopologySpreadConstraints != nil {
-		job.Spec.Template.Spec.TopologySpreadConstraints = convertTopologySpreadConstraintsToK8s(config.TopologySpreadConstraints)
-	}
-
-	// 更新 SchedulerName
-	if config.SchedulerName != "" {
-		job.Spec.Template.Spec.SchedulerName = config.SchedulerName
-	}
-
-	// 更新 PriorityClassName
-	if config.PriorityClassName != "" {
-		job.Spec.Template.Spec.PriorityClassName = config.PriorityClassName
-	}
-
-	// 更新 Priority
-	if config.Priority != nil {
-		job.Spec.Template.Spec.Priority = config.Priority
-	}
-
-	// 更新 RuntimeClassName
-	if config.RuntimeClassName != nil {
-		job.Spec.Template.Spec.RuntimeClassName = config.RuntimeClassName
-	}
+	types.ApplySchedulingConfigToPodSpec(&job.Spec.Template.Spec, req)
 
 	_, err = j.Update(job)
-	return err
+	if err != nil {
+		return fmt.Errorf("更新 Job 调度配置失败（Job 大部分字段创建后不可修改）: %w", err)
+	}
+
+	return nil
 }
 
 // ==================== 存储配置相关 ====================
-
-// GetStorageConfig 获取存储配置
-func (j *jobOperator) GetStorageConfig(namespace, name string) (*types.StorageConfig, error) {
-	job, err := j.Get(namespace, name)
-	if err != nil {
-		return nil, err
-	}
-
-	return convertPodSpecToStorageConfig(&job.Spec.Template.Spec), nil
-}
-
-// UpdateStorageConfig 更新存储配置
-func (j *jobOperator) UpdateStorageConfig(namespace, name string, config *types.UpdateStorageConfigRequest) error {
-	if config == nil {
-		return fmt.Errorf("存储配置不能为空")
-	}
-
-	job, err := j.Get(namespace, name)
-	if err != nil {
-		return err
-	}
-
-	// 更新 Volumes
-	if config.Volumes != nil {
-		job.Spec.Template.Spec.Volumes = convertVolumesConfigToK8s(config.Volumes)
-	}
-
-	// 更新 VolumeMounts
-	if config.VolumeMounts != nil {
-		for _, vmConfig := range config.VolumeMounts {
-			for i := range job.Spec.Template.Spec.Containers {
-				if job.Spec.Template.Spec.Containers[i].Name == vmConfig.ContainerName {
-					job.Spec.Template.Spec.Containers[i].VolumeMounts = convertVolumeMountsToK8s(vmConfig.Mounts)
-					break
-				}
-			}
-		}
-	}
-
-	_, err = j.Update(job)
-	return err
-}
 
 // ==================== Events 相关 ====================
 
@@ -1864,6 +1513,21 @@ func (j *jobOperator) formatDurationForDescribe(duration time.Duration) string {
 	}
 }
 
+// getAvailableContainerNames 获取可用的容器名称列表
+func (j *jobOperator) getAvailableContainerNames(job *batchv1.Job) []string {
+	names := make([]string, 0)
+	for _, c := range job.Spec.Template.Spec.InitContainers {
+		names = append(names, c.Name+" (init)")
+	}
+	for _, c := range job.Spec.Template.Spec.Containers {
+		names = append(names, c.Name)
+	}
+	for _, c := range job.Spec.Template.Spec.EphemeralContainers {
+		names = append(names, c.Name+" (ephemeral)")
+	}
+	return names
+}
+
 // GetJobsByCronJob 根据 CronJob 获取其创建的所有 Job
 func (j *jobOperator) GetJobsByCronJob(namespace, cronJobName string) ([]types.JobInfo, error) {
 	if namespace == "" || cronJobName == "" {
@@ -2251,4 +1915,69 @@ func (j *jobOperator) convertContainerDetailInfo(container *corev1.Container) ty
 	}
 
 	return info
+}
+
+// convertProbe 将 Kubernetes Probe 转换为自定义的 types.Probe 类型
+func (j *jobOperator) convertProbe(probe *corev1.Probe) *types.Probe {
+	if probe == nil {
+		return nil
+	}
+
+	result := &types.Probe{
+		InitialDelaySeconds: probe.InitialDelaySeconds,
+		TimeoutSeconds:      probe.TimeoutSeconds,
+		PeriodSeconds:       probe.PeriodSeconds,
+		SuccessThreshold:    probe.SuccessThreshold,
+		FailureThreshold:    probe.FailureThreshold,
+	}
+
+	// HTTP Get 探针
+	if probe.HTTPGet != nil {
+		result.Type = "httpGet"
+		result.HttpGet = &types.HTTPGetAction{
+			Path:   probe.HTTPGet.Path,
+			Port:   int32(probe.HTTPGet.Port.IntValue()),
+			Host:   probe.HTTPGet.Host,
+			Scheme: string(probe.HTTPGet.Scheme),
+		}
+		if len(probe.HTTPGet.HTTPHeaders) > 0 {
+			result.HttpGet.HTTPHeaders = make([]types.HTTPHeader, 0, len(probe.HTTPGet.HTTPHeaders))
+			for _, header := range probe.HTTPGet.HTTPHeaders {
+				result.HttpGet.HTTPHeaders = append(result.HttpGet.HTTPHeaders, types.HTTPHeader{
+					Name:  header.Name,
+					Value: header.Value,
+				})
+			}
+		}
+	}
+
+	// TCP Socket 探针
+	if probe.TCPSocket != nil {
+		result.Type = "tcpSocket"
+		result.TcpSocket = &types.TCPSocketAction{
+			Port: int32(probe.TCPSocket.Port.IntValue()),
+			Host: probe.TCPSocket.Host,
+		}
+	}
+
+	// Exec 探针
+	if probe.Exec != nil {
+		result.Type = "exec"
+		result.Exec = &types.ExecAction{
+			Command: probe.Exec.Command,
+		}
+	}
+
+	// GRPC 探针 (Kubernetes 1.24+)
+	if probe.GRPC != nil {
+		result.Type = "grpc"
+		result.Grpc = &types.GRPCAction{
+			Port: probe.GRPC.Port,
+		}
+		if probe.GRPC.Service != nil {
+			result.Grpc.Service = *probe.GRPC.Service
+		}
+	}
+
+	return result
 }

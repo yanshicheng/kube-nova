@@ -21,6 +21,7 @@ import (
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 	"github.com/zeromicro/go-zero/zrpc"
+	"k8s.io/client-go/kubernetes"
 )
 
 type ServiceContext struct {
@@ -56,8 +57,11 @@ type ServiceContext struct {
 	// 消费者
 	AlertConsumer consumer.Consumer
 
-	// 增量同步管理器
+	// 增量同步管理器（Redis 分布式锁模式，默认）
 	IncrementalSyncManager *incremental.Manager
+
+	// Leader Election 模式的增量同步管理器（可选）
+	LeaderSyncManager *incremental.LeaderManager
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -129,18 +133,48 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	})
 
 	// ==================== 创建增量同步管理器 ====================
+	// 始终创建 Redis 分布式锁模式的 Manager（作为默认或降级方案）
 	incrementalManager := incremental.NewManager(incremental.ManagerConfig{
 		NodeID:          "",
 		Redis:           rds,
 		K8sManager:      k8sManager,
 		ClusterModel:    clusterModel,
-		WorkerCount:     10,               // 并发处理数
-		EventBuffer:     2000,             // 事件缓冲区
+		WorkerCount:     20,               // 并发处理数
+		EventBuffer:     3000,             // 事件缓冲区
 		DedupeWindow:    5 * time.Second,  // 去重窗口
 		LockTTL:         30 * time.Second, // 分布式锁 TTL
-		ProcessTimeout:  25 * time.Second, // 单事件处理超时
+		ProcessTimeout:  30 * time.Second, // 单事件处理超时
 		EnableAutoRenew: true,             // 启用锁自动续期
 	})
+
+	// 如果启用了 Leader Election，额外创建 LeaderManager
+	// LeaderManager 需要在 IncrementalSyncService 启动时获取 K8s 客户端
+	// 如果获取失败会自动降级到 Redis 模式
+	var leaderSyncManager *incremental.LeaderManager
+	if c.LeaderElection.Enabled {
+		leaderSyncManager = incremental.NewLeaderManager(incremental.LeaderManagerConfig{
+			K8sManager:         k8sManager,
+			ClusterModel:       clusterModel,
+			WorkerCount:        20,
+			ProcessTimeout:     30 * time.Second,
+			WatcherStopTimeout: 30 * time.Second,
+			LeaderElection: struct {
+				KubeClient     kubernetes.Interface
+				LeaseName      string
+				LeaseNamespace string
+				LeaseDuration  time.Duration
+				RenewDeadline  time.Duration
+				RetryPeriod    time.Duration
+			}{
+				LeaseName:      c.LeaderElection.LeaseName,
+				LeaseNamespace: c.LeaderElection.LeaseNamespace,
+				LeaseDuration:  c.LeaderElection.LeaseDuration,
+				RenewDeadline:  c.LeaderElection.RenewDeadline,
+				RetryPeriod:    c.LeaderElection.RetryPeriod,
+				// KubeClient 将在 IncrementalSyncService 启动时设置
+			},
+		})
+	}
 
 	svcCtx := &ServiceContext{
 		Config: c,
@@ -173,8 +207,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		AlertRulesModel:               model.NewAlertRulesModel(sqlConn, c.DBCache),
 		AlertRpc:                      alertservice.NewAlertService(alertRpc),
 
-		// 增量同步管理器
+		// 增量同步管理器（根据配置选择模式）
 		IncrementalSyncManager: incrementalManager,
+		LeaderSyncManager:      leaderSyncManager,
 	}
 
 	return svcCtx

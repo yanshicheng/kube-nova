@@ -7,7 +7,7 @@ import (
 
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/types"
-	types2 "github.com/yanshicheng/kube-nova/common/k8smanager/types"
+	k8sTypes "github.com/yanshicheng/kube-nova/common/k8smanager/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -26,7 +26,7 @@ func NewGetResourceQuotaLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
-func (l *GetResourceQuotaLogic) GetResourceQuota(req *types.DefaultIdRequest) (resp *types.ResourcesResponse, err error) {
+func (l *GetResourceQuotaLogic) GetResourceQuota(req *types.DefaultIdRequest) (resp *types.CommResourcesResponse, err error) {
 	client, versionDetail, err := getResourceClusterClient(l.ctx, l.svcCtx, req.Id)
 	if err != nil {
 		l.Errorf("获取集群客户端失败: %v", err)
@@ -35,7 +35,7 @@ func (l *GetResourceQuotaLogic) GetResourceQuota(req *types.DefaultIdRequest) (r
 
 	resourceType := strings.ToUpper(versionDetail.ResourceType)
 
-	var resources *types2.ResourcesResponse
+	var resources *k8sTypes.ResourcesResponse
 
 	switch resourceType {
 	case "DEPLOYMENT":
@@ -44,8 +44,6 @@ func (l *GetResourceQuotaLogic) GetResourceQuota(req *types.DefaultIdRequest) (r
 		resources, err = client.StatefulSet().GetResources(versionDetail.Namespace, versionDetail.ResourceName)
 	case "DAEMONSET":
 		resources, err = client.DaemonSet().GetResources(versionDetail.Namespace, versionDetail.ResourceName)
-	case "JOB":
-		resources, err = client.Job().GetResources(versionDetail.Namespace, versionDetail.ResourceName)
 	case "CRONJOB":
 		resources, err = client.CronJob().GetResources(versionDetail.Namespace, versionDetail.ResourceName)
 	default:
@@ -57,22 +55,30 @@ func (l *GetResourceQuotaLogic) GetResourceQuota(req *types.DefaultIdRequest) (r
 		return nil, fmt.Errorf("获取资源配额失败")
 	}
 
-	resp = convertToResourcesResponse(resources)
+	resp = convertToCommResourcesResponse(resources)
 	return resp, nil
 }
 
-func convertToResourcesResponse(resources *types2.ResourcesResponse) *types.ResourcesResponse {
-	containers := make([]types.ContainerResources, 0, len(resources.Containers))
+// convertToCommResourcesResponse 将 k8sTypes.ResourcesResponse 转换为 types.CommResourcesResponse
+func convertToCommResourcesResponse(resources *k8sTypes.ResourcesResponse) *types.CommResourcesResponse {
+	if resources == nil {
+		return &types.CommResourcesResponse{
+			Containers: []types.CommContainerResources{},
+		}
+	}
+
+	containers := make([]types.CommContainerResources, 0, len(resources.Containers))
 
 	for _, container := range resources.Containers {
-		containers = append(containers, types.ContainerResources{
+		containers = append(containers, types.CommContainerResources{
 			ContainerName: container.ContainerName,
-			Resources: types.ResourceRequirements{
-				Limits: types.ResourceList{
+			ContainerType: string(container.ContainerType),
+			Resources: types.CommResourceRequirements{
+				Limits: types.CommResourceList{
 					Cpu:    container.Resources.Limits.Cpu,
 					Memory: container.Resources.Limits.Memory,
 				},
-				Requests: types.ResourceList{
+				Requests: types.CommResourceList{
 					Cpu:    container.Resources.Requests.Cpu,
 					Memory: container.Resources.Requests.Memory,
 				},
@@ -80,7 +86,7 @@ func convertToResourcesResponse(resources *types2.ResourcesResponse) *types.Reso
 		})
 	}
 
-	return &types.ResourcesResponse{
+	return &types.CommResourcesResponse{
 		Containers: containers,
 	}
 }

@@ -81,7 +81,7 @@ func (l *ProjectWorkspaceUpdateLogic) ProjectWorkspaceUpdate(in *pb.UpdateOnecPr
 		Annotations:               ns.Annotations,
 		Name:                      fmt.Sprintf("ikubeops-%s", workspace.Namespace),
 		CPUAllocated:              in.CpuAllocated,
-		MemoryAllocated:           in.PodMinMemory,
+		MemoryAllocated:           in.MemAllocated,
 		StorageAllocated:          in.StorageAllocated,
 		GPUAllocated:              in.GpuAllocated,
 		EphemeralStorageAllocated: in.EphemeralStorageAllocated,

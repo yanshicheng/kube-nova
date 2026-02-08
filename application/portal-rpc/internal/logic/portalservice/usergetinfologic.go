@@ -68,6 +68,9 @@ func (l *UserGetInfoLogic) UserGetInfo(in *pb.GetSysUserInfoReq) (*pb.GetSysUser
 		UpdatedAt:      user.UpdatedAt.Unix(),
 		DeptNames:      deptNames,
 		RoleNames:      roleNames,
+		DingtalkId:     user.DingtalkId.String,
+		WechatId:       user.WechatId.String,
+		FeishuId:       user.FeishuId.String,
 	}
 
 	return resp, nil

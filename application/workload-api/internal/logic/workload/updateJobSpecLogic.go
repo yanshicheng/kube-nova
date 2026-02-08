@@ -6,7 +6,7 @@ import (
 
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/types"
-	types2 "github.com/yanshicheng/kube-nova/common/k8smanager/types"
+	k8sTypes "github.com/yanshicheng/kube-nova/common/k8smanager/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -33,8 +33,15 @@ func (l *UpdateJobSpecLogic) UpdateJobSpec(req *types.UpdateJobSpecRequest) (res
 		return "", fmt.Errorf("获取集群客户端失败")
 	}
 
+	// 获取原 Job Spec 配置
+	oldSpec, err := client.CronJob().GetJobSpec(versionDetail.Namespace, versionDetail.ResourceName)
+	if err != nil {
+		l.Errorf("获取原 Job Spec 配置失败: %v", err)
+		// 继续执行
+	}
+
 	// 构建更新请求
-	updateReq := &types2.UpdateJobSpecRequest{
+	updateReq := &k8sTypes.UpdateJobSpecRequest{
 		Name:      versionDetail.ResourceName,
 		Namespace: versionDetail.Namespace,
 	}
@@ -77,15 +84,25 @@ func (l *UpdateJobSpecLogic) UpdateJobSpec(req *types.UpdateJobSpecRequest) (res
 
 	// 调用 CronJob operator 更新 Job Spec 配置
 	err = client.CronJob().UpdateJobSpec(updateReq)
+
+	// 生成变更详情
+	var changeDetail string
+	if oldSpec != nil {
+		changeDetail = CompareJobSpec(oldSpec, updateReq)
+	} else {
+		changeDetail = fmt.Sprintf("Job Spec 配置变更 (无法获取原配置): 并行度: %d, 完成数: %d, 重试次数: %d",
+			req.Parallelism, req.Completions, req.BackoffLimit)
+	}
+
 	if err != nil {
 		l.Errorf("更新 Job Spec 配置失败: %v", err)
 		recordAuditLog(l.ctx, l.svcCtx, versionDetail, "修改Job规格",
-			fmt.Sprintf("CronJob %s/%s 修改Job规格配置失败, 并行度: %d, 完成数: %d, 错误: %v", versionDetail.Namespace, versionDetail.ResourceName, req.Parallelism, req.Completions, err), 2)
+			fmt.Sprintf("CronJob %s/%s 修改Job规格配置失败, %s, 错误: %v", versionDetail.Namespace, versionDetail.ResourceName, changeDetail, err), 2)
 		return "", fmt.Errorf("更新 Job Spec 配置失败")
 	}
 
 	recordAuditLog(l.ctx, l.svcCtx, versionDetail, "修改Job规格",
-		fmt.Sprintf("CronJob %s/%s 修改Job规格配置成功, 并行度: %d, 完成数: %d, 重试次数: %d", versionDetail.Namespace, versionDetail.ResourceName, req.Parallelism, req.Completions, req.BackoffLimit), 1)
+		fmt.Sprintf("CronJob %s/%s 修改Job规格配置成功, %s", versionDetail.Namespace, versionDetail.ResourceName, changeDetail), 1)
 	return "更新成功", nil
 }
 
@@ -110,24 +127,24 @@ func boolPtr(v bool) *bool {
 }
 
 // convertPodFailurePolicyFromTypes 转换 PodFailurePolicy 类型
-func convertPodFailurePolicyFromTypes(policy *types.PodFailurePolicyConfig) *types2.PodFailurePolicyConfig {
+func convertPodFailurePolicyFromTypes(policy *types.PodFailurePolicyConfig) *k8sTypes.PodFailurePolicyConfig {
 	if policy == nil {
 		return nil
 	}
 
-	result := &types2.PodFailurePolicyConfig{
-		Rules: make([]types2.PodFailurePolicyRule, 0, len(policy.Rules)),
+	result := &k8sTypes.PodFailurePolicyConfig{
+		Rules: make([]k8sTypes.PodFailurePolicyRule, 0, len(policy.Rules)),
 	}
 
 	for _, rule := range policy.Rules {
-		k8sRule := types2.PodFailurePolicyRule{
+		k8sRule := k8sTypes.PodFailurePolicyRule{
 			Action: rule.Action,
 		}
 
 		// 转换 OnExitCodes
 		if rule.OnExitCodes != nil {
 			containerName := rule.OnExitCodes.ContainerName
-			k8sRule.OnExitCodes = &types2.PodFailurePolicyOnExitCodesRequirement{
+			k8sRule.OnExitCodes = &k8sTypes.PodFailurePolicyOnExitCodesRequirement{
 				ContainerName: &containerName,
 				Operator:      rule.OnExitCodes.Operator,
 				Values:        rule.OnExitCodes.Values,
@@ -136,9 +153,9 @@ func convertPodFailurePolicyFromTypes(policy *types.PodFailurePolicyConfig) *typ
 
 		// 转换 OnPodConditions
 		if len(rule.OnPodConditions) > 0 {
-			k8sRule.OnPodConditions = make([]types2.PodFailurePolicyOnPodConditionsPattern, 0, len(rule.OnPodConditions))
+			k8sRule.OnPodConditions = make([]k8sTypes.PodFailurePolicyOnPodConditionsPattern, 0, len(rule.OnPodConditions))
 			for _, condition := range rule.OnPodConditions {
-				k8sRule.OnPodConditions = append(k8sRule.OnPodConditions, types2.PodFailurePolicyOnPodConditionsPattern{
+				k8sRule.OnPodConditions = append(k8sRule.OnPodConditions, k8sTypes.PodFailurePolicyOnPodConditionsPattern{
 					Type:   condition.Type,
 					Status: condition.Status,
 				})

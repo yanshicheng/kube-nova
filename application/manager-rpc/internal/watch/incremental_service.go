@@ -3,15 +3,17 @@ package watch
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/watch/incremental"
-	"github.com/yanshicheng/kube-nova/common/interceptors"
 	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/zrpc"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 )
 
 // IncrementalSyncService 增量同步服务
@@ -74,6 +76,14 @@ func (s *IncrementalSyncService) Start() {
 
 	logx.Info("[IncrementalSyncService] RPC 服务已就绪，开始初始化增量同步...")
 
+	// Leader Election 模式需要设置 K8s 客户端
+	if s.svcCtx.Config.LeaderElection.Enabled {
+		if err := s.setupLeaderElectionKubeClient(); err != nil {
+			logx.Errorf("[IncrementalSyncService] 设置 Leader Election K8s 客户端失败: %v", err)
+			return
+		}
+	}
+
 	// 设置事件处理器（Handler）
 	if !SetupIncrementalSync(s.svcCtx) {
 		logx.Error("[IncrementalSyncService] 增量同步设置失败")
@@ -92,6 +102,79 @@ func (s *IncrementalSyncService) Start() {
 	<-s.ctx.Done()
 
 	logx.Info("[IncrementalSyncService] 收到停止信号，服务即将关闭")
+}
+
+// setupLeaderElectionKubeClient 设置 Leader Election 所需的 K8s 客户端
+// 按优先级尝试：InCluster -> ~/.kube/config -> 降级到 Redis 模式
+func (s *IncrementalSyncService) setupLeaderElectionKubeClient() error {
+	cfg := s.svcCtx.Config.LeaderElection
+
+	// 获取 K8s 配置（自动尝试 InCluster 和 kubeconfig）
+	restConfig, configSource, err := getKubeConfig()
+	if err != nil {
+		logx.Infof("[IncrementalSyncService] 无法获取 K8s 配置，降级到 Redis 分布式锁模式: %v", err)
+		s.svcCtx.Config.LeaderElection.Enabled = false
+		return nil
+	}
+
+	kubeClient, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		logx.Infof("[IncrementalSyncService] 创建 K8s 客户端失败，降级到 Redis 分布式锁模式: %v", err)
+		s.svcCtx.Config.LeaderElection.Enabled = false
+		return nil
+	}
+
+	// 创建 LeaderManager
+	s.svcCtx.LeaderSyncManager = incremental.NewLeaderManager(incremental.LeaderManagerConfig{
+		K8sManager:         s.svcCtx.K8sManager,
+		ClusterModel:       s.svcCtx.OnecClusterModel,
+		WorkerCount:        20,
+		ProcessTimeout:     30 * time.Second,
+		WatcherStopTimeout: 30 * time.Second,
+		LeaderElection: struct {
+			KubeClient     kubernetes.Interface
+			LeaseName      string
+			LeaseNamespace string
+			LeaseDuration  time.Duration
+			RenewDeadline  time.Duration
+			RetryPeriod    time.Duration
+		}{
+			KubeClient:     kubeClient,
+			LeaseName:      cfg.LeaseName,
+			LeaseNamespace: cfg.LeaseNamespace,
+			LeaseDuration:  cfg.LeaseDuration,
+			RenewDeadline:  cfg.RenewDeadline,
+			RetryPeriod:    cfg.RetryPeriod,
+		},
+	})
+
+	logx.Infof("[IncrementalSyncService] Leader Election 配置完成 (%s), Lease=%s/%s",
+		configSource, cfg.LeaseNamespace, cfg.LeaseName)
+
+	return nil
+}
+
+// getKubeConfig 获取 K8s 配置
+// 优先级：InCluster -> ~/.kube/config
+// 返回：配置、配置来源描述、错误
+func getKubeConfig() (*rest.Config, string, error) {
+	// 1. 优先尝试 InCluster 配置 (Pod 内部)
+	// 这一步非常快，如果不在集群内会立刻返回 error，不会阻塞
+	if config, err := rest.InClusterConfig(); err == nil {
+		return config, "InCluster", nil
+	}
+
+	// 2. 尝试默认路径 ~/.kube/config
+	if home := homedir.HomeDir(); home != "" {
+		kubeconfigPath := filepath.Join(home, ".kube", "config")
+
+		// 直接尝试加载。如果文件不存在或格式错误，err 会不为空
+		if config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath); err == nil {
+			return config, fmt.Sprintf("LocalFile(%s)", kubeconfigPath), nil
+		}
+	}
+
+	return nil, "", fmt.Errorf("无法获取 K8s 配置: 既非 InCluster 模式，也未找到有效的 ~/.kube/config")
 }
 
 // Stop 停止增量同步服务
@@ -152,42 +235,27 @@ func (s *IncrementalSyncService) waitForRPCReady() error {
 
 // checkRPCHealth 通过实际调用 RPC 方法来检查服务是否就绪
 func (s *IncrementalSyncService) checkRPCHealth() error {
-	rpcConf := zrpc.RpcClientConf{
-		Endpoints: []string{s.rpcAddr},
-		NonBlock:  true,
-		Timeout:   3000, // 3 秒超时
-	}
-
-	// 尝试创建客户端
-	client, err := zrpc.NewClient(rpcConf, zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor()))
-	if err != nil {
-		return fmt.Errorf("创建 RPC 客户端失败: %w", err)
-	}
-	defer client.Conn().Close()
-
-	// 创建 ManagerService 客户端
-	managerClient := managerservice.NewManagerService(client)
-
-	// 调用一个轻量级的 RPC 方法来验证服务是否可用
+	// 使用 K8sManager 来检查 RPC 是否就绪
+	// 这样可以确保使用的是同一个 RPC 客户端连接
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	_, err = managerClient.GetClusterAuthInfo(ctx, &managerservice.GetClusterAuthInfoReq{
-		ClusterUuid: "__health_check__",
-	})
-
+	// 尝试获取一个不存在的集群，如果返回业务错误说明 RPC 已就绪
+	_, err := s.svcCtx.K8sManager.GetCluster(ctx, "__health_check__")
 	if err != nil {
 		errStr := err.Error()
-		// 如果错误是 "服务不可用" 或 "连接被拒绝"，说明服务还没准备好
+		// 如果错误是连接相关或超时，说明服务还没准备好
 		if strings.Contains(errStr, "服务不可用") ||
 			strings.Contains(errStr, "unavailable") ||
 			strings.Contains(errStr, "connection refused") ||
 			strings.Contains(errStr, "connection reset") ||
-			strings.Contains(errStr, "transport") {
+			strings.Contains(errStr, "transport") ||
+			strings.Contains(errStr, "请求超时") ||
+			strings.Contains(errStr, "timeout") ||
+			strings.Contains(errStr, "context deadline exceeded") {
 			return fmt.Errorf("RPC 服务未就绪: %w", err)
 		}
-		// 其他错误（如"集群不存在"）说明服务已经在正常处理请求了
-		logx.Debugf("[IncrementalSyncService] RPC 健康检查返回业务错误（这是正常的）: %v", err)
+		// 其他错误（如"集群认证信息不存在"）说明 RPC 服务已经在正常处理请求了
 	}
 
 	return nil

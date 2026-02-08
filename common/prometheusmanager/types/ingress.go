@@ -336,6 +336,110 @@ type HostRankingItem struct {
 	Unit  string  `json:"unit"`
 }
 
+// ==================== Host 级别监控 ====================
+
+// HostMetricsDetail Host 级别监控详情
+type HostMetricsDetail struct {
+	Host         string                        `json:"host"`
+	Namespace    string                        `json:"namespace"`
+	IngressNames []string                      `json:"ingressNames"`
+	Traffic      IngressTrafficMetrics         `json:"traffic"`
+	Performance  IngressLatencyStats           `json:"performance"`
+	Errors       IngressErrorRateStats         `json:"errors"`
+	Backends     []BackendHealthStatus         `json:"backends"`
+	StatusCodes  IngressStatusCodeDistribution `json:"statusCodes"`
+}
+
+// ==================== Host 级别监控新类型 ====================
+
+// HostMetrics Host 级别综合指标
+type HostMetrics struct {
+	Host        string                     `json:"host"`
+	Start       int64                      `json:"start"`
+	End         int64                      `json:"end"`
+	Current     HostMetricSnapshot         `json:"current"`
+	StatusCodes HostStatusCodeDistribution `json:"statusCodes"`
+	ErrorRate   HostErrorRateStats         `json:"errorRate"`
+	Latency     HostLatencyStats           `json:"latency"`
+	Summary     HostMetricsSummary         `json:"summary"`
+	Trend       []HostMetricDataPoint      `json:"trend"`
+	ByPath      []HostPathMetrics          `json:"byPath"`
+}
+
+// HostMetricSnapshot Host 当前快照
+type HostMetricSnapshot struct {
+	Timestamp          int64   `json:"timestamp"`
+	RequestsPerSecond  float64 `json:"requestsPerSecond"`
+	IngressBytesPerSec float64 `json:"ingressBytesPerSec"`
+	EgressBytesPerSec  float64 `json:"egressBytesPerSec"`
+	ActiveConnections  int64   `json:"activeConnections"`
+}
+
+// HostStatusCodeDistribution Host 状态码分布（返回数量而非速率）
+type HostStatusCodeDistribution struct {
+	Status2xx map[string]int64 `json:"status2xx"`
+	Status3xx map[string]int64 `json:"status3xx"`
+	Status4xx map[string]int64 `json:"status4xx"`
+	Status5xx map[string]int64 `json:"status5xx"`
+}
+
+// HostErrorRateStats Host 错误率统计
+type HostErrorRateStats struct {
+	TotalErrorRate float64        `json:"totalErrorRate"`
+	Error4xxRate   float64        `json:"error4xxRate"`
+	Error5xxRate   float64        `json:"error5xxRate"`
+	TopErrors      []HostTopError `json:"topErrors"`    // 所有错误的 Top 列表
+	Top4xxErrors   []HostTopError `json:"top4xxErrors"` // 4xx 错误的 Top 列表
+	Top5xxErrors   []HostTopError `json:"top5xxErrors"` // 5xx 错误的 Top 列表
+}
+
+// HostTopError Host Top 错误
+type HostTopError struct {
+	StatusCode string  `json:"statusCode"`
+	Count      int64   `json:"count"`
+	Percent    float64 `json:"percent"`
+}
+
+// HostLatencyStats Host 延迟统计
+type HostLatencyStats struct {
+	P50 float64 `json:"p50"`
+	P95 float64 `json:"p95"`
+	P99 float64 `json:"p99"`
+	Avg float64 `json:"avg"`
+	Max float64 `json:"max"`
+}
+
+// HostMetricsSummary Host 汇总统计
+type HostMetricsSummary struct {
+	TotalRequests     int64   `json:"totalRequests"`
+	TotalIngressBytes int64   `json:"totalIngressBytes"`
+	TotalEgressBytes  int64   `json:"totalEgressBytes"`
+	AvgRequestsPerSec float64 `json:"avgRequestsPerSec"`
+	MaxRequestsPerSec float64 `json:"maxRequestsPerSec"`
+	AvgRequestSize    float64 `json:"avgRequestSize"`
+	AvgResponseSize   float64 `json:"avgResponseSize"`
+}
+
+// HostMetricDataPoint Host 趋势数据点
+type HostMetricDataPoint struct {
+	Timestamp          int64   `json:"timestamp"`
+	RequestsPerSecond  float64 `json:"requestsPerSecond"`
+	IngressBytesPerSec float64 `json:"ingressBytesPerSec"`
+	EgressBytesPerSec  float64 `json:"egressBytesPerSec"`
+	Error4xxRate       float64 `json:"error4xxRate"`
+	Error5xxRate       float64 `json:"error5xxRate"`
+	P95Latency         float64 `json:"p95Latency"`
+}
+
+// HostPathMetrics Host 按 Path 分组指标
+type HostPathMetrics struct {
+	Path              string  `json:"path"`
+	RequestsPerSecond float64 `json:"requestsPerSecond"`
+	ErrorRate         float64 `json:"errorRate"`
+	ErrorRatePercent  float64 `json:"errorRatePercent"` // 错误率百分比（用于显示）
+	P95Latency        float64 `json:"p95Latency"`
+}
+
 // ==================== IngressOperator 接口 ====================
 
 // IngressOperator Ingress 操作器接口
@@ -380,4 +484,11 @@ type IngressOperator interface {
 
 	// 列表查询
 	ListIngressMetrics(namespace string, timeRange *TimeRange) ([]IngressMetrics, error)
+
+	// Host 级别查询（旧版，保留兼容）
+	GetHostMetrics(namespace, host string, timeRange *TimeRange) (*HostMetricsDetail, error)
+
+	// Host 级别监控查询（新版）
+	GetHostMetricsDetail(host string, timeRange *TimeRange) (*HostMetrics, error)
+	GetMultiHostMetrics(hosts []string, timeRange *TimeRange) ([]HostMetrics, error)
 }

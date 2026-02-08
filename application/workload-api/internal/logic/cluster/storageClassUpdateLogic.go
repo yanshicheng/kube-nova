@@ -48,23 +48,49 @@ func (l *StorageClassUpdateLogic) StorageClassUpdate(req *types.ClusterResourceY
 		l.Errorf("解析 YAML 失败: %v", err)
 		return "", fmt.Errorf("解析 YAML 失败: %v", err)
 	}
-	// 获取项目详情
-	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
-		ClusterUuid: req.ClusterUuid,
-		Namespace:   sc.Namespace,
-	})
+
+	// 获取旧的 StorageClass 用于对比
+	oldSC, err := scOp.Get(sc.Name)
 	if err != nil {
-		l.Errorf("获取项目详情失败: %v", err)
-		return "", fmt.Errorf("获取项目详情失败")
-	} else {
-		// 注入注解
-		utils.AddAnnotations(&sc.ObjectMeta, &utils.AnnotationsInfo{
-			ServiceName:   sc.Name,
-			ProjectName:   projectDetail.ProjectNameCn,
-			WorkspaceName: projectDetail.WorkspaceNameCn,
-			ProjectUuid:   projectDetail.ProjectUuid,
-		})
+		l.Errorf("获取原 StorageClass 失败: %v", err)
+		return "", fmt.Errorf("获取原 StorageClass 失败")
 	}
+
+	// 注入注解
+	utils.AddAnnotations(&sc.ObjectMeta, &utils.AnnotationsInfo{
+		ServiceName: sc.Name,
+	})
+
+	// 对比参数变更
+	paramDiff := CompareStringMaps(oldSC.Parameters, sc.Parameters)
+	paramDiffDetail := ""
+	if HasMapChanges(paramDiff) {
+		paramDiffDetail = "参数变更: " + BuildMapDiffDetail(paramDiff, true)
+	}
+
+	// 对比标签变更
+	labelDiff := CompareStringMaps(oldSC.Labels, sc.Labels)
+	labelDiffDetail := ""
+	if HasMapChanges(labelDiff) {
+		labelDiffDetail = "标签变更: " + BuildMapDiffDetail(labelDiff, true)
+	}
+
+	// 对比挂载选项变更
+	mountAdded, mountDeleted := CompareStringSlices(oldSC.MountOptions, sc.MountOptions)
+	mountDiffDetail := BuildSliceDiffDetail("挂载选项", mountAdded, mountDeleted)
+
+	// 检查 AllowVolumeExpansion 变更
+	var expansionChange string
+	oldExpansion := oldSC.AllowVolumeExpansion != nil && *oldSC.AllowVolumeExpansion
+	newExpansion := sc.AllowVolumeExpansion != nil && *sc.AllowVolumeExpansion
+	if oldExpansion != newExpansion {
+		if newExpansion {
+			expansionChange = "允许扩展: 否 → 是"
+		} else {
+			expansionChange = "允许扩展: 是 → 否"
+		}
+	}
+
 	_, err = scOp.Update(&sc)
 	if err != nil {
 		l.Errorf("更新 StorageClass 失败: %v", err)
@@ -72,18 +98,39 @@ func (l *StorageClassUpdateLogic) StorageClassUpdate(req *types.ClusterResourceY
 		l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "更新 StorageClass",
-			ActionDetail: fmt.Sprintf("更新 StorageClass %s 失败，错误: %v", sc.Name, err),
+			ActionDetail: fmt.Sprintf("用户 %s 更新 StorageClass %s 失败, 错误: %v", username, sc.Name, err),
 			Status:       0,
 		})
 		return "", fmt.Errorf("更新 StorageClass 失败")
 	}
 
 	l.Infof("用户: %s, 成功更新 StorageClass: %s", username, sc.Name)
+
+	// 构建详细审计信息
+	var changeParts []string
+	changeParts = append(changeParts, fmt.Sprintf("用户 %s 成功更新 StorageClass %s", username, sc.Name))
+	changeParts = append(changeParts, fmt.Sprintf("Provisioner: %s", sc.Provisioner))
+
+	if paramDiffDetail != "" {
+		changeParts = append(changeParts, paramDiffDetail)
+	}
+	if labelDiffDetail != "" {
+		changeParts = append(changeParts, labelDiffDetail)
+	}
+	if mountDiffDetail != "" {
+		changeParts = append(changeParts, mountDiffDetail)
+	}
+	if expansionChange != "" {
+		changeParts = append(changeParts, expansionChange)
+	}
+
+	auditDetail := joinNonEmpty(", ", changeParts...)
+
 	// 记录成功审计日志
 	l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "更新 StorageClass",
-		ActionDetail: fmt.Sprintf("更新 StorageClass %s 成功，Provisioner: %s", sc.Name, sc.Provisioner),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	return "更新 StorageClass 成功", nil

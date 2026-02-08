@@ -57,7 +57,7 @@ type (
         // 删除告警规则文件请求
     DeleteAlertRuleFileRequest {
         Id uint64 `path:"id" validate:"required,gt=0"`                              // 主键ID
-        Cascade bool `form:"cascade,optional"`                                      // 是否级联删除
+        Cascade bool `json:"cascade,optional"`                                      // 是否级联删除
     }
 
         // 搜索告警规则文件请求
@@ -128,7 +128,7 @@ type (
         // 删除告警规则分组请求
     DeleteAlertRuleGroupRequest {
         Id uint64 `path:"id" validate:"required,gt=0"`                              // 主键ID
-        Cascade bool `form:"cascade,optional"`                                      // 是否级联删除
+        Cascade bool `json:"cascade,optional"`                                      // 是否级联删除
     }
 
         // 搜索告警规则分组请求

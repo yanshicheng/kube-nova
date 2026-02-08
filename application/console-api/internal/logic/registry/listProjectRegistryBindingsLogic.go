@@ -34,7 +34,9 @@ func (l *ListProjectRegistryBindingsLogic) ListProjectRegistryBindings(req *type
 		l.Errorf("RPC调用失败: %v", err)
 		return nil, err
 	}
-
+	if rpcResp.Data == nil {
+		return &types.ListProjectRegistryBindingsResponse{}, nil
+	}
 	var data []types.BindProjectIds
 	if rpcResp.Data != nil {
 		data = make([]types.BindProjectIds, 0, len(rpcResp.Data))

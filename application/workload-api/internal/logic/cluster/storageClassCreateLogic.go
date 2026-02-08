@@ -48,23 +48,30 @@ func (l *StorageClassCreateLogic) StorageClassCreate(req *types.ClusterResourceY
 		l.Errorf("解析 YAML 失败: %v", err)
 		return "", fmt.Errorf("解析 YAML 失败: %v", err)
 	}
-	// 获取项目详情
-	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
-		ClusterUuid: req.ClusterUuid,
-		Namespace:   sc.Namespace,
+
+	// 注入注解
+	utils.AddAnnotations(&sc.ObjectMeta, &utils.AnnotationsInfo{
+		ServiceName: sc.Name,
 	})
-	if err != nil {
-		l.Errorf("获取项目详情失败: %v", err)
-		return "", fmt.Errorf("获取项目详情失败")
-	} else {
-		// 注入注解
-		utils.AddAnnotations(&sc.ObjectMeta, &utils.AnnotationsInfo{
-			ServiceName:   sc.Name,
-			ProjectName:   projectDetail.ProjectNameCn,
-			WorkspaceName: projectDetail.WorkspaceNameCn,
-			ProjectUuid:   projectDetail.ProjectUuid,
-		})
+
+	// 提取配置信息用于审计
+	reclaimPolicy := "Delete"
+	if sc.ReclaimPolicy != nil {
+		reclaimPolicy = string(*sc.ReclaimPolicy)
 	}
+
+	volumeBindingMode := "Immediate"
+	if sc.VolumeBindingMode != nil {
+		volumeBindingMode = string(*sc.VolumeBindingMode)
+	}
+
+	allowExpansion := false
+	if sc.AllowVolumeExpansion != nil {
+		allowExpansion = *sc.AllowVolumeExpansion
+	}
+
+	configDetail := FormatStorageClassConfig(sc.Provisioner, reclaimPolicy, volumeBindingMode, allowExpansion, sc.Parameters)
+
 	_, err = scOp.Create(&sc)
 	if err != nil {
 		l.Errorf("创建 StorageClass 失败: %v", err)
@@ -72,18 +79,22 @@ func (l *StorageClassCreateLogic) StorageClassCreate(req *types.ClusterResourceY
 		l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "创建 StorageClass",
-			ActionDetail: fmt.Sprintf("创建 StorageClass %s 失败，Provisioner: %s，错误: %v", sc.Name, sc.Provisioner, err),
+			ActionDetail: fmt.Sprintf("用户 %s 创建 StorageClass %s 失败, Provisioner: %s, 错误: %v", username, sc.Name, sc.Provisioner, err),
 			Status:       0,
 		})
 		return "", fmt.Errorf("创建 StorageClass 失败")
 	}
 
 	l.Infof("用户: %s, 成功创建 StorageClass: %s", username, sc.Name)
+
+	// 构建详细审计信息
+	auditDetail := fmt.Sprintf("用户 %s 成功创建 StorageClass %s, %s", username, sc.Name, configDetail)
+
 	// 记录成功审计日志
 	l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "创建 StorageClass",
-		ActionDetail: fmt.Sprintf("创建 StorageClass %s 成功，Provisioner: %s", sc.Name, sc.Provisioner),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	return "创建 StorageClass 成功", nil

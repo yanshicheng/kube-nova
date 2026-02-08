@@ -125,6 +125,14 @@ type DaemonSetOperator interface {
 		svcOp ServiceOperator,
 		ingressOp IngressOperator,
 	) (*WorkloadResourceSummary, error)
+
+	// GetAdvancedConfig 获取高级容器配置
+	// 返回 Pod 级别配置 + 所有容器（init/main/ephemeral）的高级配置
+	GetAdvancedConfig(namespace, name string) (*AdvancedConfigResponse, error)
+
+	// UpdateAdvancedConfig 更新高级容器配置（全量更新）
+	// 支持同时更新 Pod 级别配置和所有容器的高级配置
+	UpdateAdvancedConfig(req *UpdateAdvancedConfigRequest) error
 }
 
 // WorkloadResourceSummary 工作负载资源摘要（通用于 Deployment、StatefulSet、DaemonSet、CronJob）

@@ -46,6 +46,7 @@ func (l *APIGetTreeLogic) APIGetTree(in *pb.GetSysAPITreeReq) (*pb.GetSysAPITree
 			ParentId:     api.ParentId,
 			Name:         api.Name,
 			IsPermission: api.IsPermission,
+			Method:       api.Method,
 		})
 	}
 
@@ -63,6 +64,7 @@ type tempAPINode struct {
 	ParentId     uint64
 	Name         string
 	IsPermission int64
+	Method       string
 }
 
 // buildAPITreeFromTemp 从临时节点构建API权限树
@@ -77,6 +79,7 @@ func (l *APIGetTreeLogic) buildAPITreeFromTemp(tempNodes []tempAPINode, parentId
 				Id:           tempNode.Id,
 				Name:         tempNode.Name,
 				IsPermission: tempNode.IsPermission,
+				Method:       tempNode.Method,
 			}
 
 			// 递归构建子节点

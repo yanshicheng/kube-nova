@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
@@ -55,6 +56,7 @@ func (l *RoleCreateLogic) RoleCreate(req *types.DefaultCoreCreateRequest) (resp 
 	if role.Namespace == "" {
 		role.Namespace = req.Namespace
 	}
+
 	// 获取项目详情
 	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
 		ClusterUuid: req.ClusterUuid,
@@ -72,6 +74,10 @@ func (l *RoleCreateLogic) RoleCreate(req *types.DefaultCoreCreateRequest) (resp 
 			ProjectUuid:   projectDetail.ProjectUuid,
 		})
 	}
+
+	// 构建规则摘要用于审计
+	rulesSummary := l.buildRulesSummary(role.Rules)
+
 	// 创建 Role
 	createErr := roleOp.Create(&role)
 	if createErr != nil {
@@ -80,7 +86,7 @@ func (l *RoleCreateLogic) RoleCreate(req *types.DefaultCoreCreateRequest) (resp 
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "创建 Role",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 创建 Role %s 失败, 错误原因: %v", username, role.Namespace, role.Name, createErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 创建 Role %s 失败, 包含 %d 条规则 (%s), 错误原因: %v", username, role.Namespace, role.Name, len(role.Rules), rulesSummary, createErr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("创建 Role 失败")
@@ -90,7 +96,7 @@ func (l *RoleCreateLogic) RoleCreate(req *types.DefaultCoreCreateRequest) (resp 
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "创建 Role",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功创建 Role %s", username, role.Namespace, role.Name),
+		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功创建 Role %s, 包含 %d 条规则 (%s)", username, role.Namespace, role.Name, len(role.Rules), rulesSummary),
 		Status:       1,
 	})
 	if auditErr != nil {
@@ -99,4 +105,27 @@ func (l *RoleCreateLogic) RoleCreate(req *types.DefaultCoreCreateRequest) (resp 
 
 	l.Infof("用户: %s, 成功创建 Role: %s/%s", username, role.Namespace, role.Name)
 	return "创建 Role 成功", nil
+}
+
+// buildRulesSummary 构建规则摘要用于审计日志
+func (l *RoleCreateLogic) buildRulesSummary(rules []rbacv1.PolicyRule) string {
+	if len(rules) == 0 {
+		return "无规则"
+	}
+
+	var summaries []string
+	for _, rule := range rules {
+		resources := strings.Join(rule.Resources, ",")
+		verbs := strings.Join(rule.Verbs, ",")
+		if resources == "" {
+			resources = "*"
+		}
+		summaries = append(summaries, fmt.Sprintf("%s[%s]", resources, verbs))
+	}
+
+	result := strings.Join(summaries, "; ")
+	if len(result) > 200 {
+		return result[:200] + "..."
+	}
+	return result
 }

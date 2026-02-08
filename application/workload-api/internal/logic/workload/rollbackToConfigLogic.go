@@ -33,31 +33,58 @@ func (l *RollbackToConfigLogic) RollbackToConfig(req *types.RollbackToConfigRequ
 		return "", err
 	}
 
+	resourceType := strings.ToUpper(versionDetail.ResourceType)
+
+	// 获取配置历史信息（用于审计日志记录）
+	var configHistory []k8sTypes.ConfigHistoryInfo
+	switch resourceType {
+	case "STATEFULSET":
+		configHistory, err = controller.StatefulSet.GetConfigHistory(versionDetail.Namespace, versionDetail.ResourceName)
+	case "DAEMONSET":
+		configHistory, err = controller.DaemonSet.GetConfigHistory(versionDetail.Namespace, versionDetail.ResourceName)
+	default:
+		return "", fmt.Errorf("资源类型 %s 不支持回滚到配置操作", resourceType)
+	}
+
+	// 查找目标配置历史的描述信息
+	var targetConfigDesc string
+	if err == nil && configHistory != nil {
+		for _, ch := range configHistory {
+			if ch.Id == req.ConfigHistoryId {
+				targetConfigDesc = fmt.Sprintf("创建时间: %s, 原因: %s", ch.CreatedAt, ch.Reason)
+				break
+			}
+		}
+	}
+
 	rollbackReq := &k8sTypes.RollbackToConfigRequest{
 		Name:            versionDetail.ResourceName,
 		Namespace:       versionDetail.Namespace,
 		ConfigHistoryId: req.ConfigHistoryId,
 	}
 
-	resourceType := strings.ToUpper(versionDetail.ResourceType)
-
+	// 执行回滚
 	switch resourceType {
 	case "STATEFULSET":
 		err = controller.StatefulSet.RollbackToConfig(rollbackReq)
 	case "DAEMONSET":
 		err = controller.DaemonSet.RollbackToConfig(rollbackReq)
-	default:
-		return "", fmt.Errorf("资源类型 %s 不支持回滚到配置操作", resourceType)
+	}
+
+	// 生成变更详情
+	changeDetail := BuildConfigRollbackDescription(resourceType, versionDetail.Namespace, versionDetail.ResourceName, int64(req.ConfigHistoryId))
+	if targetConfigDesc != "" {
+		changeDetail += fmt.Sprintf(" (%s)", targetConfigDesc)
 	}
 
 	if err != nil {
 		l.Errorf("回滚到配置失败: %v", err)
 		recordAuditLog(l.ctx, l.svcCtx, versionDetail, "配置回滚",
-			fmt.Sprintf("资源 %s/%s 回滚到配置历史ID %d 失败: %v", versionDetail.Namespace, versionDetail.ResourceName, req.ConfigHistoryId, err), 2)
+			fmt.Sprintf("%s 失败: %v", changeDetail, err), 2)
 		return "", fmt.Errorf("回滚失败")
 	}
 
 	recordAuditLog(l.ctx, l.svcCtx, versionDetail, "配置回滚",
-		fmt.Sprintf("资源 %s/%s 成功回滚到配置历史ID %d", versionDetail.Namespace, versionDetail.ResourceName, req.ConfigHistoryId), 1)
+		fmt.Sprintf("%s 成功", changeDetail), 1)
 	return "回滚成功", nil
 }

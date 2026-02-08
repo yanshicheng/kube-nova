@@ -10,46 +10,69 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/yanshicheng/kube-nova/common/handler/errorx"
 )
 
 // weChatClient 企业微信告警客户端
+// 实现通过企业微信群机器人 Webhook 发送告警消息
 type weChatClient struct {
 	*baseClient
-	config *WeChatConfig
+	config     *WeChatConfig
+	httpClient *http.Client // 复用的 HTTP 客户端
 }
 
 // weChatMessage 企业微信消息结构
+// 支持 text 和 markdown 两种消息类型
 type weChatMessage struct {
-	MsgType  string          `json:"msgtype"`
-	Text     *weChatText     `json:"text,omitempty"`
-	Markdown *weChatMarkdown `json:"markdown,omitempty"`
+	MsgType  string          `json:"msgtype"`            // 消息类型
+	Text     *weChatText     `json:"text,omitempty"`     // 文本消息
+	Markdown *weChatMarkdown `json:"markdown,omitempty"` // Markdown 消息
 }
 
+// weChatText 文本消息内容
+// 文本消息支持 @ 手机号和 @ 成员功能
 type weChatText struct {
-	Content             string   `json:"content"`
-	MentionedList       []string `json:"mentioned_list,omitempty"`
-	MentionedMobileList []string `json:"mentioned_mobile_list,omitempty"`
+	Content             string   `json:"content"`                         // 消息内容，最长 2048 字节
+	MentionedList       []string `json:"mentioned_list,omitempty"`        // userid 列表，@ 指定成员
+	MentionedMobileList []string `json:"mentioned_mobile_list,omitempty"` // 手机号列表，@ 指定手机号
 }
 
+// weChatMarkdown Markdown 消息内容
+// 注意: Markdown 消息不支持 mentioned_list 和 mentioned_mobile_list
+// 需要在 content 中使用 <@userid> 语法来 @ 人
 type weChatMarkdown struct {
-	Content string `json:"content"`
+	Content string `json:"content"` // Markdown 内容，最长 4096 字节
 }
 
+// weChatResponse 企业微信 API 响应结构
 type weChatResponse struct {
-	ErrCode int    `json:"errcode"`
-	ErrMsg  string `json:"errmsg"`
+	ErrCode int    `json:"errcode"` // 错误码，0 表示成功
+	ErrMsg  string `json:"errmsg"`  // 错误信息
 }
 
 // NewWeChatClient 创建企业微信客户端
 func NewWeChatClient(config Config) (FullChannel, error) {
 	if config.WeChat == nil {
-		return nil, fmt.Errorf("企业微信配置不能为空")
+		return nil, errorx.Msg("企业微信配置不能为空")
 	}
 
 	bc := newBaseClient(config)
+
+	// 创建可复用的 HTTP 客户端
+	httpClient := &http.Client{
+		Timeout: config.Options.Timeout,
+		Transport: &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 10,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
+
 	client := &weChatClient{
 		baseClient: bc,
 		config:     config.WeChat,
+		httpClient: httpClient,
 	}
 
 	client.l.Infof("创建企业微信告警客户端: %s", config.UUID)
@@ -57,9 +80,17 @@ func NewWeChatClient(config Config) (FullChannel, error) {
 }
 
 // WithContext 设置上下文
+// 返回带有新上下文的客户端副本
 func (c *weChatClient) WithContext(ctx context.Context) Client {
-	c.baseClient.ctx = ctx
-	return c
+	// 创建新的 baseClient 副本
+	newBaseClient := c.baseClient.WithContext(ctx).(*baseClient)
+
+	// 创建新的 weChatClient 实例（共享 config 和 httpClient）
+	return &weChatClient{
+		baseClient: newBaseClient,
+		config:     c.config,
+		httpClient: c.httpClient,
+	}
 }
 
 // SendPrometheusAlert 发送 Prometheus 告警
@@ -68,7 +99,7 @@ func (c *weChatClient) SendPrometheusAlert(ctx context.Context, opts *AlertOptio
 
 	// 检查客户端状态
 	if atomic.LoadInt32(&c.closed) == 1 {
-		return nil, fmt.Errorf("客户端已关闭")
+		return nil, errorx.Msg("客户端已关闭")
 	}
 
 	// 检查速率限制
@@ -84,9 +115,20 @@ func (c *weChatClient) SendPrometheusAlert(ctx context.Context, opts *AlertOptio
 
 	// 使用格式化器构建消息
 	formatter := NewMessageFormatter(opts.PortalName, opts.PortalUrl)
-	content := formatter.FormatMarkdownForWeChat(opts, alerts)
 
-	// 添加 @人配置（企业微信的 @ 需要在 content 中添加 <@userid> 或 @all）
+	// 检测是否为聚合告警（同一项目的多条告警）
+	var content string
+	if opts.Severity == "mixed" || len(alerts) > 1 {
+		// 聚合告警，使用聚合格式化
+		aggregatedGroup := buildAggregatedAlertGroupFromAlerts(alerts, opts.ProjectName)
+		content = formatter.FormatAggregatedAlertForWeChat(aggregatedGroup)
+	} else {
+		// 单条告警，使用原有格式化
+		content = formatter.FormatMarkdownForWeChat(opts, alerts)
+	}
+
+	// 添加 @ 人配置
+	// 注意: 企业微信 Markdown 消息需要在 content 中使用 <@userid> 语法
 	if opts.Mentions != nil {
 		content = c.appendMentions(content, opts.Mentions)
 	}
@@ -133,7 +175,7 @@ func (c *weChatClient) SendNotification(ctx context.Context, opts *NotificationO
 
 	// 检查客户端状态
 	if atomic.LoadInt32(&c.closed) == 1 {
-		return nil, fmt.Errorf("客户端已关闭")
+		return nil, errorx.Msg("客户端已关闭")
 	}
 
 	// 检查速率限制
@@ -151,7 +193,7 @@ func (c *weChatClient) SendNotification(ctx context.Context, opts *NotificationO
 	formatter := NewMessageFormatter(opts.PortalName, opts.PortalUrl)
 	content := formatter.FormatNotificationForWeChat(opts)
 
-	// 添加 @人配置
+	// 添加 @ 人配置
 	if opts.Mentions != nil {
 		content = c.appendMentions(content, opts.Mentions)
 	}
@@ -164,11 +206,13 @@ func (c *weChatClient) SendNotification(ctx context.Context, opts *NotificationO
 		},
 	}
 
-	// 构建重试上下文
+	// 构建日志信息
 	atInfo := ""
 	if opts.Mentions != nil {
 		atInfo = fmt.Sprintf("@手机号: %v", opts.Mentions.AtMobiles)
 	}
+
+	// 构建重试上下文
 	retryCtx := &RetryContext{
 		ChannelType: string(AlertTypeWeChat),
 		ChannelUUID: c.baseClient.GetUUID(),
@@ -196,8 +240,11 @@ func (c *weChatClient) SendNotification(ctx context.Context, opts *NotificationO
 	return result, err
 }
 
-// appendMentions 添加 @人信息到内容中
-// 根据企业微信API文档，需要在markdown的content中使用 <@userid> 扩展语法
+// appendMentions 添加 @ 人信息到内容中
+// 根据企业微信 API 文档，Markdown 消息需要在 content 中使用 <@userid> 扩展语法
+// 注意:
+// 1. <@userid> 中的 userid 必须是企业微信的成员 ID
+// 2. 如果用户没有绑定企业微信ID，则不添加 @ 人信息
 func (c *weChatClient) appendMentions(content string, mentions *MentionConfig) string {
 	if mentions == nil {
 		return content
@@ -205,22 +252,25 @@ func (c *weChatClient) appendMentions(content string, mentions *MentionConfig) s
 
 	var mentionParts []string
 
-	// @所有人
+	// @ 所有人
 	if mentions.IsAtAll {
 		mentionParts = append(mentionParts, "@all")
 	} else {
-		// @指定的userid（企业微信成员ID）
-		for _, userId := range mentions.AtUserIds {
-			mentionParts = append(mentionParts, fmt.Sprintf("<@%s>", userId))
+		// 优先使用企业微信用户ID（从用户表绑定的wechat_id）
+		if len(mentions.WechatUserIds) > 0 {
+			for _, userId := range mentions.WechatUserIds {
+				if userId != "" {
+					mentionParts = append(mentionParts, fmt.Sprintf("<@%s>", userId))
+				}
+			}
 		}
 
-		// @指定的手机号
-		for _, mobile := range mentions.AtMobiles {
-			mentionParts = append(mentionParts, fmt.Sprintf("<@%s>", mobile))
-		}
+		// 降级：如果没有企业微信用户ID，不使用手机号（Markdown消息不支持）
+		// 注意：企业微信 Markdown 消息不支持通过手机号 @ 人
+		// 如果需要手机号@人功能，需要改用 text 类型消息
 	}
 
-	// 如果有@人信息，在content末尾添加
+	// 如果有 @ 人信息，在 content 末尾添加
 	if len(mentionParts) > 0 {
 		content = content + "\n\n" + strings.Join(mentionParts, " ")
 	}
@@ -228,53 +278,50 @@ func (c *weChatClient) appendMentions(content string, mentions *MentionConfig) s
 	return content
 }
 
-// sendToWeChat 发送到企业微信
+// sendToWeChat 发送消息到企业微信
 func (c *weChatClient) sendToWeChat(ctx context.Context, message *weChatMessage) (*SendResult, error) {
 	// 序列化消息
 	body, err := json.Marshal(message)
 	if err != nil {
-		return nil, fmt.Errorf("序列化消息失败: %w", err)
+		return nil, errorx.Msg(fmt.Sprintf("序列化消息失败: %v", err))
 	}
 
 	// 创建 HTTP 请求
 	req, err := http.NewRequestWithContext(ctx, "POST", c.config.Webhook, bytes.NewBuffer(body))
 	if err != nil {
-		return nil, fmt.Errorf("创建请求失败: %w", err)
+		return nil, errorx.Msg(fmt.Sprintf("创建请求失败: %v", err))
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
-	// 发送请求
-	client := &http.Client{
-		Timeout: c.baseClient.config.Options.Timeout,
-	}
-
-	resp, err := client.Do(req)
+	// 使用复用的 HTTP 客户端发送请求
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("发送请求失败: %w", err)
+		return nil, errorx.Msg(fmt.Sprintf("发送请求失败: %v", err))
 	}
 	defer resp.Body.Close()
 
 	// 读取响应
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("读取响应失败: %w", err)
+		return nil, errorx.Msg(fmt.Sprintf("读取响应失败: %v", err))
 	}
 
 	// 解析响应
 	var wechatResp weChatResponse
 	if err := json.Unmarshal(respBody, &wechatResp); err != nil {
-		return nil, fmt.Errorf("解析响应失败: %w", err)
+		return nil, errorx.Msg(fmt.Sprintf("解析响应失败: %v", err))
 	}
 
 	// 检查响应结果
 	if wechatResp.ErrCode != 0 {
+		errMsg := fmt.Sprintf("企业微信返回错误码 %d: %s", wechatResp.ErrCode, wechatResp.ErrMsg)
 		return &SendResult{
 			Success:   false,
 			Message:   wechatResp.ErrMsg,
 			Timestamp: time.Now(),
-			Error:     fmt.Errorf("企业微信返回错误码 %d: %s", wechatResp.ErrCode, wechatResp.ErrMsg),
-		}, fmt.Errorf("企业微信返回错误码 %d: %s", wechatResp.ErrCode, wechatResp.ErrMsg)
+			Error:     errorx.Msg(errMsg),
+		}, errorx.Msg(errMsg)
 	}
 
 	c.l.Infof("[企业微信] 发送成功 | UUID: %s | 名称: %s", c.baseClient.GetUUID(), c.baseClient.GetName())
@@ -309,7 +356,7 @@ func (c *weChatClient) TestConnection(ctx context.Context, toEmail []string) (*T
 			Timestamp: time.Now(),
 			Error:     err,
 			Details: map[string]interface{}{
-				"webhook": c.config.Webhook,
+				"webhook": maskSensitiveURL(c.config.Webhook),
 			},
 		}, err
 	}
@@ -321,7 +368,7 @@ func (c *weChatClient) TestConnection(ctx context.Context, toEmail []string) (*T
 		Latency:   latency,
 		Timestamp: time.Now(),
 		Details: map[string]interface{}{
-			"webhook": c.config.Webhook,
+			"webhook": maskSensitiveURL(c.config.Webhook),
 		},
 	}, nil
 }
@@ -333,17 +380,17 @@ func (c *weChatClient) HealthCheck(ctx context.Context) (*HealthStatus, error) {
 			Healthy:       false,
 			Message:       "客户端已关闭",
 			LastCheckTime: time.Now(),
-		}, fmt.Errorf("客户端已关闭")
+		}, errorx.Msg("客户端已关闭")
 	}
 
 	// 检查 Webhook 地址格式
 	if c.config.Webhook == "" {
-		c.updateHealthStatus(false, fmt.Errorf("Webhook 地址为空"))
+		c.updateHealthStatus(false, errorx.Msg("Webhook 地址为空"))
 		return &HealthStatus{
 			Healthy:       false,
 			Message:       "Webhook 地址为空",
 			LastCheckTime: time.Now(),
-		}, fmt.Errorf("Webhook 地址为空")
+		}, errorx.Msg("Webhook 地址为空")
 	}
 
 	c.updateHealthStatus(true, nil)
@@ -352,4 +399,12 @@ func (c *weChatClient) HealthCheck(ctx context.Context) (*HealthStatus, error) {
 		Message:       "企业微信客户端健康",
 		LastCheckTime: time.Now(),
 	}, nil
+}
+
+// Close 关闭客户端
+func (c *weChatClient) Close() error {
+	if c.httpClient != nil {
+		c.httpClient.CloseIdleConnections()
+	}
+	return c.baseClient.Close()
 }

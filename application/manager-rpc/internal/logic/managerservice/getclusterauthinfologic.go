@@ -29,6 +29,11 @@ func NewGetClusterAuthInfoLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 
 // 通过集群uuid获取集群认证信息
 func (l *GetClusterAuthInfoLogic) GetClusterAuthInfo(in *pb.GetClusterAuthInfoReq) (*pb.GetClusterAuthInfoResp, error) {
+	// 健康检查请求，直接返回错误，不打印日志
+	if in.ClusterUuid == "__health_check__" {
+		return nil, errorx.Msg("集群认证信息不存在")
+	}
+
 	//获取认证信息
 	authInfo, err := l.svcCtx.OnecClusterAuthModel.FindOneByClusterUuid(l.ctx, in.ClusterUuid)
 	if err != nil {

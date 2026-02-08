@@ -28,33 +28,39 @@ func NewMenuGetAllMenuTreeLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 
 // MenuGetAllMenuTree 获取所有菜单树
 func (l *MenuGetAllMenuTreeLogic) MenuGetAllMenuTree(in *pb.GetAllMenuTreeReq) (*pb.GetAllMenuTreeResp, error) {
+	// 参数验证
+	if in.PlatformId == 0 {
+		l.Errorf("获取所有菜单树失败：平台ID不能为空")
+		return nil, errorx.Msg("平台ID不能为空")
+	}
+
 	// 构建查询条件
 	var query string
 	var args []interface{}
+
+	// 平台ID条件（必须）
+	query = "`platform_id` = ?"
+	args = append(args, in.PlatformId)
 
 	// 根据状态参数过滤
 	// status = 0: 只查询停用的菜单
 	// status = 1: 只查询启用的菜单
 	// status = -1 或不传: 查询所有菜单
 	if in.Status == 0 || in.Status == 1 {
-		query = "`status` = ?"
+		query += " AND `status` = ?"
 		args = append(args, in.Status)
-	} else {
-		// 查询所有菜单（不过滤状态）
-		query = ""
-		args = nil
 	}
 
 	// 查询所有符合条件的菜单数据，按sort字段升序排列
 	allMenus, err := l.svcCtx.SysMenu.SearchNoPage(l.ctx, "sort", true, query, args...)
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
-		l.Errorf("查询所有菜单失败: %v", err)
+		l.Errorf("查询所有菜单失败: platformId=%d, error=%v", in.PlatformId, err)
 		return nil, errorx.Msg("查询所有菜单失败")
 	}
 
 	// 如果没有数据，返回空结果
 	if len(allMenus) == 0 {
-		l.Infof("获取所有菜单树完成，未找到任何菜单数据")
+		l.Infof("获取所有菜单树完成，未找到任何菜单数据, platformId=%d", in.PlatformId)
 		return &pb.GetAllMenuTreeResp{
 			Data: []*pb.SysMenuTree{},
 		}, nil
@@ -78,6 +84,7 @@ func (l *MenuGetAllMenuTreeLogic) convertToPbMenuTreeList(menus []*model.SysMenu
 		pbMenu := &pb.SysMenuTree{
 			Id:            menu.Id,
 			ParentId:      menu.ParentId,
+			PlatformId:    menu.PlatformId,
 			MenuType:      menu.MenuType,
 			Name:          menu.Name,
 			Path:          menu.Path,

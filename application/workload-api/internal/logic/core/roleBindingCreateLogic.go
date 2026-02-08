@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
@@ -55,6 +56,7 @@ func (l *RoleBindingCreateLogic) RoleBindingCreate(req *types.DefaultCoreCreateR
 	if rb.Namespace == "" {
 		rb.Namespace = req.Namespace
 	}
+
 	// 获取项目详情
 	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
 		ClusterUuid: req.ClusterUuid,
@@ -72,6 +74,10 @@ func (l *RoleBindingCreateLogic) RoleBindingCreate(req *types.DefaultCoreCreateR
 			ProjectUuid:   projectDetail.ProjectUuid,
 		})
 	}
+
+	// 构建主体信息用于审计
+	subjectsSummary := l.buildSubjectsSummary(rb.Subjects)
+
 	// 创建 RoleBinding
 	createErr := rbOp.Create(&rb)
 	if createErr != nil {
@@ -80,7 +86,7 @@ func (l *RoleBindingCreateLogic) RoleBindingCreate(req *types.DefaultCoreCreateR
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "创建 RoleBinding",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 创建 RoleBinding %s 失败, 绑定角色: %s/%s, 错误原因: %v", username, rb.Namespace, rb.Name, rb.RoleRef.Kind, rb.RoleRef.Name, createErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 创建 RoleBinding %s 失败, 绑定角色: %s/%s, 主体: %s, 错误原因: %v", username, rb.Namespace, rb.Name, rb.RoleRef.Kind, rb.RoleRef.Name, subjectsSummary, createErr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("创建 RoleBinding 失败")
@@ -90,7 +96,7 @@ func (l *RoleBindingCreateLogic) RoleBindingCreate(req *types.DefaultCoreCreateR
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "创建 RoleBinding",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功创建 RoleBinding %s, 绑定角色: %s/%s", username, rb.Namespace, rb.Name, rb.RoleRef.Kind, rb.RoleRef.Name),
+		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功创建 RoleBinding %s, 绑定角色: %s/%s, 主体: %s (%d个)", username, rb.Namespace, rb.Name, rb.RoleRef.Kind, rb.RoleRef.Name, subjectsSummary, len(rb.Subjects)),
 		Status:       1,
 	})
 	if auditErr != nil {
@@ -99,4 +105,26 @@ func (l *RoleBindingCreateLogic) RoleBindingCreate(req *types.DefaultCoreCreateR
 
 	l.Infof("用户: %s, 成功创建 RoleBinding: %s/%s", username, rb.Namespace, rb.Name)
 	return "创建 RoleBinding 成功", nil
+}
+
+// buildSubjectsSummary 构建主体摘要用于审计日志
+func (l *RoleBindingCreateLogic) buildSubjectsSummary(subjects []rbacv1.Subject) string {
+	if len(subjects) == 0 {
+		return "无"
+	}
+
+	var summaries []string
+	for _, s := range subjects {
+		if s.Namespace != "" {
+			summaries = append(summaries, fmt.Sprintf("%s/%s/%s", s.Kind, s.Namespace, s.Name))
+		} else {
+			summaries = append(summaries, fmt.Sprintf("%s/%s", s.Kind, s.Name))
+		}
+	}
+
+	result := strings.Join(summaries, ", ")
+	if len(result) > 150 {
+		return result[:150] + "..."
+	}
+	return result
 }

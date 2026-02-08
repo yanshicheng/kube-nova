@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
@@ -49,6 +50,13 @@ func (l *SecretUpdateLogic) SecretUpdate(req *types.SecretRequest) (resp string,
 
 	secretClient := client.Secrets()
 
+	// 获取现有 Secret 用于对比
+	existingSecret, err := secretClient.Get(workloadInfo.Data.Namespace, req.Name)
+	if err != nil {
+		l.Errorf("获取现有 Secret 失败: %v", err)
+		return "", fmt.Errorf("获取现有 Secret 失败")
+	}
+
 	var secret corev1.Secret
 	err = yaml.Unmarshal([]byte(req.SecretYamlStr), &secret)
 	if err != nil {
@@ -60,6 +68,36 @@ func (l *SecretUpdateLogic) SecretUpdate(req *types.SecretRequest) (resp string,
 	if secret.Namespace == "" {
 		secret.Namespace = workloadInfo.Data.Namespace
 	}
+
+	// 对比 Data 变更
+	dataDiff := CompareByteMaps(existingSecret.Data, secret.Data)
+	dataChangeDetail := BuildMapDiffDetail(dataDiff, AuditDetailConfig.RecordSecretValues)
+
+	// 对比 Labels 变更
+	labelsDiff := CompareStringMaps(existingSecret.Labels, secret.Labels)
+	labelsChangeDetail := BuildMapDiffDetail(labelsDiff, false)
+
+	// 对比 Annotations 变更
+	annotationsDiff := CompareStringMaps(existingSecret.Annotations, secret.Annotations)
+	annotationsChangeDetail := BuildMapDiffDetail(annotationsDiff, false)
+
+	// 构建变更详情
+	var changeDetails []string
+	if HasMapChanges(dataDiff) {
+		changeDetails = append(changeDetails, fmt.Sprintf("Data变更: %s", dataChangeDetail))
+	}
+	if HasMapChanges(labelsDiff) {
+		changeDetails = append(changeDetails, fmt.Sprintf("Labels变更: %s", labelsChangeDetail))
+	}
+	if HasMapChanges(annotationsDiff) {
+		changeDetails = append(changeDetails, fmt.Sprintf("Annotations变更: %s", annotationsChangeDetail))
+	}
+
+	changeDetailStr := "无变更"
+	if len(changeDetails) > 0 {
+		changeDetailStr = strings.Join(changeDetails, "; ")
+	}
+
 	// 获取项目详情
 	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
 		ClusterUuid: workloadInfo.Data.ClusterUuid,
@@ -77,6 +115,7 @@ func (l *SecretUpdateLogic) SecretUpdate(req *types.SecretRequest) (resp string,
 			ProjectUuid:   projectDetail.ProjectUuid,
 		})
 	}
+
 	// 更新 Secret
 	_, updateErr := secretClient.Update(&secret)
 	if updateErr != nil {
@@ -85,7 +124,7 @@ func (l *SecretUpdateLogic) SecretUpdate(req *types.SecretRequest) (resp string,
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			WorkspaceId:  req.WorkloadId,
 			Title:        "更新 Secret",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 更新 Secret %s 失败, 类型: %s, 错误原因: %v", username, secret.Namespace, secret.Name, secret.Type, updateErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 更新 Secret %s 失败, 类型: %s, 错误原因: %v, 变更内容: %s", username, secret.Namespace, secret.Name, secret.Type, updateErr, changeDetailStr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("更新 Secret 失败")
@@ -95,7 +134,7 @@ func (l *SecretUpdateLogic) SecretUpdate(req *types.SecretRequest) (resp string,
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		WorkspaceId:  req.WorkloadId,
 		Title:        "更新 Secret",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功更新 Secret %s, 类型: %s, 更新后包含 %d 个数据项", username, secret.Namespace, secret.Name, secret.Type, len(secret.Data)),
+		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功更新 Secret %s, 类型: %s, %s", username, secret.Namespace, secret.Name, secret.Type, changeDetailStr),
 		Status:       1,
 	})
 	if auditErr != nil {

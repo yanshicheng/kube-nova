@@ -25,7 +25,7 @@ func NewIngressClassUnsetDefaultLogic(ctx context.Context, svcCtx *svc.ServiceCo
 	}
 }
 
-func (l *IngressClassUnsetDefaultLogic) IngressClassUnsetDefault(req *types.IngressClassNameRequest) (resp string, err error) {
+func (l *IngressClassUnsetDefaultLogic) IngressClassUnsetDefault(req *types.IngressClassActionRequest) (resp string, err error) {
 	username, ok := l.ctx.Value("username").(string)
 	if !ok {
 		username = "system"
@@ -38,6 +38,20 @@ func (l *IngressClassUnsetDefaultLogic) IngressClassUnsetDefault(req *types.Ingr
 	}
 
 	icOp := client.IngressClasses()
+
+	// 获取 IngressClass 信息用于审计
+	existingIC, _ := icOp.Get(req.Name)
+	var controller string
+	var wasDefault bool
+	if existingIC != nil {
+		controller = existingIC.Spec.Controller
+		if existingIC.Annotations != nil {
+			if val, ok := existingIC.Annotations["ingressclass.kubernetes.io/is-default-class"]; ok && val == "true" {
+				wasDefault = true
+			}
+		}
+	}
+
 	err = icOp.UnsetDefault(req.Name)
 	if err != nil {
 		l.Errorf("取消默认 IngressClass 失败: %v", err)
@@ -45,18 +59,30 @@ func (l *IngressClassUnsetDefaultLogic) IngressClassUnsetDefault(req *types.Ingr
 		l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "取消默认 IngressClass",
-			ActionDetail: fmt.Sprintf("取消默认 IngressClass %s 失败，错误: %v", req.Name, err),
+			ActionDetail: fmt.Sprintf("用户 %s 取消默认 IngressClass %s 失败, 错误: %v", username, req.Name, err),
 			Status:       0,
 		})
 		return "", fmt.Errorf("取消默认 IngressClass 失败")
 	}
 
 	l.Infof("用户: %s, 成功取消默认 IngressClass: %s", username, req.Name)
+
+	// 构建详细审计信息
+	var statusInfo string
+	if wasDefault {
+		statusInfo = "原状态: 默认 → 非默认"
+	} else {
+		statusInfo = "原状态: 非默认 (无变更)"
+	}
+
+	auditDetail := fmt.Sprintf("用户 %s 成功取消默认 IngressClass %s, 控制器: %s, %s",
+		username, req.Name, controller, statusInfo)
+
 	// 记录成功审计日志
 	l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "取消默认 IngressClass",
-		ActionDetail: fmt.Sprintf("取消默认 IngressClass %s 成功", req.Name),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	return "取消默认 IngressClass 成功", nil

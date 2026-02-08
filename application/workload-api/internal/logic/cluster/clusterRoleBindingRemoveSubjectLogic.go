@@ -38,6 +38,24 @@ func (l *ClusterRoleBindingRemoveSubjectLogic) ClusterRoleBindingRemoveSubject(r
 	}
 
 	crbOp := client.ClusterRoleBindings()
+
+	// 获取当前 ClusterRoleBinding 用于审计
+	existingCRB, _ := crbOp.Get(req.Name)
+	var oldSubjectCount int
+	var roleRef string
+	if existingCRB != nil {
+		oldSubjectCount = len(existingCRB.Subjects)
+		roleRef = fmt.Sprintf("%s/%s", existingCRB.RoleRef.Kind, existingCRB.RoleRef.Name)
+	}
+
+	// 格式化被移除主体用于审计
+	var subjectDetail string
+	if req.SubjectNamespace != "" {
+		subjectDetail = fmt.Sprintf("%s/%s/%s", req.SubjectKind, req.SubjectNamespace, req.SubjectName)
+	} else {
+		subjectDetail = fmt.Sprintf("%s/%s", req.SubjectKind, req.SubjectName)
+	}
+
 	err = crbOp.RemoveSubject(req.Name, req.SubjectKind, req.SubjectName, req.SubjectNamespace)
 	if err != nil {
 		l.Errorf("移除主体失败: %v", err)
@@ -45,18 +63,23 @@ func (l *ClusterRoleBindingRemoveSubjectLogic) ClusterRoleBindingRemoveSubject(r
 		l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "ClusterRoleBinding 移除主体",
-			ActionDetail: fmt.Sprintf("从 ClusterRoleBinding %s 移除主体 %s/%s 失败，错误: %v", req.Name, req.SubjectKind, req.SubjectName, err),
+			ActionDetail: fmt.Sprintf("用户 %s 从 ClusterRoleBinding %s 移除主体 %s 失败, 错误: %v", username, req.Name, subjectDetail, err),
 			Status:       0,
 		})
 		return "", fmt.Errorf("移除主体失败")
 	}
 
 	l.Infof("用户: %s, 成功从 ClusterRoleBinding %s 移除主体 %s/%s", username, req.Name, req.SubjectKind, req.SubjectName)
+
+	// 构建详细审计信息
+	auditDetail := fmt.Sprintf("用户 %s 成功从 ClusterRoleBinding %s 移除主体, 绑定角色: %s, 主体数量: %d → %d, 移除主体: %s",
+		username, req.Name, roleRef, oldSubjectCount, oldSubjectCount-1, subjectDetail)
+
 	// 记录成功审计日志
 	l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "ClusterRoleBinding 移除主体",
-		ActionDetail: fmt.Sprintf("从 ClusterRoleBinding %s 移除主体 %s/%s 成功", req.Name, req.SubjectKind, req.SubjectName),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	return "移除主体成功", nil

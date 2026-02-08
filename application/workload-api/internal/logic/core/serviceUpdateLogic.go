@@ -10,6 +10,7 @@ import (
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/types"
 	"github.com/yanshicheng/kube-nova/common/utils"
 	"github.com/zeromicro/go-zero/core/logx"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type ServiceUpdateLogic struct {
@@ -57,6 +58,9 @@ func (l *ServiceUpdateLogic) ServiceUpdate(req *types.ServiceRequest) (resp stri
 		return "", fmt.Errorf("获取现有 Service 失败")
 	}
 
+	// 提取现有 Service 的端口信息用于对比
+	oldPorts := l.extractServicePorts(existingSvc)
+
 	// 构建新的 Service 对象
 	createLogic := NewServiceCreateLogic(l.ctx, l.svcCtx)
 	updatedSvc := createLogic.buildServiceFromRequest(req, workloadInfo.Data.Namespace)
@@ -73,8 +77,40 @@ func (l *ServiceUpdateLogic) ServiceUpdate(req *types.ServiceRequest) (resp stri
 		}
 	}
 
-	// 构建端口信息用于审计
-	portInfo := l.buildPortInfo(req.Ports)
+	// 对比变更
+	var changeDetails []string
+
+	// 类型变更
+	if string(existingSvc.Spec.Type) != req.Type {
+		changeDetails = append(changeDetails, fmt.Sprintf("类型: %s → %s", existingSvc.Spec.Type, req.Type))
+	}
+
+	// 端口变更
+	portDiff := CompareServicePorts(oldPorts, req.Ports)
+	portChangeDetail := BuildPortDiffDetail(portDiff)
+	if portChangeDetail != "端口无变更" && portChangeDetail != "" {
+		changeDetails = append(changeDetails, portChangeDetail)
+	}
+
+	// 选择器变更
+	selectorDiff := CompareStringMaps(existingSvc.Spec.Selector, req.Selector)
+	if HasMapChanges(selectorDiff) {
+		selectorChangeDetail := BuildMapDiffDetail(selectorDiff, true)
+		changeDetails = append(changeDetails, fmt.Sprintf("选择器变更: %s", selectorChangeDetail))
+	}
+
+	// Labels 变更
+	labelsDiff := CompareStringMaps(existingSvc.Labels, req.Labels)
+	if HasMapChanges(labelsDiff) {
+		labelsChangeDetail := BuildMapDiffDetail(labelsDiff, false)
+		changeDetails = append(changeDetails, fmt.Sprintf("Labels变更: %s", labelsChangeDetail))
+	}
+
+	changeDetailStr := "无变更"
+	if len(changeDetails) > 0 {
+		changeDetailStr = strings.Join(changeDetails, "; ")
+	}
+
 	// 获取项目详情
 	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
 		ClusterUuid: workloadInfo.Data.ClusterUuid,
@@ -92,6 +128,7 @@ func (l *ServiceUpdateLogic) ServiceUpdate(req *types.ServiceRequest) (resp stri
 			ProjectUuid:   projectDetail.ProjectUuid,
 		})
 	}
+
 	// 执行更新
 	_, updateErr := serviceClient.Update(updatedSvc)
 	if updateErr != nil {
@@ -100,7 +137,7 @@ func (l *ServiceUpdateLogic) ServiceUpdate(req *types.ServiceRequest) (resp stri
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			WorkspaceId:  req.WorkloadId,
 			Title:        "更新 Service",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 更新 Service %s 失败, 类型: %s, 端口: %s, 错误原因: %v", username, workloadInfo.Data.Namespace, req.Name, req.Type, portInfo, updateErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 更新 Service %s 失败, 错误原因: %v, 变更内容: %s", username, workloadInfo.Data.Namespace, req.Name, updateErr, changeDetailStr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("更新 Service 失败: %v", updateErr)
@@ -110,7 +147,7 @@ func (l *ServiceUpdateLogic) ServiceUpdate(req *types.ServiceRequest) (resp stri
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		WorkspaceId:  req.WorkloadId,
 		Title:        "更新 Service",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功更新 Service %s, 类型: %s, 端口: %s", username, workloadInfo.Data.Namespace, req.Name, req.Type, portInfo),
+		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功更新 Service %s, %s", username, workloadInfo.Data.Namespace, req.Name, changeDetailStr),
 		Status:       1,
 	})
 	if auditErr != nil {
@@ -119,6 +156,21 @@ func (l *ServiceUpdateLogic) ServiceUpdate(req *types.ServiceRequest) (resp stri
 
 	l.Infof("成功更新 Service: %s", req.Name)
 	return "更新成功", nil
+}
+
+// extractServicePorts 从 k8s Service 提取端口信息
+func (l *ServiceUpdateLogic) extractServicePorts(svc *corev1.Service) []types.ServicePort {
+	var ports []types.ServicePort
+	for _, p := range svc.Spec.Ports {
+		ports = append(ports, types.ServicePort{
+			Name:       p.Name,
+			Protocol:   string(p.Protocol),
+			Port:       p.Port,
+			TargetPort: p.TargetPort.String(),
+			NodePort:   p.NodePort,
+		})
+	}
+	return ports
 }
 
 // buildPortInfo 构建端口信息字符串用于审计日志

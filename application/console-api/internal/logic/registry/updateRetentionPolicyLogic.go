@@ -24,7 +24,8 @@ func NewUpdateRetentionPolicyLogic(ctx context.Context, svcCtx *svc.ServiceConte
 	}
 }
 
-func (l *UpdateRetentionPolicyLogic) UpdateRetentionPolicy(req *types.UpdateRetentionPolicyRequest) (resp string, err error) {
+func (l *UpdateRetentionPolicyLogic) UpdateRetentionPolicy(req *types.UpdateRetentionPolicyRequest) (resp *types.UpdateRetentionPolicyResponse, err error) {
+	// 转换规则
 	var rules []*pb.RetentionRule
 	for _, rule := range req.Rules {
 		rules = append(rules, &pb.RetentionRule{
@@ -39,18 +40,46 @@ func (l *UpdateRetentionPolicyLogic) UpdateRetentionPolicy(req *types.UpdateRete
 		})
 	}
 
-	_, err = l.svcCtx.RepositoryRpc.UpdateRetentionPolicy(l.ctx, &pb.UpdateRetentionPolicyReq{
+	if req.PolicyId <= 0 {
+		l.Infof("PolicyId 为空，将创建新策略: project=%s", req.ProjectName)
+
+		// 调用创建接口
+		createResp, err := l.svcCtx.RepositoryRpc.CreateRetentionPolicy(l.ctx, &pb.CreateRetentionPolicyReq{
+			RegistryUuid: req.RegistryUuid,
+			ProjectName:  req.ProjectName,
+			Algorithm:    req.Algorithm,
+			Rules:        rules,
+			Schedule:     req.Schedule,
+		})
+		if err != nil {
+			l.Errorf("RPC创建调用失败: %v", err)
+			return nil, err
+		}
+
+		l.Infof("保留策略创建成功: PolicyId=%d", createResp.Id)
+		return &types.UpdateRetentionPolicyResponse{
+			Id:      createResp.Id,
+			Message: "保留策略创建成功",
+		}, nil
+	}
+
+	// PolicyId > 0，执行更新操作
+	updateResp, err := l.svcCtx.RepositoryRpc.UpdateRetentionPolicy(l.ctx, &pb.UpdateRetentionPolicyReq{
 		RegistryUuid: req.RegistryUuid,
+		ProjectName:  req.ProjectName,
 		PolicyId:     req.PolicyId,
 		Algorithm:    req.Algorithm,
 		Rules:        rules,
 		Schedule:     req.Schedule,
 	})
 	if err != nil {
-		l.Errorf("RPC调用失败: %v", err)
-		return "", err
+		l.Errorf("RPC更新调用失败: %v", err)
+		return nil, err
 	}
 
 	l.Infof("保留策略更新成功: PolicyId=%d", req.PolicyId)
-	return "保留策略更新成功", nil
+	return &types.UpdateRetentionPolicyResponse{
+		Id:      updateResp.Id,
+		Message: "保留策略更新成功",
+	}, nil
 }

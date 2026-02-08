@@ -32,6 +32,11 @@ func NewMenuAddLogic(ctx context.Context, svcCtx *svc.ServiceContext) *MenuAddLo
 // -----------------------系统菜单表-----------------------
 func (l *MenuAddLogic) MenuAdd(in *pb.AddSysMenuReq) (*pb.AddSysMenuResp, error) {
 	// 参数验证
+	if in.PlatformId == 0 {
+		l.Errorf("添加菜单失败：平台ID不能为空")
+		return nil, errorx.Msg("平台ID不能为空")
+	}
+
 	if in.Name == "" {
 		l.Errorf("添加菜单失败：菜单名称不能为空")
 		return nil, errorx.Msg("菜单名称不能为空")
@@ -48,9 +53,9 @@ func (l *MenuAddLogic) MenuAdd(in *pb.AddSysMenuReq) (*pb.AddSysMenuResp, error)
 		return nil, errorx.Msg("无效的菜单类型，必须是1(目录)、2(菜单)或3(按钮)")
 	}
 
-	// 如果有父菜单，验证父菜单是否存在
+	// 如果有父菜单，验证父菜单是否存在且属于同一平台
 	if in.ParentId > 0 {
-		_, err := l.svcCtx.SysMenu.FindOne(l.ctx, in.ParentId)
+		parentMenu, err := l.svcCtx.SysMenu.FindOne(l.ctx, in.ParentId)
 		if err != nil {
 			if errors.Is(err, model.ErrNotFound) {
 				l.Errorf("添加菜单失败：父菜单不存在, parentId: %d", in.ParentId)
@@ -59,11 +64,20 @@ func (l *MenuAddLogic) MenuAdd(in *pb.AddSysMenuReq) (*pb.AddSysMenuResp, error)
 			l.Errorf("查询父菜单失败: %v", err)
 			return nil, errorx.Msg("查询父菜单失败")
 		}
+		// 验证父菜单是否属于同一平台
+		if parentMenu.PlatformId != in.PlatformId {
+			l.Errorf("添加菜单失败：父菜单不属于同一平台, parentId: %d, parentPlatformId: %d, platformId: %d",
+				in.ParentId, parentMenu.PlatformId, in.PlatformId)
+			return nil, errorx.Msg("父菜单不属于同一平台")
+		}
 	}
 
-	// 检查同级菜单名称是否重复
+	// 检查同级菜单名称是否重复（同一平台下）
 	var conditions []string
 	var args []interface{}
+
+	conditions = append(conditions, "`platform_id` = ? AND")
+	args = append(args, in.PlatformId)
 
 	conditions = append(conditions, "`parent_id` = ? AND")
 	args = append(args, in.ParentId)
@@ -77,27 +91,27 @@ func (l *MenuAddLogic) MenuAdd(in *pb.AddSysMenuReq) (*pb.AddSysMenuResp, error)
 	query := utils.RemoveQueryADN(conditions)
 	existingMenus, err := l.svcCtx.SysMenu.SearchNoPage(l.ctx, "", true, query, args...)
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
-		l.Errorf("检查菜单名称重复失败: %v", err)
+		l.Errorf("检查菜单名称重复失败: platformId=%d, error=%v", in.PlatformId, err)
 		return nil, errorx.Msg("检查菜单名称重复失败")
 	}
 	if len(existingMenus) > 0 {
-		l.Errorf("添加菜单失败：同级菜单名称已存在, name: %s, parentId: %d", in.Name, in.ParentId)
+		l.Errorf("添加菜单失败：同级菜单名称已存在, name: %s, parentId: %d, platformId: %d", in.Name, in.ParentId, in.PlatformId)
 		return nil, errorx.Msg("同级菜单名称已存在")
 	}
 
-	// 如果是菜单类型，检查路由name是否重复
+	// 如果是菜单类型，检查路由name是否重复（同一平台下）
 	if in.MenuType == 2 && in.Name != "" {
-		routeConditions := []string{"`name` = ? AND `menu_type` = ? AND"}
-		routeArgs := []interface{}{in.Name, 2}
+		routeConditions := []string{"`platform_id` = ? AND `name` = ? AND `menu_type` = ? AND"}
+		routeArgs := []interface{}{in.PlatformId, in.Name, 2}
 		routeQuery := utils.RemoveQueryADN(routeConditions)
 
 		existingRoutes, err := l.svcCtx.SysMenu.SearchNoPage(l.ctx, "", true, routeQuery, routeArgs...)
 		if err != nil && !errors.Is(err, model.ErrNotFound) {
-			l.Errorf("检查路由名称重复失败: %v", err)
+			l.Errorf("检查路由名称重复失败: platformId=%d, error=%v", in.PlatformId, err)
 			return nil, errorx.Msg("检查路由名称重复失败")
 		}
 		if len(existingRoutes) > 0 {
-			l.Errorf("添加菜单失败：路由名称已存在, name: %s", in.Name)
+			l.Errorf("添加菜单失败：路由名称已存在, name: %s, platformId: %d", in.Name, in.PlatformId)
 			return nil, errorx.Msg("路由名称已存在")
 		}
 	}
@@ -106,6 +120,7 @@ func (l *MenuAddLogic) MenuAdd(in *pb.AddSysMenuReq) (*pb.AddSysMenuResp, error)
 	now := time.Now()
 	menu := &model.SysMenu{
 		ParentId:      in.ParentId,
+		PlatformId:    in.PlatformId,
 		MenuType:      in.MenuType,
 		Name:          in.Name,
 		Path:          in.Path,
@@ -143,11 +158,11 @@ func (l *MenuAddLogic) MenuAdd(in *pb.AddSysMenuReq) (*pb.AddSysMenuResp, error)
 	// 保存到数据库
 	_, err = l.svcCtx.SysMenu.Insert(l.ctx, menu)
 	if err != nil {
-		l.Errorf("添加菜单失败: %v", err)
+		l.Errorf("添加菜单失败: platformId=%d, error=%v", in.PlatformId, err)
 		return nil, errorx.Msg("添加菜单失败")
 	}
 
-	l.Infof("添加菜单成功，菜单名称: %s, 菜单类型: %d, 创建人: %s",
-		in.Name, in.MenuType, in.CreateBy)
+	l.Infof("添加菜单成功，菜单名称: %s, 菜单类型: %d, 平台ID: %d, 创建人: %s",
+		in.Name, in.MenuType, in.PlatformId, in.CreateBy)
 	return &pb.AddSysMenuResp{}, nil
 }

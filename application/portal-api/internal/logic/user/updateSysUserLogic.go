@@ -41,6 +41,9 @@ func (l *UpdateSysUserLogic) UpdateSysUser(req *types.UpdateSysUserRequest) (res
 		DeptId:         req.DeptId,
 		Status:         req.Status,
 		IsNeedResetPwd: req.IsNeedResetPwd,
+		DingtalkId:     req.DingtalkId,
+		WechatId:       req.WechatId,
+		FeishuId:       req.FeishuId,
 		UpdatedBy:      username,
 	})
 	if err != nil {

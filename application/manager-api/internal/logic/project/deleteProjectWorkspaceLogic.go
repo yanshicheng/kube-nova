@@ -61,7 +61,7 @@ func (l *DeleteProjectWorkspaceLogic) DeleteProjectWorkspace(req *types.DefaultI
 		username, req.Id, workspaceName, namespace, clusterUuid)
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  clusterUuid,
-		WorkspaceId:  uint64(req.Id),
+		WorkspaceId:  uint64(0),
 		Title:        "删除项目工作空间",
 		ActionDetail: actionDetail,
 		Status:       auditStatus,

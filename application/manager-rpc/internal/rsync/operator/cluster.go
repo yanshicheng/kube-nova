@@ -498,8 +498,7 @@ func (s *ClusterResourceSync) SyncClusterNodes(ctx context.Context, clusterUuid 
 
 	if addedCount == 0 && updatedCount == 0 && deletedCount == 0 && failedCount == 0 {
 		// 无任何变化
-		auditContent = fmt.Sprintf("集群[%s]节点同步完成: 无变化, K8s节点数=%d, 数据库节点数=%d, 耗时=%v",
-			onecCluster.Name, len(nodeListResp.Items), len(existingNodes), duration)
+		auditContent = ""
 	} else {
 		// 有变化
 		auditContent = s.buildNodeSyncSummaryAudit(onecCluster.Name, addedCount, updatedCount, deletedCount, failedCount,
@@ -509,8 +508,9 @@ func (s *ClusterResourceSync) SyncClusterNodes(ctx context.Context, clusterUuid 
 			status = 2 // 部分失败
 		}
 	}
-
-	s.writeClusterAuditLog(ctx, clusterUuid, operator, auditContent, "节点同步完成", status)
+	if auditContent != "" {
+		s.writeClusterAuditLog(ctx, clusterUuid, operator, auditContent, "节点同步完成", status)
+	}
 
 	// 更新状态
 	if failedCount > 0 {

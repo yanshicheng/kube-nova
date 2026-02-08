@@ -108,6 +108,7 @@ func (l *ProjectWorkspaceAddLogic) ProjectWorkspaceAdd(in *pb.AddOnecProjectWork
 		ContainerDefaultRequestMemory:           in.ContainerDefaultRequestMemory,
 		ContainerDefaultRequestEphemeralStorage: in.ContainerDefaultRequestEphemeralStorage,
 		AppCreateTime:                           time.Now(),
+		Status:                                  1,
 	}
 	works, err := l.svcCtx.OnecProjectWorkspaceModel.Insert(l.ctx, &workspace)
 	if err != nil {
@@ -140,7 +141,13 @@ func (l *ProjectWorkspaceAddLogic) ProjectWorkspaceAdd(in *pb.AddOnecProjectWork
 			Labels: map[string]string{},
 		},
 	}
-
+	// 注入注解
+	utils.AddAnnotations(&namespace.ObjectMeta, &utils.AnnotationsInfo{
+		ProjectUuid:   project.Uuid,
+		ProjectName:   project.Name,
+		WorkspaceName: workspace.Name,
+		ServiceName:   namespace.Name,
+	})
 	// 调用 Namespace 操作器创建命名空间
 	createdNs, err := client.Namespaces().Create(namespace)
 	if err != nil {
@@ -154,12 +161,7 @@ func (l *ProjectWorkspaceAddLogic) ProjectWorkspaceAdd(in *pb.AddOnecProjectWork
 
 		return nil, fmt.Errorf("创建命名空间失败: %v", err)
 	}
-	// 注入注解
-	utils.AddAnnotations(&createdNs.ObjectMeta, &utils.AnnotationsInfo{
-		ProjectUuid:   project.Uuid,
-		ProjectName:   project.Name,
-		WorkspaceName: workspace.Name,
-	})
+
 	l.Infof("成功创建命名空间: name=%s, uid=%s, creationTime=%s",
 		createdNs.Name, createdNs.UID, createdNs.CreationTimestamp)
 	// 创建 资源限制
@@ -169,7 +171,7 @@ func (l *ProjectWorkspaceAddLogic) ProjectWorkspaceAdd(in *pb.AddOnecProjectWork
 		Annotations:               createdNs.Annotations,
 		Name:                      fmt.Sprintf("ikubeops-%s", in.Namespace),
 		CPUAllocated:              in.CpuAllocated,
-		MemoryAllocated:           in.PodMinMemory,
+		MemoryAllocated:           in.MemAllocated,
 		StorageAllocated:          in.StorageAllocated,
 		GPUAllocated:              in.GpuAllocated,
 		EphemeralStorageAllocated: in.EphemeralStorageAllocated,
@@ -236,7 +238,18 @@ func (l *ProjectWorkspaceAddLogic) ProjectWorkspaceAdd(in *pb.AddOnecProjectWork
 			in.Name, in.Namespace, err)
 		return nil, fmt.Errorf("创建或更新LimitRange失败: %v", err)
 	}
+	// 调用 OnecProjectModel 的同步方法
+	err = l.svcCtx.OnecProjectModel.SyncProjectClusterResourceAllocation(l.ctx, projectCluster.Id)
+	if err != nil {
+		l.Errorf("更新项目集群资源失败，项目集群ID: %d, 错误: %v", projectCluster.Id, err)
+	} else {
+		l.Infof("更新项目集群资源成功，项目集群ID: %d", projectCluster.Id)
 
+		// 3. 清除项目集群缓存 - 需要项目集群ID
+		if err := l.svcCtx.OnecProjectClusterModel.DeleteCache(l.ctx, projectCluster.Id); err != nil {
+			l.Errorf("清除项目集群缓存失败，项目集群ID: %d, 错误: %v", projectCluster.Id, err)
+		}
+	}
 	return &pb.AddOnecProjectWorkspaceResp{
 		Id: uint64(id),
 	}, nil

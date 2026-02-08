@@ -6,18 +6,19 @@ import (
 
 const (
 	// ============ 基础信息 ============
-	AnnotationServiceName = "ikubeops.com/service-name" // 中文名
-	AnnotationProject     = "ikubeops.com/project"      // 所属项目
-	AnnotationPlatform    = "ikubeops.com/platform"     // 创建平台
-	AnnotationHomepage    = "ikubeops.com/homepage"     // 官网地址
-	AnnotationApplication = "ikubeops.com/application"  // 所属服务
+	AnnotationServiceName   = "ikubeops.com/service-name"   // 中文名
+	AnnotationProject       = "ikubeops.com/project"        // 所属项目
+	AnnotationPlatform      = "ikubeops.com/platform"       // 创建平台
+	AnnotationHomepage      = "ikubeops.com/homepage"       // 官网地址
+	AnnotationApplication   = "ikubeops.com/application"    // 所属服务
+	AnnotationApplicationEn = "ikubeops.com/application-en" // 所属服务
 	// 所属应用
 	AnnotationApplicationName = "ikubeops.com/owned-by-app"
 	// ============ 操作信息 ============
 	AnnotationCreatedBy = "ikubeops.com/created-by" // 创建者
 	AnnotationUpdatedBy = "ikubeops.com/updated-by" // 更新者
 	// AnnotationManagedBy 标识资源管理者（可选，用于区分来源）
-	AnnotationManagedBy = "ikubeops.com/managed-by"
+	AnnotationManagedBy = "kube-nova"
 
 	// ManagedByPlatform 平台管理标识值
 	ManagedByPlatform = "kube-nova"
@@ -42,13 +43,15 @@ const (
 )
 
 type AnnotationsInfo struct {
-	ServiceName   string
-	ProjectName   string
-	Version       string
-	Description   string
-	ProjectUuid   string
-	WorkspaceName string
-	OwnedByApp    string
+	ServiceName     string
+	ProjectName     string
+	ProjectUuid     string
+	ApplicationName string
+	ApplicationEn   string
+	Version         string
+	Description     string
+	WorkspaceName   string
+	OwnedByApp      string
 }
 
 // addAnnotations 添加或更新注解（保留原有注解）
@@ -56,7 +59,8 @@ func AddAnnotations(meta *metav1.ObjectMeta, info *AnnotationsInfo) {
 	if meta.Annotations == nil {
 		meta.Annotations = make(map[string]string)
 	}
-
+	meta.Annotations[AnnotationApplication] = info.ApplicationName
+	meta.Annotations[AnnotationApplicationEn] = info.ApplicationEn
 	meta.Annotations[AnnotationAuthorWebsite] = PlatformWebsite
 	meta.Annotations[AnnotationAuthor] = AuthorName
 	meta.Annotations[AnnotationAuthorEmail] = AuthorEmail

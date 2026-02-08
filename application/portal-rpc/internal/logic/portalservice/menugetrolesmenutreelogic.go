@@ -30,6 +30,11 @@ func NewMenuGetRolesMenuTreeLogic(ctx context.Context, svcCtx *svc.ServiceContex
 // MenuGetRolesMenuTree 根据角色编码获取菜单树状结构
 func (l *MenuGetRolesMenuTreeLogic) MenuGetRolesMenuTree(in *pb.GetRolesMenuTreeReq) (*pb.GetRolesMenuTreeResp, error) {
 	// 参数验证
+	if in.PlatformId == 0 {
+		l.Errorf("获取角色菜单树失败：平台ID不能为空")
+		return nil, errorx.Msg("平台ID不能为空")
+	}
+
 	if len(in.RoleCodes) == 0 {
 		l.Errorf("获取角色菜单树失败：角色编码列表不能为空")
 		return nil, errorx.Msg("角色编码列表不能为空")
@@ -40,18 +45,18 @@ func (l *MenuGetRolesMenuTreeLogic) MenuGetRolesMenuTree(in *pb.GetRolesMenuTree
 
 	// 检查是否包含超级管理员角色
 	if l.isSuperAdmin(in.RoleCodes) {
-		l.Infof("检测到超级管理员角色，返回所有启用的菜单")
-		// 如果是超级管理员，获取所有启用的菜单
-		menus, err = l.getAllEnabledMenus()
+		l.Infof("检测到超级管理员角色，返回所有启用的菜单, platformId=%d", in.PlatformId)
+		// 如果是超级管理员，获取所有启用的菜单（指定平台）
+		menus, err = l.getAllEnabledMenus(in.PlatformId)
 		if err != nil {
-			l.Errorf("获取所有启用菜单失败: %v", err)
+			l.Errorf("获取所有启用菜单失败: platformId=%d, error=%v", in.PlatformId, err)
 			return nil, errorx.Msg("获取所有启用菜单失败")
 		}
 	} else {
-		// 普通角色，按照角色权限获取菜单
-		menus, err = l.getMenusByRoleCodes(in.RoleCodes)
+		// 普通角色，按照角色权限获取菜单（指定平台）
+		menus, err = l.getMenusByRoleCodes(in.RoleCodes, in.PlatformId)
 		if err != nil {
-			l.Errorf("根据角色获取菜单失败: %v", err)
+			l.Errorf("根据角色获取菜单失败: platformId=%d, error=%v", in.PlatformId, err)
 			return nil, errorx.Msg("根据角色获取菜单失败")
 		}
 	}
@@ -88,14 +93,14 @@ func (l *MenuGetRolesMenuTreeLogic) isSuperAdmin(roleCodes []string) bool {
 	return false
 }
 
-// getAllEnabledMenus 获取所有启用的菜单（超级管理员使用）
-func (l *MenuGetRolesMenuTreeLogic) getAllEnabledMenus() ([]*model.SysMenu, error) {
-	// 查询所有启用状态(status=1)且可见(is_enable=1)的菜单
+// getAllEnabledMenus 获取所有启用的菜单（超级管理员使用，指定平台）
+func (l *MenuGetRolesMenuTreeLogic) getAllEnabledMenus(platformId uint64) ([]*model.SysMenu, error) {
+	// 查询所有启用状态(status=1)且可见(is_enable=1)的菜单（指定平台）
 	// 这里使用SearchNoPage方法，按sort字段升序排序
-	menus, err := l.svcCtx.SysMenu.SearchNoPage(l.ctx, "sort", true, "`status` = ? AND `is_enable` = ?", 1, 1)
+	menus, err := l.svcCtx.SysMenu.SearchNoPage(l.ctx, "sort", true, "`platform_id` = ? AND `status` = ? AND `is_enable` = ?", platformId, 1, 1)
 	if err != nil {
 		if errors.Is(err, model.ErrNotFound) {
-			l.Infof("系统中没有启用的菜单")
+			l.Infof("系统中没有启用的菜单, platformId=%d", platformId)
 			return []*model.SysMenu{}, nil
 		}
 		return nil, err
@@ -104,8 +109,8 @@ func (l *MenuGetRolesMenuTreeLogic) getAllEnabledMenus() ([]*model.SysMenu, erro
 	return menus, nil
 }
 
-// getMenusByRoleCodes 根据角色编码获取菜单（普通角色使用）
-func (l *MenuGetRolesMenuTreeLogic) getMenusByRoleCodes(roleCodes []string) ([]*model.SysMenu, error) {
+// getMenusByRoleCodes 根据角色编码获取菜单（普通角色使用，指定平台）
+func (l *MenuGetRolesMenuTreeLogic) getMenusByRoleCodes(roleCodes []string, platformId uint64) ([]*model.SysMenu, error) {
 	// 根据角色编码获取角色ID列表
 	roleIds, err := l.getRoleIdsByCodes(roleCodes)
 	if err != nil {
@@ -130,10 +135,10 @@ func (l *MenuGetRolesMenuTreeLogic) getMenusByRoleCodes(roleCodes []string) ([]*
 		return []*model.SysMenu{}, nil
 	}
 
-	// 根据菜单ID列表获取菜单详情
-	menus, err := l.getMenusByIds(menuIds)
+	// 根据菜单ID列表获取菜单详情（过滤指定平台）
+	menus, err := l.getMenusByIds(menuIds, platformId)
 	if err != nil {
-		l.Errorf("根据菜单ID获取菜单详情失败: %v", err)
+		l.Errorf("根据菜单ID获取菜单详情失败: platformId=%d, error=%v", platformId, err)
 		return nil, err
 	}
 
@@ -187,8 +192,8 @@ func (l *MenuGetRolesMenuTreeLogic) getMenuIdsByRoleIds(roleIds []uint64) ([]uin
 	return menuIds, nil
 }
 
-// getMenusByIds 根据菜单ID列表获取菜单详情
-func (l *MenuGetRolesMenuTreeLogic) getMenusByIds(menuIds []uint64) ([]*model.SysMenu, error) {
+// getMenusByIds 根据菜单ID列表获取菜单详情（过滤指定平台）
+func (l *MenuGetRolesMenuTreeLogic) getMenusByIds(menuIds []uint64, platformId uint64) ([]*model.SysMenu, error) {
 	var menus []*model.SysMenu
 
 	for _, menuId := range menuIds {
@@ -200,7 +205,10 @@ func (l *MenuGetRolesMenuTreeLogic) getMenusByIds(menuIds []uint64) ([]*model.Sy
 			}
 			return nil, err
 		}
-		menus = append(menus, menu)
+		// 只返回指定平台的菜单
+		if menu.PlatformId == platformId {
+			menus = append(menus, menu)
+		}
 	}
 
 	return menus, nil
@@ -237,6 +245,7 @@ func (l *MenuGetRolesMenuTreeLogic) convertToPbMenuTreeList(menus []*model.SysMe
 		pbMenu := &pb.SysMenuTree{
 			Id:            menu.Id,
 			ParentId:      menu.ParentId,
+			PlatformId:    menu.PlatformId,
 			MenuType:      menu.MenuType,
 			Name:          menu.Name,
 			Path:          menu.Path,

@@ -34,9 +34,9 @@ func (l *UpdateProjectQuotaLogic) UpdateProjectQuota(req *types.UpdateProjectQuo
 	_, err = l.svcCtx.RepositoryRpc.UpdateProjectQuota(l.ctx, &repositoryservice.UpdateProjectQuotaReq{
 		RegistryUuid: req.RegistryUuid,
 		ProjectName:  req.ProjectName,
-		//StorageLimit: req.StorageLimit,
-		//StorageUnit:  storageUnit,
-		CountLimit: req.CountLimit,
+		StorageLimit: req.StorageLimit,
+		StorageUnit:  storageUnit,
+		CountLimit:   req.CountLimit,
 	})
 	if err != nil {
 		l.Errorf("RPC调用失败: %v", err)

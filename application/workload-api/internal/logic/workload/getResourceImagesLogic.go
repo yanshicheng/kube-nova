@@ -26,7 +26,8 @@ func NewGetResourceImagesLogic(ctx context.Context, svcCtx *svc.ServiceContext) 
 	}
 }
 
-func (l *GetResourceImagesLogic) GetResourceImages(req *types.DefaultIdRequest) (resp *types.ContainerInfoList, err error) {
+// GetResourceImages 查询资源使用的镜像（返回新格式 CommContainerInfoList）
+func (l *GetResourceImagesLogic) GetResourceImages(req *types.DefaultIdRequest) (resp *types.CommContainerInfoList, err error) {
 	client, versionDetail, err := getResourceClusterClient(l.ctx, l.svcCtx, req.Id)
 	if err != nil {
 		l.Errorf("获取集群客户端失败: %v", err)
@@ -55,38 +56,43 @@ func (l *GetResourceImagesLogic) GetResourceImages(req *types.DefaultIdRequest) 
 		return nil, fmt.Errorf("获取容器镜像失败")
 	}
 
-	resp = l.convertToContainerInfoList(containerInfoList)
+	// 转换为新的扁平化格式
+	resp = l.convertToCommContainerInfoList(containerInfoList)
 	return resp, nil
 }
 
-func (l *GetResourceImagesLogic) convertToContainerInfoList(container *types2.ContainerInfoList) *types.ContainerInfoList {
-	initContainers := make([]types.ContainerInfo, 0, len(container.InitContainers))
+// convertToCommContainerInfoList 将旧格式转换为新的扁平化格式
+func (l *GetResourceImagesLogic) convertToCommContainerInfoList(container *types2.ContainerInfoList) *types.CommContainerInfoList {
+	result := &types.CommContainerInfoList{
+		Containers: make([]types.CommContainerImageInfo, 0),
+	}
+
+	// 添加 init 容器
 	for _, c := range container.InitContainers {
-		initContainers = append(initContainers, types.ContainerInfo{
-			Name:  c.Name,
-			Image: c.Image,
+		result.Containers = append(result.Containers, types.CommContainerImageInfo{
+			ContainerName: c.Name,
+			ContainerType: "init",
+			Image:         c.Image,
 		})
 	}
 
-	containersList := make([]types.ContainerInfo, 0, len(container.Containers))
+	// 添加主容器
 	for _, c := range container.Containers {
-		containersList = append(containersList, types.ContainerInfo{
-			Name:  c.Name,
-			Image: c.Image,
+		result.Containers = append(result.Containers, types.CommContainerImageInfo{
+			ContainerName: c.Name,
+			ContainerType: "main",
+			Image:         c.Image,
 		})
 	}
 
-	ephemeralContainers := make([]types.ContainerInfo, 0, len(container.EphemeralContainers))
+	// 添加临时容器
 	for _, c := range container.EphemeralContainers {
-		ephemeralContainers = append(ephemeralContainers, types.ContainerInfo{
-			Name:  c.Name,
-			Image: c.Image,
+		result.Containers = append(result.Containers, types.CommContainerImageInfo{
+			ContainerName: c.Name,
+			ContainerType: "ephemeral",
+			Image:         c.Image,
 		})
 	}
 
-	return &types.ContainerInfoList{
-		InitContainers:      initContainers,
-		Containers:          containersList,
-		EphemeralContainers: ephemeralContainers,
-	}
+	return result
 }

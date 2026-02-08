@@ -2,7 +2,6 @@ package svc
 
 import (
 	"log"
-	"time"
 
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/authz"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/config"
@@ -29,9 +28,12 @@ type ServiceContext struct {
 	SysRoleApi                   model.SysRoleApiModel              `json:"SysRoleApi,omitempty"`
 	SysToken                     model.SysTokenModel                `json:"SysToken,omitempty"`
 	SysMenu                      model.SysMenuModel                 `json:"SysMenu,omitempty"`
+	SysMenuModel                 model.SysMenuModel                 `json:"SysMenuModel,omitempty"`
 	SysRoleMenu                  model.SysRoleMenuModel             `json:"SysRoleMenu,omitempty"`
 	SysLoginLog                  model.SysLoginLogModel             `json:"SysLoginLog,omitempty"`
 	SysDept                      model.SysDeptModel                 `json:"SysDept,omitempty"`
+	SysPlatformModel             model.SysPlatformModel             `json:"SysPlatformModel,omitempty"`
+	SysUserPlatformModel         model.SysUserPlatformModel         `json:"SysUserPlatformModel,omitempty"`
 	SiteMessagesModel            model.SiteMessagesModel            `json:"SiteMessagesModel,omitempty"`
 	AlertChannelsModel           model.AlertChannelsModel           `json:"Model.AlertChannelsModel,omitempty"`
 	AlertGroupsModel             model.AlertGroupsModel             `json:"Model.AlertGroupsModel,omitempty"`
@@ -46,8 +48,11 @@ type ServiceContext struct {
 	// 告警通知管理器
 	AlertManager notification2.Manager `json:"AlertManager,omitempty"`
 
-	// 消息推送器 (新增)
+	// 消息推送器
 	MessagePusher *message.MessagePusher `json:"MessagePusher,omitempty"`
+
+	// 告警聚合器服务（支持 K8s Leader Election 和 Redis 降级）
+	AggregatorService *notification2.AggregatorService `json:"AggregatorService,omitempty"`
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -92,6 +97,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	sysLoginLog := model.NewSysLoginLogModel(sqlConn, c.DBCache)
 	sysToken := model.NewSysTokenModel(sqlConn, c.DBCache)
 	sysDept := model.NewSysDeptModel(sqlConn, c.DBCache)
+	sysPlatform := model.NewSysPlatformModel(sqlConn, c.DBCache)
+	sysUserPlatform := model.NewSysUserPlatformModel(sqlConn, c.DBCache)
 	siteMessagesModel := model.NewSiteMessagesModel(sqlConn, c.DBCache)
 	alertChannelsModel := model.NewAlertChannelsModel(sqlConn, c.DBCache)
 	alertGroupsModel := model.NewAlertGroupsModel(sqlConn, c.DBCache)
@@ -110,10 +117,29 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		log.Fatalf("初始化 RBAC 管理器失败: %v", err)
 	}
 
-	// 初始化消息推送器 (新增)
+	// 初始化消息推送器
 	messagePusher := message.NewMessagePusher(rdb)
 
-	// 初始化告警管理器
+	// 创建告警聚合器配置
+	// 将配置文件中的聚合器配置转换为通知系统的配置格式
+	aggregatorConfig := notification.AggregatorConfig{
+		Enabled:            c.Aggregator.Enabled,
+		MaxBufferSize:      c.Aggregator.MaxBufferSize,
+		GlobalBufferWindow: c.Aggregator.GlobalBufferWindow,
+		SeverityWindows: notification.SeverityWindowConfig{
+			Critical: c.Aggregator.SeverityWindows.Critical,
+			Warning:  c.Aggregator.SeverityWindows.Warning,
+			Info:     c.Aggregator.SeverityWindows.Info,
+			Default:  c.Aggregator.SeverityWindows.Default,
+		},
+	}
+
+	// 如果配置文件中没有设置，使用默认值
+	if !c.Aggregator.Enabled {
+		aggregatorConfig = notification.DefaultAggregatorConfig()
+	}
+
+	// 初始化告警管理器（传入聚合器配置）
 	alertManager := notification.NewManager(notification.ManagerConfig{
 		PortalName:                   c.PortalName,
 		PortalUrl:                    c.PortalUrl,
@@ -126,17 +152,29 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		AlertGroupAppsModel:          alertGroupAppsModel,
 		SiteMessagesModel:            siteMessagesModel,
 		Redis:                        rdb,
-		AggregatorConfig: &notification.AggregatorConfig{
-			Enabled: true,
-			SeverityWindows: notification.SeverityWindowConfig{
-				Critical: 0,
-				Warning:  1 * time.Minute,
-				Info:     2 * time.Minute,
-				Default:  10 * time.Second,
-			},
-			MaxBufferSize: 1000,
+		AggregatorConfig:             &aggregatorConfig, // 传入聚合器配置
+	})
+
+	// 创建告警聚合器服务（支持 K8s Leader Election 和 Redis 降级）
+	// 注意：聚合器配置已经在 alertManager 中设置，这里只需要管理 Leader Election
+	aggregatorService := notification.NewAggregatorService(notification.AggregatorServiceConfig{
+		Redis:   rdb,
+		Manager: alertManager,
+		Config:  aggregatorConfig,
+		LeaderConfig: notification.LeaderElectionConfig{
+			Enabled:        c.LeaderElection.Enabled,
+			LeaseName:      c.LeaderElection.LeaseName,
+			LeaseNamespace: c.LeaderElection.LeaseNamespace,
+			LeaseDuration:  c.LeaderElection.LeaseDuration,
+			RenewDeadline:  c.LeaderElection.RenewDeadline,
+			RetryPeriod:    c.LeaderElection.RetryPeriod,
 		},
 	})
+
+	// 启动聚合器服务（会自动选择 K8s Leader Election 或 Redis 模式）
+	if err := aggregatorService.Start(); err != nil {
+		log.Fatalf("启动告警聚合器服务失败: %v", err)
+	}
 
 	return &ServiceContext{
 		Config:                       c,
@@ -150,9 +188,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		SysUserDept:                  sysUserDept,
 		SysApi:                       sysApi,
 		SysMenu:                      sysMenu,
+		SysMenuModel:                 sysMenu,
 		SysLoginLog:                  sysLoginLog,
 		SysToken:                     sysToken,
 		SysDept:                      sysDept,
+		SysPlatformModel:             sysPlatform,
+		SysUserPlatformModel:         sysUserPlatform,
 		AuthzManager:                 rbacManager,
 		SiteMessagesModel:            siteMessagesModel,
 		AlertChannelsModel:           alertChannelsModel,
@@ -163,5 +204,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		AlertGroupAppsModel:          alertGroupAppsModel,
 		AlertManager:                 alertManager,
 		MessagePusher:                messagePusher,
+		AggregatorService:            aggregatorService,
 	}
 }

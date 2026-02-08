@@ -87,6 +87,8 @@ type (
 		GetTopRanking(ctx context.Context, rankingType string, clusterUuid string, projectId, workspaceId uint64, topN int, severity, status string) ([]*RankingStats, int64, error)
 		// GetRealtimeStats 获取实时状态统计
 		GetRealtimeStats(ctx context.Context, clusterUuid string, projectId, workspaceId uint64) (*RealtimeStats, error)
+		// InsertOrUpdate 插入或更新告警实例（处理并发冲突）
+		InsertOrUpdate(ctx context.Context, data *AlertInstances) (*AlertInstances, error)
 	}
 
 	customAlertInstancesModel struct {
@@ -420,7 +422,7 @@ func (m *customAlertInstancesModel) GetRealtimeStats(ctx context.Context, cluste
 	fiveMinAgo := time.Now().Add(-5 * time.Minute)
 
 	query := fmt.Sprintf(`
-		SELECT 
+		SELECT
 			COALESCE(SUM(CASE WHEN status = 'firing' THEN 1 ELSE 0 END), 0) as firing_count,
 			COALESCE(SUM(CASE WHEN status = 'firing' AND severity = 'critical' THEN 1 ELSE 0 END), 0) as critical_firing_count,
 			COALESCE(SUM(CASE WHEN status = 'firing' AND severity = 'warning' THEN 1 ELSE 0 END), 0) as warning_firing_count,
@@ -441,4 +443,66 @@ func (m *customAlertInstancesModel) GetRealtimeStats(ctx context.Context, cluste
 	}
 
 	return &stats, nil
+}
+
+// InsertOrUpdate 插入或更新告警实例（处理并发冲突）
+// 使用 INSERT ... ON DUPLICATE KEY UPDATE 实现原子操作，避免并发竞态条件
+// 当唯一键 (fingerprint, status, is_deleted) 冲突时，自动更新现有记录
+func (m *customAlertInstancesModel) InsertOrUpdate(ctx context.Context, data *AlertInstances) (*AlertInstances, error) {
+	// 执行 INSERT ... ON DUPLICATE KEY UPDATE
+	query := fmt.Sprintf(`
+		INSERT INTO %s (
+			instance, fingerprint, cluster_uuid, cluster_name,
+			project_id, project_name, workspace_id, workspace_name,
+			alert_name, severity, status, labels, annotations,
+			generator_url, starts_at, ends_at, resolved_at, duration,
+			repeat_count, notified_groups, notification_count, last_notified_at,
+			created_by, updated_by, is_deleted
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			instance = VALUES(instance),
+			cluster_uuid = VALUES(cluster_uuid),
+			cluster_name = VALUES(cluster_name),
+			project_id = VALUES(project_id),
+			project_name = VALUES(project_name),
+			workspace_id = VALUES(workspace_id),
+			workspace_name = VALUES(workspace_name),
+			alert_name = VALUES(alert_name),
+			severity = VALUES(severity),
+			labels = VALUES(labels),
+			annotations = VALUES(annotations),
+			generator_url = VALUES(generator_url),
+			starts_at = VALUES(starts_at),
+			ends_at = VALUES(ends_at),
+			resolved_at = VALUES(resolved_at),
+			duration = VALUES(duration),
+			repeat_count = repeat_count + 1,
+			notified_groups = VALUES(notified_groups),
+			notification_count = VALUES(notification_count),
+			last_notified_at = VALUES(last_notified_at),
+			updated_by = VALUES(updated_by),
+			updated_at = NOW()
+	`, m.table)
+
+	// 执行SQL（不使用缓存，因为需要处理并发）
+	_, err := m.ExecNoCacheCtx(ctx, query,
+		data.Instance, data.Fingerprint, data.ClusterUuid, data.ClusterName,
+		data.ProjectId, data.ProjectName, data.WorkspaceId, data.WorkspaceName,
+		data.AlertName, data.Severity, data.Status, data.Labels, data.Annotations,
+		data.GeneratorUrl, data.StartsAt, data.EndsAt, data.ResolvedAt, data.Duration,
+		data.RepeatCount, data.NotifiedGroups, data.NotificationCount, data.LastNotifiedAt,
+		data.CreatedBy, data.UpdatedBy, data.IsDeleted,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("插入或更新告警实例失败: %v", err)
+	}
+
+	// 查询并返回最新记录（这会自动处理缓存）
+	result, err := m.FindOneByFingerprintStatusIsDeleted(ctx, data.Fingerprint, data.Status, data.IsDeleted)
+	if err != nil {
+		return nil, fmt.Errorf("查询插入或更新后的记录失败: %v", err)
+	}
+
+	return result, nil
 }

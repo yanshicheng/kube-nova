@@ -49,27 +49,57 @@ func (l *PVUpdateLogic) PVUpdate(req *types.ClusterResourceYamlRequest) (resp st
 		return "", fmt.Errorf("解析 YAML 失败: %v", err)
 	}
 
+	// 获取旧的 PV 用于对比
+	oldPV, err := pvOp.Get(pv.Name)
+	if err != nil {
+		l.Errorf("获取原 PV 失败: %v", err)
+		return "", fmt.Errorf("获取原 PV 失败")
+	}
+
+	// 提取容量信息
 	capacity := ""
 	if qty, ok := pv.Spec.Capacity[corev1.ResourceStorage]; ok {
 		capacity = qty.String()
 	}
-	// 获取项目详情
-	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
-		ClusterUuid: req.ClusterUuid,
-		Namespace:   pv.Namespace,
-	})
-	if err != nil {
-		l.Errorf("获取项目详情失败: %v", err)
-		return "", fmt.Errorf("获取项目详情失败")
-	} else {
-		// 注入注解
-		utils.AddAnnotations(&pv.ObjectMeta, &utils.AnnotationsInfo{
-			ServiceName:   pv.Name,
-			ProjectName:   projectDetail.ProjectNameCn,
-			WorkspaceName: projectDetail.WorkspaceNameCn,
-			ProjectUuid:   projectDetail.ProjectUuid,
-		})
+
+	oldCapacity := ""
+	if qty, ok := oldPV.Spec.Capacity[corev1.ResourceStorage]; ok {
+		oldCapacity = qty.String()
 	}
+
+	// 注入注解
+	utils.AddAnnotations(&pv.ObjectMeta, &utils.AnnotationsInfo{
+		ServiceName: pv.Name,
+	})
+
+	// 对比标签变更
+	labelDiff := CompareStringMaps(oldPV.Labels, pv.Labels)
+	labelDiffDetail := ""
+	if HasMapChanges(labelDiff) {
+		labelDiffDetail = "标签变更: " + BuildMapDiffDetail(labelDiff, true)
+	}
+
+	// 对比注解变更
+	annotationDiff := CompareStringMaps(oldPV.Annotations, pv.Annotations)
+	annotationDiffDetail := ""
+	if HasMapChanges(annotationDiff) {
+		annotationDiffDetail = "注解变更: " + BuildMapDiffDetail(annotationDiff, false)
+	}
+
+	// 检查容量变更
+	var capacityChange string
+	if oldCapacity != capacity {
+		capacityChange = fmt.Sprintf("容量变更: %s → %s", oldCapacity, capacity)
+	}
+
+	// 检查回收策略变更
+	oldReclaimPolicy := string(oldPV.Spec.PersistentVolumeReclaimPolicy)
+	newReclaimPolicy := string(pv.Spec.PersistentVolumeReclaimPolicy)
+	var reclaimPolicyChange string
+	if oldReclaimPolicy != newReclaimPolicy {
+		reclaimPolicyChange = fmt.Sprintf("回收策略变更: %s → %s", oldReclaimPolicy, newReclaimPolicy)
+	}
+
 	_, err = pvOp.Update(&pv)
 	if err != nil {
 		l.Errorf("更新 PV 失败: %v", err)
@@ -77,18 +107,40 @@ func (l *PVUpdateLogic) PVUpdate(req *types.ClusterResourceYamlRequest) (resp st
 		l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "更新 PersistentVolume",
-			ActionDetail: fmt.Sprintf("更新 PersistentVolume %s 失败，错误: %v", pv.Name, err),
+			ActionDetail: fmt.Sprintf("用户 %s 更新 PersistentVolume %s 失败, 错误: %v", username, pv.Name, err),
 			Status:       0,
 		})
 		return "", fmt.Errorf("更新 PV 失败")
 	}
 
 	l.Infof("用户: %s, 成功更新 PV: %s", username, pv.Name)
+
+	// 构建详细审计信息
+	var changeParts []string
+	changeParts = append(changeParts, fmt.Sprintf("用户 %s 成功更新 PersistentVolume %s", username, pv.Name))
+	changeParts = append(changeParts, fmt.Sprintf("容量: %s", capacity))
+	changeParts = append(changeParts, fmt.Sprintf("StorageClass: %s", pv.Spec.StorageClassName))
+
+	if capacityChange != "" {
+		changeParts = append(changeParts, capacityChange)
+	}
+	if reclaimPolicyChange != "" {
+		changeParts = append(changeParts, reclaimPolicyChange)
+	}
+	if labelDiffDetail != "" {
+		changeParts = append(changeParts, labelDiffDetail)
+	}
+	if annotationDiffDetail != "" {
+		changeParts = append(changeParts, annotationDiffDetail)
+	}
+
+	auditDetail := joinNonEmpty(", ", changeParts...)
+
 	// 记录成功审计日志
 	l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "更新 PersistentVolume",
-		ActionDetail: fmt.Sprintf("更新 PersistentVolume %s 成功，容量: %s，StorageClass: %s", pv.Name, capacity, pv.Spec.StorageClassName),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	return "更新 PV 成功", nil

@@ -7,7 +7,7 @@ import (
 
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/types"
-	types2 "github.com/yanshicheng/kube-nova/common/k8smanager/types"
+	k8sTypes "github.com/yanshicheng/kube-nova/common/k8smanager/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -18,7 +18,6 @@ type GetSchedulingConfigLogic struct {
 	svcCtx *svc.ServiceContext
 }
 
-// 查询调度配置
 func NewGetSchedulingConfigLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetSchedulingConfigLogic {
 	return &GetSchedulingConfigLogic{
 		Logger: logx.WithContext(ctx),
@@ -27,7 +26,7 @@ func NewGetSchedulingConfigLogic(ctx context.Context, svcCtx *svc.ServiceContext
 	}
 }
 
-func (l *GetSchedulingConfigLogic) GetSchedulingConfig(req *types.DefaultIdRequest) (resp *types.SchedulingConfig, err error) {
+func (l *GetSchedulingConfigLogic) GetSchedulingConfig(req *types.DefaultIdRequest) (resp *types.CommSchedulingConfig, err error) {
 	client, versionDetail, err := getResourceClusterClient(l.ctx, l.svcCtx, req.Id)
 	if err != nil {
 		l.Errorf("获取集群客户端失败: %v", err)
@@ -36,7 +35,8 @@ func (l *GetSchedulingConfigLogic) GetSchedulingConfig(req *types.DefaultIdReque
 
 	resourceType := strings.ToUpper(versionDetail.ResourceType)
 
-	var config *types2.SchedulingConfig
+	// 注意：k8smanager 层返回的是 *SchedulingConfig（旧类型）
+	var config *k8sTypes.SchedulingConfig
 
 	switch resourceType {
 	case "DEPLOYMENT":
@@ -58,91 +58,103 @@ func (l *GetSchedulingConfigLogic) GetSchedulingConfig(req *types.DefaultIdReque
 		return nil, fmt.Errorf("获取调度配置失败")
 	}
 
-	resp = convertToSchedulingConfig(config)
+	// 将 k8sTypes.SchedulingConfig 转换为 types.CommSchedulingConfig
+	resp = convertSchedulingConfigToCommSchedulingConfig(config)
 	return resp, nil
 }
 
-func convertToSchedulingConfig(config *types2.SchedulingConfig) *types.SchedulingConfig {
-	result := &types.SchedulingConfig{
-		NodeSelector:      config.NodeSelector,
-		NodeName:          config.NodeName,
-		SchedulerName:     config.SchedulerName,
-		PriorityClassName: config.PriorityClassName,
+// convertSchedulingConfigToCommSchedulingConfig 将 k8sTypes.SchedulingConfig 转换为 types.CommSchedulingConfig
+func convertSchedulingConfigToCommSchedulingConfig(config *k8sTypes.SchedulingConfig) *types.CommSchedulingConfig {
+	if config == nil {
+		return &types.CommSchedulingConfig{}
 	}
 
-	// 安全处理指针字段
-	if config.Priority != nil {
-		priority := *config.Priority
-		result.Priority = priority
+	result := &types.CommSchedulingConfig{
+		NodeSelector: config.NodeSelector,
+		NodeName:     config.NodeName,
 	}
 
-	if config.RuntimeClassName != nil {
-		runtimeClassName := *config.RuntimeClassName
-		result.RuntimeClassName = runtimeClassName
-	}
-
+	// 转换 Affinity
 	if config.Affinity != nil {
-		result.Affinity = convertToAffinityConfig(config.Affinity)
+		result.Affinity = convertAffinityConfigToCommAffinity(config.Affinity)
 	}
 
+	// 转换 Tolerations
 	if len(config.Tolerations) > 0 {
-		result.Tolerations = convertToTolerationConfigs(config.Tolerations)
+		result.Tolerations = convertTolerationConfigsToCommTolerations(config.Tolerations)
 	}
 
+	// 转换 TopologySpreadConstraints
 	if len(config.TopologySpreadConstraints) > 0 {
-		result.TopologySpreadConstraints = convertToTopologySpreadConstraintConfigs(config.TopologySpreadConstraints)
+		result.TopologySpreadConstraints = convertTopologySpreadConstraintConfigsToComm(config.TopologySpreadConstraints)
 	}
 
 	return result
 }
 
-func convertToAffinityConfig(affinity *types2.AffinityConfig) *types.AffinityConfig {
-	result := &types.AffinityConfig{}
+// convertAffinityConfigToCommAffinity 转换亲和性配置
+func convertAffinityConfigToCommAffinity(affinity *k8sTypes.AffinityConfig) *types.CommAffinityConfig {
+	if affinity == nil {
+		return nil
+	}
 
+	result := &types.CommAffinityConfig{}
+
+	// 转换 NodeAffinity
 	if affinity.NodeAffinity != nil {
-		result.NodeAffinity = &types.NodeAffinityConfig{}
+		result.NodeAffinity = &types.CommNodeAffinity{}
+
 		if affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-			result.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = convertToNodeSelectorConfig(
+			result.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = convertNodeSelectorConfigToCommNodeSelector(
 				affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution,
 			)
 		}
+
 		if len(affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution) > 0 {
-			result.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = convertToPreferredSchedulingTermConfigs(
+			result.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution = convertPreferredSchedulingTermConfigsToComm(
 				affinity.NodeAffinity.PreferredDuringSchedulingIgnoredDuringExecution,
 			)
 		}
 	}
 
+	// 转换 PodAffinity
 	if affinity.PodAffinity != nil {
-		result.PodAffinity = convertToPodAffinityConfig(affinity.PodAffinity)
+		result.PodAffinity = convertPodAffinityConfigToCommPodAffinity(affinity.PodAffinity)
 	}
 
+	// 转换 PodAntiAffinity
 	if affinity.PodAntiAffinity != nil {
-		result.PodAntiAffinity = convertToPodAntiAffinityConfig(affinity.PodAntiAffinity)
+		result.PodAntiAffinity = convertPodAntiAffinityConfigToCommPodAntiAffinity(affinity.PodAntiAffinity)
 	}
 
 	return result
 }
 
-func convertToNodeSelectorConfig(selector *types2.NodeSelectorConfig) *types.NodeSelectorConfig {
-	result := &types.NodeSelectorConfig{
-		NodeSelectorTerms: make([]types.NodeSelectorTermConfig, 0, len(selector.NodeSelectorTerms)),
+// convertNodeSelectorConfigToCommNodeSelector 转换节点选择器
+func convertNodeSelectorConfigToCommNodeSelector(selector *k8sTypes.NodeSelectorConfig) *types.CommNodeSelector {
+	if selector == nil {
+		return nil
+	}
+
+	result := &types.CommNodeSelector{
+		NodeSelectorTerms: make([]types.CommNodeSelectorTerm, 0, len(selector.NodeSelectorTerms)),
 	}
 
 	for _, term := range selector.NodeSelectorTerms {
-		result.NodeSelectorTerms = append(result.NodeSelectorTerms, types.NodeSelectorTermConfig{
-			MatchExpressions: convertToNodeSelectorRequirements(term.MatchExpressions),
-			MatchFields:      convertToNodeSelectorRequirements(term.MatchFields),
+		result.NodeSelectorTerms = append(result.NodeSelectorTerms, types.CommNodeSelectorTerm{
+			MatchExpressions: convertNodeSelectorRequirementConfigsToComm(term.MatchExpressions),
+			MatchFields:      convertNodeSelectorRequirementConfigsToComm(term.MatchFields),
 		})
 	}
 
 	return result
 }
 
-func convertToNodeSelectorRequirements(reqs []types2.NodeSelectorRequirementConfig) []types.NodeSelectorRequirementConfig {
-	result := make([]types.NodeSelectorRequirementConfig, 0, len(reqs))
+// convertNodeSelectorRequirementConfigsToComm 转换节点选择器要求
+func convertNodeSelectorRequirementConfigsToComm(reqs []k8sTypes.NodeSelectorRequirementConfig) []types.CommNodeSelectorRequirement {
+	result := make([]types.CommNodeSelectorRequirement, 0, len(reqs))
 	for _, req := range reqs {
-		result = append(result, types.NodeSelectorRequirementConfig{
+		result = append(result, types.CommNodeSelectorRequirement{
 			Key:      req.Key,
 			Operator: req.Operator,
 			Values:   req.Values,
@@ -151,31 +163,37 @@ func convertToNodeSelectorRequirements(reqs []types2.NodeSelectorRequirementConf
 	return result
 }
 
-func convertToPreferredSchedulingTermConfigs(terms []types2.PreferredSchedulingTermConfig) []types.PreferredSchedulingTermConfig {
-	result := make([]types.PreferredSchedulingTermConfig, 0, len(terms))
+// convertPreferredSchedulingTermConfigsToComm 转换偏好调度条件
+func convertPreferredSchedulingTermConfigsToComm(terms []k8sTypes.PreferredSchedulingTermConfig) []types.CommPreferredSchedulingTerm {
+	result := make([]types.CommPreferredSchedulingTerm, 0, len(terms))
 	for _, term := range terms {
-		result = append(result, types.PreferredSchedulingTermConfig{
+		result = append(result, types.CommPreferredSchedulingTerm{
 			Weight: term.Weight,
-			Preference: types.NodeSelectorTermConfig{
-				MatchExpressions: convertToNodeSelectorRequirements(term.Preference.MatchExpressions),
-				MatchFields:      convertToNodeSelectorRequirements(term.Preference.MatchFields),
+			Preference: types.CommNodeSelectorTerm{
+				MatchExpressions: convertNodeSelectorRequirementConfigsToComm(term.Preference.MatchExpressions),
+				MatchFields:      convertNodeSelectorRequirementConfigsToComm(term.Preference.MatchFields),
 			},
 		})
 	}
 	return result
 }
 
-func convertToPodAffinityConfig(affinity *types2.PodAffinityConfig) *types.PodAffinityConfig {
-	result := &types.PodAffinityConfig{}
+// convertPodAffinityConfigToCommPodAffinity 转换 Pod 亲和性
+func convertPodAffinityConfigToCommPodAffinity(affinity *k8sTypes.PodAffinityConfig) *types.CommPodAffinity {
+	if affinity == nil {
+		return nil
+	}
+
+	result := &types.CommPodAffinity{}
 
 	if len(affinity.RequiredDuringSchedulingIgnoredDuringExecution) > 0 {
-		result.RequiredDuringSchedulingIgnoredDuringExecution = convertToPodAffinityTerms(
+		result.RequiredDuringSchedulingIgnoredDuringExecution = convertPodAffinityTermConfigsToComm(
 			affinity.RequiredDuringSchedulingIgnoredDuringExecution,
 		)
 	}
 
 	if len(affinity.PreferredDuringSchedulingIgnoredDuringExecution) > 0 {
-		result.PreferredDuringSchedulingIgnoredDuringExecution = convertToWeightedPodAffinityTerms(
+		result.PreferredDuringSchedulingIgnoredDuringExecution = convertWeightedPodAffinityTermConfigsToComm(
 			affinity.PreferredDuringSchedulingIgnoredDuringExecution,
 		)
 	}
@@ -183,17 +201,22 @@ func convertToPodAffinityConfig(affinity *types2.PodAffinityConfig) *types.PodAf
 	return result
 }
 
-func convertToPodAntiAffinityConfig(affinity *types2.PodAntiAffinityConfig) *types.PodAntiAffinityConfig {
-	result := &types.PodAntiAffinityConfig{}
+// convertPodAntiAffinityConfigToCommPodAntiAffinity 转换 Pod 反亲和性
+func convertPodAntiAffinityConfigToCommPodAntiAffinity(affinity *k8sTypes.PodAntiAffinityConfig) *types.CommPodAntiAffinity {
+	if affinity == nil {
+		return nil
+	}
+
+	result := &types.CommPodAntiAffinity{}
 
 	if len(affinity.RequiredDuringSchedulingIgnoredDuringExecution) > 0 {
-		result.RequiredDuringSchedulingIgnoredDuringExecution = convertToPodAffinityTerms(
+		result.RequiredDuringSchedulingIgnoredDuringExecution = convertPodAffinityTermConfigsToComm(
 			affinity.RequiredDuringSchedulingIgnoredDuringExecution,
 		)
 	}
 
 	if len(affinity.PreferredDuringSchedulingIgnoredDuringExecution) > 0 {
-		result.PreferredDuringSchedulingIgnoredDuringExecution = convertToWeightedPodAffinityTerms(
+		result.PreferredDuringSchedulingIgnoredDuringExecution = convertWeightedPodAffinityTermConfigsToComm(
 			affinity.PreferredDuringSchedulingIgnoredDuringExecution,
 		)
 	}
@@ -201,54 +224,61 @@ func convertToPodAntiAffinityConfig(affinity *types2.PodAntiAffinityConfig) *typ
 	return result
 }
 
-func convertToPodAffinityTerms(terms []types2.PodAffinityTermConfig) []types.PodAffinityTermConfig {
-	result := make([]types.PodAffinityTermConfig, 0, len(terms))
+// convertPodAffinityTermConfigsToComm 转换 Pod 亲和性条件
+func convertPodAffinityTermConfigsToComm(terms []k8sTypes.PodAffinityTermConfig) []types.CommPodAffinityTerm {
+	result := make([]types.CommPodAffinityTerm, 0, len(terms))
 	for _, term := range terms {
-		converted := types.PodAffinityTermConfig{
+		converted := types.CommPodAffinityTerm{
 			Namespaces:  term.Namespaces,
 			TopologyKey: term.TopologyKey,
 		}
 		if term.LabelSelector != nil {
-			converted.LabelSelector = convertToLabelSelectorConfig(term.LabelSelector)
+			converted.LabelSelector = convertLabelSelectorConfigToComm(term.LabelSelector)
 		}
 		if term.NamespaceSelector != nil {
-			converted.NamespaceSelector = convertToLabelSelectorConfig(term.NamespaceSelector)
+			converted.NamespaceSelector = convertLabelSelectorConfigToComm(term.NamespaceSelector)
 		}
 		result = append(result, converted)
 	}
 	return result
 }
 
-func convertToWeightedPodAffinityTerms(terms []types2.WeightedPodAffinityTermConfig) []types.WeightedPodAffinityTermConfig {
-	result := make([]types.WeightedPodAffinityTermConfig, 0, len(terms))
+// convertWeightedPodAffinityTermConfigsToComm 转换带权重的 Pod 亲和性条件
+func convertWeightedPodAffinityTermConfigsToComm(terms []k8sTypes.WeightedPodAffinityTermConfig) []types.CommWeightedPodAffinityTerm {
+	result := make([]types.CommWeightedPodAffinityTerm, 0, len(terms))
 	for _, term := range terms {
-		converted := types.WeightedPodAffinityTermConfig{
+		converted := types.CommWeightedPodAffinityTerm{
 			Weight: term.Weight,
-			PodAffinityTerm: types.PodAffinityTermConfig{
+			PodAffinityTerm: types.CommPodAffinityTerm{
 				Namespaces:  term.PodAffinityTerm.Namespaces,
 				TopologyKey: term.PodAffinityTerm.TopologyKey,
 			},
 		}
 		if term.PodAffinityTerm.LabelSelector != nil {
-			converted.PodAffinityTerm.LabelSelector = convertToLabelSelectorConfig(term.PodAffinityTerm.LabelSelector)
+			converted.PodAffinityTerm.LabelSelector = convertLabelSelectorConfigToComm(term.PodAffinityTerm.LabelSelector)
 		}
 		if term.PodAffinityTerm.NamespaceSelector != nil {
-			converted.PodAffinityTerm.NamespaceSelector = convertToLabelSelectorConfig(term.PodAffinityTerm.NamespaceSelector)
+			converted.PodAffinityTerm.NamespaceSelector = convertLabelSelectorConfigToComm(term.PodAffinityTerm.NamespaceSelector)
 		}
 		result = append(result, converted)
 	}
 	return result
 }
 
-func convertToLabelSelectorConfig(selector *types2.LabelSelectorConfig) *types.LabelSelectorConfig {
-	result := &types.LabelSelectorConfig{
+// convertLabelSelectorConfigToComm 转换标签选择器
+func convertLabelSelectorConfigToComm(selector *k8sTypes.LabelSelectorConfig) *types.CommLabelSelectorConfig {
+	if selector == nil {
+		return nil
+	}
+
+	result := &types.CommLabelSelectorConfig{
 		MatchLabels: selector.MatchLabels,
 	}
 
 	if len(selector.MatchExpressions) > 0 {
-		result.MatchExpressions = make([]types.LabelSelectorRequirementConfig, 0, len(selector.MatchExpressions))
+		result.MatchExpressions = make([]types.CommLabelSelectorRequirement, 0, len(selector.MatchExpressions))
 		for _, expr := range selector.MatchExpressions {
-			result.MatchExpressions = append(result.MatchExpressions, types.LabelSelectorRequirementConfig{
+			result.MatchExpressions = append(result.MatchExpressions, types.CommLabelSelectorRequirement{
 				Key:      expr.Key,
 				Operator: expr.Operator,
 				Values:   expr.Values,
@@ -259,52 +289,48 @@ func convertToLabelSelectorConfig(selector *types2.LabelSelectorConfig) *types.L
 	return result
 }
 
-func convertToTolerationConfigs(tolerations []types2.TolerationConfig) []types.TolerationConfig {
-	result := make([]types.TolerationConfig, 0, len(tolerations))
+// convertTolerationConfigsToCommTolerations 转换容忍配置
+func convertTolerationConfigsToCommTolerations(tolerations []k8sTypes.TolerationConfig) []types.CommToleration {
+	result := make([]types.CommToleration, 0, len(tolerations))
 	for _, t := range tolerations {
-		toleration := types.TolerationConfig{
+		toleration := types.CommToleration{
 			Key:      t.Key,
 			Operator: t.Operator,
 			Value:    t.Value,
 			Effect:   t.Effect,
 		}
-		// 安全处理指针字段
 		if t.TolerationSeconds != nil {
-			tolerationSeconds := *t.TolerationSeconds
-			toleration.TolerationSeconds = tolerationSeconds
+			toleration.TolerationSeconds = *t.TolerationSeconds
 		}
 		result = append(result, toleration)
 	}
 	return result
 }
 
-func convertToTopologySpreadConstraintConfigs(constraints []types2.TopologySpreadConstraintConfig) []types.TopologySpreadConstraintConfig {
-	result := make([]types.TopologySpreadConstraintConfig, 0, len(constraints))
+// convertTopologySpreadConstraintConfigsToComm 转换拓扑分布约束
+func convertTopologySpreadConstraintConfigsToComm(constraints []k8sTypes.TopologySpreadConstraintConfig) []types.CommTopologySpreadConstraint {
+	result := make([]types.CommTopologySpreadConstraint, 0, len(constraints))
 	for _, c := range constraints {
-		converted := types.TopologySpreadConstraintConfig{
+		converted := types.CommTopologySpreadConstraint{
 			MaxSkew:           c.MaxSkew,
 			TopologyKey:       c.TopologyKey,
 			WhenUnsatisfiable: c.WhenUnsatisfiable,
 		}
 
-		// 安全处理指针字段
 		if c.MinDomains != nil {
-			minDomains := *c.MinDomains
-			converted.MinDomains = minDomains
+			converted.MinDomains = *c.MinDomains
 		}
 
 		if c.NodeAffinityPolicy != nil {
-			nodeAffinityPolicy := *c.NodeAffinityPolicy
-			converted.NodeAffinityPolicy = nodeAffinityPolicy
+			converted.NodeAffinityPolicy = *c.NodeAffinityPolicy
 		}
 
 		if c.NodeTaintsPolicy != nil {
-			nodeTaintsPolicy := *c.NodeTaintsPolicy
-			converted.NodeTaintsPolicy = nodeTaintsPolicy
+			converted.NodeTaintsPolicy = *c.NodeTaintsPolicy
 		}
 
 		if c.LabelSelector != nil {
-			converted.LabelSelector = convertToLabelSelectorConfig(c.LabelSelector)
+			converted.LabelSelector = convertLabelSelectorConfigToComm(c.LabelSelector)
 		}
 
 		result = append(result, converted)
