@@ -1,9 +1,9 @@
-// serviceAccountCreateLogic.go
 package core
 
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
@@ -56,6 +56,7 @@ func (l *ServiceAccountCreateLogic) ServiceAccountCreate(req *types.DefaultCoreC
 	if sa.Namespace == "" {
 		sa.Namespace = req.Namespace
 	}
+
 	// 获取项目详情
 	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
 		ClusterUuid: req.ClusterUuid,
@@ -73,6 +74,11 @@ func (l *ServiceAccountCreateLogic) ServiceAccountCreate(req *types.DefaultCoreC
 			ProjectUuid:   projectDetail.ProjectUuid,
 		})
 	}
+
+	// 构建详情用于审计
+	secretsInfo := l.buildSecretsInfo(sa.Secrets)
+	imagePullSecretsInfo := l.buildImagePullSecretsInfo(sa.ImagePullSecrets)
+
 	// 创建 ServiceAccount
 	createErr := saOp.Create(&sa)
 	if createErr != nil {
@@ -81,7 +87,7 @@ func (l *ServiceAccountCreateLogic) ServiceAccountCreate(req *types.DefaultCoreC
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "创建 ServiceAccount",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 创建 ServiceAccount %s 失败, 错误原因: %v", username, sa.Namespace, sa.Name, createErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 创建 ServiceAccount %s 失败, Secrets: %s, ImagePullSecrets: %s, 错误原因: %v", username, sa.Namespace, sa.Name, secretsInfo, imagePullSecretsInfo, createErr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("创建 ServiceAccount 失败")
@@ -91,7 +97,7 @@ func (l *ServiceAccountCreateLogic) ServiceAccountCreate(req *types.DefaultCoreC
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "创建 ServiceAccount",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功创建 ServiceAccount %s", username, sa.Namespace, sa.Name),
+		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功创建 ServiceAccount %s, Secrets: %s, ImagePullSecrets: %s", username, sa.Namespace, sa.Name, secretsInfo, imagePullSecretsInfo),
 		Status:       1,
 	})
 	if auditErr != nil {
@@ -100,4 +106,28 @@ func (l *ServiceAccountCreateLogic) ServiceAccountCreate(req *types.DefaultCoreC
 
 	l.Infof("用户: %s, 成功创建 ServiceAccount: %s/%s", username, sa.Namespace, sa.Name)
 	return "创建 ServiceAccount 成功", nil
+}
+
+// buildSecretsInfo 构建 Secrets 信息
+func (l *ServiceAccountCreateLogic) buildSecretsInfo(secrets []corev1.ObjectReference) string {
+	if len(secrets) == 0 {
+		return "无"
+	}
+	var names []string
+	for _, s := range secrets {
+		names = append(names, s.Name)
+	}
+	return strings.Join(names, ", ")
+}
+
+// buildImagePullSecretsInfo 构建 ImagePullSecrets 信息
+func (l *ServiceAccountCreateLogic) buildImagePullSecretsInfo(secrets []corev1.LocalObjectReference) string {
+	if len(secrets) == 0 {
+		return "无"
+	}
+	var names []string
+	for _, s := range secrets {
+		names = append(names, s.Name)
+	}
+	return strings.Join(names, ", ")
 }

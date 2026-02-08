@@ -1105,6 +1105,16 @@ func (p *podOperator) GetFileInfo(ctx context.Context, namespace, podName, conta
 	logger.Infof("获取文件信息: namespace=%s, pod=%s, container=%s, file=%s",
 		namespace, podName, container, filePath)
 
+	if namespace == "" {
+		return nil, fmt.Errorf("命名空间不能为空")
+	}
+	if podName == "" {
+		return nil, fmt.Errorf("Pod名称不能为空")
+	}
+	if filePath == "" {
+		return nil, fmt.Errorf("文件路径不能为空")
+	}
+
 	var err error
 	container, err = p.ensureContainer(namespace, podName, container)
 	if err != nil {
@@ -1965,6 +1975,16 @@ func (p *podOperator) CreateDirectory(ctx context.Context, namespace, podName, c
 	logger.Infof("创建目录: namespace=%s, pod=%s, container=%s, dir=%s",
 		namespace, podName, container, dirPath)
 
+	if namespace == "" {
+		return fmt.Errorf("命名空间不能为空")
+	}
+	if podName == "" {
+		return fmt.Errorf("Pod名称不能为空")
+	}
+	if dirPath == "" {
+		return fmt.Errorf("目录路径不能为空")
+	}
+
 	var err error
 	container, err = p.ensureContainer(namespace, podName, container)
 	if err != nil {
@@ -2003,6 +2023,16 @@ func (p *podOperator) DeleteFiles(ctx context.Context, namespace, podName, conta
 	logger := logx.WithContext(ctx)
 	logger.Infof("删除文件: namespace=%s, pod=%s, container=%s, 数量=%d",
 		namespace, podName, container, len(paths))
+
+	if namespace == "" {
+		return nil, fmt.Errorf("命名空间不能为空")
+	}
+	if podName == "" {
+		return nil, fmt.Errorf("Pod名称不能为空")
+	}
+	if len(paths) == 0 {
+		return nil, fmt.Errorf("删除路径列表不能为空")
+	}
 
 	var err error
 	container, err = p.ensureContainer(namespace, podName, container)
@@ -2056,6 +2086,19 @@ func (p *podOperator) MoveFile(ctx context.Context, namespace, podName, containe
 	logger := logx.WithContext(ctx)
 	logger.Infof("移动文件: %s -> %s", sourcePath, destPath)
 
+	if namespace == "" {
+		return fmt.Errorf("命名空间不能为空")
+	}
+	if podName == "" {
+		return fmt.Errorf("Pod名称不能为空")
+	}
+	if sourcePath == "" {
+		return fmt.Errorf("源路径不能为空")
+	}
+	if destPath == "" {
+		return fmt.Errorf("目标路径不能为空")
+	}
+
 	var err error
 	container, err = p.ensureContainer(namespace, podName, container)
 	if err != nil {
@@ -2099,6 +2142,19 @@ func (p *podOperator) MoveFile(ctx context.Context, namespace, podName, containe
 func (p *podOperator) CopyFile(ctx context.Context, namespace, podName, container, sourcePath, destPath string, opts *types.CopyOptions) error {
 	logger := logx.WithContext(ctx)
 	logger.Infof("复制文件: %s -> %s", sourcePath, destPath)
+
+	if namespace == "" {
+		return fmt.Errorf("命名空间不能为空")
+	}
+	if podName == "" {
+		return fmt.Errorf("Pod名称不能为空")
+	}
+	if sourcePath == "" {
+		return fmt.Errorf("源路径不能为空")
+	}
+	if destPath == "" {
+		return fmt.Errorf("目标路径不能为空")
+	}
 
 	var err error
 	container, err = p.ensureContainer(namespace, podName, container)
@@ -2158,7 +2214,18 @@ func (p *podOperator) CopyFile(ctx context.Context, namespace, podName, containe
 // ReadFile 读取文件内容
 func (p *podOperator) ReadFile(ctx context.Context, namespace, podName, container, filePath string, opts *types.ReadOptions) (*types.FileContent, error) {
 	logger := logx.WithContext(ctx)
-	logger.Infof("读取文件内容: file=%s", filePath)
+	logger.Infof("读取文件内容: namespace=%s, pod=%s, container=%s, file=%s",
+		namespace, podName, container, filePath)
+
+	if namespace == "" {
+		return nil, fmt.Errorf("命名空间不能为空")
+	}
+	if podName == "" {
+		return nil, fmt.Errorf("Pod名称不能为空")
+	}
+	if filePath == "" {
+		return nil, fmt.Errorf("文件路径不能为空")
+	}
 
 	var err error
 	container, err = p.ensureContainer(namespace, podName, container)

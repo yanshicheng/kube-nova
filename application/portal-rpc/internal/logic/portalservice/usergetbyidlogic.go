@@ -56,6 +56,9 @@ func (l *UserGetByIdLogic) UserGetById(in *pb.GetSysUserByIdReq) (*pb.GetSysUser
 		UpdatedBy:      user.UpdatedBy,
 		CreatedAt:      user.CreatedAt.Unix(),
 		UpdatedAt:      user.UpdatedAt.Unix(),
+		DingtalkId:     user.DingtalkId.String,
+		WechatId:       user.WechatId.String,
+		FeishuId:       user.FeishuId.String,
 	}
 
 	return &pb.GetSysUserByIdResp{Data: pbUser}, nil

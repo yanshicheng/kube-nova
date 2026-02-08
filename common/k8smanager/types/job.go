@@ -83,8 +83,6 @@ type JobOperator interface {
 
 	// ========== 镜像管理 ==========
 	GetContainerImages(namespace, name string) (*ContainerInfoList, error) // 查询镜像
-	UpdateImage(req *UpdateImageRequest) error                             // 更新单个镜像
-	UpdateImages(req *UpdateImagesRequest) error                           // 批量更新镜像
 
 	// ========== Job 状态和配置查询 ==========
 	GetStatus(namespace, name string) (*JobStatusInfo, error)                   // 查询任务状态
@@ -93,20 +91,11 @@ type JobOperator interface {
 
 	// ========== 环境变量管理 ==========
 	GetEnvVars(namespace, name string) (*EnvVarsResponse, error) // 查询环境变量
-	UpdateEnvVars(req *UpdateEnvVarsRequest) error               // 修改环境变量
 
 	// ========== 暂停/恢复更新 ==========
 	GetPauseStatus(namespace, name string) (*PauseStatusResponse, error) // 查询暂停状态
 	Suspend(namespace, name string) error                                // 挂起 Job（停止创建新 Pod）
 	Resume(namespace, name string) error                                 // 恢复 Job
-
-	// ========== 资源配额管理 ==========
-	GetResources(namespace, name string) (*ResourcesResponse, error) // 查询资源配额
-	UpdateResources(req *UpdateResourcesRequest) error               // 修改资源配额
-
-	// ========== 健康检查管理 ==========
-	GetProbes(namespace, name string) (*ProbesResponse, error) // 查询健康检查
-	UpdateProbes(req *UpdateProbesRequest) error               // 修改健康检查
 
 	// ========== Job 控制操作 ==========
 	Stop(namespace, name string) error                     // 停止 Job（挂起并删除运行中的 Pods）
@@ -132,8 +121,6 @@ type JobOperator interface {
 	UpdateSchedulingConfig(namespace, name string, config *UpdateSchedulingConfigRequest) error
 
 	// ========== 存储配置管理 ==========
-	GetStorageConfig(namespace, name string) (*StorageConfig, error)
-	UpdateStorageConfig(namespace, name string, config *UpdateStorageConfigRequest) error
 	GetJobsByCronJob(namespace, cronJobName string) ([]JobInfo, error)
 	GetDetail(namespace, name string) (*JobDetailInfo, error)
 }

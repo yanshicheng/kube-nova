@@ -103,11 +103,14 @@ func (m *manager) GetCluster(ctx context.Context, uuid string) (Client, error) {
 	// 确认本地不存在，检查 Redis 中是否存在
 	existsInRedis, err := m.redis.Sismember(clusterSetKey, uuid)
 	if err != nil {
-		logx.Errorf("检查 Redis 集群列表失败: %v", err)
+		logx.Infof("检查 Redis 集群列表失败: %v", err)
 		// Redis 出错，降级处理，继续尝试从 RPC 获取
 	}
 
-	if !existsInRedis {
+	// 健康检查请求，跳过日志
+	isHealthCheck := uuid == "__health_check__"
+
+	if !existsInRedis && !isHealthCheck {
 		// Redis 中也不存在，从 RPC 获取并添加
 		logx.Infof("集群 %s 不存在，开始从 RPC 添加", uuid)
 	}
@@ -117,7 +120,9 @@ func (m *manager) GetCluster(ctx context.Context, uuid string) (Client, error) {
 		ClusterUuid: uuid,
 	})
 	if err != nil {
-		logx.Errorf("获取集群 %s 认证信息失败: %v", uuid, err)
+		if !isHealthCheck {
+			logx.Errorf("获取集群 %s 认证信息失败: %v", uuid, err)
+		}
 		return nil, fmt.Errorf("获取集群 %s 认证信息失败: %w", uuid, err)
 	}
 
@@ -391,7 +396,10 @@ func (m *manager) Close() error {
 		}(id, wrapper)
 	}
 
-	// 等待所有客户端关闭
+	// 等待所有客户端关闭（使用 context 避免永久阻塞）
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	done := make(chan struct{})
 	go func() {
 		wg.Wait()
@@ -401,7 +409,7 @@ func (m *manager) Close() error {
 	select {
 	case <-done:
 		logx.Info("所有集群客户端已关闭")
-	case <-time.After(30 * time.Second):
+	case <-ctx.Done():
 		logx.Error("部分集群客户端关闭超时")
 	}
 

@@ -163,9 +163,22 @@ func (l *PodLogsDownloadLogic) buildLogOptions(req *types.PodLogsDownloadReq, co
 	}
 
 	// 行数限制
+	const maxTailLines int64 = 100000
+	const defaultTailLines int64 = 10000
 	if req.TailLines > 0 {
-		logOpts.TailLines = &req.TailLines
+		tailLines := req.TailLines
+		if tailLines > maxTailLines {
+			tailLines = maxTailLines
+			l.Infof("TailLines 超过最大限制，已调整为 %d", maxTailLines)
+		}
+		logOpts.TailLines = &tailLines
+	} else if req.TailLines < 0 {
+		// 负数视为无效，使用默认值
+		tailLines := defaultTailLines
+		logOpts.TailLines = &tailLines
+		l.Infof("TailLines 为负数，使用默认值: %d", defaultTailLines)
 	}
+	// TailLines == 0 时不��置，由 k8smanager 使用默认值
 
 	// 字节数限制
 	if req.MaxSize > 0 {

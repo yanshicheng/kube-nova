@@ -3,11 +3,13 @@ package core
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/types"
 	"github.com/zeromicro/go-zero/core/logx"
+	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 type RoleDeleteLogic struct {
@@ -40,6 +42,15 @@ func (l *RoleDeleteLogic) RoleDelete(req *types.ClusterNamespaceResourceRequest)
 	// 获取 Role operator
 	roleOp := client.Roles()
 
+	// 获取 Role 详情用于审计
+	existingRole, _ := roleOp.Get(req.Namespace, req.Name)
+	var rulesCount int
+	var rulesSummary string
+	if existingRole != nil {
+		rulesCount = len(existingRole.Rules)
+		rulesSummary = l.buildRulesSummary(existingRole.Rules)
+	}
+
 	// 删除 Role
 	deleteErr := roleOp.Delete(req.Namespace, req.Name)
 	if deleteErr != nil {
@@ -55,10 +66,15 @@ func (l *RoleDeleteLogic) RoleDelete(req *types.ClusterNamespaceResourceRequest)
 	}
 
 	// 记录成功的审计日志
+	auditDetail := fmt.Sprintf("用户 %s 在命名空间 %s 成功删除 Role %s", username, req.Namespace, req.Name)
+	if rulesCount > 0 {
+		auditDetail = fmt.Sprintf("%s, 删除前包含 %d 条规则 (%s)", auditDetail, rulesCount, rulesSummary)
+	}
+
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "删除 Role",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功删除 Role %s", username, req.Namespace, req.Name),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	if auditErr != nil {
@@ -67,4 +83,27 @@ func (l *RoleDeleteLogic) RoleDelete(req *types.ClusterNamespaceResourceRequest)
 
 	l.Infof("用户: %s, 成功删除 Role: %s/%s", username, req.Namespace, req.Name)
 	return "删除 Role 成功", nil
+}
+
+// buildRulesSummary 构建规则摘要用于审计日志
+func (l *RoleDeleteLogic) buildRulesSummary(rules []rbacv1.PolicyRule) string {
+	if len(rules) == 0 {
+		return "无规则"
+	}
+
+	var summaries []string
+	for _, rule := range rules {
+		resources := strings.Join(rule.Resources, ",")
+		verbs := strings.Join(rule.Verbs, ",")
+		if resources == "" {
+			resources = "*"
+		}
+		summaries = append(summaries, fmt.Sprintf("%s[%s]", resources, verbs))
+	}
+
+	result := strings.Join(summaries, "; ")
+	if len(result) > 150 {
+		return result[:150] + "..."
+	}
+	return result
 }

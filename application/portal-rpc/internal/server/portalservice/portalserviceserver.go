@@ -23,6 +23,84 @@ func NewPortalServiceServer(svcCtx *svc.ServiceContext) *PortalServiceServer {
 	}
 }
 
+// -----------------------系统平台表-----------------------
+func (s *PortalServiceServer) PlatformAdd(ctx context.Context, in *pb.AddSysPlatformReq) (*pb.AddSysPlatformResp, error) {
+	l := portalservicelogic.NewPlatformAddLogic(ctx, s.svcCtx)
+	return l.PlatformAdd(in)
+}
+
+func (s *PortalServiceServer) PlatformUpdate(ctx context.Context, in *pb.UpdateSysPlatformReq) (*pb.UpdateSysPlatformResp, error) {
+	l := portalservicelogic.NewPlatformUpdateLogic(ctx, s.svcCtx)
+	return l.PlatformUpdate(in)
+}
+
+func (s *PortalServiceServer) PlatformDel(ctx context.Context, in *pb.DelSysPlatformReq) (*pb.DelSysPlatformResp, error) {
+	l := portalservicelogic.NewPlatformDelLogic(ctx, s.svcCtx)
+	return l.PlatformDel(in)
+}
+
+func (s *PortalServiceServer) PlatformGetById(ctx context.Context, in *pb.GetSysPlatformByIdReq) (*pb.GetSysPlatformByIdResp, error) {
+	l := portalservicelogic.NewPlatformGetByIdLogic(ctx, s.svcCtx)
+	return l.PlatformGetById(in)
+}
+
+func (s *PortalServiceServer) PlatformSearch(ctx context.Context, in *pb.SearchSysPlatformReq) (*pb.SearchSysPlatformResp, error) {
+	l := portalservicelogic.NewPlatformSearchLogic(ctx, s.svcCtx)
+	return l.PlatformSearch(in)
+}
+
+// 快捷操作
+func (s *PortalServiceServer) PlatformEnable(ctx context.Context, in *pb.EnableSysPlatformReq) (*pb.EnableSysPlatformResp, error) {
+	l := portalservicelogic.NewPlatformEnableLogic(ctx, s.svcCtx)
+	return l.PlatformEnable(in)
+}
+
+func (s *PortalServiceServer) PlatformDisable(ctx context.Context, in *pb.DisableSysPlatformReq) (*pb.DisableSysPlatformResp, error) {
+	l := portalservicelogic.NewPlatformDisableLogic(ctx, s.svcCtx)
+	return l.PlatformDisable(in)
+}
+
+func (s *PortalServiceServer) PlatformSetDefault(ctx context.Context, in *pb.SetDefaultSysPlatformReq) (*pb.SetDefaultSysPlatformResp, error) {
+	l := portalservicelogic.NewPlatformSetDefaultLogic(ctx, s.svcCtx)
+	return l.PlatformSetDefault(in)
+}
+
+func (s *PortalServiceServer) PlatformUnsetDefault(ctx context.Context, in *pb.UnsetDefaultSysPlatformReq) (*pb.UnsetDefaultSysPlatformResp, error) {
+	l := portalservicelogic.NewPlatformUnsetDefaultLogic(ctx, s.svcCtx)
+	return l.PlatformUnsetDefault(in)
+}
+
+func (s *PortalServiceServer) PlatformGetDefault(ctx context.Context, in *pb.GetDefaultSysPlatformReq) (*pb.GetDefaultSysPlatformResp, error) {
+	l := portalservicelogic.NewPlatformGetDefaultLogic(ctx, s.svcCtx)
+	return l.PlatformGetDefault(in)
+}
+
+func (s *PortalServiceServer) PlatformGetAllEnabled(ctx context.Context, in *pb.GetAllEnabledPlatformsReq) (*pb.GetAllEnabledPlatformsResp, error) {
+	l := portalservicelogic.NewPlatformGetAllEnabledLogic(ctx, s.svcCtx)
+	return l.PlatformGetAllEnabled(in)
+}
+
+// -----------------------用户平台权限表-----------------------
+func (s *PortalServiceServer) UserPlatformBind(ctx context.Context, in *pb.BindUserPlatformReq) (*pb.BindUserPlatformResp, error) {
+	l := portalservicelogic.NewUserPlatformBindLogic(ctx, s.svcCtx)
+	return l.UserPlatformBind(in)
+}
+
+func (s *PortalServiceServer) UserPlatformUnbind(ctx context.Context, in *pb.UnbindUserPlatformReq) (*pb.UnbindUserPlatformResp, error) {
+	l := portalservicelogic.NewUserPlatformUnbindLogic(ctx, s.svcCtx)
+	return l.UserPlatformUnbind(in)
+}
+
+func (s *PortalServiceServer) UserPlatformGet(ctx context.Context, in *pb.GetUserPlatformsReq) (*pb.GetUserPlatformsResp, error) {
+	l := portalservicelogic.NewUserPlatformGetLogic(ctx, s.svcCtx)
+	return l.UserPlatformGet(in)
+}
+
+func (s *PortalServiceServer) PlatformUsersGet(ctx context.Context, in *pb.GetPlatformUsersReq) (*pb.GetPlatformUsersResp, error) {
+	l := portalservicelogic.NewPlatformUsersGetLogic(ctx, s.svcCtx)
+	return l.PlatformUsersGet(in)
+}
+
 // -----------------------系统API权限表-----------------------
 func (s *PortalServiceServer) APIAdd(ctx context.Context, in *pb.AddSysAPIReq) (*pb.AddSysAPIResp, error) {
 	l := portalservicelogic.NewAPIAddLogic(ctx, s.svcCtx)

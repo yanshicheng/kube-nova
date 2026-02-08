@@ -27,12 +27,18 @@ func NewGetRolesMenuTreeLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 	}
 }
 
-func (l *GetRolesMenuTreeLogic) GetRolesMenuTree() (resp []types.AppRouteRecord, err error) {
+func (l *GetRolesMenuTreeLogic) GetRolesMenuTree(req *types.GetRolesMenuTreeRequest) (resp []types.AppRouteRecord, err error) {
 	// 从上下文中获取用户ID
 	userId, err := l.getUserIdFromContext()
 	if err != nil {
 		l.Errorf("获取用户ID失败: error=%v", err)
 		return nil, fmt.Errorf("获取用户信息失败")
+	}
+
+	// 验证 platformId 参数
+	if req.PlatformId == 0 {
+		l.Errorf("平台ID不能为空: userId=%d", userId)
+		return nil, fmt.Errorf("平台ID不能为空")
 	}
 
 	// 从上下文中获取角色列表
@@ -48,14 +54,15 @@ func (l *GetRolesMenuTreeLogic) GetRolesMenuTree() (resp []types.AppRouteRecord,
 		return []types.AppRouteRecord{}, nil
 	}
 
-	l.Infof("用户角色列表: userId=%d, roleCodes=%v", userId, roleCodes)
+	l.Infof("用户角色列表: userId=%d, platformId=%d, roleCodes=%v", userId, req.PlatformId, roleCodes)
 
-	// 调用 RPC 服务获取角色菜单树
+	// 调用 RPC 服务获取角色菜单树（传递 platformId）
 	res, err := l.svcCtx.PortalRpc.MenuGetRolesMenuTree(l.ctx, &pb.GetRolesMenuTreeReq{
-		RoleCodes: roleCodes,
+		PlatformId: req.PlatformId,
+		RoleCodes:  roleCodes,
 	})
 	if err != nil {
-		l.Errorf("获取角色菜单树失败: roleCodes=%v, error=%v", roleCodes, err)
+		l.Errorf("获取角色菜单树失败: platformId=%d, roleCodes=%v, error=%v", req.PlatformId, roleCodes, err)
 		return nil, fmt.Errorf("获取菜单数据失败")
 	}
 
@@ -66,7 +73,7 @@ func (l *GetRolesMenuTreeLogic) GetRolesMenuTree() (resp []types.AppRouteRecord,
 		routes = append(routes, route)
 	}
 
-	l.Infof("菜单树转换成功: userId=%d, 菜单数量=%d", userId, len(routes))
+	l.Infof("菜单树转换成功: userId=%d, platformId=%d, 菜单数量=%d", userId, req.PlatformId, len(routes))
 	return routes, nil
 }
 

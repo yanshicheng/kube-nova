@@ -1,9 +1,9 @@
-// pVCUpdateLogic.go
 package core
 
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
@@ -45,7 +45,14 @@ func (l *PVCUpdateLogic) PVCUpdate(req *types.ClusterNamespaceResourceUpdateRequ
 	// 获取 PVC operator
 	pvcOp := client.PVC()
 
-	// 解析 YAML
+	// 获取现有 PVC 用于对比
+	existingPVC, err := pvcOp.Get(req.Namespace, req.Name)
+	if err != nil {
+		l.Errorf("获取现有 PVC 失败: %v", err)
+		return "", fmt.Errorf("获取现有 PVC 失败")
+	}
+
+	// 解析新的 YAML
 	var pvc corev1.PersistentVolumeClaim
 	if err := yaml.Unmarshal([]byte(req.YamlStr), &pvc); err != nil {
 		l.Errorf("解析 PVC YAML 失败: %v", err)
@@ -56,8 +63,47 @@ func (l *PVCUpdateLogic) PVCUpdate(req *types.ClusterNamespaceResourceUpdateRequ
 	if pvc.Namespace == "" {
 		pvc.Namespace = req.Namespace
 	}
-	// 获取项目详情
 
+	// 对比变更
+	var changeDetails []string
+
+	// 容量变更（PVC 扩容）
+	oldStorage := ""
+	newStorage := ""
+	if existingPVC.Spec.Resources.Requests != nil {
+		if s, ok := existingPVC.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
+			oldStorage = s.String()
+		}
+	}
+	if pvc.Spec.Resources.Requests != nil {
+		if s, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
+			newStorage = s.String()
+		}
+	}
+	if oldStorage != newStorage {
+		changeDetails = append(changeDetails, fmt.Sprintf("容量变更: %s → %s", oldStorage, newStorage))
+	}
+
+	// Labels 变更
+	labelsDiff := CompareStringMaps(existingPVC.Labels, pvc.Labels)
+	if HasMapChanges(labelsDiff) {
+		labelsChangeDetail := BuildMapDiffDetail(labelsDiff, false)
+		changeDetails = append(changeDetails, fmt.Sprintf("Labels变更: %s", labelsChangeDetail))
+	}
+
+	// Annotations 变更
+	annotationsDiff := CompareStringMaps(existingPVC.Annotations, pvc.Annotations)
+	if HasMapChanges(annotationsDiff) {
+		annotationsChangeDetail := BuildMapDiffDetail(annotationsDiff, false)
+		changeDetails = append(changeDetails, fmt.Sprintf("Annotations变更: %s", annotationsChangeDetail))
+	}
+
+	changeDetailStr := "无变更"
+	if len(changeDetails) > 0 {
+		changeDetailStr = strings.Join(changeDetails, "; ")
+	}
+
+	// 获取项目详情
 	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
 		ClusterUuid: req.ClusterUuid,
 		Namespace:   req.Namespace,
@@ -74,6 +120,7 @@ func (l *PVCUpdateLogic) PVCUpdate(req *types.ClusterNamespaceResourceUpdateRequ
 			ProjectUuid:   projectDetail.ProjectUuid,
 		})
 	}
+
 	// 更新 PVC
 	updateErr := pvcOp.Update(req.Namespace, req.Name, &pvc)
 	if updateErr != nil {
@@ -82,7 +129,7 @@ func (l *PVCUpdateLogic) PVCUpdate(req *types.ClusterNamespaceResourceUpdateRequ
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "更新 PVC",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 更新 PVC %s 失败, 错误原因: %v", username, req.Namespace, req.Name, updateErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 更新 PVC %s 失败, 错误原因: %v, 变更内容: %s", username, req.Namespace, req.Name, updateErr, changeDetailStr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("更新 PVC 失败")
@@ -92,7 +139,7 @@ func (l *PVCUpdateLogic) PVCUpdate(req *types.ClusterNamespaceResourceUpdateRequ
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "更新 PVC",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功更新 PVC %s", username, req.Namespace, req.Name),
+		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功更新 PVC %s, %s", username, req.Namespace, req.Name, changeDetailStr),
 		Status:       1,
 	})
 	if auditErr != nil {

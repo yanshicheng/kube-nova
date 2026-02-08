@@ -12,5 +12,5 @@ const (
 	IsDisabledFlag             = 1                // 账号禁用标志
 	UuidKeyPrefix              = "account:token:" // Redis 键前缀
 	AllowMultiLogin            = true
-	Avatar              string = "/users/20241223/20241223175322.jpg" // 是否允许多端登录
+	Avatar              string = "/public/kube-nova.png" // 是否允许多端登录
 )

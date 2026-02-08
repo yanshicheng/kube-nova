@@ -3,10 +3,13 @@ package core
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/types"
+	"github.com/yanshicheng/kube-nova/common/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -62,6 +65,34 @@ func (l *CreateConfigMapLogic) CreateConfigMap(req *types.ConfigMapRequest) (res
 		Data: req.Data,
 	}
 
+	// 获取项目详情并注入注解
+	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
+		ClusterUuid: workloadInfo.Data.ClusterUuid,
+		Namespace:   workloadInfo.Data.Namespace,
+	})
+	if err != nil {
+		l.Errorf("获取项目详情失败: %v", err)
+		return "", fmt.Errorf("获取项目详情失败")
+	} else {
+		utils.AddAnnotations(&configMap.ObjectMeta, &utils.AnnotationsInfo{
+			ServiceName:   configMap.Name,
+			ProjectName:   projectDetail.ProjectNameCn,
+			WorkspaceName: projectDetail.WorkspaceNameCn,
+			ProjectUuid:   projectDetail.ProjectUuid,
+		})
+	}
+
+	// 构建创建详情
+	dataKeys := make([]string, 0, len(req.Data))
+	for k := range req.Data {
+		dataKeys = append(dataKeys, k)
+	}
+	sort.Strings(dataKeys)
+	dataKeysStr := strings.Join(dataKeys, ", ")
+	if dataKeysStr == "" {
+		dataKeysStr = "无"
+	}
+
 	// 创建 ConfigMap
 	_, createErr := configMapClient.Create(configMap)
 	if createErr != nil {
@@ -70,7 +101,7 @@ func (l *CreateConfigMapLogic) CreateConfigMap(req *types.ConfigMapRequest) (res
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			WorkspaceId:  req.WorkloadId,
 			Title:        "创建 ConfigMap",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 创建 ConfigMap %s 失败, 包含 %d 个数据项, 错误原因: %v", username, workloadInfo.Data.Namespace, req.Name, len(req.Data), createErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 创建 ConfigMap %s 失败, 包含 %d 个数据项 (keys: %s), 错误原因: %v", username, workloadInfo.Data.Namespace, req.Name, len(req.Data), dataKeysStr, createErr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("创建 ConfigMap 失败")
@@ -80,7 +111,7 @@ func (l *CreateConfigMapLogic) CreateConfigMap(req *types.ConfigMapRequest) (res
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		WorkspaceId:  req.WorkloadId,
 		Title:        "创建 ConfigMap",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功创建 ConfigMap %s, 包含 %d 个数据项", username, workloadInfo.Data.Namespace, req.Name, len(req.Data)),
+		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功创建 ConfigMap %s, 包含 %d 个数据项 (keys: %s)", username, workloadInfo.Data.Namespace, req.Name, len(req.Data), dataKeysStr),
 		Status:       1,
 	})
 	if auditErr != nil {

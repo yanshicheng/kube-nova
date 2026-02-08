@@ -896,9 +896,9 @@ type CreateUserResponse struct {
 }
 
 type DeleteArtifactRequest struct {
-	RegistryUuid string `form:"registryUuid" validate:"required"`
-	ProjectName  string `form:"projectName" validate:"required"`
-	RepoName     string `form:"repoName" validate:"required"`
+	RegistryUuid string `json:"registryUuid" validate:"required"`
+	ProjectName  string `json:"projectName" validate:"required"`
+	RepoName     string `json:"repoName" validate:"required"`
 	Reference    string `path:"reference" validate:"required"`
 }
 
@@ -907,8 +907,8 @@ type DeleteArtifactResponse struct {
 }
 
 type DeleteProjectMemberRequest struct {
-	RegistryUuid string `form:"registryUuid" validate:"required"`
-	ProjectName  string `form:"projectName" validate:"required"`
+	RegistryUuid string `json:"registryUuid" validate:"required"`
+	ProjectName  string `json:"projectName" validate:"required"`
 	MemberId     int64  `path:"memberId" validate:"required"`
 }
 
@@ -917,7 +917,7 @@ type DeleteProjectMemberResponse struct {
 }
 
 type DeleteProjectRequest struct {
-	RegistryUuid string `form:"registryUuid" validate:"required"`
+	RegistryUuid string `json:"registryUuid" validate:"required"`
 	ProjectName  string `path:"projectName" validate:"required"`
 }
 
@@ -934,7 +934,7 @@ type DeleteRegistryResponse struct {
 }
 
 type DeleteReplicationPolicyRequest struct {
-	RegistryUuid string `form:"registryUuid" validate:"required"`
+	RegistryUuid string `json:"registryUuid" validate:"required"`
 	PolicyId     int64  `path:"policyId" validate:"required"`
 }
 
@@ -943,8 +943,8 @@ type DeleteReplicationPolicyResponse struct {
 }
 
 type DeleteRepositoryRequest struct {
-	RegistryUuid string `form:"registryUuid" validate:"required"`
-	ProjectName  string `form:"projectName" validate:"required"`
+	RegistryUuid string `json:"registryUuid" validate:"required"`
+	ProjectName  string `json:"projectName" validate:"required"`
 	RepoName     string `path:"repoName" validate:"required"`
 }
 
@@ -953,9 +953,9 @@ type DeleteRepositoryResponse struct {
 }
 
 type DeleteTagRequest struct {
-	RegistryUuid string `form:"registryUuid" validate:"required"`
-	ProjectName  string `form:"projectName" validate:"required"`
-	RepoName     string `form:"repoName" validate:"required"`
+	RegistryUuid string `json:"registryUuid" validate:"required"`
+	ProjectName  string `json:"projectName" validate:"required"`
+	RepoName     string `json:"repoName" validate:"required"`
 	TagName      string `path:"tagName" validate:"required"`
 }
 
@@ -964,7 +964,7 @@ type DeleteTagResponse struct {
 }
 
 type DeleteUserRequest struct {
-	RegistryUuid string `form:"registryUuid" validate:"required"`
+	RegistryUuid string `json:"registryUuid" validate:"required"`
 	UserId       int64  `path:"userId" validate:"required"`
 }
 
@@ -1732,6 +1732,18 @@ type GetGCScheduleResponse struct {
 	Data GCSchedule `json:"data"`
 }
 
+type GetHostMetricsRequest struct {
+	ClusterUuid string `form:"clusterUuid" validate:"required"`
+	Host        string `form:"host" validate:"required"`
+	Start       string `form:"start,optional"`
+	End         string `form:"end,optional"`
+	Step        string `form:"step,optional"`
+}
+
+type GetHostMetricsResponse struct {
+	Data HostMetrics `json:"data"`
+}
+
 type GetHostRankingRequest struct {
 	ClusterUuid string `form:"clusterUuid" validate:"required"`
 	Limit       int    `form:"limit,default=10" validate:"min=1,max=100"`
@@ -1940,6 +1952,18 @@ type GetMemoryUsageRequest struct {
 
 type GetMemoryUsageResponse struct {
 	Data PodMemoryMetrics `json:"data"`
+}
+
+type GetMultiHostMetricsRequest struct {
+	ClusterUuid string   `json:"clusterUuid" validate:"required"`
+	Hosts       []string `json:"hosts" validate:"required"`
+	Start       string   `json:"start,optional"`
+	End         string   `json:"end,optional"`
+	Step        string   `json:"step,optional"`
+}
+
+type GetMultiHostMetricsResponse struct {
+	Data []HostMetrics `json:"data"`
 }
 
 type GetNamespaceCPURequest struct {
@@ -2555,7 +2579,8 @@ type GetRetentionPolicyRequest struct {
 }
 
 type GetRetentionPolicyResponse struct {
-	Data RetentionPolicy `json:"data"`
+	Exists bool             `json:"exists"`
+	Data   *RetentionPolicy `json:"data,optional"`
 }
 
 type GetSchedulerMetricsRequest struct {
@@ -2651,6 +2676,72 @@ type HarborUser struct {
 	AdminRoleInAuth bool   `json:"adminRoleInAuth"`
 }
 
+type HostErrorRateStats struct {
+	TotalErrorRate float64        `json:"totalErrorRate"`
+	Error4xxRate   float64        `json:"error4xxRate"`
+	Error5xxRate   float64        `json:"error5xxRate"`
+	TopErrors      []HostTopError `json:"topErrors"`
+	Top4xxErrors   []HostTopError `json:"top4xxErrors"`
+	Top5xxErrors   []HostTopError `json:"top5xxErrors"`
+}
+
+type HostLatencyStats struct {
+	P50 float64 `json:"p50"`
+	P95 float64 `json:"p95"`
+	P99 float64 `json:"p99"`
+	Avg float64 `json:"avg"`
+	Max float64 `json:"max"`
+}
+
+type HostMetricDataPoint struct {
+	Timestamp          int64   `json:"timestamp"`
+	RequestsPerSecond  float64 `json:"requestsPerSecond"`
+	IngressBytesPerSec float64 `json:"ingressBytesPerSec"`
+	EgressBytesPerSec  float64 `json:"egressBytesPerSec"`
+	Error4xxRate       float64 `json:"error4xxRate"`
+	Error5xxRate       float64 `json:"error5xxRate"`
+	P95Latency         float64 `json:"p95Latency"`
+}
+
+type HostMetricSnapshot struct {
+	Timestamp          int64   `json:"timestamp"`
+	RequestsPerSecond  float64 `json:"requestsPerSecond"`
+	IngressBytesPerSec float64 `json:"ingressBytesPerSec"`
+	EgressBytesPerSec  float64 `json:"egressBytesPerSec"`
+	ActiveConnections  int64   `json:"activeConnections"`
+}
+
+type HostMetrics struct {
+	Host        string                     `json:"host"`
+	Start       int64                      `json:"start"`
+	End         int64                      `json:"end"`
+	Current     HostMetricSnapshot         `json:"current"`
+	StatusCodes HostStatusCodeDistribution `json:"statusCodes"`
+	ErrorRate   HostErrorRateStats         `json:"errorRate"`
+	Latency     HostLatencyStats           `json:"latency"`
+	Summary     HostMetricsSummary         `json:"summary"`
+	Trend       []HostMetricDataPoint      `json:"trend"`
+	ByPath      []HostPathMetrics          `json:"byPath"`
+}
+
+type HostMetricsSummary struct {
+	TotalRequests     int64   `json:"totalRequests"`
+	TotalIngressBytes int64   `json:"totalIngressBytes"`
+	TotalEgressBytes  int64   `json:"totalEgressBytes"`
+	AvgRequestsPerSec float64 `json:"avgRequestsPerSec"`
+	MaxRequestsPerSec float64 `json:"maxRequestsPerSec"`
+	AvgRequestSize    float64 `json:"avgRequestSize"`
+	AvgResponseSize   float64 `json:"avgResponseSize"`
+}
+
+type HostPathMetrics struct {
+	Path              string  `json:"path"`
+	RequestsPerSecond float64 `json:"requestsPerSecond"`
+	ErrorRate         float64 `json:"errorRate"`
+	ErrorRatePercent  float64 `json:"errorRatePercent"`
+	P95Latency        float64 `json:"p95Latency"`
+}
+
 type HostRanking struct {
 	TopByQPS       []HostRankingItem `json:"topByQPS"`
 	TopByErrorRate []HostRankingItem `json:"topByErrorRate"`
@@ -2661,6 +2752,19 @@ type HostRankingItem struct {
 	Host  string  `json:"host"`
 	Value float64 `json:"value"`
 	Unit  string  `json:"unit"`
+}
+
+type HostStatusCodeDistribution struct {
+	Status2xx map[string]int64 `json:"status2xx"`
+	Status3xx map[string]int64 `json:"status3xx"`
+	Status4xx map[string]int64 `json:"status4xx"`
+	Status5xx map[string]int64 `json:"status5xx"`
+}
+
+type HostTopError struct {
+	StatusCode string  `json:"statusCode"`
+	Count      int64   `json:"count"`
+	Percent    float64 `json:"percent"`
 }
 
 type IOPSDataPoint struct {
@@ -5058,12 +5162,14 @@ type UpdateReplicationPolicyResponse struct {
 type UpdateRetentionPolicyRequest struct {
 	RegistryUuid string          `json:"registryUuid" validate:"required"`
 	PolicyId     int64           `json:"policyId" validate:"required"`
+	ProjectName  string          `json:"projectName" validate:"required"`
 	Algorithm    string          `json:"algorithm" validate:"required"`
 	Rules        []RetentionRule `json:"rules" validate:"required"`
 	Schedule     string          `json:"schedule,optional"`
 }
 
 type UpdateRetentionPolicyResponse struct {
+	Id      int64  `json:"id"`
 	Message string `json:"message"`
 }
 

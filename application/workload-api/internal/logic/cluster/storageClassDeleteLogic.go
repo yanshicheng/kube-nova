@@ -25,7 +25,7 @@ func NewStorageClassDeleteLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 	}
 }
 
-func (l *StorageClassDeleteLogic) StorageClassDelete(req *types.ClusterResourceNameRequest) (resp string, err error) {
+func (l *StorageClassDeleteLogic) StorageClassDelete(req *types.ClusterResourceDeleteRequest) (resp string, err error) {
 	username, ok := l.ctx.Value("username").(string)
 	if !ok {
 		username = "system"
@@ -38,6 +38,28 @@ func (l *StorageClassDeleteLogic) StorageClassDelete(req *types.ClusterResourceN
 	}
 
 	scOp := client.StorageClasses()
+
+	// 获取 StorageClass 详情用于审计
+	existingSC, _ := scOp.Get(req.Name)
+	var provisioner string
+	var isDefault bool
+	if existingSC != nil {
+		provisioner = existingSC.Provisioner
+		if existingSC.Annotations != nil {
+			if val, ok := existingSC.Annotations["storageclass.kubernetes.io/is-default-class"]; ok && val == "true" {
+				isDefault = true
+			}
+		}
+	}
+
+	// 获取关联的 PV 信息
+	pvResponse, _ := scOp.GetAssociatedPVs(req.Name)
+	var pvInfo string
+	if pvResponse != nil && pvResponse.PVCount > 0 {
+		pvInfo = fmt.Sprintf(", 关联 PV: %d 个 (已绑定: %d, 可用: %d)",
+			pvResponse.PVCount, pvResponse.BoundPVCount, pvResponse.AvailablePVCount)
+	}
+
 	err = scOp.Delete(req.Name)
 	if err != nil {
 		l.Errorf("删除 StorageClass 失败: %v", err)
@@ -45,18 +67,28 @@ func (l *StorageClassDeleteLogic) StorageClassDelete(req *types.ClusterResourceN
 		l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "删除 StorageClass",
-			ActionDetail: fmt.Sprintf("删除 StorageClass %s 失败，错误: %v", req.Name, err),
+			ActionDetail: fmt.Sprintf("用户 %s 删除 StorageClass %s 失败, 错误: %v", username, req.Name, err),
 			Status:       0,
 		})
 		return "", fmt.Errorf("删除 StorageClass 失败")
 	}
 
 	l.Infof("用户: %s, 成功删除 StorageClass: %s", username, req.Name)
+
+	// 构建详细审计信息
+	var defaultInfo string
+	if isDefault {
+		defaultInfo = ", 默认: 是"
+	}
+
+	auditDetail := fmt.Sprintf("用户 %s 成功删除 StorageClass %s, Provisioner: %s%s%s",
+		username, req.Name, provisioner, defaultInfo, pvInfo)
+
 	// 记录成功审计日志
 	l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "删除 StorageClass",
-		ActionDetail: fmt.Sprintf("删除 StorageClass %s 成功", req.Name),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	return "删除 StorageClass 成功", nil

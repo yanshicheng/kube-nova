@@ -67,6 +67,7 @@ type AddSysDeptRequest struct {
 
 type AddSysMenuRequest struct {
 	ParentId      uint64 `json:"parentId,optional" default:"0" validate:"gte=0"`         // 父菜单ID
+	PlatformId    uint64 `json:"platformId" validate:"required,gt=0"`                    // 平台ID，必填
 	MenuType      int64  `json:"menuType" validate:"required,oneof=1 2 3"`               // 菜单类型，必填
 	Name          string `json:"name" validate:"required,min=2,max=50"`                  // 菜单名称，必填
 	Path          string `json:"path,optional" validate:"omitempty,max=255"`             // 路由地址
@@ -97,6 +98,16 @@ type AddSysMenuRequest struct {
 	Status        int64  `json:"status,optional" default:"1" validate:"oneof=0 1"`       // 状态
 }
 
+type AddSysPlatformRequest struct {
+	PlatformCode string `json:"platformCode" validate:"required,min=2,max=50"`       // 平台编码，必填
+	PlatformName string `json:"platformName" validate:"required,min=2,max=100"`      // 平台名称，必填
+	PlatformDesc string `json:"platformDesc,optional" validate:"omitempty,max=500"`  // 平台描述
+	PlatformIcon string `json:"platformIcon,optional" validate:"omitempty,max=255"`  // 平台图标
+	Sort         int64  `json:"sort,optional" default:"0" validate:"gte=0"`          // 排序
+	IsEnable     int64  `json:"isEnable,optional" default:"1" validate:"oneof=0 1"`  // 是否启用
+	IsDefault    int64  `json:"isDefault,optional" default:"0" validate:"oneof=0 1"` // 是否为默认平台
+}
+
 type AddSysRoleRequest struct {
 	Name   string `json:"name" validate:"required,min=2,max=50"`        // 角色名称，必填
 	Code   string `json:"code" validate:"required,min=2,max=50"`        // 角色编码，必填
@@ -117,12 +128,15 @@ type AddSysTokenResponse struct {
 }
 
 type AddSysUserRequest struct {
-	Username   string `json:"username" validate:"required,min=4,max=50"` // 用户名
-	Nickname   string `json:"nickname" validate:"required,min=2,max=50"` // 昵称
-	Email      string `json:"email" validate:"required,email"`           // 邮箱
-	Phone      string `json:"phone" validate:"required,min=10,max=20"`   // 手机号
-	WorkNumber string `json:"workNumber" validate:"required,max=50"`     // 工号
-	DeptId     uint64 `json:"deptId" validate:"omitempty,gt=0"`          // 部门ID
+	Username   string `json:"username" validate:"required,min=4,max=50"`        // 用户名
+	Nickname   string `json:"nickname" validate:"required,min=2,max=50"`        // 昵称
+	Email      string `json:"email" validate:"required,email"`                  // 邮箱
+	Phone      string `json:"phone" validate:"required,min=10,max=20"`          // 手机号
+	WorkNumber string `json:"workNumber" validate:"required,max=50"`            // 工号
+	DeptId     uint64 `json:"deptId" validate:"omitempty,gt=0"`                 // 部门ID
+	DingtalkId string `json:"dingtalkId,optional" validate:"omitempty,max=100"` // 钉钉用户ID
+	WechatId   string `json:"wechatId,optional" validate:"omitempty,max=100"`   // 微信用户ID
+	FeishuId   string `json:"feishuId,optional" validate:"omitempty,max=100"`   // 飞书用户ID
 }
 
 type AlertChannels struct {
@@ -259,6 +273,11 @@ type BindSysRoleMenuRequest struct {
 	MenuIds []uint64 `json:"menuIds" validate:"required"`     // 菜单ID列表
 }
 
+type BindUserPlatformRequest struct {
+	UserId      uint64   `json:"userId" validate:"required,gt=0"`                 // 用户ID
+	PlatformIds []uint64 `json:"platformIds" validate:"required,min=1,dive,gt=0"` // 平台ID列表
+}
+
 type DefaultIdRequest struct {
 	Id uint64 `path:"id" validate:"required,gt=0"` // ID
 }
@@ -267,8 +286,17 @@ type DelSiteMessagesRequest struct {
 	Id uint64 `path:"id" validate:"required,gt=0"` // 消息ID
 }
 
+type DisableSysPlatformRequest struct {
+	Id uint64 `path:"id" validate:"required,gt=0"` // 平台ID
+}
+
+type EnableSysPlatformRequest struct {
+	Id uint64 `path:"id" validate:"required,gt=0"` // 平台ID
+}
+
 type GetAllMenuTreeRequest struct {
-	Status int64 `form:"status,optional" default:"-1" validate:"omitempty,oneof=-1 0 1"` // 状态过滤
+	PlatformId uint64 `form:"platformId" validate:"required,gt=0"`                            // 平台ID，必填
+	Status     int64  `form:"status,optional" default:"-1" validate:"omitempty,oneof=-1 0 1"` // 状态过滤
 }
 
 type GetGroupsTreeRequest struct {
@@ -276,6 +304,21 @@ type GetGroupsTreeRequest struct {
 }
 
 type GetMessageStatsRequest struct {
+}
+
+type GetPlatformUsersRequest struct {
+	PlatformId uint64 `form:"platformId" validate:"required,gt=0"`                              // 平台ID
+	Page       uint64 `form:"page,optional" default:"1" validate:"required,min=1"`              // 当前页码
+	PageSize   uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"` // 每页条数
+}
+
+type GetPlatformUsersResponse struct {
+	UserIds []uint64 `json:"userIds"` // 用户ID列表
+	Total   uint64   `json:"total"`   // 总数
+}
+
+type GetRolesMenuTreeRequest struct {
+	PlatformId uint64 `form:"platformId" validate:"required,gt=0"` // 平台ID，必填
 }
 
 type GetSiteMessagesByIdRequest struct {
@@ -290,17 +333,18 @@ type GetSysAPITreeRequest struct {
 }
 
 type GetSysMenuListRequest struct {
-	Page     uint64 `form:"page,optional" default:"1" validate:"required,min=1"`              // 当前页码
-	PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"` // 每页条数
-	OrderStr string `form:"orderStr,optional" default:"sort" validate:"omitempty"`            // 排序字段
-	IsAsc    bool   `form:"isAsc,optional" default:"true" validate:"omitempty"`               // 是否升序
-	ParentId uint64 `form:"parentId,optional" validate:"omitempty,gte=0"`                     // 父菜单ID
-	MenuType int64  `form:"menuType,optional" validate:"omitempty,oneof=1 2 3"`               // 菜单类型
-	Name     string `form:"name,optional" validate:"omitempty,max=50"`                        // 菜单名称
-	Title    string `form:"title,optional" validate:"omitempty,max=100"`                      // 菜单标题
-	Label    string `form:"label,optional" validate:"omitempty,max=100"`                      // 权限标识
-	Status   int64  `form:"status,optional" validate:"omitempty,oneof=0 1"`                   // 状态
-	IsMenu   int64  `form:"isMenu,optional" validate:"omitempty,oneof=0 1"`                   // 是否为菜单
+	Page       uint64 `form:"page,optional" default:"1" validate:"required,min=1"`              // 当前页码
+	PageSize   uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"` // 每页条数
+	OrderStr   string `form:"orderStr,optional" default:"sort" validate:"omitempty"`            // 排序字段
+	IsAsc      bool   `form:"isAsc,optional" default:"true" validate:"omitempty"`               // 是否升序
+	PlatformId uint64 `form:"platformId" validate:"required,gt=0"`                              // 平台ID，必填
+	ParentId   uint64 `form:"parentId,optional" validate:"omitempty,gte=0"`                     // 父菜单ID
+	MenuType   int64  `form:"menuType,optional" validate:"omitempty,oneof=1 2 3"`               // 菜单类型
+	Name       string `form:"name,optional" validate:"omitempty,max=50"`                        // 菜单名称
+	Title      string `form:"title,optional" validate:"omitempty,max=100"`                      // 菜单标题
+	Label      string `form:"label,optional" validate:"omitempty,max=100"`                      // 权限标识
+	Status     int64  `form:"status,optional" validate:"omitempty,oneof=0 1"`                   // 状态
+	IsMenu     int64  `form:"isMenu,optional" validate:"omitempty,oneof=0 1"`                   // 是否为菜单
 }
 
 type GetSysMenuListResponse struct {
@@ -309,7 +353,8 @@ type GetSysMenuListResponse struct {
 }
 
 type GetSysMenuSimpleTreeRequest struct {
-	Status int64 `form:"status,optional" default:"-1" validate:"omitempty,oneof=-1 0 1"` // 状态过滤
+	PlatformId uint64 `form:"platformId" validate:"required,gt=0"`                            // 平台ID，必填
+	Status     int64  `form:"status,optional" default:"-1" validate:"omitempty,oneof=-1 0 1"` // 状态过滤
 }
 
 type GetSysTokenByUserIdRequest struct {
@@ -548,17 +593,34 @@ type SearchSysLoginLogResponse struct {
 }
 
 type SearchSysMenuRequest struct {
-	ParentId uint64 `form:"parentId,optional" validate:"omitempty,gte=0"`       // 父菜单ID
-	MenuType int64  `form:"menuType,optional" validate:"omitempty,oneof=1 2 3"` // 菜单类型
-	Name     string `form:"name,optional" validate:"omitempty,max=50"`          // 菜单名称
-	Title    string `form:"title,optional" validate:"omitempty,max=100"`        // 菜单标题
-	Label    string `form:"label,optional" validate:"omitempty,max=100"`        // 权限标识
-	Status   int64  `form:"status,optional" validate:"omitempty,oneof=0 1"`     // 状态
-	IsMenu   int64  `form:"isMenu,optional" validate:"omitempty,oneof=0 1"`     // 是否为菜单
+	PlatformId uint64 `form:"platformId" validate:"required,gt=0"`                // 平台ID，必填
+	ParentId   uint64 `form:"parentId,optional" validate:"omitempty,gte=0"`       // 父菜单ID
+	MenuType   int64  `form:"menuType,optional" validate:"omitempty,oneof=1 2 3"` // 菜单类型
+	Name       string `form:"name,optional" validate:"omitempty,max=50"`          // 菜单名称
+	Title      string `form:"title,optional" validate:"omitempty,max=100"`        // 菜单标题
+	Label      string `form:"label,optional" validate:"omitempty,max=100"`        // 权限标识
+	Status     int64  `form:"status,optional" validate:"omitempty,oneof=0 1"`     // 状态
+	IsMenu     int64  `form:"isMenu,optional" validate:"omitempty,oneof=0 1"`     // 是否为菜单
 }
 
 type SearchSysMenuResponse struct {
 	Items []SysMenuTree `json:"items"` // 菜单树
+	Total uint64        `json:"total"` // 总数
+}
+
+type SearchSysPlatformRequest struct {
+	Page         uint64 `form:"page,optional" default:"1" validate:"required,min=1"`              // 当前页码
+	PageSize     uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"` // 每页条数
+	OrderStr     string `form:"orderStr,optional" default:"sort" validate:"omitempty"`            // 排序字段
+	IsAsc        bool   `form:"isAsc,optional" default:"true" validate:"omitempty"`               // 是否升序
+	PlatformCode string `form:"platformCode,optional" validate:"omitempty,max=50"`                // 平台编码
+	PlatformName string `form:"platformName,optional" validate:"omitempty,max=100"`               // 平台名称
+	IsEnable     int64  `form:"isEnable,optional" validate:"omitempty,oneof=0 1"`                 // 是否启用
+	IsDefault    int64  `form:"isDefault,optional" validate:"omitempty,oneof=0 1"`                // 是否为默认平台
+}
+
+type SearchSysPlatformResponse struct {
+	Items []SysPlatform `json:"items"` // 平台列表
 	Total uint64        `json:"total"` // 总数
 }
 
@@ -613,7 +675,10 @@ type SearchSysUserRequest struct {
 	WorkNumber string `form:"workNumber,optional" validate:"omitempty,max=50"`                  // 工号
 	CreateBy   string `form:"createBy,optional" validate:"omitempty"`
 	UpdateBy   string `form:"updateBy,optional" validate:"omitempty"`
-	LoginIp    string `form:"loginIp,optional" validate:"omitempty"` // 是否需要重置密码
+	LoginIp    string `form:"loginIp,optional" validate:"omitempty"`            // 是否需要重置密码
+	DingtalkId string `form:"dingtalkId,optional" validate:"omitempty,max=100"` // 钉钉用户ID
+	WechatId   string `form:"wechatId,optional" validate:"omitempty,max=100"`   // 微信用户ID
+	FeishuId   string `form:"feishuId,optional" validate:"omitempty,max=100"`   // 飞书用户ID
 }
 
 type SearchSysUserResponse struct {
@@ -622,6 +687,10 @@ type SearchSysUserResponse struct {
 }
 
 type SetAllReadRequest struct {
+}
+
+type SetDefaultSysPlatformRequest struct {
+	Id uint64 `path:"id" validate:"required,gt=0"` // 平台ID
 }
 
 type SiteMessageWSConnectRequest struct {
@@ -666,6 +735,7 @@ type SysAPITreeNode struct {
 	Id           uint64           `json:"id"`           // 主键ID
 	Name         string           `json:"name"`         // API名称
 	IsPermission int64            `json:"isPermission"` // 是否为权限
+	Method       string           `json:"method"`       // HTTP方法
 	Children     []SysAPITreeNode `json:"children"`     // 子节点
 }
 
@@ -715,6 +785,7 @@ type SysLoginLog struct {
 type SysMenu struct {
 	Id            uint64 `json:"id"`            // 自增主键
 	ParentId      uint64 `json:"parentId"`      // 父菜单ID，顶级菜单为0
+	PlatformId    uint64 `json:"platformId"`    // 平台ID
 	MenuType      int64  `json:"menuType"`      // 菜单类型（1目录 2菜单 3按钮）
 	Name          string `json:"name"`          // 菜单名称（路由name）
 	Path          string `json:"path"`          // 路由地址
@@ -758,6 +829,7 @@ type SysMenuSimpleTreeNode struct {
 type SysMenuTree struct {
 	Id            uint64        `json:"id"`            // 自增主键
 	ParentId      uint64        `json:"parentId"`      // 父菜单ID
+	PlatformId    uint64        `json:"platformId"`    // 平台ID
 	MenuType      int64         `json:"menuType"`      // 菜单类型
 	Name          string        `json:"name"`          // 菜单名称
 	Path          string        `json:"path"`          // 路由地址
@@ -791,6 +863,21 @@ type SysMenuTree struct {
 	CreatedAt     int64         `json:"createdAt"`     // 创建时间
 	UpdatedAt     int64         `json:"updatedAt"`     // 更新时间
 	Children      []SysMenuTree `json:"children"`      // 子菜单列表
+}
+
+type SysPlatform struct {
+	Id           uint64 `json:"id"`           // 自增主键
+	PlatformCode string `json:"platformCode"` // 平台编码（唯一标识）
+	PlatformName string `json:"platformName"` // 平台名称
+	PlatformDesc string `json:"platformDesc"` // 平台描述
+	PlatformIcon string `json:"platformIcon"` // 平台图标
+	Sort         int64  `json:"sort"`         // 排序
+	IsEnable     int64  `json:"isEnable"`     // 是否启用（0:禁用 1:启用）
+	IsDefault    int64  `json:"isDefault"`    // 是否为默认平台（0:否 1:是）
+	CreatedBy    string `json:"createdBy"`    // 创建人
+	UpdatedBy    string `json:"updatedBy"`    // 更新人
+	CreatedAt    int64  `json:"createdAt"`    // 创建时间
+	UpdatedAt    int64  `json:"updatedAt"`    // 更新时间
 }
 
 type SysRole struct {
@@ -834,6 +921,9 @@ type SysUser struct {
 	UpdatedBy      string `json:"updatedBy"`      // 记录更新人
 	CreatedAt      int64  `json:"createdAt"`      // 创建时间
 	UpdatedAt      int64  `json:"updatedAt"`      // 更新时间
+	DingtalkId     string `json:"dingtalkId"`     // 钉钉用户ID
+	WechatId       string `json:"wechatId"`       // 微信用户ID
+	FeishuId       string `json:"feishuId"`       // 飞书用户ID
 }
 
 type SysUserInfo struct {
@@ -852,6 +942,9 @@ type SysUserInfo struct {
 	UpdatedAt      int64  `json:"updatedAt"`      // 更新时间
 	DeptNames      string `json:"deptNames"`      // 部门完整信息 / 分割
 	RoleNames      string `json:"roleNames"`      // 角色列表names
+	DingtalkId     string `json:"dingtalkId"`     // 钉钉用户ID
+	WechatId       string `json:"wechatId"`       // 微信用户ID
+	FeishuId       string `json:"feishuId"`       // 飞书用户ID
 }
 
 type TestLinkRequest struct {
@@ -869,6 +962,15 @@ type TokenResponse struct {
 
 type UnbindAlertGroupAppsRequest struct {
 	Id uint64 `path:"id" validate:"required,gt=0"` // 关联ID
+}
+
+type UnbindUserPlatformRequest struct {
+	UserId      uint64   `json:"userId" validate:"required,gt=0"`                 // 用户ID
+	PlatformIds []uint64 `json:"platformIds" validate:"required,min=1,dive,gt=0"` // 平台ID列表
+}
+
+type UnsetDefaultSysPlatformRequest struct {
+	Id uint64 `path:"id" validate:"required,gt=0"` // 平台ID
 }
 
 type UpdateAlertChannelsRequest struct {
@@ -930,6 +1032,7 @@ type UpdateSysDeptRequest struct {
 type UpdateSysMenuRequest struct {
 	Id            uint64 `path:"id" validate:"required,gt=0"`                          // 菜单ID，必填
 	ParentId      uint64 `json:"parentId,optional" validate:"omitempty,gte=0"`         // 父菜单ID
+	PlatformId    uint64 `json:"platformId,optional" validate:"omitempty,gt=0"`        // 平台ID（不允许修改，传入用于验证）
 	MenuType      int64  `json:"menuType,optional" validate:"omitempty,oneof=1 2 3"`   // 菜单类型
 	Name          string `json:"name,optional" validate:"omitempty,min=2,max=50"`      // 菜单名称
 	Path          string `json:"path,optional" validate:"omitempty,max=255"`           // 路由地址
@@ -958,6 +1061,17 @@ type UpdateSysMenuRequest struct {
 	AuthIcon      string `json:"authIcon,optional" validate:"omitempty,max=100"`       // 按钮图标
 	AuthSort      int64  `json:"authSort,optional" validate:"omitempty,gte=0"`         // 按钮排序
 	Status        int64  `json:"status,optional" validate:"omitempty,oneof=0 1"`       // 状态
+}
+
+type UpdateSysPlatformRequest struct {
+	Id           uint64 `path:"id" validate:"required,gt=0"`                              // 平台ID，必填
+	PlatformCode string `json:"platformCode,optional" validate:"omitempty,min=2,max=50"`  // 平台编码
+	PlatformName string `json:"platformName,optional" validate:"omitempty,min=2,max=100"` // 平台名称
+	PlatformDesc string `json:"platformDesc,optional" validate:"omitempty,max=500"`       // 平台描述
+	PlatformIcon string `json:"platformIcon,optional" validate:"omitempty,max=255"`       // 平台图标
+	Sort         int64  `json:"sort,optional" validate:"omitempty,gte=0"`                 // 排序
+	IsEnable     int64  `json:"isEnable,optional" validate:"omitempty,oneof=0 1"`         // 是否启用
+	IsDefault    int64  `json:"isDefault,optional" validate:"omitempty,oneof=0 1"`        // 是否为默认平台
 }
 
 type UpdateSysRoleRequest struct {
@@ -998,6 +1112,9 @@ type UpdateSysUserRequest struct {
 	DeptId         uint64 `json:"deptId" validate:"required,gt=0"`                        // 部门ID
 	Status         int64  `json:"status,optional" validate:"omitempty,oneof=0 1"`         // 状态
 	IsNeedResetPwd int64  `json:"isNeedResetPwd,optional" validate:"omitempty,oneof=0 1"` // 是否需要重置密码
+	DingtalkId     string `json:"dingtalkId,optional" validate:"omitempty,max=100"`       // 钉钉用户ID
+	WechatId       string `json:"wechatId,optional" validate:"omitempty,max=100"`         // 微信用户ID
+	FeishuId       string `json:"feishuId,optional" validate:"omitempty,max=100"`         // 飞书用户ID
 }
 
 type UpdateSysUserStatusRequest struct {

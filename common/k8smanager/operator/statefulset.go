@@ -13,7 +13,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -394,32 +393,17 @@ func (s *statefulSetOperator) convertToPodDetailInfo(pod *corev1.Pod) types.PodD
 	}
 }
 
+// ==================== 镜像管理 ====================
+
+// GetContainerImages 获取所有容器的镜像信息
+// 使用公共转换函数 ConvertPodSpecToContainerImages
 func (s *statefulSetOperator) GetContainerImages(namespace, name string) (*types.ContainerInfoList, error) {
 	statefulSet, err := s.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	result := &types.ContainerInfoList{
-		InitContainers: make([]types.ContainerInfo, 0),
-		Containers:     make([]types.ContainerInfo, 0),
-	}
-
-	for _, container := range statefulSet.Spec.Template.Spec.InitContainers {
-		result.InitContainers = append(result.InitContainers, types.ContainerInfo{
-			Name:  container.Name,
-			Image: container.Image,
-		})
-	}
-
-	for _, container := range statefulSet.Spec.Template.Spec.Containers {
-		result.Containers = append(result.Containers, types.ContainerInfo{
-			Name:  container.Name,
-			Image: container.Image,
-		})
-	}
-
-	return result, nil
+	return ConvertPodSpecToContainerImages(&statefulSet.Spec.Template.Spec), nil
 }
 
 func (s *statefulSetOperator) UpdateImage(req *types.UpdateImageRequest) error {
@@ -523,6 +507,8 @@ func (s *statefulSetOperator) UpdateImage(req *types.UpdateImageRequest) error {
 	return nil
 }
 
+// UpdateImages 批量更新镜像
+// 使用公共转换函数 ApplyImagesToPodSpec
 func (s *statefulSetOperator) UpdateImages(req *types.UpdateImagesRequest) error {
 	// 参数验证
 	if req == nil {
@@ -536,30 +522,14 @@ func (s *statefulSetOperator) UpdateImages(req *types.UpdateImagesRequest) error
 	}
 
 	// 检查是否有需要更新的容器
-	totalRequested := len(req.Containers.InitContainers) + len(req.Containers.Containers)
-	if req.Containers.EphemeralContainers != nil {
-		totalRequested += len(req.Containers.EphemeralContainers)
-	}
-	if totalRequested == 0 {
+	if len(req.Containers.Containers) == 0 {
 		return fmt.Errorf("未指定要更新的容器")
 	}
 
 	// 验证所有镜像格式
-	for _, c := range req.Containers.InitContainers {
-		if err := validateImageFormat(c.Image); err != nil {
-			return fmt.Errorf("InitContainer '%s' 镜像格式无效: %v", c.Name, err)
-		}
-	}
 	for _, c := range req.Containers.Containers {
 		if err := validateImageFormat(c.Image); err != nil {
-			return fmt.Errorf("Container '%s' 镜像格式无效: %v", c.Name, err)
-		}
-	}
-	if req.Containers.EphemeralContainers != nil {
-		for _, c := range req.Containers.EphemeralContainers {
-			if err := validateImageFormat(c.Image); err != nil {
-				return fmt.Errorf("EphemeralContainer '%s' 镜像格式无效: %v", c.Name, err)
-			}
+			return fmt.Errorf("容器 '%s' 镜像格式无效: %v", c.ContainerName, err)
 		}
 	}
 
@@ -569,58 +539,10 @@ func (s *statefulSetOperator) UpdateImages(req *types.UpdateImagesRequest) error
 		return err
 	}
 
-	// 构建容器名到索引的映射，提高查找效率
-	initContainerMap := make(map[string]int)
-	for i, c := range statefulSet.Spec.Template.Spec.InitContainers {
-		initContainerMap[c.Name] = i
-	}
-
-	containerMap := make(map[string]int)
-	for i, c := range statefulSet.Spec.Template.Spec.Containers {
-		containerMap[c.Name] = i
-	}
-
-	ephemeralContainerMap := make(map[string]int)
-	for i, c := range statefulSet.Spec.Template.Spec.EphemeralContainers {
-		ephemeralContainerMap[c.Name] = i
-	}
-
-	// 记录变更
-	var changes []string
-
-	// 更新 InitContainers
-	for _, img := range req.Containers.InitContainers {
-		if idx, exists := initContainerMap[img.Name]; exists {
-			container := &statefulSet.Spec.Template.Spec.InitContainers[idx]
-			if container.Image != img.Image {
-				changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
-				container.Image = img.Image
-			}
-		}
-	}
-
-	// 更新 Containers
-	for _, img := range req.Containers.Containers {
-		if idx, exists := containerMap[img.Name]; exists {
-			container := &statefulSet.Spec.Template.Spec.Containers[idx]
-			if container.Image != img.Image {
-				changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
-				container.Image = img.Image
-			}
-		}
-	}
-
-	// 更新 EphemeralContainers
-	if req.Containers.EphemeralContainers != nil {
-		for _, img := range req.Containers.EphemeralContainers {
-			if idx, exists := ephemeralContainerMap[img.Name]; exists {
-				container := &statefulSet.Spec.Template.Spec.EphemeralContainers[idx]
-				if container.Image != img.Image {
-					changes = append(changes, fmt.Sprintf("%s=%s", img.Name, extractImageTag(img.Image)))
-					container.Image = img.Image
-				}
-			}
-		}
+	// 使用公共转换函数应用镜像更新
+	changes, err := ApplyImagesToPodSpec(&statefulSet.Spec.Template.Spec, req.Containers.Containers)
+	if err != nil {
+		return fmt.Errorf("应用镜像更新失败: %v", err)
 	}
 
 	// 如果没有实际变更，直接返回（幂等）
@@ -684,6 +606,14 @@ func (s *statefulSetOperator) GetReplicas(namespace, name string) (*types.Replic
 }
 
 func (s *statefulSetOperator) Scale(sc *types.ScaleRequest) error {
+	if sc == nil || sc.Namespace == "" || sc.Name == "" {
+		return fmt.Errorf("请求参数不完整")
+	}
+
+	if sc.Replicas < 0 {
+		return fmt.Errorf("副本数不能为负数: %d", sc.Replicas)
+	}
+
 	statefulSet, err := s.Get(sc.Namespace, sc.Name)
 	if err != nil {
 		return err
@@ -736,10 +666,20 @@ func (s *statefulSetOperator) UpdateStrategy(req *types.UpdateStrategyRequest) e
 		}
 
 		// 支持设置 Partition 为 0（表示更新所有 Pod）
+		if req.RollingUpdate.Partition < 0 {
+			return fmt.Errorf("Partition 不能为负数: %d", req.RollingUpdate.Partition)
+		}
 		statefulSet.Spec.UpdateStrategy.RollingUpdate.Partition = &req.RollingUpdate.Partition
 
 		if req.RollingUpdate.MaxUnavailable != "" {
 			maxUnavailable := intstr.Parse(req.RollingUpdate.MaxUnavailable)
+			// 验证 MaxUnavailable 值合法
+			if maxUnavailable.Type == intstr.Int && maxUnavailable.IntVal < 0 {
+				return fmt.Errorf("MaxUnavailable 不能为负数")
+			}
+			if maxUnavailable.Type == intstr.String && maxUnavailable.StrVal == "0%" {
+				return fmt.Errorf("MaxUnavailable 不能为 0%%，这会阻塞更新")
+			}
 			statefulSet.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = &maxUnavailable
 		} else {
 			statefulSet.Spec.UpdateStrategy.RollingUpdate.MaxUnavailable = nil
@@ -868,73 +808,28 @@ func (s *statefulSetOperator) RollbackToConfig(req *types.RollbackToConfigReques
 	return fmt.Errorf("StatefulSet不支持业务层配置历史回滚")
 }
 
+// ==================== 环境变量管理 ====================
+
+// GetEnvVars 获取所有容器的环境变量
+// 使用公共转换函数 ConvertPodSpecToEnvVars
 func (s *statefulSetOperator) GetEnvVars(namespace, name string) (*types.EnvVarsResponse, error) {
 	statefulSet, err := s.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	response := &types.EnvVarsResponse{
-		Containers: make([]types.ContainerEnvVars, 0),
-	}
-
-	for _, container := range statefulSet.Spec.Template.Spec.Containers {
-		envVars := make([]types.EnvVar, 0)
-		for _, env := range container.Env {
-			envVar := types.EnvVar{
-				Name:   env.Name,
-				Source: types.EnvVarSource{Type: "value", Value: env.Value},
-			}
-
-			if env.ValueFrom != nil {
-				if env.ValueFrom.ConfigMapKeyRef != nil {
-					envVar.Source.Type = "configMapKeyRef"
-					envVar.Source.ConfigMapKeyRef = &types.ConfigMapKeySelector{
-						Name:     env.ValueFrom.ConfigMapKeyRef.Name,
-						Key:      env.ValueFrom.ConfigMapKeyRef.Key,
-						Optional: env.ValueFrom.ConfigMapKeyRef.Optional != nil && *env.ValueFrom.ConfigMapKeyRef.Optional,
-					}
-				} else if env.ValueFrom.SecretKeyRef != nil {
-					envVar.Source.Type = "secretKeyRef"
-					envVar.Source.SecretKeyRef = &types.SecretKeySelector{
-						Name:     env.ValueFrom.SecretKeyRef.Name,
-						Key:      env.ValueFrom.SecretKeyRef.Key,
-						Optional: env.ValueFrom.SecretKeyRef.Optional != nil && *env.ValueFrom.SecretKeyRef.Optional,
-					}
-				} else if env.ValueFrom.FieldRef != nil {
-					envVar.Source.Type = "fieldRef"
-					envVar.Source.FieldRef = &types.ObjectFieldSelector{
-						FieldPath: env.ValueFrom.FieldRef.FieldPath,
-					}
-				} else if env.ValueFrom.ResourceFieldRef != nil {
-					envVar.Source.Type = "resourceFieldRef"
-					divisor := ""
-					if env.ValueFrom.ResourceFieldRef.Divisor.String() != "" {
-						divisor = env.ValueFrom.ResourceFieldRef.Divisor.String()
-					}
-					envVar.Source.ResourceFieldRef = &types.ResourceFieldSelector{
-						ContainerName: env.ValueFrom.ResourceFieldRef.ContainerName,
-						Resource:      env.ValueFrom.ResourceFieldRef.Resource,
-						Divisor:       divisor,
-					}
-				}
-			}
-
-			envVars = append(envVars, envVar)
-		}
-
-		response.Containers = append(response.Containers, types.ContainerEnvVars{
-			ContainerName: container.Name,
-			Env:           envVars,
-		})
-	}
-
-	return response, nil
+	return ConvertPodSpecToEnvVars(&statefulSet.Spec.Template.Spec), nil
 }
 
+// UpdateEnvVars 全量更新所有容器的环境变量
+// 使用公共转换函数 ApplyEnvVarsToPodSpec
 func (s *statefulSetOperator) UpdateEnvVars(req *types.UpdateEnvVarsRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" || req.ContainerName == "" {
+	if req == nil || req.Namespace == "" || req.Name == "" {
 		return fmt.Errorf("请求参数不完整")
+	}
+
+	if len(req.Containers) == 0 {
+		return fmt.Errorf("未指定要更新的容器")
 	}
 
 	statefulSet, err := s.Get(req.Namespace, req.Name)
@@ -942,69 +837,9 @@ func (s *statefulSetOperator) UpdateEnvVars(req *types.UpdateEnvVarsRequest) err
 		return err
 	}
 
-	found := false
-	for i := range statefulSet.Spec.Template.Spec.Containers {
-		if statefulSet.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
-			envVars := make([]corev1.EnvVar, 0)
-			for _, env := range req.Env {
-				envVar := corev1.EnvVar{Name: env.Name}
-
-				switch env.Source.Type {
-				case "value":
-					envVar.Value = env.Source.Value
-				case "configMapKeyRef":
-					if env.Source.ConfigMapKeyRef != nil {
-						envVar.ValueFrom = &corev1.EnvVarSource{
-							ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-								LocalObjectReference: corev1.LocalObjectReference{Name: env.Source.ConfigMapKeyRef.Name},
-								Key:                  env.Source.ConfigMapKeyRef.Key,
-								Optional:             &env.Source.ConfigMapKeyRef.Optional,
-							},
-						}
-					}
-				case "secretKeyRef":
-					if env.Source.SecretKeyRef != nil {
-						envVar.ValueFrom = &corev1.EnvVarSource{
-							SecretKeyRef: &corev1.SecretKeySelector{
-								LocalObjectReference: corev1.LocalObjectReference{Name: env.Source.SecretKeyRef.Name},
-								Key:                  env.Source.SecretKeyRef.Key,
-								Optional:             &env.Source.SecretKeyRef.Optional,
-							},
-						}
-					}
-				case "fieldRef":
-					if env.Source.FieldRef != nil {
-						envVar.ValueFrom = &corev1.EnvVarSource{
-							FieldRef: &corev1.ObjectFieldSelector{FieldPath: env.Source.FieldRef.FieldPath},
-						}
-					}
-				case "resourceFieldRef":
-					if env.Source.ResourceFieldRef != nil {
-						var divisor resource.Quantity
-						if env.Source.ResourceFieldRef.Divisor != "" {
-							divisor, _ = resource.ParseQuantity(env.Source.ResourceFieldRef.Divisor)
-						}
-						envVar.ValueFrom = &corev1.EnvVarSource{
-							ResourceFieldRef: &corev1.ResourceFieldSelector{
-								ContainerName: env.Source.ResourceFieldRef.ContainerName,
-								Resource:      env.Source.ResourceFieldRef.Resource,
-								Divisor:       divisor,
-							},
-						}
-					}
-				}
-
-				envVars = append(envVars, envVar)
-			}
-
-			statefulSet.Spec.Template.Spec.Containers[i].Env = envVars
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return fmt.Errorf("未找到容器: %s", req.ContainerName)
+	// 使用公共转换函数应用环境变量更新
+	if err := ApplyEnvVarsToPodSpec(&statefulSet.Spec.Template.Spec, req.Containers); err != nil {
+		return fmt.Errorf("应用环境变量更新失败: %v", err)
 	}
 
 	_, err = s.Update(statefulSet)
@@ -1018,39 +853,28 @@ func (s *statefulSetOperator) GetPauseStatus(namespace, name string) (*types.Pau
 	}, nil
 }
 
+// ==================== 资源配额管理 ====================
+
+// GetResources 获取所有容器的资源配额
+// 使用公共转换函数 ConvertPodSpecToResources
 func (s *statefulSetOperator) GetResources(namespace, name string) (*types.ResourcesResponse, error) {
 	statefulSet, err := s.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	response := &types.ResourcesResponse{
-		Containers: make([]types.ContainerResources, 0),
-	}
-
-	for _, container := range statefulSet.Spec.Template.Spec.Containers {
-		resources := types.ContainerResources{
-			ContainerName: container.Name,
-			Resources: types.ResourceRequirements{
-				Limits: types.ResourceList{
-					Cpu:    container.Resources.Limits.Cpu().String(),
-					Memory: container.Resources.Limits.Memory().String(),
-				},
-				Requests: types.ResourceList{
-					Cpu:    container.Resources.Requests.Cpu().String(),
-					Memory: container.Resources.Requests.Memory().String(),
-				},
-			},
-		}
-		response.Containers = append(response.Containers, resources)
-	}
-
-	return response, nil
+	return ConvertPodSpecToResources(&statefulSet.Spec.Template.Spec), nil
 }
 
+// UpdateResources 全量更新所有容器的资源配额
+// 使用公共转换函数 ApplyResourcesToPodSpec
 func (s *statefulSetOperator) UpdateResources(req *types.UpdateResourcesRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" || req.ContainerName == "" {
+	if req == nil || req.Namespace == "" || req.Name == "" {
 		return fmt.Errorf("请求参数不完整")
+	}
+
+	if len(req.Containers) == 0 {
+		return fmt.Errorf("未指定要更新的容器")
 	}
 
 	statefulSet, err := s.Get(req.Namespace, req.Name)
@@ -1058,143 +882,37 @@ func (s *statefulSetOperator) UpdateResources(req *types.UpdateResourcesRequest)
 		return err
 	}
 
-	found := false
-	for i := range statefulSet.Spec.Template.Spec.Containers {
-		if statefulSet.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
-			if req.Resources.Limits.Cpu != "" {
-				cpuLimit, err := resource.ParseQuantity(req.Resources.Limits.Cpu)
-				if err != nil {
-					return fmt.Errorf("解析CPU限制失败: %v", err)
-				}
-				if statefulSet.Spec.Template.Spec.Containers[i].Resources.Limits == nil {
-					statefulSet.Spec.Template.Spec.Containers[i].Resources.Limits = corev1.ResourceList{}
-				}
-				statefulSet.Spec.Template.Spec.Containers[i].Resources.Limits[corev1.ResourceCPU] = cpuLimit
-			}
-
-			if req.Resources.Limits.Memory != "" {
-				memLimit, err := resource.ParseQuantity(req.Resources.Limits.Memory)
-				if err != nil {
-					return fmt.Errorf("解析内存限制失败: %v", err)
-				}
-				if statefulSet.Spec.Template.Spec.Containers[i].Resources.Limits == nil {
-					statefulSet.Spec.Template.Spec.Containers[i].Resources.Limits = corev1.ResourceList{}
-				}
-				statefulSet.Spec.Template.Spec.Containers[i].Resources.Limits[corev1.ResourceMemory] = memLimit
-			}
-
-			if req.Resources.Requests.Cpu != "" {
-				cpuRequest, err := resource.ParseQuantity(req.Resources.Requests.Cpu)
-				if err != nil {
-					return fmt.Errorf("解析CPU请求失败: %v", err)
-				}
-				if statefulSet.Spec.Template.Spec.Containers[i].Resources.Requests == nil {
-					statefulSet.Spec.Template.Spec.Containers[i].Resources.Requests = corev1.ResourceList{}
-				}
-				statefulSet.Spec.Template.Spec.Containers[i].Resources.Requests[corev1.ResourceCPU] = cpuRequest
-			}
-
-			if req.Resources.Requests.Memory != "" {
-				memRequest, err := resource.ParseQuantity(req.Resources.Requests.Memory)
-				if err != nil {
-					return fmt.Errorf("解析内存请求失败: %v", err)
-				}
-				if statefulSet.Spec.Template.Spec.Containers[i].Resources.Requests == nil {
-					statefulSet.Spec.Template.Spec.Containers[i].Resources.Requests = corev1.ResourceList{}
-				}
-				statefulSet.Spec.Template.Spec.Containers[i].Resources.Requests[corev1.ResourceMemory] = memRequest
-			}
-
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return fmt.Errorf("未找到容器: %s", req.ContainerName)
+	// 使用公共转换函数应用资源配额更新
+	if err := ApplyResourcesToPodSpec(&statefulSet.Spec.Template.Spec, req.Containers); err != nil {
+		return fmt.Errorf("应用资源配额更新失败: %v", err)
 	}
 
 	_, err = s.Update(statefulSet)
 	return err
 }
 
+// ==================== 健康检查管理 ====================
+
+// GetProbes 获取所有容器的健康检查配置
+// 使用公共转换函数 ConvertPodSpecToProbes
 func (s *statefulSetOperator) GetProbes(namespace, name string) (*types.ProbesResponse, error) {
 	statefulSet, err := s.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	response := &types.ProbesResponse{
-		Containers: make([]types.ContainerProbes, 0),
-	}
-
-	for _, container := range statefulSet.Spec.Template.Spec.Containers {
-		containerProbes := types.ContainerProbes{
-			ContainerName: container.Name,
-		}
-
-		if container.LivenessProbe != nil {
-			containerProbes.LivenessProbe = s.convertProbe(container.LivenessProbe)
-		}
-		if container.ReadinessProbe != nil {
-			containerProbes.ReadinessProbe = s.convertProbe(container.ReadinessProbe)
-		}
-		if container.StartupProbe != nil {
-			containerProbes.StartupProbe = s.convertProbe(container.StartupProbe)
-		}
-
-		response.Containers = append(response.Containers, containerProbes)
-	}
-
-	return response, nil
+	return ConvertPodSpecToProbes(&statefulSet.Spec.Template.Spec), nil
 }
 
-func (s *statefulSetOperator) convertProbe(probe *corev1.Probe) *types.Probe {
-	result := &types.Probe{
-		InitialDelaySeconds: probe.InitialDelaySeconds,
-		TimeoutSeconds:      probe.TimeoutSeconds,
-		PeriodSeconds:       probe.PeriodSeconds,
-		SuccessThreshold:    probe.SuccessThreshold,
-		FailureThreshold:    probe.FailureThreshold,
-	}
-
-	if probe.HTTPGet != nil {
-		result.Type = "httpGet"
-		headers := make([]types.HTTPHeader, 0)
-		for _, h := range probe.HTTPGet.HTTPHeaders {
-			headers = append(headers, types.HTTPHeader{Name: h.Name, Value: h.Value})
-		}
-		result.HttpGet = &types.HTTPGetAction{
-			Path:        probe.HTTPGet.Path,
-			Port:        probe.HTTPGet.Port.IntVal,
-			Host:        probe.HTTPGet.Host,
-			Scheme:      string(probe.HTTPGet.Scheme),
-			HttpHeaders: headers,
-		}
-	} else if probe.TCPSocket != nil {
-		result.Type = "tcpSocket"
-		result.TcpSocket = &types.TCPSocketAction{
-			Port: probe.TCPSocket.Port.IntVal,
-			Host: probe.TCPSocket.Host,
-		}
-	} else if probe.Exec != nil {
-		result.Type = "exec"
-		result.Exec = &types.ExecAction{Command: probe.Exec.Command}
-	} else if probe.GRPC != nil {
-		result.Type = "grpc"
-		service := ""
-		if probe.GRPC.Service != nil {
-			service = *probe.GRPC.Service
-		}
-		result.Grpc = &types.GRPCAction{Port: probe.GRPC.Port, Service: service}
-	}
-
-	return result
-}
-
+// UpdateProbes 全量更新所有容器的健康检查配置
+// 使用公共转换函数 ApplyProbesToPodSpec
 func (s *statefulSetOperator) UpdateProbes(req *types.UpdateProbesRequest) error {
-	if req == nil || req.Namespace == "" || req.Name == "" || req.ContainerName == "" {
+	if req == nil || req.Namespace == "" || req.Name == "" {
 		return fmt.Errorf("请求参数不完整")
+	}
+
+	if len(req.Containers) == 0 {
+		return fmt.Errorf("未指定要更新的容器")
 	}
 
 	statefulSet, err := s.Get(req.Namespace, req.Name)
@@ -1202,74 +920,13 @@ func (s *statefulSetOperator) UpdateProbes(req *types.UpdateProbesRequest) error
 		return err
 	}
 
-	found := false
-	for i := range statefulSet.Spec.Template.Spec.Containers {
-		if statefulSet.Spec.Template.Spec.Containers[i].Name == req.ContainerName {
-			if req.LivenessProbe != nil {
-				statefulSet.Spec.Template.Spec.Containers[i].LivenessProbe = s.buildProbe(req.LivenessProbe)
-			}
-			if req.ReadinessProbe != nil {
-				statefulSet.Spec.Template.Spec.Containers[i].ReadinessProbe = s.buildProbe(req.ReadinessProbe)
-			}
-			if req.StartupProbe != nil {
-				statefulSet.Spec.Template.Spec.Containers[i].StartupProbe = s.buildProbe(req.StartupProbe)
-			}
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return fmt.Errorf("未找到容器: %s", req.ContainerName)
+	// 使用公共转换函数应用健康检查更新
+	if err := ApplyProbesToPodSpec(&statefulSet.Spec.Template.Spec, req.Containers); err != nil {
+		return fmt.Errorf("应用健康检查更新失败: %v", err)
 	}
 
 	_, err = s.Update(statefulSet)
 	return err
-}
-
-func (s *statefulSetOperator) buildProbe(probe *types.Probe) *corev1.Probe {
-	result := &corev1.Probe{
-		InitialDelaySeconds: probe.InitialDelaySeconds,
-		TimeoutSeconds:      probe.TimeoutSeconds,
-		PeriodSeconds:       probe.PeriodSeconds,
-		SuccessThreshold:    probe.SuccessThreshold,
-		FailureThreshold:    probe.FailureThreshold,
-	}
-
-	switch probe.Type {
-	case "httpGet":
-		if probe.HttpGet != nil {
-			headers := make([]corev1.HTTPHeader, 0)
-			for _, h := range probe.HttpGet.HttpHeaders {
-				headers = append(headers, corev1.HTTPHeader{Name: h.Name, Value: h.Value})
-			}
-			result.HTTPGet = &corev1.HTTPGetAction{
-				Path:        probe.HttpGet.Path,
-				Port:        intstr.FromInt(int(probe.HttpGet.Port)),
-				Host:        probe.HttpGet.Host,
-				Scheme:      corev1.URIScheme(probe.HttpGet.Scheme),
-				HTTPHeaders: headers,
-			}
-		}
-	case "tcpSocket":
-		if probe.TcpSocket != nil {
-			result.TCPSocket = &corev1.TCPSocketAction{
-				Port: intstr.FromInt(int(probe.TcpSocket.Port)),
-				Host: probe.TcpSocket.Host,
-			}
-		}
-	case "exec":
-		if probe.Exec != nil {
-			result.Exec = &corev1.ExecAction{Command: probe.Exec.Command}
-		}
-	case "grpc":
-		if probe.Grpc != nil {
-			service := probe.Grpc.Service
-			result.GRPC = &corev1.GRPCAction{Port: probe.Grpc.Port, Service: &service}
-		}
-	}
-
-	return result
 }
 
 func (s *statefulSetOperator) Stop(namespace, name string) error {
@@ -1495,99 +1152,55 @@ func (s *statefulSetOperator) GetVersionStatus(namespace, name string) (*types.R
 
 // ==================== 调度配置相关 ====================
 
-// GetSchedulingConfig 获取调度配置
+// GetSchedulingConfig 获取 StatefulSet 调度配置
+// 使用公共转换函数 types.ConvertPodSpecToSchedulingConfig
 func (s *statefulSetOperator) GetSchedulingConfig(namespace, name string) (*types.SchedulingConfig, error) {
 	statefulSet, err := s.Get(namespace, name)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("获取 StatefulSet 失败: %w", err)
 	}
 
-	return convertPodSpecToSchedulingConfig(&statefulSet.Spec.Template.Spec), nil
+	return types.ConvertPodSpecToSchedulingConfig(&statefulSet.Spec.Template.Spec), nil
 }
 
-// UpdateSchedulingConfig 更新调度配置
-func (s *statefulSetOperator) UpdateSchedulingConfig(namespace, name string, config *types.UpdateSchedulingConfigRequest) error {
-	if config == nil {
-		return fmt.Errorf("调度配置不能为空")
+// UpdateSchedulingConfig 更新 StatefulSet 调度配置
+// 使用公共转换函数 types.ApplySchedulingConfigToPodSpec
+func (s *statefulSetOperator) UpdateSchedulingConfig(namespace, name string, req *types.UpdateSchedulingConfigRequest) error {
+	if req == nil {
+		return fmt.Errorf("调度配置请求不能为空")
 	}
 
 	statefulSet, err := s.Get(namespace, name)
 	if err != nil {
-		return err
+		return fmt.Errorf("获取 StatefulSet 失败: %w", err)
 	}
 
-	// 更新 NodeSelector
-	if config.NodeSelector != nil {
-		statefulSet.Spec.Template.Spec.NodeSelector = config.NodeSelector
-	}
-
-	// 更新 NodeName
-	if config.NodeName != "" {
-		statefulSet.Spec.Template.Spec.NodeName = config.NodeName
-	}
-
-	// 更新 Affinity
-	if config.Affinity != nil {
-		statefulSet.Spec.Template.Spec.Affinity = convertAffinityConfigToK8s(config.Affinity)
-	}
-
-	// 更新 Tolerations
-	if config.Tolerations != nil {
-		statefulSet.Spec.Template.Spec.Tolerations = convertTolerationsConfigToK8s(config.Tolerations)
-	}
-
-	// 更新 TopologySpreadConstraints
-	if config.TopologySpreadConstraints != nil {
-		statefulSet.Spec.Template.Spec.TopologySpreadConstraints = convertTopologySpreadConstraintsToK8s(config.TopologySpreadConstraints)
-	}
-
-	// 更新 SchedulerName
-	if config.SchedulerName != "" {
-		statefulSet.Spec.Template.Spec.SchedulerName = config.SchedulerName
-	}
-
-	// 更新 PriorityClassName
-	if config.PriorityClassName != "" {
-		statefulSet.Spec.Template.Spec.PriorityClassName = config.PriorityClassName
-	}
-
-	// 更新 Priority
-	if config.Priority != nil {
-		statefulSet.Spec.Template.Spec.Priority = config.Priority
-	}
-
-	// 更新 RuntimeClassName
-	if config.RuntimeClassName != nil {
-		statefulSet.Spec.Template.Spec.RuntimeClassName = config.RuntimeClassName
-	}
+	types.ApplySchedulingConfigToPodSpec(&statefulSet.Spec.Template.Spec, req)
 
 	_, err = s.Update(statefulSet)
-	return err
+	if err != nil {
+		return fmt.Errorf("更新 StatefulSet 调度配置失败: %w", err)
+	}
+
+	return nil
 }
 
 // ==================== 存储配置相关 ====================
 
 // GetStorageConfig 获取存储配置
+// 使用公共转换函数 ConvertStatefulSetStorageConfig
 func (s *statefulSetOperator) GetStorageConfig(namespace, name string) (*types.StorageConfig, error) {
 	statefulSet, err := s.Get(namespace, name)
 	if err != nil {
 		return nil, err
 	}
 
-	config := convertPodSpecToStorageConfig(&statefulSet.Spec.Template.Spec)
-
-	// StatefulSet 特有：添加 VolumeClaimTemplates
-	if len(statefulSet.Spec.VolumeClaimTemplates) > 0 {
-		config.VolumeClaimTemplates = make([]types.PersistentVolumeClaimConfig, 0)
-		for _, pvc := range statefulSet.Spec.VolumeClaimTemplates {
-			config.VolumeClaimTemplates = append(config.VolumeClaimTemplates, convertPVCToConfig(&pvc))
-		}
-	}
-
-	return config, nil
+	// 使用 StatefulSet 专用的转换函数，包含 VolumeClaimTemplates
+	return ConvertStatefulSetStorageConfig(&statefulSet.Spec.Template.Spec, statefulSet.Spec.VolumeClaimTemplates), nil
 }
 
 // UpdateStorageConfig 更新存储配置
+// 使用公共转换函数 ApplyStorageConfigToPodSpec 和 ConvertConfigToPVCTemplates
 func (s *statefulSetOperator) UpdateStorageConfig(namespace, name string, config *types.UpdateStorageConfigRequest) error {
 	if config == nil {
 		return fmt.Errorf("存储配置不能为空")
@@ -1598,27 +1211,88 @@ func (s *statefulSetOperator) UpdateStorageConfig(namespace, name string, config
 		return err
 	}
 
-	// 更新 Volumes
-	if config.Volumes != nil {
-		statefulSet.Spec.Template.Spec.Volumes = convertVolumesConfigToK8s(config.Volumes)
+	// 使用公共转换函数应用存储配置到 PodSpec
+	if err := ApplyStorageConfigToPodSpec(&statefulSet.Spec.Template.Spec, config); err != nil {
+		return fmt.Errorf("应用存储配置失败: %v", err)
 	}
 
-	// 更新 VolumeMounts
-	if config.VolumeMounts != nil {
-		for _, vmConfig := range config.VolumeMounts {
-			for i := range statefulSet.Spec.Template.Spec.Containers {
-				if statefulSet.Spec.Template.Spec.Containers[i].Name == vmConfig.ContainerName {
-					statefulSet.Spec.Template.Spec.Containers[i].VolumeMounts = convertVolumeMountsToK8s(vmConfig.Mounts)
-					break
-				}
+	// 重要：StatefulSet 的 VolumeClaimTemplates 是不可变的（immutable）
+	// Kubernetes 不允许通过 Update 操作修改 volumeClaimTemplates
+	// 只能修改 template.spec 中的 volumes 和 volumeMounts
+	// 如果需要修改 volumeClaimTemplates，必须删除并重新创建 StatefulSet
+
+	// 检查是否尝试修改 VolumeClaimTemplates
+	if len(config.VolumeClaimTemplates) > 0 {
+		// 比较新旧配置，如果有变化则返回错误提示
+		newTemplates := ConvertConfigToPVCTemplates(config.VolumeClaimTemplates)
+		if !isPVCTemplatesEqual(statefulSet.Spec.VolumeClaimTemplates, newTemplates) {
+			return fmt.Errorf("StatefulSet 的 VolumeClaimTemplates 不可修改，如需修改请删除并重新创建 StatefulSet")
+		}
+		// 如果配置相同，则不做任何操作
+	}
+
+	_, err = s.Update(statefulSet)
+	return err
+}
+
+// isPVCTemplatesEqual 比较两个 PVC 模板列表是否相等
+func isPVCTemplatesEqual(old, new []corev1.PersistentVolumeClaim) bool {
+	if len(old) != len(new) {
+		return false
+	}
+
+	// 简单比较：只比较名称和存储大小
+	// 如果需要更严格的比较，可以扩展此函数
+	oldMap := make(map[string]string)
+	for _, pvc := range old {
+		if storage := pvc.Spec.Resources.Requests.Storage(); storage != nil {
+			oldMap[pvc.Name] = storage.String()
+		}
+	}
+
+	for _, pvc := range new {
+		if storage := pvc.Spec.Resources.Requests.Storage(); storage != nil {
+			if oldStorage, exists := oldMap[pvc.Name]; !exists || oldStorage != storage.String() {
+				return false
 			}
 		}
 	}
 
-	// 更新 VolumeClaimTemplates（StatefulSet 特有）
-	if config.VolumeClaimTemplates != nil {
-		statefulSet.Spec.VolumeClaimTemplates = convertPVCConfigsToK8s(config.VolumeClaimTemplates)
+	return true
+}
+
+// ==================== 高级配置相关 ====================
+
+// GetAdvancedConfig 获取高级容器配置
+// 使用公共转换函数 ConvertPodSpecToAdvancedConfig
+func (s *statefulSetOperator) GetAdvancedConfig(namespace, name string) (*types.AdvancedConfigResponse, error) {
+	statefulSet, err := s.Get(namespace, name)
+	if err != nil {
+		return nil, err
 	}
+
+	return ConvertPodSpecToAdvancedConfig(&statefulSet.Spec.Template.Spec), nil
+}
+
+// UpdateAdvancedConfig 更新高级容器配置（全量更新）
+// 使用公共转换函数 ApplyAdvancedConfigToPodSpec
+func (s *statefulSetOperator) UpdateAdvancedConfig(req *types.UpdateAdvancedConfigRequest) error {
+	if req == nil || req.Namespace == "" || req.Name == "" {
+		return fmt.Errorf("请求参数不完整")
+	}
+
+	statefulSet, err := s.Get(req.Namespace, req.Name)
+	if err != nil {
+		return err
+	}
+
+	// 使用公共转换函数应用高级配置更新
+	if err := ApplyAdvancedConfigToPodSpec(&statefulSet.Spec.Template.Spec, req); err != nil {
+		return fmt.Errorf("应用高级配置更新失败: %v", err)
+	}
+
+	// StatefulSet 的 RestartPolicy 固定为 Always
+	statefulSet.Spec.Template.Spec.RestartPolicy = corev1.RestartPolicyAlways
 
 	_, err = s.Update(statefulSet)
 	return err
@@ -1653,6 +1327,7 @@ func (s *statefulSetOperator) GetEvents(namespace, name string) ([]types.EventIn
 
 	return events, nil
 }
+
 func (s *statefulSetOperator) GetDescribe(namespace, name string) (string, error) {
 	statefulSet, err := s.Get(namespace, name)
 	if err != nil {

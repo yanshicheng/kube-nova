@@ -24,10 +24,12 @@ func NewCreateRetentionPolicyLogic(ctx context.Context, svcCtx *svc.ServiceConte
 	}
 }
 
-func (l *CreateRetentionPolicyLogic) CreateRetentionPolicy(req *types.CreateRetentionPolicyRequest) (resp string, err error) {
+func (l *CreateRetentionPolicyLogic) CreateRetentionPolicy(req *types.CreateRetentionPolicyRequest) (resp *types.CreateRetentionPolicyResponse, err error) {
+	// 转换规则
 	var rules []*pb.RetentionRule
 	for _, rule := range req.Rules {
 		rules = append(rules, &pb.RetentionRule{
+			Id:             rule.Id,
 			Priority:       rule.Priority,
 			Disabled:       rule.Disabled,
 			Action:         rule.Action,
@@ -47,9 +49,12 @@ func (l *CreateRetentionPolicyLogic) CreateRetentionPolicy(req *types.CreateRete
 	})
 	if err != nil {
 		l.Errorf("RPC调用失败: %v", err)
-		return "", err
+		return nil, err
 	}
 
 	l.Infof("保留策略创建成功: PolicyId=%d", rpcResp.Id)
-	return "保留策略创建成功", nil
+	return &types.CreateRetentionPolicyResponse{
+		Id:      rpcResp.Id,
+		Message: "保留策略创建成功",
+	}, nil
 }

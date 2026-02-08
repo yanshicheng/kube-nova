@@ -32,6 +32,12 @@ func NewMenuGetListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *MenuG
 // MenuGetList 获取菜单列表（扁平结构，支持分页）
 func (l *MenuGetListLogic) MenuGetList(in *pb.GetSysMenuListReq) (*pb.GetSysMenuListResp, error) {
 
+	// 参数验证
+	if in.PlatformId == 0 {
+		l.Errorf("获取菜单列表失败：平台ID不能为空")
+		return nil, errorx.Msg("平台ID不能为空")
+	}
+
 	// 设置默认参数
 	if in.Page <= 0 {
 		in.Page = vars.Page
@@ -46,6 +52,10 @@ func (l *MenuGetListLogic) MenuGetList(in *pb.GetSysMenuListReq) (*pb.GetSysMenu
 	// 构建查询条件
 	var conditions []string
 	var args []interface{}
+
+	// 平台ID条件（必须）
+	conditions = append(conditions, "`platform_id` = ? AND")
+	args = append(args, in.PlatformId)
 
 	// 父菜单ID条件
 	if in.ParentId > 0 {
@@ -101,7 +111,7 @@ func (l *MenuGetListLogic) MenuGetList(in *pb.GetSysMenuListReq) (*pb.GetSysMenu
 	// 执行分页查询
 	menuList, total, err := l.svcCtx.SysMenu.Search(l.ctx, in.OrderField, in.IsAsc, in.Page, in.PageSize, query, args...)
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
-		l.Errorf("查询菜单列表失败: %v", err)
+		l.Errorf("查询菜单列表失败: platformId=%d, error=%v", in.PlatformId, err)
 		return nil, errorx.Msg("查询菜单列表失败")
 	}
 
@@ -123,6 +133,7 @@ func (l *MenuGetListLogic) convertToMenuList(menuList []*model.SysMenu) []*pb.Sy
 		pbMenu := &pb.SysMenu{
 			Id:            menu.Id,
 			ParentId:      menu.ParentId,
+			PlatformId:    menu.PlatformId,
 			MenuType:      menu.MenuType,
 			Name:          menu.Name,
 			Path:          menu.Path,

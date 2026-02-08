@@ -2,6 +2,7 @@ package menu
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/yanshicheng/kube-nova/application/portal-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/portal-api/internal/types"
@@ -31,9 +32,16 @@ func (l *AddSysMenuLogic) AddSysMenu(req *types.AddSysMenuRequest) (resp string,
 		username = "system"
 	}
 
+	// 验证 platformId 参数
+	if req.PlatformId == 0 {
+		l.Errorf("平台ID不能为空: operator=%s", username)
+		return "", fmt.Errorf("平台ID不能为空")
+	}
+
 	// 调用 RPC 服务添加菜单
 	_, err = l.svcCtx.PortalRpc.MenuAdd(l.ctx, &pb.AddSysMenuReq{
 		ParentId:      req.ParentId,
+		PlatformId:    req.PlatformId,
 		MenuType:      req.MenuType,
 		Name:          req.Name,
 		Path:          req.Path,
@@ -66,10 +74,10 @@ func (l *AddSysMenuLogic) AddSysMenu(req *types.AddSysMenuRequest) (resp string,
 		UpdateBy:      username,
 	})
 	if err != nil {
-		l.Errorf("添加菜单失败: operator=%s, menuName=%s, error=%v", username, req.Name, err)
+		l.Errorf("添加菜单失败: operator=%s, platformId=%d, menuName=%s, error=%v", username, req.PlatformId, req.Name, err)
 		return "", err
 	}
 
-	l.Infof("添加菜单成功: operator=%s, menuName=%s", username, req.Name)
+	l.Infof("添加菜单成功: operator=%s, platformId=%d, menuName=%s", username, req.PlatformId, req.Name)
 	return "添加菜单成功", nil
 }

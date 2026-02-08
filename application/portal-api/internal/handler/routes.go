@@ -12,6 +12,7 @@ import (
 	dept "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/dept"
 	loginLog "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/loginLog"
 	menu "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/menu"
+	platform "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/platform"
 	role "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/role"
 	sitemessage "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/sitemessage"
 	storage "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/storage"
@@ -380,6 +381,90 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				{
 					Method:  http.MethodPost,
 					Path:    "/",
+					Handler: platform.AddSysPlatformHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/:id",
+					Handler: platform.UpdateSysPlatformHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodDelete,
+					Path:    "/:id",
+					Handler: platform.DelSysPlatformHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/:id",
+					Handler: platform.GetSysPlatformByIdHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/default",
+					Handler: platform.GetDefaultSysPlatformHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/default/:id",
+					Handler: platform.SetDefaultSysPlatformHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/disable/:id",
+					Handler: platform.DisableSysPlatformHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/enable/:id",
+					Handler: platform.EnableSysPlatformHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/enabled",
+					Handler: platform.GetAllEnabledPlatformsHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/list",
+					Handler: platform.SearchSysPlatformHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPut,
+					Path:    "/undefault/:id",
+					Handler: platform.UnsetDefaultSysPlatformHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/user/bind",
+					Handler: platform.BindUserPlatformHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/user/platforms",
+					Handler: platform.GetUserPlatformsHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodPost,
+					Path:    "/user/unbind",
+					Handler: platform.UnbindUserPlatformHandler(serverCtx),
+				},
+				{
+					Method:  http.MethodGet,
+					Path:    "/users",
+					Handler: platform.GetPlatformUsersHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/portal/v1/platform"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
+			[]rest.Route{
+				{
+					Method:  http.MethodPost,
+					Path:    "/",
 					Handler: role.AddSysRoleHandler(serverCtx),
 				},
 				{
@@ -540,6 +625,17 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 	)
 
 	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodPut,
+				Path:    "/password",
+				Handler: user.UpdateSysUserPwdHandler(serverCtx),
+			},
+		},
+		rest.WithPrefix("/portal/v1/user"),
+	)
+
+	server.AddRoutes(
 		rest.WithMiddlewares(
 			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
 			[]rest.Route{
@@ -597,11 +693,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Method:  http.MethodPut,
 					Path:    "/info",
 					Handler: user.UpdateSysUserInfoHandler(serverCtx),
-				},
-				{
-					Method:  http.MethodPut,
-					Path:    "/password",
-					Handler: user.UpdateSysUserPwdHandler(serverCtx),
 				},
 				{
 					Method:  http.MethodPut,

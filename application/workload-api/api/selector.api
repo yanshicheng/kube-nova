@@ -1,0 +1,84 @@
+syntax = "v1"
+
+info(
+    title: "Selector API"
+    desc: "资源选择器查询 API"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // ==================== 通用请求 ====================
+
+    // WorkloadResourceSelectorRequest 工作负载资源选择器请求
+    WorkloadResourceSelectorRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace   string `form:"namespace" validate:"required"`
+        Type        string `form:"type" validate:"required,oneof=cronjob deployment statefulset daemonset"`
+        Name        string `form:"name" validate:"required"`
+    }
+
+    // NamespaceLabelsRequest Namespace 标签请求
+    NamespaceLabelsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace   string `form:"namespace" validate:"required"`
+    }
+
+    // WorkloadResourceListRequest 工作负载资源列表请求
+    WorkloadResourceListRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        Namespace   string `form:"namespace" validate:"required"`
+        Type        string `form:"type" validate:"required,oneof=cronjob deployment statefulset daemonset"`
+    }
+
+    // ==================== 响应类型 ====================
+
+    // PodSelectorResponse Pod 选择器响应
+    PodSelectorResponse {
+        MatchLabels map[string]string `json:"matchLabels"`       // 匹配的标签
+        Labels      map[string]string `json:"labels"`           // 资源自身的标签
+    }
+
+    // NamespaceLabelsResponse Namespace 标签响应
+    NamespaceLabelsResponse {
+        Labels map[string]string `json:"labels"` // Namespace 标签
+    }
+
+    // WorkloadNameItem 工作负载名称项
+    WorkloadNameItem {
+        Name      string `json:"name"`
+        Namespace string `json:"namespace"`
+        Labels    map[string]string `json:"labels,optional"`
+        CreatedAt int64  `json:"createdAt"`
+    }
+
+    // WorkloadResourceListResponse 工作负载资源列表响应
+    WorkloadResourceListResponse {
+        Total int                   `json:"total"`
+        Items []WorkloadNameItem `json:"items"`
+    }
+)
+
+// ==================== 路由定义 ====================
+@server(
+    middleware: JWTAuthMiddleware
+    group: selector
+    prefix: /workload/v1/selector
+)
+
+service workload-api {
+    @doc "获取工作负载 Pod 选择器"
+    @handler GetWorkloadPodSelectorHandler
+    get /pod-selector (WorkloadResourceSelectorRequest) returns (PodSelectorResponse)
+
+    @doc "获取 Namespace 标签"
+    @handler GetNamespaceLabelsHandler
+    get /namespace-labels (NamespaceLabelsRequest) returns (NamespaceLabelsResponse)
+
+    @doc "获取工作负载资源列表"
+    @handler GetWorkloadResourceListHandler
+    get /workload-list (WorkloadResourceListRequest) returns (WorkloadResourceListResponse)
+}

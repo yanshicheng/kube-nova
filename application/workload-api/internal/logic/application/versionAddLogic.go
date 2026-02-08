@@ -112,12 +112,14 @@ func (l *VersionAddLogic) VersionAdd(req *types.AddOnecProjectVersionReq) (resp 
 
 	// 注入注解（资源级别 + Pod 模板级别）
 	injectAnnotations(k8sObj, appResp.Data.ResourceType, &utils.AnnotationsInfo{
-		ServiceName:   req.ResourceName,
-		ProjectName:   appResp.Data.NameCn,
-		Version:       req.Version,
-		Description:   appResp.Data.Description,
-		ProjectUuid:   project.Data.Uuid,
-		WorkspaceName: workspace.Data.Name,
+		ServiceName:     req.ResourceName,
+		ProjectName:     project.Data.Name,
+		ApplicationEn:   appResp.Data.NameEn,
+		ApplicationName: appResp.Data.NameCn,
+		Version:         req.Version,
+		Description:     appResp.Data.Description,
+		ProjectUuid:     project.Data.Uuid,
+		WorkspaceName:   workspace.Data.Name,
 	})
 
 	addVersionResp, err := l.svcCtx.ManagerRpc.VersionAdd(l.ctx, &managerservice.AddOnecProjectVersionReq{

@@ -27,17 +27,32 @@ func NewGetRetentionPolicyLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 
 // ============ 保留策略管理 ============
 func (l *GetRetentionPolicyLogic) GetRetentionPolicy(in *pb.GetRetentionPolicyReq) (*pb.GetRetentionPolicyResp, error) {
+	l.Infof("获取保留策略: registryUuid=%s, projectName=%s", in.RegistryUuid, in.ProjectName)
+
 	client, err := l.svcCtx.HarborManager.Get(in.RegistryUuid)
 	if err != nil {
+		l.Errorf("获取仓库客户端失败: %v", err)
 		return nil, errorx.Msg("获取仓库客户端失败")
 	}
 
 	policy, err := client.Retention().GetByProject(in.ProjectName)
 	if err != nil {
+		l.Errorf("获取保留策略失败: %v", err)
 		return nil, errorx.Msg("获取保留策略失败")
 	}
 
+	// 返回 Exists=false，而不是返回 nil
+	if policy == nil {
+		l.Infof("项目 %s 没有配置保留策略", in.ProjectName)
+		return &pb.GetRetentionPolicyResp{
+			Exists: false, // 明确标识不存在
+			Data:   nil,
+		}, nil
+	}
+
+	// 策略存在，构造响应
 	resp := &pb.GetRetentionPolicyResp{
+		Exists: true, // 明确标识存在
 		Data: &pb.RetentionPolicy{
 			Id:         policy.ID,
 			Algorithm:  policy.Algorithm,
@@ -78,5 +93,6 @@ func (l *GetRetentionPolicyLogic) GetRetentionPolicy(in *pb.GetRetentionPolicyRe
 		resp.Data.Scope = string(scopeJSON)
 	}
 
+	l.Infof("获取保留策略成功: policyId=%d, rulesCount=%d", policy.ID, len(policy.Rules))
 	return resp, nil
 }

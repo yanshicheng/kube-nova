@@ -265,6 +265,18 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Handler: ingressmonitor.GetIngressErrorsHandler(serverCtx),
 				},
 				{
+					// 获取单个 Host 级别监控详情
+					Method:  http.MethodGet,
+					Path:    "/host-metrics",
+					Handler: ingressmonitor.GetHostMetricsHandler(serverCtx),
+				},
+				{
+					// 批量获取 Host 级别监控详情
+					Method:  http.MethodPost,
+					Path:    "/host-metrics/batch",
+					Handler: ingressmonitor.GetMultiHostMetricsHandler(serverCtx),
+				},
+				{
 					// 按 Host 获取延迟指标
 					Method:  http.MethodGet,
 					Path:    "/latency/host",

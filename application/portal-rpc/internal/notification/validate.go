@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/yanshicheng/kube-nova/common/handler/errorx"
+
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -17,78 +19,78 @@ func validateConfig(config Config) error {
 	logx.Infof("验证告警配置: Type=%s, UUID=%s, Name=%s", config.Type, config.UUID, config.Name)
 
 	if config.UUID == "" {
-		return fmt.Errorf("告警渠道 UUID 不能为空")
+		return errorx.Msg("告警渠道 UUID 不能为空")
 	}
 
 	if config.Type == "" {
-		return fmt.Errorf("告警类型不能为空")
+		return errorx.Msg("告警类型不能为空")
 	}
 
 	// 根据类型验证相应的配置
 	switch config.Type {
 	case AlertTypeDingTalk:
 		if config.DingTalk == nil {
-			return fmt.Errorf("钉钉配置不能为空")
+			return errorx.Msg("钉钉配置不能为空")
 		}
 		if config.DingTalk.Webhook == "" {
-			return fmt.Errorf("钉钉 Webhook 地址不能为空")
+			return errorx.Msg("钉钉 Webhook 地址不能为空")
 		}
 
 	case AlertTypeWeChat:
 		if config.WeChat == nil {
-			return fmt.Errorf("企业微信配置不能为空")
+			return errorx.Msg("企业微信配置不能为空")
 		}
 		if config.WeChat.Webhook == "" {
-			return fmt.Errorf("企业微信 Webhook 地址不能为空")
+			return errorx.Msg("企业微信 Webhook 地址不能为空")
 		}
 
 	case AlertTypeFeiShu:
 		if config.FeiShu == nil {
-			return fmt.Errorf("飞书配置不能为空")
+			return errorx.Msg("飞书配置不能为空")
 		}
 		if config.FeiShu.Webhook == "" {
-			return fmt.Errorf("飞书 Webhook 地址不能为空")
+			return errorx.Msg("飞书 Webhook 地址不能为空")
 		}
 
 	case AlertTypeEmail:
 		if config.Email == nil {
-			return fmt.Errorf("邮件配置不能为空")
+			return errorx.Msg("邮件配置不能为空")
 		}
 		if config.Email.SMTPHost == "" || config.Email.SMTPPort == 0 {
-			return fmt.Errorf("SMTP 服务器地址和端口不能为空")
+			return errorx.Msg("SMTP 服务器地址和端口不能为空")
 		}
 		if config.Email.Username == "" {
-			return fmt.Errorf("邮箱用户名不能为空")
+			return errorx.Msg("邮箱用户名不能为空")
 		}
 		if config.Email.Password == "" {
-			return fmt.Errorf("邮箱密码不能为空")
+			return errorx.Msg("邮箱密码不能为空")
 		}
 
 	case AlertTypeSMS:
 		if config.SMS == nil {
-			return fmt.Errorf("短信配置不能为空")
+			return errorx.Msg("短信配置不能为空")
 		}
-		return fmt.Errorf("短信告警暂未实现")
+		return errorx.Msg("短信告警暂未实现")
 
 	case AlertTypeVoiceCall:
 		if config.VoiceCall == nil {
-			return fmt.Errorf("语音告警配置不能为空")
+			return errorx.Msg("语音告警配置不能为空")
 		}
-		return fmt.Errorf("语音告警暂未实现")
+		return errorx.Msg("语音告警暂未实现")
 
 	case AlertTypeWebhook:
 		if config.Webhook == nil {
-			return fmt.Errorf("Webhook 配置不能为空")
+			return errorx.Msg("Webhook 配置不能为空")
 		}
 		if config.Webhook.URL == "" {
-			return fmt.Errorf("Webhook URL 不能为空")
+			return errorx.Msg("Webhook URL 不能为空")
 		}
 
 	case AlertTypeSiteMessage:
 		// 站内信不需要特殊配置验证
 
 	default:
-		return fmt.Errorf("不支持的告警类型: %s", config.Type)
+		return errorx.Msg(fmt.Sprintf("不支持的告警类型: %s", config.Type))
 	}
 
 	// 设置默认选项

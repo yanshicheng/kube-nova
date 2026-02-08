@@ -7,7 +7,7 @@ import (
 
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/types"
-	types2 "github.com/yanshicheng/kube-nova/common/k8smanager/types"
+	k8sTypes "github.com/yanshicheng/kube-nova/common/k8smanager/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -26,7 +26,7 @@ func NewGetProbesLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetProb
 	}
 }
 
-func (l *GetProbesLogic) GetProbes(req *types.DefaultIdRequest) (resp *types.ProbesResponse, err error) {
+func (l *GetProbesLogic) GetProbes(req *types.DefaultIdRequest) (resp *types.CommProbesResponse, err error) {
 	client, versionDetail, err := getResourceClusterClient(l.ctx, l.svcCtx, req.Id)
 	if err != nil {
 		l.Errorf("获取集群客户端失败: %v", err)
@@ -35,7 +35,7 @@ func (l *GetProbesLogic) GetProbes(req *types.DefaultIdRequest) (resp *types.Pro
 
 	resourceType := strings.ToUpper(versionDetail.ResourceType)
 
-	var probes *types2.ProbesResponse
+	var probes *k8sTypes.ProbesResponse
 
 	switch resourceType {
 	case "DEPLOYMENT":
@@ -44,8 +44,6 @@ func (l *GetProbesLogic) GetProbes(req *types.DefaultIdRequest) (resp *types.Pro
 		probes, err = client.StatefulSet().GetProbes(versionDetail.Namespace, versionDetail.ResourceName)
 	case "DAEMONSET":
 		probes, err = client.DaemonSet().GetProbes(versionDetail.Namespace, versionDetail.ResourceName)
-	case "JOB":
-		probes, err = client.Job().GetProbes(versionDetail.Namespace, versionDetail.ResourceName)
 	case "CRONJOB":
 		probes, err = client.CronJob().GetProbes(versionDetail.Namespace, versionDetail.ResourceName)
 	default:
@@ -61,36 +59,39 @@ func (l *GetProbesLogic) GetProbes(req *types.DefaultIdRequest) (resp *types.Pro
 	return resp, nil
 }
 
-func convertToProbesResponse(probes *types2.ProbesResponse) *types.ProbesResponse {
-	containers := make([]types.ContainerProbes, 0, len(probes.Containers))
+// convertToProbesResponse 将 k8sTypes.ProbesResponse 转换为 API 响应类型
+func convertToProbesResponse(probes *k8sTypes.ProbesResponse) *types.CommProbesResponse {
+	containers := make([]types.CommContainerProbes, 0, len(probes.Containers))
 
 	for _, container := range probes.Containers {
-		containerProbe := types.ContainerProbes{
+		containerProbe := types.CommContainerProbes{
 			ContainerName: container.ContainerName,
+			ContainerType: string(container.ContainerType), // 添加容器类型转换
 		}
 
 		if container.LivenessProbe != nil {
-			containerProbe.LivenessProbe = convertToProbe(container.LivenessProbe)
+			containerProbe.LivenessProbe = convertToCommProbe(container.LivenessProbe)
 		}
 
 		if container.ReadinessProbe != nil {
-			containerProbe.ReadinessProbe = convertToProbe(container.ReadinessProbe)
+			containerProbe.ReadinessProbe = convertToCommProbe(container.ReadinessProbe)
 		}
 
 		if container.StartupProbe != nil {
-			containerProbe.StartupProbe = convertToProbe(container.StartupProbe)
+			containerProbe.StartupProbe = convertToCommProbe(container.StartupProbe)
 		}
 
 		containers = append(containers, containerProbe)
 	}
 
-	return &types.ProbesResponse{
+	return &types.CommProbesResponse{
 		Containers: containers,
 	}
 }
 
-func convertToProbe(probe *types2.Probe) *types.Probe {
-	result := &types.Probe{
+// convertToCommProbe 将 k8sTypes.Probe 转换为 API 类型
+func convertToCommProbe(probe *k8sTypes.Probe) *types.CommProbe {
+	result := &types.CommProbe{
 		Type:                probe.Type,
 		InitialDelaySeconds: probe.InitialDelaySeconds,
 		TimeoutSeconds:      probe.TimeoutSeconds,
@@ -100,38 +101,38 @@ func convertToProbe(probe *types2.Probe) *types.Probe {
 	}
 
 	if probe.HttpGet != nil {
-		headers := make([]types.HTTPHeader, 0, len(probe.HttpGet.HttpHeaders))
-		for _, h := range probe.HttpGet.HttpHeaders {
-			headers = append(headers, types.HTTPHeader{
+		headers := make([]types.CommHTTPHeader, 0, len(probe.HttpGet.HTTPHeaders))
+		for _, h := range probe.HttpGet.HTTPHeaders {
+			headers = append(headers, types.CommHTTPHeader{
 				Name:  h.Name,
 				Value: h.Value,
 			})
 		}
 
-		result.HttpGet = &types.HTTPGetAction{
+		result.HttpGet = &types.CommHTTPGetAction{
 			Path:        probe.HttpGet.Path,
 			Port:        probe.HttpGet.Port,
 			Host:        probe.HttpGet.Host,
 			Scheme:      probe.HttpGet.Scheme,
-			HttpHeaders: headers,
+			HTTPHeaders: headers,
 		}
 	}
 
 	if probe.TcpSocket != nil {
-		result.TcpSocket = &types.TCPSocketAction{
+		result.TcpSocket = &types.CommTCPSocketAction{
 			Port: probe.TcpSocket.Port,
 			Host: probe.TcpSocket.Host,
 		}
 	}
 
 	if probe.Exec != nil {
-		result.Exec = &types.ExecAction{
+		result.Exec = &types.CommExecAction{
 			Command: probe.Exec.Command,
 		}
 	}
 
 	if probe.Grpc != nil {
-		result.Grpc = &types.GRPCAction{
+		result.Grpc = &types.CommGRPCAction{
 			Port:    probe.Grpc.Port,
 			Service: probe.Grpc.Service,
 		}

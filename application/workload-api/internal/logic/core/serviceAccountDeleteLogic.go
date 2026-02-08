@@ -3,11 +3,13 @@ package core
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/types"
 	"github.com/zeromicro/go-zero/core/logx"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type ServiceAccountDeleteLogic struct {
@@ -40,6 +42,15 @@ func (l *ServiceAccountDeleteLogic) ServiceAccountDelete(req *types.ClusterNames
 	// 获取 ServiceAccount operator
 	saOp := client.ServiceAccounts()
 
+	// 获取 ServiceAccount 详情用于审计
+	existingSA, _ := saOp.Get(req.Namespace, req.Name)
+	var secretsInfo string
+	var imagePullSecretsInfo string
+	if existingSA != nil {
+		secretsInfo = l.buildSecretsInfo(existingSA.Secrets)
+		imagePullSecretsInfo = l.buildImagePullSecretsInfo(existingSA.ImagePullSecrets)
+	}
+
 	// 删除 ServiceAccount
 	deleteErr := saOp.Delete(req.Namespace, req.Name)
 	if deleteErr != nil {
@@ -55,10 +66,12 @@ func (l *ServiceAccountDeleteLogic) ServiceAccountDelete(req *types.ClusterNames
 	}
 
 	// 记录成功的审计日志
+	auditDetail := fmt.Sprintf("用户 %s 在命名空间 %s 成功删除 ServiceAccount %s, Secrets: %s, ImagePullSecrets: %s", username, req.Namespace, req.Name, secretsInfo, imagePullSecretsInfo)
+
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "删除 ServiceAccount",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功删除 ServiceAccount %s", username, req.Namespace, req.Name),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	if auditErr != nil {
@@ -67,4 +80,28 @@ func (l *ServiceAccountDeleteLogic) ServiceAccountDelete(req *types.ClusterNames
 
 	l.Infof("用户: %s, 成功删除 ServiceAccount: %s/%s", username, req.Namespace, req.Name)
 	return "删除 ServiceAccount 成功", nil
+}
+
+// buildSecretsInfo 构建 Secrets 信息
+func (l *ServiceAccountDeleteLogic) buildSecretsInfo(secrets []corev1.ObjectReference) string {
+	if len(secrets) == 0 {
+		return "无"
+	}
+	var names []string
+	for _, s := range secrets {
+		names = append(names, s.Name)
+	}
+	return strings.Join(names, ", ")
+}
+
+// buildImagePullSecretsInfo 构建 ImagePullSecrets 信息
+func (l *ServiceAccountDeleteLogic) buildImagePullSecretsInfo(secrets []corev1.LocalObjectReference) string {
+	if len(secrets) == 0 {
+		return "无"
+	}
+	var names []string
+	for _, s := range secrets {
+		names = append(names, s.Name)
+	}
+	return strings.Join(names, ", ")
 }

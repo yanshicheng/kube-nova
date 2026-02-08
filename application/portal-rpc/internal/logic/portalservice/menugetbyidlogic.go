@@ -60,6 +60,7 @@ func (l *MenuGetByIdLogic) convertToPbMenu(menu *model.SysMenu) *pb.SysMenu {
 	return &pb.SysMenu{
 		Id:            menu.Id,
 		ParentId:      menu.ParentId,
+		PlatformId:    menu.PlatformId,
 		MenuType:      menu.MenuType,
 		Name:          menu.Name,
 		Path:          menu.Path,

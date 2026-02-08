@@ -46,14 +46,14 @@ func (l *MenuDelLogic) MenuDel(in *pb.DelSysMenuReq) (*pb.DelSysMenuResp, error)
 		return nil, errorx.Msg("查询菜单信息失败")
 	}
 
-	// 检查是否有子菜单
-	subMenus, err := l.svcCtx.SysMenu.SearchNoPage(l.ctx, "", true, "`parent_id` = ?", in.Id)
+	// 检查是否有子菜单（同一平台下）
+	subMenus, err := l.svcCtx.SysMenu.SearchNoPage(l.ctx, "", true, "`platform_id` = ? AND `parent_id` = ?", existingMenu.PlatformId, in.Id)
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
-		l.Errorf("检查子菜单失败: %v", err)
+		l.Errorf("检查子菜单失败: platformId=%d, error=%v", existingMenu.PlatformId, err)
 		return nil, errorx.Msg("检查子菜单失败")
 	}
 	if len(subMenus) > 0 {
-		l.Errorf("删除菜单失败：存在子菜单，不能删除, menuId: %d, subMenuCount: %d", in.Id, len(subMenus))
+		l.Errorf("删除菜单失败：存在子菜单，不能删除, menuId: %d, platformId: %d, subMenuCount: %d", in.Id, existingMenu.PlatformId, len(subMenus))
 		return nil, errorx.Msg("该菜单下存在子菜单，请先删除子菜单")
 	}
 
@@ -71,11 +71,11 @@ func (l *MenuDelLogic) MenuDel(in *pb.DelSysMenuReq) (*pb.DelSysMenuResp, error)
 	// 执行软删除
 	err = l.svcCtx.SysMenu.DeleteSoft(l.ctx, in.Id)
 	if err != nil {
-		l.Errorf("删除菜单失败: %v", err)
+		l.Errorf("删除菜单失败: platformId=%d, error=%v", existingMenu.PlatformId, err)
 		return nil, errorx.Msg("删除菜单失败")
 	}
 
-	l.Infof("删除菜单成功，菜单ID: %d, 菜单名称: %s, 菜单类型: %d",
-		in.Id, existingMenu.Name, existingMenu.MenuType)
+	l.Infof("删除菜单成功，菜单ID: %d, 菜单名称: %s, 菜单类型: %d, 平台ID: %d",
+		in.Id, existingMenu.Name, existingMenu.MenuType, existingMenu.PlatformId)
 	return &pb.DelSysMenuResp{}, nil
 }

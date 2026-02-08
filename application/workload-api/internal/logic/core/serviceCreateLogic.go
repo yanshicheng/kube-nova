@@ -60,6 +60,10 @@ func (l *ServiceCreateLogic) ServiceCreate(req *types.ServiceRequest) (resp stri
 
 	// 构建端口信息用于审计
 	portInfo := l.buildPortInfo(req.Ports)
+
+	// 构建选择器信息用于审计
+	selectorInfo := l.buildSelectorInfo(req.Selector)
+
 	// 获取项目详情
 	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
 		ClusterUuid: workloadInfo.Data.ClusterUuid,
@@ -77,6 +81,7 @@ func (l *ServiceCreateLogic) ServiceCreate(req *types.ServiceRequest) (resp stri
 			ProjectUuid:   projectDetail.ProjectUuid,
 		})
 	}
+
 	// 创建 Service
 	_, createErr := serviceClient.Create(service)
 	if createErr != nil {
@@ -85,7 +90,7 @@ func (l *ServiceCreateLogic) ServiceCreate(req *types.ServiceRequest) (resp stri
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			WorkspaceId:  req.WorkloadId,
 			Title:        "创建 Service",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 创建 Service %s 失败, 类型: %s, 端口: %s, 错误原因: %v", username, workloadInfo.Data.Namespace, req.Name, req.Type, portInfo, createErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 创建 Service %s 失败, 类型: %s, 端口: %s, 选择器: %s, 错误原因: %v", username, workloadInfo.Data.Namespace, req.Name, req.Type, portInfo, selectorInfo, createErr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("创建 Service 失败: %v", createErr)
@@ -95,7 +100,7 @@ func (l *ServiceCreateLogic) ServiceCreate(req *types.ServiceRequest) (resp stri
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		WorkspaceId:  req.WorkloadId,
 		Title:        "创建 Service",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功创建 Service %s, 类型: %s, 端口: %s", username, workloadInfo.Data.Namespace, req.Name, req.Type, portInfo),
+		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功创建 Service %s, 类型: %s, 端口: %s, 选择器: %s", username, workloadInfo.Data.Namespace, req.Name, req.Type, portInfo, selectorInfo),
 		Status:       1,
 	})
 	if auditErr != nil {
@@ -113,9 +118,28 @@ func (l *ServiceCreateLogic) buildPortInfo(ports []types.ServicePort) string {
 	}
 	var portStrs []string
 	for _, p := range ports {
-		portStrs = append(portStrs, fmt.Sprintf("%d->%s", p.Port, p.TargetPort))
+		portStr := fmt.Sprintf("%d→%s", p.Port, p.TargetPort)
+		if p.Name != "" {
+			portStr = fmt.Sprintf("%s:%s", p.Name, portStr)
+		}
+		if p.NodePort > 0 {
+			portStr = fmt.Sprintf("%s(NodePort:%d)", portStr, p.NodePort)
+		}
+		portStrs = append(portStrs, portStr)
 	}
 	return strings.Join(portStrs, ", ")
+}
+
+// buildSelectorInfo 构建选择器信息字符串用于审计日志
+func (l *ServiceCreateLogic) buildSelectorInfo(selector map[string]string) string {
+	if len(selector) == 0 {
+		return "无"
+	}
+	var selectorStrs []string
+	for k, v := range selector {
+		selectorStrs = append(selectorStrs, fmt.Sprintf("%s=%s", k, v))
+	}
+	return strings.Join(selectorStrs, ", ")
 }
 
 // buildServiceFromRequest 从请求构建 K8s Service 对象

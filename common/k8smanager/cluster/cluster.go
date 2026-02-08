@@ -29,9 +29,10 @@ type clusterClient struct {
 	// 配置信息
 	config Config
 
-	// 日志 通过 WithContext 设置
-	l   logx.Logger
-	ctx context.Context
+	// 日志 通过 WithContext 设置（使用 mutex 保护）
+	l        logx.Logger
+	ctx      context.Context
+	ctxMutex sync.RWMutex
 
 	// 原始客户端
 	kubeClient    kubernetes.Interface
@@ -160,6 +161,7 @@ func NewClient(config Config) (Client, error) {
 			c.l.Errorf("注册 Informer 失败: %v", err)
 			// 允许降级运行
 		}
+
 		// ========== 创建 VPA 和 Flagger 的 InformerFactory ==========
 		c.vpaInformerFactory = vpainformers.NewSharedInformerFactory(
 			vpaClientset,
@@ -170,12 +172,14 @@ func NewClient(config Config) (Client, error) {
 			flaggerClientset,
 			config.Options.ResyncPeriod,
 		)
+
 		// ========== 创建 Monitoring 的 InformerFactory ==========
 		c.monitoringInformerFactory = monitoringinformers.NewSharedInformerFactory(
 			monitoringClientset,
 			config.Options.ResyncPeriod,
 		)
-		// 启动 Informer
+
+		// 启动主 Informer 管理器
 		c.wg.Add(1)
 		go func() {
 			defer c.wg.Done()
@@ -186,6 +190,30 @@ func NewClient(config Config) (Client, error) {
 				atomic.StoreInt32(&c.ready, 1)
 				c.l.Infof("集群 %s Informer 启动成功", config.ID)
 			}
+		}()
+
+		// 启动 VPA InformerFactory
+		c.wg.Add(1)
+		go func() {
+			defer c.wg.Done()
+			c.vpaInformerFactory.Start(c.ctx.Done())
+			c.l.Infof("集群 %s VPA InformerFactory 已停止", config.ID)
+		}()
+
+		// 启动 Flagger InformerFactory
+		c.wg.Add(1)
+		go func() {
+			defer c.wg.Done()
+			c.flaggerInformerFactory.Start(c.ctx.Done())
+			c.l.Infof("集群 %s Flagger InformerFactory 已停止", config.ID)
+		}()
+
+		// 启动 Monitoring InformerFactory
+		c.wg.Add(1)
+		go func() {
+			defer c.wg.Done()
+			c.monitoringInformerFactory.Start(c.ctx.Done())
+			c.l.Infof("集群 %s Monitoring InformerFactory 已停止", config.ID)
 		}()
 	} else {
 		// 不使用 Informer，直接标记为就绪
@@ -209,7 +237,11 @@ func NewClient(config Config) (Client, error) {
 }
 
 // WithContext 设置日志上下文，返回带有新上下文的客户端
+// 注意：此方法会修改共享状态，多线程调用时需要注意竞态问题
 func (c *clusterClient) WithContext(ctx context.Context) Client {
+	c.ctxMutex.Lock()
+	defer c.ctxMutex.Unlock()
+
 	// 更新日志器和上下文
 	c.ctx = ctx
 	c.l = logx.WithContext(ctx)
@@ -355,7 +387,25 @@ func (c *clusterClient) Close() error {
 		c.informerManager.Stop()
 	}
 
-	// 等待所有协程退出
+	// 停止 VPA InformerFactory
+	if c.vpaInformerFactory != nil {
+		c.vpaInformerFactory.Shutdown()
+	}
+
+	// 停止 Flagger InformerFactory
+	if c.flaggerInformerFactory != nil {
+		c.flaggerInformerFactory.Shutdown()
+	}
+
+	// 停止 Monitoring InformerFactory
+	if c.monitoringInformerFactory != nil {
+		c.monitoringInformerFactory.Shutdown()
+	}
+
+	// 等待所有协程退出（使用 context 避免永久阻塞）
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	done := make(chan struct{})
 	go func() {
 		c.wg.Wait()
@@ -365,7 +415,7 @@ func (c *clusterClient) Close() error {
 	select {
 	case <-done:
 		c.l.Infof("集群客户端已关闭: %s", c.config.ID)
-	case <-time.After(10 * time.Second):
+	case <-ctx.Done():
 		c.l.Errorf("集群客户端关闭超时: %s", c.config.ID)
 	}
 
@@ -385,8 +435,14 @@ func (c *clusterClient) GetVersionInfo() (*ClusterVersionInfo, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	// 获取 kube-system namespace 的创建时间作为集群创建时间
-	kubeSystemNs, err := c.kubeClient.CoreV1().Namespaces().Get(context.Background(), "kube-system", metav1.GetOptions{})
+	// 使用结构体中存储的 context，支持上下文传播和取消
+	c.ctxMutex.RLock()
+	ctx := c.ctx
+	c.ctxMutex.RUnlock()
+
+	kubeSystemNs, err := c.kubeClient.CoreV1().Namespaces().Get(ctx, "kube-system", metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

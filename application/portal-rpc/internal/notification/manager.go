@@ -11,14 +11,17 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/model"
+	"github.com/yanshicheng/kube-nova/common/handler/errorx"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 // DefaultAlertGroupID 默认告警组ID
+// 当项目未绑定告警组时，使用此默认告警组
 const DefaultAlertGroupID uint64 = 2
 
 // ManagerConfig 管理器配置
+// 包含所有管理器初始化所需的依赖和配置
 type ManagerConfig struct {
 	PortalName string
 	PortalUrl  string
@@ -37,20 +40,24 @@ type ManagerConfig struct {
 }
 
 // manager 告警管理器实现
+// 负责管理所有告警渠道，处理告警分发和通知
 type manager struct {
-	// 告警客户端存储
-	channels      map[string]*channelWrapper
-	mu            sync.RWMutex
+	// channels 告警客户端存储，key 为渠道 UUID
+	channels map[string]*channelWrapper
+	// mu 保护 channels 和 closed 的读写锁
+	mu sync.RWMutex
+	// messagePusher 消息推送服务，用于 WebSocket 实时推送
 	messagePusher *MessagePushService
 
-	// Portal 信息
+	// portalName 平台名称，显示在告警消息中
 	portalName string
-	portalUrl  string
+	// portalUrl 平台 URL，用于告警详情链接
+	portalUrl string
 
-	// 日志
+	// l 日志记录器
 	l logx.Logger
 
-	// 数据库模型 - 直接使用 model 包中的接口
+	// 数据库模型 - 用于查询告警组、渠道、用户等信息
 	sysUserModel                 model.SysUserModel
 	alertChannelsModel           model.AlertChannelsModel
 	alertGroupsModel             model.AlertGroupsModel
@@ -60,16 +67,21 @@ type manager struct {
 	alertGroupAppsModel          model.AlertGroupAppsModel
 	siteMessagesModel            model.SiteMessagesModel
 
-	// 状态
+	// closed 管理器关闭状态
 	closed bool
 
-	// 统计信息
+	// statsMu 保护统计信息的读写锁
 	statsMu sync.RWMutex
 
+	// aggregator 告警聚合器，用于按时间窗口聚合告警
 	aggregator *AlertAggregator
+
+	// pushWg 追踪异步推送 goroutine，确保优雅关闭
+	pushWg sync.WaitGroup
 }
 
 // channelWrapper 渠道包装器
+// 包装渠道客户端并记录访问统计
 type channelWrapper struct {
 	client     Client
 	config     Config
@@ -102,6 +114,8 @@ func NewManager(config ManagerConfig) Manager {
 		alertGroupAppsModel:          config.AlertGroupAppsModel,
 		siteMessagesModel:            config.SiteMessagesModel,
 	}
+
+	// 初始化消息推送服务
 	if config.Redis != nil {
 		m.messagePusher = NewMessagePushService(config.Redis)
 		m.l.Info("[告警管理器] 消息推送服务已启用")
@@ -109,15 +123,24 @@ func NewManager(config ManagerConfig) Manager {
 		m.l.Errorf("[告警管理器] Redis 未配置，消息推送功能不可用")
 	}
 
-	// 初始化聚合器
-	if config.AggregatorConfig != nil && config.Redis != nil {
-		m.aggregator = NewAlertAggregatorWithManager(config.Redis, m, *config.AggregatorConfig)
+	// 初始化聚合器 - 优化初始化逻辑
+	if config.Redis != nil {
+		// 如果没有提供聚合器配置，使用默认配置
+		aggregatorConfig := DefaultAggregatorConfig()
+		if config.AggregatorConfig != nil {
+			aggregatorConfig = *config.AggregatorConfig
+		} else {
+			m.l.Info("[告警管理器] 未提供聚合器配置，使用默认配置")
+		}
+
+		m.aggregator = NewAlertAggregatorWithManager(config.Redis, m, aggregatorConfig)
 		if m.aggregator != nil {
-			m.l.Infof("[告警管理器] 聚合器已启用 | Critical=%v | Warning=%v | Info=%v | Default=%v",
-				config.AggregatorConfig.SeverityWindows.Critical,
-				config.AggregatorConfig.SeverityWindows.Warning,
-				config.AggregatorConfig.SeverityWindows.Info,
-				config.AggregatorConfig.SeverityWindows.Default,
+			m.l.Infof("[告警管理器] 聚合器已初始化 | 启用=%v | Critical=%v | Warning=%v | Info=%v | Default=%v",
+				aggregatorConfig.Enabled,
+				aggregatorConfig.SeverityWindows.Critical,
+				aggregatorConfig.SeverityWindows.Warning,
+				aggregatorConfig.SeverityWindows.Info,
+				aggregatorConfig.SeverityWindows.Default,
 			)
 		} else {
 			m.l.Error("[告警管理器] 聚合器初始化失败，将使用直接发送")
@@ -165,17 +188,17 @@ func (m *manager) GetChannel(ctx context.Context, uuid string) (Client, error) {
 			channelData, err := m.alertChannelsModel.FindOneByUuid(ctx, uuid)
 			if err != nil {
 				m.l.Errorf("告警渠道 %s 不存在: %v", uuid, err)
-				return nil, fmt.Errorf("告警渠道 %s 不存在", uuid)
+				return nil, errorx.Msg(fmt.Sprintf("告警渠道 %s 不存在", uuid))
 			}
 
 			// 解析配置并添加渠道
 			config, err := m.parseChannelFromDB(channelData)
 			if err != nil {
-				return nil, fmt.Errorf("解析渠道配置失败: %w", err)
+				return nil, errorx.Msg(fmt.Sprintf("解析渠道配置失败: %v", err))
 			}
 
 			if err := m.AddChannel(*config); err != nil {
-				return nil, fmt.Errorf("添加渠道失败: %w", err)
+				return nil, errorx.Msg(fmt.Sprintf("添加渠道失败: %v", err))
 			}
 
 			m.mu.RLock()
@@ -183,10 +206,10 @@ func (m *manager) GetChannel(ctx context.Context, uuid string) (Client, error) {
 			m.mu.RUnlock()
 
 			if !exists {
-				return nil, fmt.Errorf("渠道添加后仍不存在")
+				return nil, errorx.Msg("渠道添加后仍不存在")
 			}
 		} else {
-			return nil, fmt.Errorf("告警渠道 %s 不存在", uuid)
+			return nil, errorx.Msg(fmt.Sprintf("告警渠道 %s 不存在", uuid))
 		}
 	}
 
@@ -197,7 +220,7 @@ func (m *manager) GetChannel(ctx context.Context, uuid string) (Client, error) {
 	wrapper.mu.Unlock()
 
 	if wrapper.client == nil {
-		return nil, fmt.Errorf("告警渠道 %s 未初始化", uuid)
+		return nil, errorx.Msg(fmt.Sprintf("告警渠道 %s 未初始化", uuid))
 	}
 
 	return wrapper.client.WithContext(ctx), nil
@@ -209,11 +232,11 @@ func (m *manager) AddChannel(config Config) error {
 	defer m.mu.Unlock()
 
 	if m.closed {
-		return fmt.Errorf("告警管理器已关闭")
+		return errorx.Msg("告警管理器已关闭")
 	}
 
 	if err := validateConfig(config); err != nil {
-		return fmt.Errorf("告警配置验证失败: %w", err)
+		return errorx.Msg(fmt.Sprintf("告警配置验证失败: %v", err))
 	}
 
 	if _, exists := m.channels[config.UUID]; exists {
@@ -222,7 +245,7 @@ func (m *manager) AddChannel(config Config) error {
 
 	client, err := m.createClient(config)
 	if err != nil {
-		return fmt.Errorf("创建告警渠道失败: %w", err)
+		return errorx.Msg(fmt.Sprintf("创建告警渠道失败: %v", err))
 	}
 
 	m.channels[config.UUID] = &channelWrapper{
@@ -262,7 +285,7 @@ func (m *manager) createClient(config Config) (Client, error) {
 		}
 		return client, nil
 	default:
-		return nil, fmt.Errorf("不支持的告警类型: %s", config.Type)
+		return nil, errorx.Msg(fmt.Sprintf("不支持的告警类型: %s", config.Type))
 	}
 }
 
@@ -273,11 +296,13 @@ func (m *manager) RemoveChannel(uuid string) error {
 
 	wrapper, exists := m.channels[uuid]
 	if !exists {
-		return fmt.Errorf("告警渠道 %s 不存在", uuid)
+		return errorx.Msg(fmt.Sprintf("告警渠道 %s 不存在", uuid))
 	}
 
 	if wrapper.client != nil {
-		_ = wrapper.client.Close()
+		if err := wrapper.client.Close(); err != nil {
+			m.l.Errorf("[渠道管理] 关闭渠道失败: %s, 错误: %v", uuid, err)
+		}
 	}
 
 	delete(m.channels, uuid)
@@ -292,11 +317,13 @@ func (m *manager) UpdateChannel(config Config) error {
 
 	wrapper, exists := m.channels[config.UUID]
 	if !exists {
-		return fmt.Errorf("告警渠道 %s 不存在", config.UUID)
+		return errorx.Msg(fmt.Sprintf("告警渠道 %s 不存在", config.UUID))
 	}
 
 	if wrapper.client != nil {
-		_ = wrapper.client.Close()
+		if err := wrapper.client.Close(); err != nil {
+			m.l.Errorf("[渠道管理] 更新渠道时关闭旧客户端失败: %s, 错误: %v", config.UUID, err)
+		}
 	}
 
 	newClient, err := m.createClient(config)
@@ -345,26 +372,52 @@ func (m *manager) GetChannelsByType(alertType AlertType) []Client {
 }
 
 // Close 关闭管理器
+// 修复: 避免在持有锁时调用可能需要锁的方法，防止死锁
 func (m *manager) Close() error {
+	// 首先检查并设置关闭状态
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	if m.closed {
+		m.mu.Unlock()
 		return nil
 	}
+	m.closed = true
 
-	// 停止聚合器
-	if m.aggregator != nil {
+	// 获取需要关闭的资源引用，然后释放锁
+	// 这样在调用 aggregator 和 channel 的方法时不会持有锁
+	agg := m.aggregator
+	channels := make(map[string]*channelWrapper)
+	for k, v := range m.channels {
+		channels[k] = v
+	}
+	m.mu.Unlock()
+
+	// 等待异步推送完成
+	m.l.Info("[告警管理器] 等待异步推送完成...")
+	waitDone := make(chan struct{})
+	go func() {
+		m.pushWg.Wait()
+		close(waitDone)
+	}()
+
+	select {
+	case <-waitDone:
+		m.l.Info("[告警管理器] 所有异步推送已完成")
+	case <-time.After(10 * time.Second):
+		m.l.Info("[告警管理器] 等待异步推送超时，继续关闭")
+	}
+
+	// 处理聚合器（不持有锁，避免死锁）
+	if agg != nil {
 		m.l.Info("[告警管理器] 正在刷新聚合器缓冲...")
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		m.aggregator.FlushAll(ctx)
+		agg.FlushAll(ctx)
 		cancel()
-
-		m.aggregator.Stop()
+		agg.Stop()
 		m.l.Info("[告警管理器] 聚合器已停止")
 	}
 
-	for uuid, wrapper := range m.channels {
+	// 关闭所有渠道
+	for uuid, wrapper := range channels {
 		if wrapper.client != nil {
 			if err := wrapper.client.Close(); err != nil {
 				m.l.Errorf("关闭告警渠道 %s 失败: %v", uuid, err)
@@ -372,14 +425,17 @@ func (m *manager) Close() error {
 		}
 	}
 
+	// 清理内部状态
+	m.mu.Lock()
 	m.channels = make(map[string]*channelWrapper)
-	m.closed = true
+	m.mu.Unlock()
+
 	m.l.Info("告警管理器已关闭")
 	return nil
 }
 
-// ========== alertGroupInfo 告警分组信息 ==========
-
+// alertGroupInfo 告警分组信息
+// 用于按项目、级别和告警名称分组告警
 type alertGroupInfo struct {
 	ProjectID   uint64
 	ProjectName string
@@ -424,6 +480,7 @@ func (m *manager) groupAlertsByProjectSeverityAndName(alerts []*AlertInstance) m
 }
 
 // PrometheusAlertNotification 发送 Prometheus 告警通知
+// 这是告警处理的核心入口方法
 func (m *manager) PrometheusAlertNotification(ctx context.Context, alerts []*AlertInstance) error {
 	if len(alerts) == 0 {
 		m.l.Infof("[告警通知] 告警列表为空，跳过处理")
@@ -432,12 +489,14 @@ func (m *manager) PrometheusAlertNotification(ctx context.Context, alerts []*Ale
 
 	m.l.Infof("[告警通知] 开始处理 %d 条告警", len(alerts))
 
-	// 启用聚合器时使用聚合器处理
-	if m.aggregator != nil && m.aggregator.config.Enabled {
-		m.l.Info("[告警通知] 使用聚合器处理告警")
+	// 统一使用聚合器处理所有告警（聚合器内部会根据配置决定是否聚合）
+	if m.aggregator != nil {
+		m.l.Info("[告警通知] 使用聚合器统一处理")
 		return m.aggregator.AddAlert(ctx, alerts)
 	}
-	m.l.Info("[告警通知] 使用直接发送")
+
+	// 如果聚合器未初始化，降级到直接发送（但记录警告）
+	m.l.Errorf("[告警通知] 聚合器未初始化，降级到直接发送")
 
 	// 按项目、级别和告警名称分组
 	groups := m.groupAlertsByProjectSeverityAndName(alerts)
@@ -457,7 +516,7 @@ func (m *manager) PrometheusAlertNotification(ctx context.Context, alerts []*Ale
 
 			if err := m.processAlertGroup(ctx, groupInfo); err != nil {
 				mu.Lock()
-				errors = append(errors, fmt.Errorf("分组 %s 处理失败: %w", groupKey, err))
+				errors = append(errors, errorx.Msg(fmt.Sprintf("分组 %s 处理失败: %v", groupKey, err)))
 				mu.Unlock()
 				m.l.Errorf("[告警通知] 分组 %s 处理失败: %v", groupKey, err)
 			} else {
@@ -477,7 +536,9 @@ func (m *manager) PrometheusAlertNotification(ctx context.Context, alerts []*Ale
 	return nil
 }
 
-// 实现 InternalManager 接口，供聚合器调用
+// SendAlertsDirectly 实现 InternalManager 接口，供聚合器调用
+// 直接发送告警，绕过聚合器
+// 优化：实现按渠道维度的二次聚合，解决相同渠道分别发送导致的频率限制问题
 func (m *manager) SendAlertsDirectly(ctx context.Context, alerts []*AlertInstance) error {
 	if len(alerts) == 0 {
 		return nil
@@ -492,24 +553,366 @@ func (m *manager) SendAlertsDirectly(ctx context.Context, alerts []*AlertInstanc
 		m.aggregator = originalAgg
 	}()
 
-	// 直接调用原有的处理逻辑
-	return m.PrometheusAlertNotification(ctx, alerts)
+	// 新的渠道维度聚合逻辑：
+	// 1. 先按项目+级别分组（获取告警组配置）
+	// 2. 然后将相同渠道的告警合并后批量发送
+	return m.sendAlertsWithChannelAggregation(ctx, alerts)
 }
 
-// groupAlertsByProjectAndSeverity 按项目ID和级别分组告警
+// sendAlertsWithChannelAggregation 按渠道维度聚合发送告警
+// 核心思想：在同一个告警组内，如果不同级别使用了相同的渠道，则将这些告警聚合后一起发送
+// 这样可以避免同一告警组的不同级别告警分别发送到同一渠道导致的频率限制问题
+func (m *manager) sendAlertsWithChannelAggregation(ctx context.Context, alerts []*AlertInstance) error {
+	// 第一步：按项目分组（不区分级别）
+	projectGroups := m.groupAlertsByProjectAndSeverity(alerts)
+
+	// 第二步：按告警组维度收集渠道和告警
+	// groupChannelKey = "groupID:channelUUID"
+	type groupChannelData struct {
+		groupID     uint64
+		channelUUID string
+		channelInfo *ChannelInfo
+		alerts      []*AlertInstance
+		projectID   uint64
+		projectName string
+		clusterName string
+		mentions    *MentionConfig
+		severities  map[string]bool // 记录包含的级别
+	}
+
+	groupChannelMap := make(map[string]*groupChannelData)
+
+	for _, group := range projectGroups {
+		// 解析告警组
+		groupID, err := m.resolveAlertGroup(ctx, group.ProjectID)
+		if err != nil {
+			m.l.Errorf("[渠道聚合] 解析告警组失败: ProjectID=%d, error=%v", group.ProjectID, err)
+			continue
+		}
+
+		// 收集该项目所有告警的级别
+		severitiesInGroup := make(map[string]bool)
+		for _, alert := range group.Alerts {
+			severitiesInGroup[alert.Severity] = true
+		}
+
+		// 获取所有级别的渠道并合并（去重）
+		channelMap := make(map[string]*ChannelInfo) // UUID -> ChannelInfo
+		for severity := range severitiesInGroup {
+			channels, err := m.getChannelsForSeverity(ctx, groupID, severity)
+			if err != nil {
+				m.l.Errorf("[渠道聚合] 获取渠道失败: GroupID=%d, Severity=%s, error=%v", groupID, severity, err)
+				continue
+			}
+
+			// 合并渠道（按 UUID 去重）
+			for _, ch := range channels {
+				channelMap[ch.UUID] = ch
+			}
+		}
+
+		if len(channelMap) == 0 {
+			m.l.Infof("[渠道聚合] 告警组 %d 没有配置渠道，跳过", groupID)
+			continue
+		}
+
+		// 获取告警组成员用于 @ 人
+		mentions, err := m.resolveMentions(ctx, groupID, nil)
+		if err != nil {
+			m.l.Errorf("[渠道聚合] 解析 @ 人配置失败: %v", err)
+			// 继续发送但不 @ 人
+		}
+
+		// 将该项目的所有告警分配到每个渠道
+		for _, ch := range channelMap {
+			// 使用 groupID + channelUUID 作为唯一键
+			groupChannelKey := fmt.Sprintf("%d:%s", groupID, ch.UUID)
+
+			if _, exists := groupChannelMap[groupChannelKey]; !exists {
+				groupChannelMap[groupChannelKey] = &groupChannelData{
+					groupID:     groupID,
+					channelUUID: ch.UUID,
+					channelInfo: ch,
+					alerts:      make([]*AlertInstance, 0),
+					projectID:   group.ProjectID,
+					projectName: group.ProjectName,
+					clusterName: group.ClusterName,
+					mentions:    mentions,
+					severities:  make(map[string]bool),
+				}
+			}
+
+			data := groupChannelMap[groupChannelKey]
+
+			// 将所有告警添加到该渠道（避免重复添加）
+			for _, alert := range group.Alerts {
+				data.severities[alert.Severity] = true
+
+				found := false
+				for _, existing := range data.alerts {
+					if existing.Fingerprint == alert.Fingerprint {
+						found = true
+						break
+					}
+				}
+				if !found {
+					data.alerts = append(data.alerts, alert)
+				}
+			}
+		}
+	}
+
+	// 第三步：按告警组+渠道批量发送
+	m.l.Infof("[渠道聚合] 共聚合到 %d 个告警组-渠道组合，开始批量发送", len(groupChannelMap))
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var errors []error
+
+	for groupChannelKey, data := range groupChannelMap {
+		if len(data.alerts) == 0 {
+			continue
+		}
+
+		wg.Add(1)
+		go func(key string, gcd *groupChannelData) {
+			defer wg.Done()
+
+			// 获取渠道客户端
+			client, err := m.GetChannel(ctx, gcd.channelUUID)
+			if err != nil {
+				mu.Lock()
+				errors = append(errors, errorx.Msg(fmt.Sprintf("获取渠道 %s 失败: %v", gcd.channelUUID, err)))
+				mu.Unlock()
+				return
+			}
+
+			// 构建聚合告警组
+			aggregatedGroup := m.buildAggregatedAlertGroup(gcd.alerts, gcd.projectID, gcd.projectName)
+
+			// 构建告警选项
+			opts := &AlertOptions{
+				PortalName:  m.portalName,
+				PortalUrl:   m.portalUrl,
+				Mentions:    gcd.mentions,
+				ProjectName: gcd.projectName,
+				ClusterName: gcd.clusterName,
+				Severity:    "mixed", // 标记为混合级别
+			}
+
+			// 发送到渠道（使用聚合格式化方法）
+			if fullCh, ok := client.(FullChannel); ok {
+				var result *SendResult
+				var err error
+
+				// 根据渠道类型调用对应的聚合格式化方法
+				switch gcd.channelInfo.Type {
+				case AlertTypeDingTalk:
+					// 钉钉使用聚合格式化
+					result, err = m.sendAggregatedAlertToDingTalk(ctx, fullCh, opts, aggregatedGroup)
+				case AlertTypeWeChat:
+					// 企业微信使用聚合格式化
+					result, err = m.sendAggregatedAlertToWeChat(ctx, fullCh, opts, aggregatedGroup)
+				case AlertTypeFeiShu:
+					// 飞书使用聚合格式化
+					result, err = m.sendAggregatedAlertToFeiShu(ctx, fullCh, opts, aggregatedGroup)
+				case AlertTypeEmail:
+					// 邮件使用聚合格式化
+					result, err = m.sendAggregatedAlertToEmail(ctx, fullCh, opts, aggregatedGroup)
+				default:
+					// 其他渠道使用原有方法
+					result, err = fullCh.SendPrometheusAlert(ctx, opts, gcd.alerts)
+				}
+
+				if err != nil {
+					mu.Lock()
+					errors = append(errors, errorx.Msg(fmt.Sprintf("渠道 %s 发送失败: %v", gcd.channelUUID, err)))
+					mu.Unlock()
+					m.l.Errorf("[渠道聚合] 发送失败: GroupID=%d, ChannelUUID=%s, Count=%d, Error=%v",
+						gcd.groupID, gcd.channelUUID, len(gcd.alerts), err)
+				} else {
+					m.l.Infof("[渠道聚合] 发送成功: GroupID=%d, ChannelUUID=%s, Count=%d, Result=%s",
+						gcd.groupID, gcd.channelUUID, len(gcd.alerts), result.Message)
+				}
+
+				// 记录通知日志
+				m.recordNotification(ctx, gcd.alerts, gcd.groupID, gcd.channelInfo, opts, result, err, 0)
+			}
+		}(groupChannelKey, data)
+	}
+
+	wg.Wait()
+
+	// 处理站内信（需要单独处理，因为站内信是按用户创建的）
+	if err := m.createSiteMessagesForAggregatedAlerts(ctx, alerts, projectGroups); err != nil {
+		m.l.Errorf("[渠道聚合] 创建站内信失败: %v", err)
+		// 站内信失败不影响整体流程
+	}
+
+	if len(errors) > 0 {
+		m.l.Errorf("[渠道聚合] 完成，但有 %d 个渠道发送失败", len(errors))
+		return errors[0]
+	}
+
+	m.l.Infof("[渠道聚合] 全部发送完成")
+	return nil
+}
+
+// createSiteMessagesForAggregatedAlerts 为聚合后的告警创建站内信
+// 修复: 使用 InternalUserIds 而不是 AtUserIds，避免类型转换
+func (m *manager) createSiteMessagesForAggregatedAlerts(ctx context.Context, allAlerts []*AlertInstance, groups map[string]*alertGroupInfo) error {
+	if m.siteMessagesModel == nil {
+		return nil
+	}
+
+	// 收集所有需要接收站内信的用户ID
+	userAlerts := make(map[uint64][]*AlertInstance)
+	mentionsMap := make(map[uint64]*MentionConfig)
+	projectsMap := make(map[uint64]string)
+	clustersMap := make(map[uint64]string)
+	severityMap := make(map[uint64]string)
+
+	for _, group := range groups {
+		// 解析告警组
+		groupID, err := m.resolveAlertGroup(ctx, group.ProjectID)
+		if err != nil {
+			continue
+		}
+
+		mentions, err := m.resolveMentions(ctx, groupID, nil)
+		if err != nil || mentions == nil {
+			continue
+		}
+
+		// 优先使用 InternalUserIds
+		var userIds []uint64
+		if len(mentions.InternalUserIds) > 0 {
+			userIds = mentions.InternalUserIds
+		} else if len(mentions.AtUserIds) > 0 {
+			// 向后兼容：如果 InternalUserIds 为空，尝试使用 AtUserIds
+			for _, userIdStr := range mentions.AtUserIds {
+				var userId uint64
+				if _, err := fmt.Sscanf(userIdStr, "%d", &userId); err != nil {
+					m.l.Errorf("[站内信] 用户ID转换失败: %s, 错误: %v", userIdStr, err)
+					continue
+				}
+				userIds = append(userIds, userId)
+			}
+		}
+
+		// 为每个用户聚合告警
+		for _, userId := range userIds {
+			userAlerts[userId] = append(userAlerts[userId], group.Alerts...)
+			mentionsMap[userId] = mentions
+			projectsMap[userId] = group.ProjectName
+			clustersMap[userId] = group.ClusterName
+			severityMap[userId] = group.Severity
+		}
+	}
+
+	// 为每个用户创建站内信
+	formatter := NewMessageFormatter(m.portalName, m.portalUrl)
+	expireAt := time.Now().AddDate(0, 0, 30)
+	successCount := 0
+	failedCount := 0
+
+	for userId, alerts := range userAlerts {
+		if len(alerts) == 0 {
+			continue
+		}
+
+		// 按告警名称分组
+		alertsByName := make(map[string][]*AlertInstance)
+		for _, alert := range alerts {
+			alertsByName[alert.AlertName] = append(alertsByName[alert.AlertName], alert)
+		}
+
+		// 为每个告警名称创建一条消息
+		for alertName, alertGroup := range alertsByName {
+			title := alertName
+			if len(alertGroup) > 1 {
+				title = fmt.Sprintf("%s (%d个实例)", alertName, len(alertGroup))
+			}
+
+			opts := &AlertOptions{
+				PortalName:  m.portalName,
+				PortalUrl:   m.portalUrl,
+				Mentions:    mentionsMap[userId],
+				ProjectName: projectsMap[userId],
+				ClusterName: clustersMap[userId],
+				Severity:    severityMap[userId],
+			}
+
+			content := m.buildAggregatedAlertContent(formatter, alertGroup, opts)
+
+			firstAlert := alertGroup[0]
+			msgUUID := uuid.New().String()
+
+			siteMsg := &model.SiteMessages{
+				Uuid:           msgUUID,
+				NotificationId: 0,
+				InstanceId:     firstAlert.ID,
+				UserId:         userId,
+				Title:          title,
+				Content:        content,
+				MessageType:    "alert",
+				Severity:       firstAlert.Severity,
+				Category:       "prometheus",
+				ExtraData:      "{}",
+				ActionUrl:      firstAlert.GeneratorURL,
+				ActionText:     "查看详情",
+				IsRead:         0,
+				IsStarred:      0,
+				ExpireAt:       expireAt,
+			}
+
+			if _, err := m.siteMessagesModel.Insert(ctx, siteMsg); err != nil {
+				failedCount++
+				m.l.Errorf("[站内信] 创建失败: UserID=%d, Error=%v", userId, err)
+				continue
+			}
+
+			successCount++
+
+			// 推送到 WebSocket
+			if m.messagePusher != nil {
+				siteMessageData := &SiteMessageData{
+					UUID:        msgUUID,
+					UserID:      userId,
+					InstanceID:  firstAlert.ID,
+					Title:       title,
+					Content:     content,
+					MessageType: "alert",
+					Severity:    firstAlert.Severity,
+					Category:    "prometheus",
+					ActionURL:   firstAlert.GeneratorURL,
+					ActionText:  "查看详情",
+				}
+				m.messagePusher.PushMessage(ctx, siteMessageData)
+			}
+		}
+	}
+
+	m.l.Infof("[站内信] 聚合告警创建完成 | 成功: %d | 失败: %d", successCount, failedCount)
+
+	return nil
+}
+
+// groupAlertsByProjectAndSeverity 按项目ID分组告警（不区分级别）
+// 修改为支持跨级别聚合
 func (m *manager) groupAlertsByProjectAndSeverity(alerts []*AlertInstance) map[string]*alertGroupInfo {
 	groups := make(map[string]*alertGroupInfo)
 
 	for _, alert := range alerts {
-		// 生成分组 key: projectID-severity
-		key := fmt.Sprintf("%d-%s", alert.ProjectID, alert.Severity)
+		// 生成分组 key: 只按 projectID 分组，不区分 severity
+		key := fmt.Sprintf("%d", alert.ProjectID)
 
 		if _, exists := groups[key]; !exists {
 			groups[key] = &alertGroupInfo{
 				ProjectID:   alert.ProjectID,
 				ProjectName: alert.ProjectName,
 				ClusterName: alert.ClusterName,
-				Severity:    alert.Severity,
+				Severity:    "mixed", // 标记为混合级别
 				Alerts:      make([]*AlertInstance, 0),
 			}
 		}
@@ -533,14 +936,14 @@ func (m *manager) processAlertGroup(ctx context.Context, group *alertGroupInfo) 
 	// 1. 解析告警组（ProjectID=0 使用默认告警组 ID=2）
 	groupID, err := m.resolveAlertGroup(ctx, group.ProjectID)
 	if err != nil {
-		return fmt.Errorf("解析告警组失败: %w", err)
+		return errorx.Msg(fmt.Sprintf("解析告警组失败: %v", err))
 	}
 	m.l.Infof("[告警分组] ProjectID: %d -> GroupID: %d", group.ProjectID, groupID)
 
 	// 2. 获取对应级别的渠道列表
 	channels, err := m.getChannelsForSeverity(ctx, groupID, group.Severity)
 	if err != nil {
-		return fmt.Errorf("获取渠道失败: %w", err)
+		return errorx.Msg(fmt.Sprintf("获取渠道失败: %v", err))
 	}
 	if len(channels) == 0 {
 		m.l.Infof("[告警分组] 告警组 %d 级别 %s 没有配置渠道，跳过", groupID, group.Severity)
@@ -548,10 +951,10 @@ func (m *manager) processAlertGroup(ctx context.Context, group *alertGroupInfo) 
 	}
 	m.l.Infof("[告警分组] 获取到 %d 个渠道", len(channels))
 
-	// 3. 获取告警组成员用于@人
+	// 3. 获取告警组成员用于 @ 人
 	mentions, err := m.resolveMentions(ctx, groupID, nil)
 	if err != nil {
-		m.l.Errorf("[告警分组] 解析@人配置失败: %v，将继续发送但不@人", err)
+		m.l.Errorf("[告警分组] 解析 @ 人配置失败: %v，将继续发送但不 @ 人", err)
 	}
 
 	// 4. 构建告警选项
@@ -569,6 +972,7 @@ func (m *manager) processAlertGroup(ctx context.Context, group *alertGroupInfo) 
 		return err
 	}
 
+	// 6. 如果渠道列表中没有站内信渠道，则单独创建站内信
 	// 这样避免重复创建
 	if !m.hasChannelType(channels, AlertTypeSiteMessage) {
 		if err := m.createSiteMessagesForAlerts(ctx, group.Alerts, mentions, opts); err != nil {
@@ -591,12 +995,35 @@ func (m *manager) hasChannelType(channels []*ChannelInfo, channelType AlertType)
 }
 
 // createSiteMessagesForAlerts 为告警创建站内信
+// 修复: 使用 InternalUserIds 而不是 AtUserIds，避免类型转换
 func (m *manager) createSiteMessagesForAlerts(ctx context.Context, alerts []*AlertInstance, mentions *MentionConfig, opts *AlertOptions) error {
-	if m.siteMessagesModel == nil || mentions == nil || len(mentions.AtUserIds) == 0 {
+	if m.siteMessagesModel == nil || mentions == nil {
 		return nil
 	}
 
 	if len(alerts) == 0 {
+		return nil
+	}
+
+	// 优先使用 InternalUserIds
+	var userIds []uint64
+	if len(mentions.InternalUserIds) > 0 {
+		userIds = mentions.InternalUserIds
+	} else if len(mentions.AtUserIds) > 0 {
+		// 向后兼容：如果 InternalUserIds 为空，尝试使用 AtUserIds
+		m.l.Infof("[站内信] 使用向后兼容模式: AtUserIds")
+		for _, userIdStr := range mentions.AtUserIds {
+			var userId uint64
+			if _, err := fmt.Sscanf(userIdStr, "%d", &userId); err != nil {
+				m.l.Errorf("[站内信] 用户ID转换失败: %s, 错误: %v", userIdStr, err)
+				continue
+			}
+			userIds = append(userIds, userId)
+		}
+	}
+
+	if len(userIds) == 0 {
+		m.l.Infof("[站内信] 没有有效的用户ID，跳过创建站内信")
 		return nil
 	}
 
@@ -615,13 +1042,17 @@ func (m *manager) createSiteMessagesForAlerts(ctx context.Context, alerts []*Ale
 	content := m.buildAggregatedAlertContent(formatter, alerts, opts)
 
 	// 为每个用户创建一条聚合消息
-	for _, userIdStr := range mentions.AtUserIds {
-		var userId uint64
-		if _, err := fmt.Sscanf(userIdStr, "%d", &userId); err != nil {
-			continue
-		}
+	successCount := 0
+	failedCount := 0
 
+	for _, userId := range userIds {
 		msgUUID := uuid.New().String()
+
+		// 确保 ExtraData 是有效的 JSON
+		extraData := fmt.Sprintf(`{"instance_count":%d,"alert_name":"%s"}`, len(alerts), firstAlert.AlertName)
+		if extraData == "" {
+			extraData = "{}"
+		}
 
 		siteMsg := &model.SiteMessages{
 			Uuid:           msgUUID,
@@ -633,23 +1064,25 @@ func (m *manager) createSiteMessagesForAlerts(ctx context.Context, alerts []*Ale
 			MessageType:    "alert",
 			Severity:       firstAlert.Severity,
 			Category:       "prometheus",
-			ExtraData:      fmt.Sprintf(`{"instance_count":%d,"alert_name":"%s"}`, len(alerts), firstAlert.AlertName),
+			ExtraData:      extraData,
 			ActionUrl:      opts.PortalUrl,
 			ActionText:     "查看详情",
 			IsRead:         0,
-			ReadAt:         time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
 			IsStarred:      0,
 			ExpireAt:       expireAt,
 		}
 
 		result, err := m.siteMessagesModel.Insert(ctx, siteMsg)
 		if err != nil {
+			failedCount++
 			m.l.Errorf("[站内信] 创建失败: alertName=%s, userID=%d, instanceCount=%d, err=%v",
 				firstAlert.AlertName, userId, len(alerts), err)
 			continue
 		}
 
-		// 推送消息到 Redis
+		successCount++
+
+		// 推送消息到 Redis，使用 WaitGroup 追踪
 		if m.messagePusher != nil {
 			msgID, _ := result.LastInsertId()
 			pushData := &SiteMessageData{
@@ -667,7 +1100,10 @@ func (m *manager) createSiteMessagesForAlerts(ctx context.Context, alerts []*Ale
 			}
 			_ = msgID
 
+			m.pushWg.Add(1) // 追踪异步推送
 			go func(data *SiteMessageData, alertName string, uid uint64, count int) {
+				defer m.pushWg.Done()
+
 				pushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 
@@ -680,16 +1116,16 @@ func (m *manager) createSiteMessagesForAlerts(ctx context.Context, alerts []*Ale
 		}
 	}
 
+	m.l.Infof("[站内信] 创建完成 | 成功: %d | 失败: %d | 告警: %s", successCount, failedCount, firstAlert.AlertName)
+
 	return nil
 }
-
-// ========== DefaultNotification 通用通知方法 ==========
 
 // DefaultNotification 发送通用通知（如创建账号等系统通知）
 // 查询默认告警组(ID=2)的 notification 级别渠道，没有则用 default
 func (m *manager) DefaultNotification(ctx context.Context, userIDs []uint64, title, content string) error {
 	if len(userIDs) == 0 {
-		return fmt.Errorf("用户ID列表为空")
+		return errorx.Msg("用户ID列表为空")
 	}
 
 	m.l.Infof("[通用通知] 开始发送: userCount=%d, title=%s", len(userIDs), title)
@@ -713,10 +1149,10 @@ func (m *manager) DefaultNotification(ctx context.Context, userIDs []uint64, tit
 	// 3. 获取用户信息
 	users, err := m.getUserInfoByIDs(ctx, userIDs)
 	if err != nil {
-		return fmt.Errorf("获取用户信息失败: %w", err)
+		return errorx.Msg(fmt.Sprintf("获取用户信息失败: %v", err))
 	}
 
-	// 4. 构建@人配置
+	// 4. 构建 @ 人配置
 	mentions := m.buildMentionsFromUsers(users)
 
 	// 5. 构建通知选项
@@ -733,6 +1169,7 @@ func (m *manager) DefaultNotification(ctx context.Context, userIDs []uint64, tit
 		return err
 	}
 
+	// 7. 如果渠道列表中没有站内信渠道，则单独创建站内信
 	if !m.hasChannelType(channels, AlertTypeSiteMessage) {
 		if err := m.createSiteMessagesForNotification(ctx, userIDs, title, content); err != nil {
 			m.l.Errorf("[通用通知] 创建站内信失败: %v", err)
@@ -743,12 +1180,20 @@ func (m *manager) DefaultNotification(ctx context.Context, userIDs []uint64, tit
 }
 
 // createSiteMessagesForNotification 为通知创建站内信
+// 修复: 直接使用 uint64 类型的 userIDs，避免类型转换
 func (m *manager) createSiteMessagesForNotification(ctx context.Context, userIDs []uint64, title, content string) error {
 	if m.siteMessagesModel == nil {
 		return nil
 	}
 
+	if len(userIDs) == 0 {
+		m.l.Infof("[站内信] 没有有效的用户ID，跳过创建站内信")
+		return nil
+	}
+
 	expireAt := time.Now().AddDate(0, 0, 30)
+	successCount := 0
+	failedCount := 0
 
 	for _, userId := range userIDs {
 		msgUUID := uuid.New().String()
@@ -767,16 +1212,18 @@ func (m *manager) createSiteMessagesForNotification(ctx context.Context, userIDs
 			ActionUrl:      m.portalUrl,
 			ActionText:     "查看详情",
 			IsRead:         0,
-			ReadAt:         time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC),
 			IsStarred:      0,
 			ExpireAt:       expireAt,
 		}
 
 		result, err := m.siteMessagesModel.Insert(ctx, siteMsg)
 		if err != nil {
+			failedCount++
 			m.l.Errorf("[站内信] 创建失败: userID=%d, err=%v", userId, err)
 			continue
 		}
+
+		successCount++
 
 		if m.messagePusher != nil {
 			msgID, _ := result.LastInsertId()
@@ -794,8 +1241,11 @@ func (m *manager) createSiteMessagesForNotification(ctx context.Context, userIDs
 			}
 			_ = msgID
 
-			// 异步推送
+			// 异步推送，使用 WaitGroup 追踪
+			m.pushWg.Add(1)
 			go func(data *SiteMessageData, uid uint64) {
+				defer m.pushWg.Done()
+
 				pushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 
@@ -808,12 +1258,13 @@ func (m *manager) createSiteMessagesForNotification(ctx context.Context, userIDs
 		}
 	}
 
+	m.l.Infof("[站内信] 创建完成 | 成功: %d | 失败: %d | 标题: %s", successCount, failedCount, title)
+
 	return nil
 }
 
-// ========== 内部方法 ==========
-
 // resolveAlertGroup 解析告警组
+// ProjectID=0 时返回默认告警组
 func (m *manager) resolveAlertGroup(ctx context.Context, projectID uint64) (uint64, error) {
 	if projectID == 0 {
 		return DefaultAlertGroupID, nil
@@ -836,7 +1287,7 @@ func (m *manager) resolveAlertGroup(ctx context.Context, projectID uint64) (uint
 // getChannelsForSeverity 获取对应级别的渠道列表
 func (m *manager) getChannelsForSeverity(ctx context.Context, groupID uint64, severity string) ([]*ChannelInfo, error) {
 	if m.alertGroupLevelChannelsModel == nil {
-		return nil, fmt.Errorf("告警组级别渠道模型未初始化")
+		return nil, errorx.Msg("告警组级别渠道模型未初始化")
 	}
 
 	// 查询指定级别
@@ -865,11 +1316,12 @@ func (m *manager) getChannelsForSeverity(ctx context.Context, groupID uint64, se
 // parseChannelIDs 解析渠道ID字符串并获取渠道信息
 func (m *manager) parseChannelIDs(ctx context.Context, channelIDStr string) ([]*ChannelInfo, error) {
 	if m.alertChannelsModel == nil {
-		return nil, fmt.Errorf("告警渠道模型未初始化")
+		return nil, errorx.Msg("告警渠道模型未初始化")
 	}
 
 	idStrs := strings.Split(channelIDStr, ",")
 	var channels []*ChannelInfo
+	failedCount := 0
 
 	for _, idStr := range idStrs {
 		idStr = strings.TrimSpace(idStr)
@@ -880,16 +1332,28 @@ func (m *manager) parseChannelIDs(ctx context.Context, channelIDStr string) ([]*
 		channelID, err := strconv.ParseUint(idStr, 10, 64)
 		if err != nil {
 			m.l.Errorf("[渠道解析] 解析渠道ID失败: %s", idStr)
+			failedCount++
 			continue
 		}
 
 		channel, err := m.alertChannelsModel.FindOne(ctx, channelID)
 		if err != nil {
 			m.l.Errorf("[渠道解析] 查询渠道失败: channelID=%d, err=%v", channelID, err)
+			failedCount++
 			continue
 		}
 
 		channels = append(channels, m.convertToChannelInfo(channel))
+	}
+
+	// 记录部分失败的情况
+	if failedCount > 0 && len(channels) > 0 {
+		m.l.Infof("[渠道解析] 部分渠道解析失败: 成功=%d, 失败=%d", len(channels), failedCount)
+	}
+
+	// 如果全部失败则返回错误
+	if len(channels) == 0 && len(idStrs) > 0 {
+		return nil, errorx.Msg(fmt.Sprintf("所有渠道解析失败，共 %d 个", len(idStrs)))
 	}
 
 	return channels, nil
@@ -979,7 +1443,7 @@ func (m *manager) parseJSONConfig(jsonConfig string, channelType AlertType, conf
 	return nil
 }
 
-// resolveMentions 解析@人配置
+// resolveMentions 解析 @ 人配置
 func (m *manager) resolveMentions(ctx context.Context, groupID uint64, mentions *MentionConfig) (*MentionConfig, error) {
 	// 如果已提供有内容的配置，直接使用
 	if mentions != nil && (len(mentions.AtMobiles) > 0 || len(mentions.AtUserIds) > 0 || len(mentions.EmailTo) > 0 || mentions.IsAtAll) {
@@ -1012,7 +1476,7 @@ func (m *manager) resolveMentions(ctx context.Context, groupID uint64, mentions 
 // getUserInfoByIDs 根据用户ID获取用户信息
 func (m *manager) getUserInfoByIDs(ctx context.Context, userIDs []uint64) ([]*UserInfo, error) {
 	if m.sysUserModel == nil {
-		return nil, fmt.Errorf("用户模型未初始化")
+		return nil, errorx.Msg("用户模型未初始化")
 	}
 
 	var users []*UserInfo
@@ -1022,39 +1486,105 @@ func (m *manager) getUserInfoByIDs(ctx context.Context, userIDs []uint64) ([]*Us
 			m.l.Errorf("[用户查询] 查询用户失败: userID=%d, err=%v", userID, err)
 			continue
 		}
+
+		// 提取平台ID（处理 sql.NullString 类型）
+		dingtalkId := ""
+		if user.DingtalkId.Valid && user.DingtalkId.String != "" {
+			dingtalkId = user.DingtalkId.String
+		}
+
+		wechatId := ""
+		if user.WechatId.Valid && user.WechatId.String != "" {
+			wechatId = user.WechatId.String
+		}
+
+		feishuId := ""
+		if user.FeishuId.Valid && user.FeishuId.String != "" {
+			feishuId = user.FeishuId.String
+		}
+
 		users = append(users, &UserInfo{
-			UserID:   user.Id,
-			Username: user.Username,
-			Phone:    user.Phone,
-			Email:    user.Email,
+			UserID:     user.Id,
+			Username:   user.Username,
+			Phone:      user.Phone,
+			Email:      user.Email,
+			DingtalkId: dingtalkId,
+			WechatId:   wechatId,
+			FeishuId:   feishuId,
 		})
 	}
 	return users, nil
 }
 
-// buildMentionsFromUsers 从用户信息构建@人配置
+// buildMentionsFromUsers 从用户信息构建 @ 人配置
+// 根据用户的平台ID构建对应平台的@人列表
+// 修复: 明确区分内部用户ID和平台用户ID，避免混淆
 func (m *manager) buildMentionsFromUsers(users []*UserInfo) *MentionConfig {
 	if len(users) == 0 {
 		return nil
 	}
 
 	mentions := &MentionConfig{
-		AtMobiles: make([]string, 0),
-		AtUserIds: make([]string, 0),
-		EmailTo:   make([]string, 0),
+		InternalUserIds: make([]uint64, 0, len(users)),
+		DingtalkUserIds: make([]string, 0),
+		WechatUserIds:   make([]string, 0),
+		FeishuUserIds:   make([]string, 0),
+		EmailTo:         make([]string, 0),
+		AtMobiles:       make([]string, 0),
+		AtUserIds:       make([]string, 0), // 保留用于向后兼容
 	}
 
+	var missingPlatformIds []string
+
 	for _, user := range users {
-		if user.Phone != "" {
-			mentions.AtMobiles = append(mentions.AtMobiles, user.Phone)
-		}
+		// 保存内部用户ID（用于站内信）
 		if user.UserID > 0 {
+			mentions.InternalUserIds = append(mentions.InternalUserIds, user.UserID)
+			// 向后兼容：同时填充 AtUserIds
 			mentions.AtUserIds = append(mentions.AtUserIds, fmt.Sprintf("%d", user.UserID))
 		}
+
+		// 钉钉用户ID（如果存在则添加）
+		if user.DingtalkId != "" {
+			mentions.DingtalkUserIds = append(mentions.DingtalkUserIds, user.DingtalkId)
+		} else if user.UserID > 0 {
+			missingPlatformIds = append(missingPlatformIds, fmt.Sprintf("用户%d缺少钉钉ID", user.UserID))
+		}
+
+		// 企业微信用户ID（如果存在则添加）
+		if user.WechatId != "" {
+			mentions.WechatUserIds = append(mentions.WechatUserIds, user.WechatId)
+		}
+
+		// 飞书用户ID（如果存在则添加）
+		if user.FeishuId != "" {
+			mentions.FeishuUserIds = append(mentions.FeishuUserIds, user.FeishuId)
+		}
+
+		// 邮箱
 		if user.Email != "" {
 			mentions.EmailTo = append(mentions.EmailTo, user.Email)
 		}
+
+		// 手机号（已废弃，保留兼容性）
+		if user.Phone != "" {
+			mentions.AtMobiles = append(mentions.AtMobiles, user.Phone)
+		}
 	}
+
+	// 记录缺少平台ID的用户（用于调试）
+	if len(missingPlatformIds) > 0 {
+		m.l.Infof("[@ 人配置] 部分用户缺少平台ID绑定: %v", missingPlatformIds)
+	}
+
+	// 统计信息
+	m.l.Infof("[@ 人配置] 构建完成 | 内部用户: %d | 钉钉: %d | 企业微信: %d | 飞书: %d | 邮箱: %d",
+		len(mentions.InternalUserIds),
+		len(mentions.DingtalkUserIds),
+		len(mentions.WechatUserIds),
+		len(mentions.FeishuUserIds),
+		len(mentions.EmailTo))
+
 	return mentions
 }
 
@@ -1065,13 +1595,6 @@ func (m *manager) sendToChannels(ctx context.Context, channels []*ChannelInfo, o
 	var errors []error
 
 	for _, ch := range channels {
-		// 这样站内信的创建和推送都由 siteMessageClient 统一处理
-		// 原代码:
-		// if ch.Type == AlertTypeSiteMessage {
-		// 	m.l.Infof("[渠道发送] 跳过站内信渠道（已统一处理）| UUID: %s", ch.UUID)
-		// 	continue
-		// }
-
 		wg.Add(1)
 		go func(channelInfo *ChannelInfo) {
 			defer wg.Done()
@@ -1084,7 +1607,7 @@ func (m *manager) sendToChannels(ctx context.Context, channels []*ChannelInfo, o
 			client, err := m.getOrCreateChannelClient(ctx, channelInfo)
 			if err != nil {
 				mu.Lock()
-				errors = append(errors, fmt.Errorf("渠道 %s(%s) 获取客户端失败: %w", channelInfo.Name, channelInfo.UUID, err))
+				errors = append(errors, errorx.Msg(fmt.Sprintf("渠道 %s(%s) 获取客户端失败: %v", channelInfo.Name, channelInfo.UUID, err)))
 				mu.Unlock()
 				m.l.Errorf("[渠道发送] 获取客户端失败 | 类型: %s | UUID: %s | 错误: %v",
 					channelInfo.Type, channelInfo.UUID, err)
@@ -1094,7 +1617,7 @@ func (m *manager) sendToChannels(ctx context.Context, channels []*ChannelInfo, o
 			alertChannel, ok := client.(PrometheusAlertChannel)
 			if !ok {
 				mu.Lock()
-				errors = append(errors, fmt.Errorf("渠道 %s(%s) 不支持 Prometheus 告警", channelInfo.Name, channelInfo.UUID))
+				errors = append(errors, errorx.Msg(fmt.Sprintf("渠道 %s(%s) 不支持 Prometheus 告警", channelInfo.Name, channelInfo.UUID)))
 				mu.Unlock()
 				return
 			}
@@ -1107,7 +1630,7 @@ func (m *manager) sendToChannels(ctx context.Context, channels []*ChannelInfo, o
 
 			if err != nil {
 				mu.Lock()
-				errors = append(errors, fmt.Errorf("渠道 %s(%s) 发送失败: %w", channelInfo.Name, channelInfo.UUID, err))
+				errors = append(errors, errorx.Msg(fmt.Sprintf("渠道 %s(%s) 发送失败: %v", channelInfo.Name, channelInfo.UUID, err)))
 				mu.Unlock()
 				m.l.Errorf("[渠道发送] 失败 | 类型: %s | UUID: %s | 名称: %s | 耗时: %dms | 错误: %v",
 					channelInfo.Type, channelInfo.UUID, channelInfo.Name, costMs, err)
@@ -1136,12 +1659,6 @@ func (m *manager) sendNotificationToChannels(ctx context.Context, channels []*Ch
 	var errors []error
 
 	for _, ch := range channels {
-		// 原代码:
-		// if ch.Type == AlertTypeSiteMessage {
-		// 	m.l.Infof("[通知发送] 跳过站内信渠道（已统一处理）| UUID: %s", ch.UUID)
-		// 	continue
-		// }
-
 		wg.Add(1)
 		go func(channelInfo *ChannelInfo) {
 			defer wg.Done()
@@ -1154,7 +1671,7 @@ func (m *manager) sendNotificationToChannels(ctx context.Context, channels []*Ch
 			client, err := m.getOrCreateChannelClient(ctx, channelInfo)
 			if err != nil {
 				mu.Lock()
-				errors = append(errors, fmt.Errorf("渠道 %s(%s) 获取客户端失败: %w", channelInfo.Name, channelInfo.UUID, err))
+				errors = append(errors, errorx.Msg(fmt.Sprintf("渠道 %s(%s) 获取客户端失败: %v", channelInfo.Name, channelInfo.UUID, err)))
 				mu.Unlock()
 				return
 			}
@@ -1162,7 +1679,7 @@ func (m *manager) sendNotificationToChannels(ctx context.Context, channels []*Ch
 			notifChannel, ok := client.(NotificationChannel)
 			if !ok {
 				mu.Lock()
-				errors = append(errors, fmt.Errorf("渠道 %s(%s) 不支持通用通知", channelInfo.Name, channelInfo.UUID))
+				errors = append(errors, errorx.Msg(fmt.Sprintf("渠道 %s(%s) 不支持通用通知", channelInfo.Name, channelInfo.UUID)))
 				mu.Unlock()
 				return
 			}
@@ -1172,7 +1689,7 @@ func (m *manager) sendNotificationToChannels(ctx context.Context, channels []*Ch
 
 			if err != nil {
 				mu.Lock()
-				errors = append(errors, fmt.Errorf("渠道 %s(%s) 发送失败: %w", channelInfo.Name, channelInfo.UUID, err))
+				errors = append(errors, errorx.Msg(fmt.Sprintf("渠道 %s(%s) 发送失败: %v", channelInfo.Name, channelInfo.UUID, err)))
 				mu.Unlock()
 				m.l.Errorf("[通知发送] 失败 | 类型: %s | UUID: %s | 名称: %s | 耗时: %dms | 错误: %v",
 					channelInfo.Type, channelInfo.UUID, channelInfo.Name, costMs, err)
@@ -1277,7 +1794,7 @@ func (m *manager) getOrCreateChannelClient(ctx context.Context, channelInfo *Cha
 	m.mu.RUnlock()
 
 	if !exists || wrapper.client == nil {
-		return nil, fmt.Errorf("创建渠道客户端失败")
+		return nil, errorx.Msg("创建渠道客户端失败")
 	}
 
 	return wrapper.client.WithContext(ctx), nil
@@ -1299,15 +1816,6 @@ func (m *manager) recordNotification(ctx context.Context, alerts []*AlertInstanc
 		errMsg = result.Message
 	}
 
-	// 构建收件人 JSON
-	//recipients := "[]"
-	//if opts.Mentions != nil {
-	//	recipientData, err := json.Marshal(opts.Mentions)
-	//	if err == nil {
-	//		recipients = string(recipientData)
-	//	}
-	//}
-	//Recipients:  recipients,
 	notification := &model.AlertNotifications{
 		Uuid:        uuid.New().String(),
 		InstanceId:  0,
@@ -1331,8 +1839,6 @@ func (m *manager) recordNotification(ctx context.Context, alerts []*AlertInstanc
 	}
 }
 
-// ========== 站内信存储实现 ==========
-
 // SiteMessageData 站内信数据结构
 type SiteMessageData struct {
 	UUID           string    `json:"uuid"`
@@ -1353,13 +1859,15 @@ type SiteMessageData struct {
 	ExpireAt       time.Time `json:"expireAt"`
 }
 
+// siteMessageStoreImpl 站内信存储实现
 type siteMessageStoreImpl struct {
 	m *manager
 }
 
+// SaveMessage 保存单条站内信
 func (s *siteMessageStoreImpl) SaveMessage(ctx context.Context, msg *SiteMessageData) error {
 	if s.m.siteMessagesModel == nil {
-		return fmt.Errorf("站内信模型未初始化")
+		return errorx.Msg("站内信模型未初始化")
 	}
 
 	// 确保 ExtraData 是有效的 JSON
@@ -1403,6 +1911,7 @@ func (s *siteMessageStoreImpl) SaveMessage(ctx context.Context, msg *SiteMessage
 	return err
 }
 
+// SaveBatchMessages 批量保存站内信
 func (s *siteMessageStoreImpl) SaveBatchMessages(ctx context.Context, msgs []*SiteMessageData) error {
 	for _, msg := range msgs {
 		if err := s.SaveMessage(ctx, msg); err != nil {
@@ -1424,8 +1933,132 @@ type ChannelInfo struct {
 
 // UserInfo 用户信息
 type UserInfo struct {
-	UserID   uint64 `json:"userId"`
-	Username string `json:"username"`
-	Phone    string `json:"phone"`
-	Email    string `json:"email"`
+	UserID     uint64 `json:"userId"`
+	Username   string `json:"username"`
+	Phone      string `json:"phone"`
+	Email      string `json:"email"`
+	DingtalkId string `json:"dingtalkId"` // 钉钉用户ID
+	WechatId   string `json:"wechatId"`   // 企业微信用户ID
+	FeishuId   string `json:"feishuId"`   // 飞书用户ID
+}
+
+// buildAggregatedAlertGroup 构建聚合告警组
+// 将告警列表转换为按级别分组的聚合结构
+func (m *manager) buildAggregatedAlertGroup(alerts []*AlertInstance, projectID uint64, projectName string) *AggregatedAlertGroup {
+	group := &AggregatedAlertGroup{
+		ProjectID:        projectID,
+		ProjectName:      projectName,
+		AlertsBySeverity: make(map[string][]*AlertInstance),
+		ResolvedAlerts:   make([]*AlertInstance, 0),
+		ClusterStats:     make(map[string]*ClusterStat),
+		TotalFiring:      0,
+		TotalResolved:    0,
+	}
+
+	// 记录第一条和最后一条告警的时间
+	var firstTime, lastTime time.Time
+
+	for i, alert := range alerts {
+		// 更新时间范围
+		if i == 0 {
+			firstTime = alert.StartsAt
+			lastTime = alert.StartsAt
+		} else {
+			if alert.StartsAt.Before(firstTime) {
+				firstTime = alert.StartsAt
+			}
+			if alert.StartsAt.After(lastTime) {
+				lastTime = alert.StartsAt
+			}
+		}
+
+		// 按状态分类
+		if alert.Status == string(AlertStatusFiring) {
+			// 按级别分组
+			severity := strings.ToUpper(alert.Severity)
+			group.AlertsBySeverity[severity] = append(group.AlertsBySeverity[severity], alert)
+			group.TotalFiring++
+
+			// 更新集群统计
+			if stat, exists := group.ClusterStats[alert.ClusterName]; exists {
+				stat.FiringCount++
+			} else {
+				group.ClusterStats[alert.ClusterName] = &ClusterStat{
+					ClusterName:   alert.ClusterName,
+					FiringCount:   1,
+					ResolvedCount: 0,
+				}
+			}
+		} else {
+			// 已恢复的告警
+			group.ResolvedAlerts = append(group.ResolvedAlerts, alert)
+			group.TotalResolved++
+
+			// 更新集群统计
+			if stat, exists := group.ClusterStats[alert.ClusterName]; exists {
+				stat.ResolvedCount++
+			} else {
+				group.ClusterStats[alert.ClusterName] = &ClusterStat{
+					ClusterName:   alert.ClusterName,
+					FiringCount:   0,
+					ResolvedCount: 1,
+				}
+			}
+		}
+	}
+
+	group.FirstAlertTime = firstTime
+	group.LastAlertTime = lastTime
+
+	return group
+}
+
+// GetAggregator 获取聚合器实例
+func (m *manager) GetAggregator() *AlertAggregator {
+	return m.aggregator
+}
+
+// EnableAggregator 动态启用聚合器
+func (m *manager) EnableAggregator() error {
+	if m.aggregator == nil {
+		return errorx.Msg("聚合器未初始化")
+	}
+
+	if !m.aggregator.config.Enabled {
+		m.aggregator.config.Enabled = true
+		m.l.Info("[告警管理器] 聚合器已动态启用")
+	}
+
+	return nil
+}
+
+// DisableAggregator 动态禁用聚合器
+func (m *manager) DisableAggregator() error {
+	if m.aggregator == nil {
+		return errorx.Msg("聚合器未初始化")
+	}
+
+	if m.aggregator.config.Enabled {
+		m.aggregator.config.Enabled = false
+		m.l.Info("[告警管理器] 聚合器已动态禁用")
+	}
+
+	return nil
+}
+
+// GetAggregatorStatus 获取聚合器状态
+func (m *manager) GetAggregatorStatus() map[string]interface{} {
+	status := map[string]interface{}{
+		"initialized": m.aggregator != nil,
+		"enabled":     false,
+		"stats":       nil,
+	}
+
+	if m.aggregator != nil {
+		status["enabled"] = m.aggregator.config.Enabled
+		status["stats"] = m.aggregator.GetStats()
+		status["healthInfo"] = m.aggregator.GetHealthInfo()
+	}
+
+	return status
 }

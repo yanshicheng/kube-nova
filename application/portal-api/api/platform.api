@@ -1,0 +1,182 @@
+syntax = "v1"
+
+info(
+    title: "SysPlatform Service API"
+    desc: "API 服务用于管理系统平台相关操作"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    // SysPlatform 表示平台信息
+    SysPlatform {
+        Id uint64 `json:"id"`                              // 自增主键
+        PlatformCode string `json:"platformCode"`          // 平台编码（唯一标识）
+        PlatformName string `json:"platformName"`          // 平台名称
+        PlatformDesc string `json:"platformDesc"`          // 平台描述
+        PlatformIcon string `json:"platformIcon"`          // 平台图标
+        Sort int64 `json:"sort"`                           // 排序
+        IsEnable int64 `json:"isEnable"`                   // 是否启用（0:禁用 1:启用）
+        IsDefault int64 `json:"isDefault"`                 // 是否为默认平台（0:否 1:是）
+        CreatedBy string `json:"createdBy"`                // 创建人
+        UpdatedBy string `json:"updatedBy"`                // 更新人
+        CreatedAt int64 `json:"createdAt"`                 // 创建时间
+        UpdatedAt int64 `json:"updatedAt"`                 // 更新时间
+    }
+
+    // 添加平台请求
+    AddSysPlatformRequest {
+        PlatformCode string `json:"platformCode" validate:"required,min=2,max=50"`                        // 平台编码，必填
+        PlatformName string `json:"platformName" validate:"required,min=2,max=100"`                       // 平台名称，必填
+        PlatformDesc string `json:"platformDesc,optional" validate:"omitempty,max=500"`                   // 平台描述
+        PlatformIcon string `json:"platformIcon,optional" validate:"omitempty,max=255"`                   // 平台图标
+        Sort int64 `json:"sort,optional" default:"0" validate:"gte=0"`                                    // 排序
+        IsEnable int64 `json:"isEnable,optional" default:"1" validate:"oneof=0 1"`                        // 是否启用
+        IsDefault int64 `json:"isDefault,optional" default:"0" validate:"oneof=0 1"`                      // 是否为默认平台
+    }
+
+    // 更新平台请求
+    UpdateSysPlatformRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`                                                    // 平台ID，必填
+        PlatformCode string `json:"platformCode,optional" validate:"omitempty,min=2,max=50"`              // 平台编码
+        PlatformName string `json:"platformName,optional" validate:"omitempty,min=2,max=100"`             // 平台名称
+        PlatformDesc string `json:"platformDesc,optional" validate:"omitempty,max=500"`                   // 平台描述
+        PlatformIcon string `json:"platformIcon,optional" validate:"omitempty,max=255"`                   // 平台图标
+        Sort int64 `json:"sort,optional" validate:"omitempty,gte=0"`                                      // 排序
+        IsEnable int64 `json:"isEnable,optional" validate:"omitempty,oneof=0 1"`                          // 是否启用
+        IsDefault int64 `json:"isDefault,optional" validate:"omitempty,oneof=0 1"`                        // 是否为默认平台
+    }
+
+    // 搜索平台请求
+    SearchSysPlatformRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                          // 当前页码
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"`         // 每页条数
+        OrderStr string `form:"orderStr,optional" default:"sort" validate:"omitempty"`                    // 排序字段
+        IsAsc bool `form:"isAsc,optional" default:"true" validate:"omitempty"`                            // 是否升序
+        PlatformCode string `form:"platformCode,optional" validate:"omitempty,max=50"`                    // 平台编码
+        PlatformName string `form:"platformName,optional" validate:"omitempty,max=100"`                   // 平台名称
+        IsEnable int64 `form:"isEnable,optional" validate:"omitempty,oneof=0 1"`                          // 是否启用
+        IsDefault int64 `form:"isDefault,optional" validate:"omitempty,oneof=0 1"`                        // 是否为默认平台
+    }
+
+    // 搜索平台响应
+    SearchSysPlatformResponse {
+        Items []SysPlatform `json:"items"`     // 平台列表
+        Total uint64 `json:"total"`            // 总数
+    }
+
+    // 启用平台请求
+    EnableSysPlatformRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`     // 平台ID
+    }
+
+    // 禁用平台请求
+    DisableSysPlatformRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`     // 平台ID
+    }
+
+    // 设置默认平台请求
+    SetDefaultSysPlatformRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`     // 平台ID
+    }
+
+    // 取消默认平台请求
+    UnsetDefaultSysPlatformRequest {
+        Id uint64 `path:"id" validate:"required,gt=0"`     // 平台ID
+    }
+
+    // 用户绑定平台请求
+    BindUserPlatformRequest {
+        UserId uint64 `json:"userId" validate:"required,gt=0"`                                            // 用户ID
+        PlatformIds []uint64 `json:"platformIds" validate:"required,min=1,dive,gt=0"`                     // 平台ID列表
+    }
+
+    // 用户解绑平台请求
+    UnbindUserPlatformRequest {
+        UserId uint64 `json:"userId" validate:"required,gt=0"`                                            // 用户ID
+        PlatformIds []uint64 `json:"platformIds" validate:"required,min=1,dive,gt=0"`                     // 平台ID列表
+    }
+
+    // 获取平台下用户请求
+    GetPlatformUsersRequest {
+        PlatformId uint64 `form:"platformId" validate:"required,gt=0"`                                    // 平台ID
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                          // 当前页码
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"`         // 每页条数
+    }
+
+    // 获取平台下用户响应
+    GetPlatformUsersResponse {
+        UserIds []uint64 `json:"userIds"`      // 用户ID列表
+        Total uint64 `json:"total"`            // 总数
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: platform
+    prefix: /portal/v1/platform
+)
+service portal-api {
+    // 添加平台
+    @handler AddSysPlatformHandler
+    post / (AddSysPlatformRequest) returns (string)
+
+    // 更新平台
+    @handler UpdateSysPlatformHandler
+    put /:id (UpdateSysPlatformRequest) returns (string)
+
+    // 删除平台
+    @handler DelSysPlatformHandler
+    delete /:id (DefaultIdRequest) returns (string)
+
+    // 根据ID获取平台
+    @handler GetSysPlatformByIdHandler
+    get /:id (DefaultIdRequest) returns (SysPlatform)
+
+    // 搜索平台（支持分页）
+    @handler SearchSysPlatformHandler
+    get /list (SearchSysPlatformRequest) returns (SearchSysPlatformResponse)
+
+    // 启用平台
+    @handler EnableSysPlatformHandler
+    put /enable/:id (EnableSysPlatformRequest) returns (string)
+
+    // 禁用平台
+    @handler DisableSysPlatformHandler
+    put /disable/:id (DisableSysPlatformRequest) returns (string)
+
+    // 设置为默认平台
+    @handler SetDefaultSysPlatformHandler
+    put /default/:id (SetDefaultSysPlatformRequest) returns (string)
+
+    // 取消默认平台
+    @handler UnsetDefaultSysPlatformHandler
+    put /undefault/:id (UnsetDefaultSysPlatformRequest) returns (string)
+
+    // 获取默认平台
+    @handler GetDefaultSysPlatformHandler
+    get /default () returns (SysPlatform)
+
+    // 获取所有启用的平台
+    @handler GetAllEnabledPlatformsHandler
+    get /enabled () returns ([]SysPlatform)
+
+    // 用户绑定平台
+    @handler BindUserPlatformHandler
+    post /user/bind (BindUserPlatformRequest) returns (string)
+
+    // 用户解绑平台
+    @handler UnbindUserPlatformHandler
+    post /user/unbind (UnbindUserPlatformRequest) returns (string)
+
+    // 获取用户绑定的平台列表
+    @handler GetUserPlatformsHandler
+    get /user/platforms () returns ([]SysPlatform)
+
+    // 获取平台下的用户列表
+    @handler GetPlatformUsersHandler
+    get /users (GetPlatformUsersRequest) returns (GetPlatformUsersResponse)
+}

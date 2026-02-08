@@ -61,14 +61,14 @@ func (l *VersionAddLogic) VersionAdd(in *pb.AddOnecProjectVersionReq) (*pb.AddOn
 		return nil, errorx.Msg("该应用下已存在相同版本")
 	}
 
-	// 将 map[string]string 转换为 JSON 字符串存储
-
 	version := &model.OnecProjectVersion{
 		ApplicationId: in.ApplicationId,
 		Version:       in.Version,
 		ResourceName:  in.ResourceName,
 		CreatedBy:     in.CreatedBy,
+		VersionRole:   "stable",
 		UpdatedBy:     in.UpdatedBy,
+		Status:        1,
 	}
 
 	// 插入数据库

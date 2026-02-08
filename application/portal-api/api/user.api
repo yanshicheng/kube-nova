@@ -27,6 +27,9 @@ type (
         UpdatedBy string `json:"updatedBy"`          // 记录更新人
         CreatedAt int64 `json:"createdAt"`           // 创建时间
         UpdatedAt int64 `json:"updatedAt"`           // 更新时间
+        DingtalkId string `json:"dingtalkId"`        // 钉钉用户ID
+        WechatId string `json:"wechatId"`            // 微信用户ID
+        FeishuId string `json:"feishuId"`            // 飞书用户ID
     }
 
         // 用户详情信息
@@ -46,6 +49,9 @@ type (
         UpdatedAt int64 `json:"updatedAt"`           // 更新时间
         DeptNames string `json:"deptNames"`          // 部门完整信息 / 分割
         RoleNames string `json:"roleNames"`          // 角色列表names
+        DingtalkId string `json:"dingtalkId"`        // 钉钉用户ID
+        WechatId string `json:"wechatId"`            // 微信用户ID
+        FeishuId string `json:"feishuId"`            // 飞书用户ID
     }
 
         // 添加用户请求
@@ -56,6 +62,9 @@ type (
         Phone string `json:"phone" validate:"required,min=10,max=20"`            // 手机号
         WorkNumber string `json:"workNumber" validate:"required,max=50"`         // 工号
         DeptId uint64 `json:"deptId" validate:"omitempty,gt=0"`                  // 部门ID
+        DingtalkId string `json:"dingtalkId,optional" validate:"omitempty,max=100"`  // 钉钉用户ID
+        WechatId string `json:"wechatId,optional" validate:"omitempty,max=100"`    // 微信用户ID
+        FeishuId string `json:"feishuId,optional" validate:"omitempty,max=100"`    // 飞书用户ID
     }
 
         // 更新用户请求（管理员更新）
@@ -68,6 +77,9 @@ type (
         DeptId uint64 `json:"deptId" validate:"required,gt=0"`                               // 部门ID
         Status int64 `json:"status,optional" validate:"omitempty,oneof=0 1"`                 // 状态
         IsNeedResetPwd int64 `json:"isNeedResetPwd,optional" validate:"omitempty,oneof=0 1"` // 是否需要重置密码
+        DingtalkId string `json:"dingtalkId,optional" validate:"omitempty,max=100"`           // 钉钉用户ID
+        WechatId string `json:"wechatId,optional" validate:"omitempty,max=100"`             // 微信用户ID
+        FeishuId string `json:"feishuId,optional" validate:"omitempty,max=100"`             // 飞书用户ID
     }
 
         // 更新个人信息请求
@@ -91,6 +103,9 @@ type (
         CreateBy string `form:"createBy,optional" validate:"omitempty"`
         UpdateBy string `form:"updateBy,optional" validate:"omitempty"`
         LoginIp string `form:"loginIp,optional" validate:"omitempty"`                                                                                                 // 是否需要重置密码
+        DingtalkId string `form:"dingtalkId,optional" validate:"omitempty,max=100"`                                                                                  // 钉钉用户ID
+        WechatId string `form:"wechatId,optional" validate:"omitempty,max=100"`                                                                                    // 微信用户ID
+        FeishuId string `form:"feishuId,optional" validate:"omitempty,max=100"`                                                                                    // 飞书用户ID
     }
 
         // 搜索用户响应
@@ -137,6 +152,16 @@ type (
 )
 
 @server(
+    group: user
+    prefix: /portal/v1/user
+)
+service portal-api {
+    // 修改密码
+    @handler UpdateSysUserPwdHandler
+    put /password (UpdateSysUserPwdRequest) returns (string)
+}
+
+@server(
     middleware: JWTAuthMiddleware
     group: user
     prefix: /portal/v1/user
@@ -174,9 +199,7 @@ service portal-api {
     @handler UpdateSysUserAvatarHandler
     put /avatar (UpdateSysUserAvatarRequest) returns (string)
 
-    // 修改密码
-    @handler UpdateSysUserPwdHandler
-    put /password (UpdateSysUserPwdRequest) returns (string)
+
 
     // 启用/禁用用户
     @handler UpdateSysUserStatusHandler

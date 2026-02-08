@@ -2,6 +2,7 @@ package portalservicelogic
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/common"
@@ -72,6 +73,9 @@ func (l *UserAddLogic) UserAdd(in *pb.AddSysUserReq) (*pb.AddSysUserResp, error)
 		UpdatedBy:      in.UpdatedBy,
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
+		DingtalkId:     sql.NullString{String: in.DingtalkId, Valid: in.DingtalkId != ""},
+		WechatId:       sql.NullString{String: in.WechatId, Valid: in.WechatId != ""},
+		FeishuId:       sql.NullString{String: in.FeishuId, Valid: in.FeishuId != ""},
 	}
 
 	// 插入数据库

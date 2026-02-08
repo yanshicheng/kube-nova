@@ -34,6 +34,9 @@ type operatorInterface interface {
 	Roles() types.RoleOperator
 	RoleBindings() types.RoleBindingOperator
 
+	// 网络策略
+	NetworkPolicies() types.NetworkPolicyOperator
+
 	// autoscaling相关
 	HPA() types.HPAOperator
 	VPA() types.VPAOperator
@@ -80,6 +83,7 @@ type resourceOperator struct {
 	serviceAccounts types.ServiceAccountOperator
 	roles           types.RoleOperator
 	roleBindings    types.RoleBindingOperator
+	networkPolicies types.NetworkPolicyOperator
 
 	clusterRole        types.ClusterRoleOperator
 	clusterRoleBinding types.ClusterRoleBindingOperator
@@ -240,6 +244,11 @@ func (c *clusterClient) initOperators() {
 			c.kubeClient,
 			c.informerManager.GetInformerFactory(),
 		)
+		c.networkPolicies = operator.NewNetworkPolicyOperatorWithInformer(
+			c.ctx,
+			c.kubeClient,
+			c.informerManager.GetInformerFactory(),
+		)
 		c.probe = operator.NewProbeOperatorWithInformer(
 			c.ctx,
 			c.monitoringClientset,
@@ -291,6 +300,7 @@ func (c *clusterClient) initOperators() {
 		c.serviceAccounts = operator.NewServiceAccountOperator(c.ctx, c.kubeClient)
 		c.roles = operator.NewRoleOperator(c.ctx, c.kubeClient)
 		c.roleBindings = operator.NewRoleBindingOperator(c.ctx, c.kubeClient)
+		c.networkPolicies = operator.NewNetworkPolicyOperator(c.ctx, c.kubeClient)
 		c.probe = operator.NewProbeOperator(c.ctx, c.monitoringClientset)
 		c.prometheusRule = operator.NewPrometheusRuleOperator(c.ctx, c.monitoringClientset)
 	}
@@ -430,4 +440,9 @@ func (c *clusterClient) Probe() types.ProbeOperator {
 // PrometheusRule 获取 PrometheusRule 操作器
 func (c *clusterClient) PrometheusRule() types.PrometheusRuleOperator {
 	return c.prometheusRule
+}
+
+// NetworkPolicies 获取 NetworkPolicy 操作器
+func (c *clusterClient) NetworkPolicies() types.NetworkPolicyOperator {
+	return c.networkPolicies
 }

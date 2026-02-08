@@ -34,6 +34,9 @@ type Manager struct {
 	// 停止信号
 	stopCh chan struct{}
 
+	// 停止标志（确保只停止一次）
+	stopOnce sync.Once
+
 	// 同步状态
 	synced bool
 	mu     sync.RWMutex
@@ -265,14 +268,16 @@ func (m *Manager) WaitForCacheSync(ctx context.Context) error {
 
 // Stop 停止所有 Informer
 func (m *Manager) Stop() {
-	m.logger.Info("停止 Informer 管理器...")
-	close(m.stopCh)
+	m.stopOnce.Do(func() {
+		m.logger.Info("停止 Informer 管理器...")
+		close(m.stopCh)
 
-	m.mu.Lock()
-	m.synced = false
-	m.mu.Unlock()
+		m.mu.Lock()
+		m.synced = false
+		m.mu.Unlock()
 
-	m.logger.Info("Informer 管理器已停止")
+		m.logger.Info("Informer 管理器已停止")
+	})
 }
 
 // HasSynced 检查是否已同步

@@ -248,24 +248,23 @@ type ListGCHistoryResponse struct {
 
 // RetentionSelector 保留策略选择器
 type RetentionSelector struct {
-	Kind       string `json:"kind"`       // doublestar, label
-	Decoration string `json:"decoration"` // matches, excludes
-	Pattern    string `json:"pattern"`    // 匹配模式
-	Extras     string `json:"extras"`     // 额外参数（JSON 字符串）
+	Kind       string `json:"kind"`             // doublestar, label
+	Decoration string `json:"decoration"`       // matches, excludes, repoMatches, repoExcludes
+	Pattern    string `json:"pattern"`          // 匹配模式
+	Extras     string `json:"extras,omitempty"` // 额外参数（JSON 字符串）
 }
 
 // RetentionRule 保留规则
+// 【修复】ScopeSelectors 类型从错误的嵌套结构改为正确的 map[string][]RetentionSelector
 type RetentionRule struct {
-	ID             int64               `json:"id,omitempty"`
-	Priority       int                 `json:"priority"`
-	Disabled       bool                `json:"disabled"`
-	Action         string              `json:"action"`        // retain
-	Template       string              `json:"template"`      // latestPushedK, latestPulledN, nDaysSinceLastPull, etc.
-	Params         map[string]string   `json:"params"`        // 模板参数
-	TagSelectors   []RetentionSelector `json:"tag_selectors"` // 标签选择器
-	ScopeSelectors map[string][]struct {
-		Repository []RetentionSelector `json:"repository"`
-	} `json:"scope_selectors"` // 范围选择器
+	ID             int64                          `json:"id,omitempty"`
+	Priority       int                            `json:"priority"`
+	Disabled       bool                           `json:"disabled"`
+	Action         string                         `json:"action"`          // retain
+	Template       string                         `json:"template"`        // latestPushedK, latestPulledN, nDaysSinceLastPull, etc.
+	Params         map[string]string              `json:"params"`          // 模板参数
+	TagSelectors   []RetentionSelector            `json:"tag_selectors"`   // 标签选择器
+	ScopeSelectors map[string][]RetentionSelector `json:"scope_selectors"` // 范围选择器 【修复】
 }
 
 // RetentionPolicy 保留策略
@@ -281,15 +280,15 @@ type RetentionPolicy struct {
 
 // Trigger 触发器
 type Trigger struct {
-	Kind       string            `json:"kind"`       // Schedule, Event
-	Settings   map[string]string `json:"settings"`   // 触发设置
-	References map[string]int64  `json:"references"` // 引用
+	Kind       string            `json:"kind"`                 // Schedule, Event
+	Settings   map[string]string `json:"settings"`             // 触发设置
+	References map[string]int64  `json:"references,omitempty"` // 引用
 }
 
 // RetentionScope 保留策略作用域
 type RetentionScope struct {
-	Level int64 `json:"level"` // 1=项目级别
-	Ref   int64 `json:"ref"`   // 项目 ID
+	Level string `json:"level"` // "project" 项目级别
+	Ref   int64  `json:"ref"`   // 项目 ID
 }
 
 // RetentionExecution 保留策略执行记录

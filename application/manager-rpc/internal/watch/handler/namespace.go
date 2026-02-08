@@ -16,26 +16,23 @@ import (
 )
 
 const (
-
-	// DefaultProjectID 默认项目 ID（未指定项目时使用）
-	// 所有未指定项目的 namespace 都会绑定到这个默认项目
+	// DefaultProjectID 默认项目 ID
 	DefaultProjectID uint64 = 3
 
 	// SystemOperator 系统操作者标识
 	SystemOperator = "system-incremental-sync"
-)
 
-// systemNamespaces 系统命名空间列表（这些命名空间不会被同步到平台）
-var systemNamespaces = map[string]bool{
-	"kube-system":     true,
-	"kube-public":     true,
-	"kube-node-lease": true,
-	"default":         true,
-}
+	// AnnotationProjectUuid 项目 UUID 注解
+	AnnotationProjectUuid = "ikubeops.com/project-uuid"
+
+	// AnnotationServiceName 命名空间中文名注解
+	AnnotationServiceName = "ikubeops.com/service-name"
+)
 
 // HandleNamespaceEvent 处理 Namespace 事件
 func (h *DefaultEventHandler) HandleNamespaceEvent(ctx context.Context, event *incremental.ResourceEvent) error {
 	logger := logx.WithContext(ctx)
+	logger.Debugf("[NamespaceHandler] 处理事件: %s", event.Type)
 
 	switch event.Type {
 	case incremental.EventAdd:
@@ -50,8 +47,6 @@ func (h *DefaultEventHandler) HandleNamespaceEvent(ctx context.Context, event *i
 	}
 }
 
-// ==================== ADD 事件处理 ====================
-
 // handleNamespaceAdd 处理 Namespace 创建事件
 func (h *DefaultEventHandler) handleNamespaceAdd(ctx context.Context, event *incremental.ResourceEvent, logger logx.Logger) error {
 	ns, ok := event.NewObject.(*corev1.Namespace)
@@ -62,13 +57,9 @@ func (h *DefaultEventHandler) handleNamespaceAdd(ctx context.Context, event *inc
 	clusterUUID := event.ClusterUUID
 	namespaceName := ns.Name
 
-	logger.Infof("[NamespaceHandler] 处理 ADD 事件: Cluster=%s, Namespace=%s", clusterUUID, namespaceName)
+	logger.Debugf("[NamespaceHandler] 处理 ADD 事件: Cluster=%s, Namespace=%s", clusterUUID, namespaceName)
 
-	if h.isSystemNamespace(namespaceName) {
-		logger.Debugf("[NamespaceHandler] 跳过系统命名空间: %s", namespaceName)
-		return nil
-	}
-
+	// 检查平台创建标记
 	if ns.Annotations != nil {
 		if managedBy, ok := ns.Annotations[utils.AnnotationManagedBy]; ok && managedBy == utils.ManagedByPlatform {
 			logger.Debugf("[NamespaceHandler] 平台创建的命名空间，跳过: %s", namespaceName)
@@ -76,11 +67,13 @@ func (h *DefaultEventHandler) handleNamespaceAdd(ctx context.Context, event *inc
 		}
 	}
 
+	// 查询现有工作空间
 	existingWorkspaces, err := h.svcCtx.ProjectWorkspaceModel.FindAllByClusterUuidNamespaceIncludeDeleted(ctx, clusterUUID, namespaceName)
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
 		return fmt.Errorf("查询工作空间失败: %v", err)
 	}
 
+	// 检查是否有未删除的工作空间
 	for _, ws := range existingWorkspaces {
 		if ws.IsDeleted == 0 {
 			logger.Debugf("[NamespaceHandler] 工作空间已存在，跳过: Cluster=%s, Namespace=%s, WorkspaceID=%d",
@@ -89,23 +82,42 @@ func (h *DefaultEventHandler) handleNamespaceAdd(ctx context.Context, event *inc
 		}
 	}
 
+	// 确保项目集群绑定存在
 	projectCluster, err := h.ensureProjectClusterBinding(ctx, clusterUUID, ns, logger)
 	if err != nil {
 		return fmt.Errorf("确保项目集群绑定失败: %v", err)
 	}
 
+	// 检查是否有软删除的工作空间可以恢复
 	for _, ws := range existingWorkspaces {
 		if ws.IsDeleted == 1 && ws.ProjectClusterId == projectCluster.Id {
 			logger.Infof("[NamespaceHandler] 恢复软删除的工作空间: ID=%d, Namespace=%s", ws.Id, namespaceName)
 			if err := h.svcCtx.ProjectWorkspaceModel.RestoreAndUpdateStatus(ctx, ws.Id, 1, SystemOperator); err != nil {
 				return fmt.Errorf("恢复工作空间失败: %v", err)
 			}
+
+			h.syncProjectClusterResource(ctx, projectCluster.Id, logger)
+
+			projectId, projectName := h.getProjectInfo(ctx, projectCluster.Id)
+			h.createAuditLog(ctx, &AuditLogInfo{
+				ClusterName:   h.getClusterName(ctx, clusterUUID),
+				ClusterUuid:   clusterUUID,
+				ProjectId:     projectId,
+				ProjectName:   projectName,
+				WorkspaceId:   ws.Id,
+				WorkspaceName: ws.Name,
+				Title:         "工作空间恢复",
+				ActionDetail:  fmt.Sprintf("从 K8s Namespace 自动恢复工作空间: %s", namespaceName),
+				Status:        1,
+			})
+
 			return nil
 		}
 	}
 
+	// 创建新工作空间
 	workspace := h.buildWorkspaceFromNamespace(ns, projectCluster)
-	_, err = h.svcCtx.ProjectWorkspaceModel.Insert(ctx, workspace)
+	result, err := h.svcCtx.ProjectWorkspaceModel.Insert(ctx, workspace)
 	if err != nil {
 		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "1062") {
 			logger.Infof("[NamespaceHandler] 工作空间已被其他进程创建，跳过: Cluster=%s, Namespace=%s",
@@ -115,8 +127,26 @@ func (h *DefaultEventHandler) handleNamespaceAdd(ctx context.Context, event *inc
 		return fmt.Errorf("创建工作空间失败: %v", err)
 	}
 
-	logger.Infof("[NamespaceHandler] 创建工作空间成功: Cluster=%s, Namespace=%s, ProjectClusterID=%d",
-		clusterUUID, namespaceName, projectCluster.Id)
+	insertId, _ := result.LastInsertId()
+	workspace.Id = uint64(insertId)
+
+	logger.Infof("[NamespaceHandler] 创建工作空间成功: Cluster=%s, Namespace=%s, ProjectClusterID=%d, WorkspaceID=%d",
+		clusterUUID, namespaceName, projectCluster.Id, workspace.Id)
+
+	h.syncProjectClusterResource(ctx, projectCluster.Id, logger)
+
+	projectId, projectName := h.getProjectInfo(ctx, projectCluster.Id)
+	h.createAuditLog(ctx, &AuditLogInfo{
+		ClusterName:   h.getClusterName(ctx, clusterUUID),
+		ClusterUuid:   clusterUUID,
+		ProjectId:     projectId,
+		ProjectName:   projectName,
+		WorkspaceId:   workspace.Id,
+		WorkspaceName: workspace.Name,
+		Title:         "工作空间创建",
+		ActionDetail:  fmt.Sprintf("从 K8s Namespace 自动同步创建工作空间: %s", namespaceName),
+		Status:        1,
+	})
 
 	return nil
 }
@@ -131,15 +161,13 @@ func (h *DefaultEventHandler) handleNamespaceUpdate(ctx context.Context, event *
 	clusterUUID := event.ClusterUUID
 	namespaceName := ns.Name
 
-	if h.isSystemNamespace(namespaceName) {
-		return nil
-	}
-
+	// 正在删除中的跳过
 	if ns.DeletionTimestamp != nil {
 		logger.Debugf("[NamespaceHandler] Namespace 正在删除中，跳过更新: %s", namespaceName)
 		return nil
 	}
 
+	// 查询现有工作空间
 	existingWorkspaces, err := h.svcCtx.ProjectWorkspaceModel.FindAllByClusterUuidNamespaceIncludeDeleted(ctx, clusterUUID, namespaceName)
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
 		return fmt.Errorf("查询工作空间失败: %v", err)
@@ -167,8 +195,11 @@ func (h *DefaultEventHandler) handleNamespaceUpdate(ctx context.Context, event *
 // handleNamespaceDelete 处理 Namespace 删除事件
 func (h *DefaultEventHandler) handleNamespaceDelete(ctx context.Context, event *incremental.ResourceEvent, logger logx.Logger) error {
 	var namespaceName string
+	var ns *corev1.Namespace
+
 	if event.OldObject != nil {
-		if ns, ok := event.OldObject.(*corev1.Namespace); ok {
+		if nsObj, ok := event.OldObject.(*corev1.Namespace); ok {
+			ns = nsObj
 			namespaceName = ns.Name
 		}
 	}
@@ -180,9 +211,15 @@ func (h *DefaultEventHandler) handleNamespaceDelete(ctx context.Context, event *
 
 	logger.Infof("[NamespaceHandler] 处理 DELETE 事件: Cluster=%s, Namespace=%s", clusterUUID, namespaceName)
 
-	if h.isSystemNamespace(namespaceName) {
-		return nil
+	// 检查是否是 API 触发的删除
+	if ns != nil && ns.Annotations != nil {
+		if deletedBy, ok := ns.Annotations[AnnotationDeletedBy]; ok && deletedBy == DeletedByAPI {
+			logger.Infof("[NamespaceHandler] 检测到 API 删除标记，跳过 Watch 处理: Cluster=%s, Namespace=%s",
+				clusterUUID, namespaceName)
+			return nil
+		}
 	}
+
 	existingWorkspaces, err := h.svcCtx.ProjectWorkspaceModel.FindAllByClusterUuidNamespaceIncludeDeleted(ctx, clusterUUID, namespaceName)
 	if err != nil {
 		if errors.Is(err, model.ErrNotFound) {
@@ -199,38 +236,81 @@ func (h *DefaultEventHandler) handleNamespaceDelete(ctx context.Context, event *
 		return nil
 	}
 
-	deletedCount := 0
 	for _, ws := range existingWorkspaces {
-		if ws.IsDeleted == 0 {
-			if err := h.svcCtx.ProjectWorkspaceModel.DeleteSoft(ctx, ws.Id); err != nil {
-				logger.Errorf("[NamespaceHandler] 软删除工作空间失败: ID=%d, err=%v", ws.Id, err)
-				continue
-			}
-			deletedCount++
-			logger.Infof("[NamespaceHandler] 软删除工作空间成功: ID=%d, Namespace=%s", ws.Id, namespaceName)
-		}
-	}
+		projectClusterId := ws.ProjectClusterId
+		projectId, projectName := h.getProjectInfo(ctx, projectClusterId)
 
-	if deletedCount == 0 {
-		logger.Debugf("[NamespaceHandler] 没有需要删除的工作空间: Cluster=%s, Namespace=%s",
-			clusterUUID, namespaceName)
+		if err := h.cascadeDeleteWorkspace(ctx, ws); err != nil {
+			logger.Errorf("[NamespaceHandler] 级联删除工作空间失败: ID=%d, err=%v", ws.Id, err)
+
+			h.createAuditLog(ctx, &AuditLogInfo{
+				ClusterName:   h.getClusterName(ctx, clusterUUID),
+				ClusterUuid:   clusterUUID,
+				ProjectId:     projectId,
+				ProjectName:   projectName,
+				WorkspaceId:   ws.Id,
+				WorkspaceName: ws.Name,
+				Title:         "工作空间删除失败",
+				ActionDetail:  fmt.Sprintf("从 K8s Namespace 删除事件触发级联删除工作空间失败: %s, 错误: %v", namespaceName, err),
+				Status:        0,
+			})
+			continue
+		}
+
+		logger.Infof("[NamespaceHandler] 级联硬删除工作空间成功: ID=%d, Namespace=%s", ws.Id, namespaceName)
+
+		if projectClusterId > 0 {
+			h.syncProjectClusterResource(ctx, projectClusterId, logger)
+		}
+
+		h.createAuditLog(ctx, &AuditLogInfo{
+			ClusterName:   h.getClusterName(ctx, clusterUUID),
+			ClusterUuid:   clusterUUID,
+			ProjectId:     projectId,
+			ProjectName:   projectName,
+			WorkspaceId:   ws.Id,
+			WorkspaceName: ws.Name,
+			Title:         "工作空间删除",
+			ActionDetail:  fmt.Sprintf("从 K8s Namespace 删除事件触发级联硬删除工作空间及其下属资源: %s", namespaceName),
+			Status:        1,
+		})
 	}
 
 	return nil
+}
+
+// syncProjectClusterResource 同步项目集群资源分配并清除缓存
+func (h *DefaultEventHandler) syncProjectClusterResource(ctx context.Context, projectClusterId uint64, logger logx.Logger) {
+	if projectClusterId == 0 {
+		logger.Errorf("[NamespaceHandler] 项目集群ID为0，跳过资源同步")
+		return
+	}
+
+	err := h.svcCtx.ProjectModel.SyncProjectClusterResourceAllocation(ctx, projectClusterId)
+	if err != nil {
+		logger.Errorf("[NamespaceHandler] 更新项目集群资源失败，项目集群ID: %d, 错误: %v", projectClusterId, err)
+		return
+	}
+
+	logger.Infof("[NamespaceHandler] 更新项目集群资源成功，项目集群ID: %d", projectClusterId)
+
+	if err := h.svcCtx.ProjectClusterModel.DeleteCache(ctx, projectClusterId); err != nil {
+		logger.Errorf("[NamespaceHandler] 清除项目集群缓存失败，项目集群ID: %d, 错误: %v", projectClusterId, err)
+	} else {
+		logger.Debugf("[NamespaceHandler] 清除项目集群缓存成功，项目集群ID: %d", projectClusterId)
+	}
 }
 
 // ensureProjectClusterBinding 确保项目和项目集群绑定存在
 func (h *DefaultEventHandler) ensureProjectClusterBinding(ctx context.Context, clusterUUID string, ns *corev1.Namespace, logger logx.Logger) (*model.OnecProjectCluster, error) {
 	var projectID uint64
 
-	// Step 1: 检查注解中是否指定了项目 UUID
 	projectUUID := ""
 	if ns.Annotations != nil {
-		projectUUID = ns.Annotations[utils.AnnotationProjectUuid]
+		projectUUID = ns.Annotations[AnnotationProjectUuid]
 	}
 
 	if projectUUID != "" {
-		// 有注解，尝试查找或创建项目
 		project, err := h.ensureProject(ctx, projectUUID, logger)
 		if err != nil {
 			return nil, fmt.Errorf("确保项目存在失败: %v", err)
@@ -238,11 +318,9 @@ func (h *DefaultEventHandler) ensureProjectClusterBinding(ctx context.Context, c
 		projectID = project.Id
 		logger.Debugf("[NamespaceHandler] 使用注解指定的项目: UUID=%s, ID=%d", projectUUID, projectID)
 	} else {
-		// 无注解，使用默认项目
 		projectID = DefaultProjectID
 		logger.Debugf("[NamespaceHandler] Namespace 无项目注解，使用默认项目 ID=%d", projectID)
 
-		// 验证默认项目是否存在
 		_, err := h.svcCtx.ProjectModel.FindOne(ctx, projectID)
 		if err != nil {
 			if errors.Is(err, model.ErrNotFound) {
@@ -265,7 +343,6 @@ func (h *DefaultEventHandler) ensureProject(ctx context.Context, projectUUID str
 	project, err := h.svcCtx.ProjectModel.FindOneByUuidIncludeDeleted(ctx, projectUUID)
 	if err != nil {
 		if errors.Is(err, model.ErrNotFound) {
-			// 项目不存在，创建新项目
 			logger.Infof("[NamespaceHandler] 项目不存在，创建新项目: UUID=%s", projectUUID)
 			newProject, createErr := h.svcCtx.ProjectModel.CreateWithUuid(ctx, projectUUID, projectUUID, SystemOperator)
 			if createErr != nil {
@@ -281,7 +358,6 @@ func (h *DefaultEventHandler) ensureProject(ctx context.Context, projectUUID str
 		if err := h.svcCtx.ProjectModel.RestoreSoftDeleted(ctx, project.Id, SystemOperator); err != nil {
 			return nil, fmt.Errorf("恢复项目失败: %v", err)
 		}
-		// 重新查询以获取最新状态
 		project, err = h.svcCtx.ProjectModel.FindOneByUuid(ctx, projectUUID)
 		if err != nil {
 			return nil, fmt.Errorf("查询恢复后的项目失败: %v", err)
@@ -371,9 +447,7 @@ func (h *DefaultEventHandler) createProjectCluster(ctx context.Context, clusterU
 
 	result, err := h.svcCtx.ProjectClusterModel.Insert(ctx, projectCluster)
 	if err != nil {
-		// 处理并发创建导致的重复键错误
 		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "1062") {
-			// 重新查询返回已存在的记录
 			return h.svcCtx.ProjectClusterModel.FindOneByClusterUuidProjectId(ctx, clusterUUID, projectID)
 		}
 		return nil, fmt.Errorf("插入项目集群绑定失败: %v", err)
@@ -390,15 +464,14 @@ func (h *DefaultEventHandler) createProjectCluster(ctx context.Context, clusterU
 
 // buildWorkspaceFromNamespace 根据 Namespace 构建工作空间对象
 func (h *DefaultEventHandler) buildWorkspaceFromNamespace(ns *corev1.Namespace, projectCluster *model.OnecProjectCluster) *model.OnecProjectWorkspace {
-	// 从注解获取显示名称，如果没有则使用 namespace 名称
 	name := ns.Name
+
 	if ns.Annotations != nil {
-		if displayName, ok := ns.Annotations[utils.AnnotationDisplayName]; ok && displayName != "" {
-			name = displayName
+		if serviceName, ok := ns.Annotations[AnnotationServiceName]; ok && serviceName != "" {
+			name = serviceName
 		}
 	}
 
-	// 构建描述信息
 	description := fmt.Sprintf("从 K8s Namespace 自动同步: %s", ns.Name)
 	if ns.Annotations != nil {
 		if desc, ok := ns.Annotations["description"]; ok && desc != "" {
@@ -452,15 +525,10 @@ func (h *DefaultEventHandler) buildWorkspaceFromNamespace(ns *corev1.Namespace, 
 		ContainerDefaultRequestEphemeralStorage: "0Mi",
 
 		IsSystem:      0,
-		Status:        1, // 1: 正常
+		Status:        1,
 		AppCreateTime: time.Now(),
 		CreatedBy:     SystemOperator,
 		UpdatedBy:     SystemOperator,
 		IsDeleted:     0,
 	}
-}
-
-// isSystemNamespace 判断是否是系统命名空间
-func (h *DefaultEventHandler) isSystemNamespace(name string) bool {
-	return systemNamespaces[name]
 }

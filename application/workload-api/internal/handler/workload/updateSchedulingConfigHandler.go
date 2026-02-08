@@ -16,7 +16,7 @@ import (
 // 修改调度配置
 func UpdateSchedulingConfigHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.UpdateSchedulingConfigRequest
+		var req types.CommUpdateSchedulingConfigRequest
 		if err := httpx.Parse(r, &req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return

@@ -1,588 +1,633 @@
 syntax = "v1"
 
-info(
-    title: "Ingress Monitor API"
-    desc: "Ingress 监控指标查询 API"
-    author: "System"
-    version: "1.0"
+info (
+	title:   "Ingress Monitor API"
+	desc:    "Ingress 监控指标查询 API"
+	author:  "System"
+	version: "1.0"
 )
 
 import "./base.api"
 
 type (
-    //================================ Ingress 级别类型 ================================
-
-    IngressMetrics {
-        Namespace string `json:"namespace"`
-        IngressName string `json:"ingressName"`
-        Timestamp int64 `json:"timestamp"`
-        Controller IngressControllerHealth `json:"controller"`
-        Traffic IngressTrafficMetrics `json:"traffic"`
-        Performance IngressPerformanceMetrics `json:"performance"`
-        Errors IngressErrorMetrics `json:"errors"`
-        Backends IngressBackendMetrics `json:"backends"`
-        Certificates IngressCertificateMetrics `json:"certificates"`
-    }
-
-        //================================ Controller 健康 ================================
-
-    IngressControllerHealth {
-        ControllerName string `json:"controllerName"`
-        TotalPods int64 `json:"totalPods"`
-        RunningPods int64 `json:"runningPods"`
-        ReadyPods int64 `json:"readyPods"`
-        CPUUsage float64 `json:"cpuUsage"`
-        MemoryUsage int64 `json:"memoryUsage"`
-        LastReloadSuccess bool `json:"lastReloadSuccess"`
-        LastReloadTime int64 `json:"lastReloadTime"`
-        ReloadRate float64 `json:"reloadRate"`
-        ReloadFailRate float64 `json:"reloadFailRate"`
-        Connections IngressConnectionMetrics `json:"connections"`
-        Trend []IngressControllerDataPoint `json:"trend"`
-    }
-
-    IngressConnectionMetrics {
-        Active int64 `json:"active"`
-        Reading int64 `json:"reading"`
-        Writing int64 `json:"writing"`
-        Waiting int64 `json:"waiting"`
-        Total int64 `json:"total"`
-    }
-
-    IngressControllerDataPoint {
-        Timestamp int64 `json:"timestamp"`
-        ActiveConnections int64 `json:"activeConnections"`
-        ReloadRate float64 `json:"reloadRate"`
-        CPUUsage float64 `json:"cpuUsage"`
-        MemoryUsage int64 `json:"memoryUsage"`
-    }
-
-        //================================ 流量指标 ================================
-
-    IngressTrafficMetrics {
-        Current IngressTrafficSnapshot `json:"current"`
-        Trend []IngressTrafficDataPoint `json:"trend"`
-        ByHost []TrafficByDimension `json:"byHost"`
-        ByPath []TrafficByDimension `json:"byPath"`
-        ByService []TrafficByDimension `json:"byService"`
-        ByMethod []TrafficByMethod `json:"byMethod"`
-        Summary IngressTrafficSummary `json:"summary"`
-    }
-
-    IngressTrafficSnapshot {
-        Timestamp int64 `json:"timestamp"`
-        RequestsPerSecond float64 `json:"requestsPerSecond"`
-        ActiveConnections int64 `json:"activeConnections"`
-        IngressBytesPerSec float64 `json:"ingressBytesPerSec"`
-        EgressBytesPerSec float64 `json:"egressBytesPerSec"`
-    }
-
-    IngressTrafficDataPoint {
-        Timestamp int64 `json:"timestamp"`
-        RequestsPerSecond float64 `json:"requestsPerSecond"`
-        IngressBytesPerSec float64 `json:"ingressBytesPerSec"`
-        EgressBytesPerSec float64 `json:"egressBytesPerSec"`
-    }
-
-    TrafficByDimension {
-        Name string `json:"name"`
-        Namespace string `json:"namespace,optional"`
-        RequestsPerSecond float64 `json:"requestsPerSecond"`
-        BytesPerSecond float64 `json:"bytesPerSecond"`
-    }
-
-    TrafficByMethod {
-        Method string `json:"method"`
-        RequestsPerSecond float64 `json:"requestsPerSecond"`
-    }
-
-    IngressTrafficSummary {
-        TotalRequests int64 `json:"totalRequests"`
-        TotalIngressBytes int64 `json:"totalIngressBytes"`
-        TotalEgressBytes int64 `json:"totalEgressBytes"`
-        AvgRequestsPerSec float64 `json:"avgRequestsPerSec"`
-        MaxRequestsPerSec float64 `json:"maxRequestsPerSec"`
-        AvgRequestSize float64 `json:"avgRequestSize"`
-        AvgResponseSize float64 `json:"avgResponseSize"`
-    }
-
-        //================================ 性能指标 ================================
-
-    IngressPerformanceMetrics {
-        Overall IngressLatencyStats `json:"overall"`
-        ByHost []LatencyByDimension `json:"byHost"`
-        ByPath []LatencyByDimension `json:"byPath"`
-        UpstreamLatency IngressLatencyStats `json:"upstreamLatency"`
-        Trend []IngressLatencyDataPoint `json:"trend"`
-    }
-
-    IngressLatencyStats {
-        P50 float64 `json:"p50"`
-        P95 float64 `json:"p95"`
-        P99 float64 `json:"p99"`
-        Avg float64 `json:"avg"`
-        Max float64 `json:"max"`
-    }
-
-    LatencyByDimension {
-        Name string `json:"name"`
-        Namespace string `json:"namespace,optional"`
-        Latency IngressLatencyStats `json:"latency"`
-    }
-
-    IngressLatencyDataPoint {
-        Timestamp int64 `json:"timestamp"`
-        P50 float64 `json:"p50"`
-        P95 float64 `json:"p95"`
-        P99 float64 `json:"p99"`
-    }
-
-        //================================ 错误指标 ================================
-
-    IngressErrorMetrics {
-        Overall IngressErrorRateStats `json:"overall"`
-        StatusCodes IngressStatusCodeDistribution `json:"statusCodes"`
-        ByHost []ErrorRateByDimension `json:"byHost"`
-        ByPath []ErrorRateByDimension `json:"byPath"`
-        Trend []IngressErrorDataPoint `json:"trend"`
-    }
-
-    IngressErrorRateStats {
-        TotalErrorRate float64 `json:"totalErrorRate"`
-        Error4xxRate float64 `json:"error4xxRate"`
-        Error5xxRate float64 `json:"error5xxRate"`
-    }
-
-    IngressStatusCodeDistribution {
-        Status2xx map[string]float64 `json:"status2xx"`
-        Status3xx map[string]float64 `json:"status3xx"`
-        Status4xx map[string]float64 `json:"status4xx"`
-        Status5xx map[string]float64 `json:"status5xx"`
-    }
-
-    ErrorRateByDimension {
-        Name string `json:"name"`
-        Namespace string `json:"namespace,optional"`
-        ErrorRate IngressErrorRateStats `json:"errorRate"`
-        TopErrors []StatusCodeRate `json:"topErrors"`
-    }
-
-    StatusCodeRate {
-        StatusCode string `json:"statusCode"`
-        Rate float64 `json:"rate"`
-        Percent float64 `json:"percent"`
-    }
-
-    IngressErrorDataPoint {
-        Timestamp int64 `json:"timestamp"`
-        TotalErrorRate float64 `json:"totalErrorRate"`
-        Error4xxRate float64 `json:"error4xxRate"`
-        Error5xxRate float64 `json:"error5xxRate"`
-    }
-
-        //================================ 后端健康 ================================
-
-    IngressBackendMetrics {
-        UpstreamLatency float64 `json:"upstreamLatency"`
-        EndpointsByService []ServiceEndpoints `json:"endpointsByService"`
-        BackendHealth []BackendHealthStatus `json:"backendHealth"`
-    }
-
-    ServiceEndpoints {
-        ServiceName string `json:"serviceName"`
-        Namespace string `json:"namespace"`
-        AvailableEndpoints int64 `json:"availableEndpoints"`
-        HasEndpoints bool `json:"hasEndpoints"`
-    }
-
-    BackendHealthStatus {
-        Upstream string `json:"upstream"`
-        ResponseLatency float64 `json:"responseLatency"`
-        SuccessRate float64 `json:"successRate"`
-        ActiveConnections int64 `json:"activeConnections"`
-    }
-
-        //================================ 证书指标 ================================
-
-    IngressCertificateMetrics {
-        HTTPSRequestPercent float64 `json:"httpsRequestPercent"`
-        Certificates []CertificateInfo `json:"certificates"`
-        ExpiringCount int64 `json:"expiringCount"`
-        ExpiredCount int64 `json:"expiredCount"`
-    }
-
-    CertificateInfo {
-        Name string `json:"name"`
-        Namespace string `json:"namespace"`
-        ExpirationTime int64 `json:"expirationTime"`
-        DaysRemaining int `json:"daysRemaining"`
-        IsExpiring bool `json:"isExpiring"`
-        IsExpired bool `json:"isExpired"`
-    }
-
-        //================================ Ingress 对象状态 ================================
-
-    IngressObjectMetrics {
-        Namespace string `json:"namespace"`
-        IngressName string `json:"ingressName"`
-        PathCount int64 `json:"pathCount"`
-        RuleCount int64 `json:"ruleCount"`
-        TLSEnabled bool `json:"tlsEnabled"`
-        Hosts []string `json:"hosts"`
-        Paths []IngressPathInfo `json:"paths"`
-        CreatedAt int64 `json:"createdAt"`
-        Labels map[string]string `json:"labels"`
-        Annotations map[string]string `json:"annotations"`
-    }
-
-    IngressPathInfo {
-        Host string `json:"host"`
-        Path string `json:"path"`
-        PathType string `json:"pathType"`
-        ServiceName string `json:"serviceName"`
-        ServicePort int32 `json:"servicePort"`
-    }
-
-        //================================ 限流指标 ================================
-
-    IngressRateLimitMetrics {
-        Namespace string `json:"namespace"`
-        IngressName string `json:"ingressName"`
-        LimitedRequests float64 `json:"limitedRequests"`
-        LimitTriggerRate float64 `json:"limitTriggerRate"`
-        ByPath []RateLimitByPath `json:"byPath"`
-        Trend []IngressRateLimitDataPoint `json:"trend"`
-    }
-
-    RateLimitByPath {
-        Path string `json:"path"`
-        LimitedRequests float64 `json:"limitedRequests"`
-        TotalRequests float64 `json:"totalRequests"`
-        LimitTriggerPercent float64 `json:"limitTriggerPercent"`
-    }
-
-    IngressRateLimitDataPoint {
-        Timestamp int64 `json:"timestamp"`
-        LimitedRequests float64 `json:"limitedRequests"`
-        LimitTriggerRate float64 `json:"limitTriggerRate"`
-    }
-
-        //================================ Ingress 排行 ================================
-
-    IngressRanking {
-        TopByQPS []IngressRankingItem `json:"topByQPS"`
-        TopByErrorRate []IngressRankingItem `json:"topByErrorRate"`
-        TopByLatency []IngressRankingItem `json:"topByLatency"`
-        TopByTraffic []IngressRankingItem `json:"topByTraffic"`
-    }
-
-    IngressRankingItem {
-        Namespace string `json:"namespace"`
-        IngressName string `json:"ingressName"`
-        Value float64 `json:"value"`
-        Unit string `json:"unit"`
-    }
-
-    PathRanking {
-        TopByQPS []PathRankingItem `json:"topByQPS"`
-        TopByErrorRate []PathRankingItem `json:"topByErrorRate"`
-        TopByLatency []PathRankingItem `json:"topByLatency"`
-    }
-
-    PathRankingItem {
-        Host string `json:"host"`
-        Path string `json:"path"`
-        Value float64 `json:"value"`
-        Unit string `json:"unit"`
-    }
-
-    HostRanking {
-        TopByQPS []HostRankingItem `json:"topByQPS"`
-        TopByErrorRate []HostRankingItem `json:"topByErrorRate"`
-        TopByLatency []HostRankingItem `json:"topByLatency"`
-    }
-
-    HostRankingItem {
-        Host string `json:"host"`
-        Value float64 `json:"value"`
-        Unit string `json:"unit"`
-    }
-
-        //================================ 请求和响应结构 ================================
-
-    GetIngressMetricsRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Namespace string `form:"namespace" validate:"required"`
-        IngressName string `form:"ingressName" validate:"required"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetIngressMetricsResponse {
-        Data IngressMetrics `json:"data"`
-    }
-
-    GetControllerHealthRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetControllerHealthResponse {
-        Data IngressControllerHealth `json:"data"`
-    }
-
-    GetIngressTrafficRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Namespace string `form:"namespace" validate:"required"`
-        IngressName string `form:"ingressName" validate:"required"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetIngressTrafficResponse {
-        Data IngressTrafficMetrics `json:"data"`
-    }
-
-    GetIngressTrafficByHostRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Host string `form:"host" validate:"required"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetIngressTrafficByHostResponse {
-        Data IngressTrafficMetrics `json:"data"`
-    }
-
-    GetIngressTrafficByPathRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Path string `form:"path" validate:"required"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetIngressTrafficByPathResponse {
-        Data IngressTrafficMetrics `json:"data"`
-    }
-
-    GetIngressPerformanceRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Namespace string `form:"namespace" validate:"required"`
-        IngressName string `form:"ingressName" validate:"required"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetIngressPerformanceResponse {
-        Data IngressPerformanceMetrics `json:"data"`
-    }
-
-    GetIngressLatencyByHostRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Host string `form:"host" validate:"required"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetIngressLatencyByHostResponse {
-        Data IngressLatencyStats `json:"data"`
-    }
-
-    GetIngressLatencyByPathRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Path string `form:"path" validate:"required"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetIngressLatencyByPathResponse {
-        Data IngressLatencyStats `json:"data"`
-    }
-
-    GetIngressErrorsRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Namespace string `form:"namespace" validate:"required"`
-        IngressName string `form:"ingressName" validate:"required"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetIngressErrorsResponse {
-        Data IngressErrorMetrics `json:"data"`
-    }
-
-    GetIngressStatusCodesRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Namespace string `form:"namespace" validate:"required"`
-        IngressName string `form:"ingressName" validate:"required"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetIngressStatusCodesResponse {
-        Data IngressStatusCodeDistribution `json:"data"`
-    }
-
-    GetIngressBackendsRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Namespace string `form:"namespace" validate:"required"`
-        IngressName string `form:"ingressName" validate:"required"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetIngressBackendsResponse {
-        Data IngressBackendMetrics `json:"data"`
-    }
-
-    GetIngressCertificatesRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Namespace string `form:"namespace" validate:"required"`
-        IngressName string `form:"ingressName" validate:"required"`
-    }
-    GetIngressCertificatesResponse {
-        Data IngressCertificateMetrics `json:"data"`
-    }
-
-    GetExpiringCertificatesRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        DaysThreshold int `form:"daysThreshold,default=30" validate:"min=1,max=365"`
-    }
-    GetExpiringCertificatesResponse {
-        Data []CertificateInfo `json:"data"`
-    }
-
-    GetIngressObjectRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Namespace string `form:"namespace" validate:"required"`
-        IngressName string `form:"ingressName" validate:"required"`
-    }
-    GetIngressObjectResponse {
-        Data IngressObjectMetrics `json:"data"`
-    }
-
-    GetIngressRateLimitRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Namespace string `form:"namespace" validate:"required"`
-        IngressName string `form:"ingressName" validate:"required"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetIngressRateLimitResponse {
-        Data IngressRateLimitMetrics `json:"data"`
-    }
-
-    GetIngressRankingRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Limit int `form:"limit,default=10" validate:"min=1,max=100"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetIngressRankingResponse {
-        Data IngressRanking `json:"data"`
-    }
-
-    GetPathRankingRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Limit int `form:"limit,default=10" validate:"min=1,max=100"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetPathRankingResponse {
-        Data PathRanking `json:"data"`
-    }
-
-    GetHostRankingRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Limit int `form:"limit,default=10" validate:"min=1,max=100"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    GetHostRankingResponse {
-        Data HostRanking `json:"data"`
-    }
-
-    ListIngressMetricsRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Namespace string `form:"namespace" validate:"required"`
-        Start string `form:"start,optional"`
-        End string `form:"end,optional"`
-    }
-    ListIngressMetricsResponse {
-        Data []IngressMetrics `json:"data"`
-    }
+	//================================ Ingress 级别类型 ================================
+	IngressMetrics {
+		Namespace    string                    `json:"namespace"`
+		IngressName  string                    `json:"ingressName"`
+		Timestamp    int64                     `json:"timestamp"`
+		Controller   IngressControllerHealth   `json:"controller"`
+		Traffic      IngressTrafficMetrics     `json:"traffic"`
+		Performance  IngressPerformanceMetrics `json:"performance"`
+		Errors       IngressErrorMetrics       `json:"errors"`
+		Backends     IngressBackendMetrics     `json:"backends"`
+		Certificates IngressCertificateMetrics `json:"certificates"`
+	}
+	//================================ Controller 健康 ================================
+	IngressControllerHealth {
+		ControllerName    string                       `json:"controllerName"`
+		TotalPods         int64                        `json:"totalPods"`
+		RunningPods       int64                        `json:"runningPods"`
+		ReadyPods         int64                        `json:"readyPods"`
+		CPUUsage          float64                      `json:"cpuUsage"`
+		MemoryUsage       int64                        `json:"memoryUsage"`
+		LastReloadSuccess bool                         `json:"lastReloadSuccess"`
+		LastReloadTime    int64                        `json:"lastReloadTime"`
+		ReloadRate        float64                      `json:"reloadRate"`
+		ReloadFailRate    float64                      `json:"reloadFailRate"`
+		Connections       IngressConnectionMetrics     `json:"connections"`
+		Trend             []IngressControllerDataPoint `json:"trend"`
+	}
+	IngressConnectionMetrics {
+		Active  int64 `json:"active"`
+		Reading int64 `json:"reading"`
+		Writing int64 `json:"writing"`
+		Waiting int64 `json:"waiting"`
+		Total   int64 `json:"total"`
+	}
+	IngressControllerDataPoint {
+		Timestamp         int64   `json:"timestamp"`
+		ActiveConnections int64   `json:"activeConnections"`
+		ReloadRate        float64 `json:"reloadRate"`
+		CPUUsage          float64 `json:"cpuUsage"`
+		MemoryUsage       int64   `json:"memoryUsage"`
+	}
+	//================================ 流量指标 ================================
+	IngressTrafficMetrics {
+		Current   IngressTrafficSnapshot    `json:"current"`
+		Trend     []IngressTrafficDataPoint `json:"trend"`
+		ByHost    []TrafficByDimension      `json:"byHost"`
+		ByPath    []TrafficByDimension      `json:"byPath"`
+		ByService []TrafficByDimension      `json:"byService"`
+		ByMethod  []TrafficByMethod         `json:"byMethod"`
+		Summary   IngressTrafficSummary     `json:"summary"`
+	}
+	IngressTrafficSnapshot {
+		Timestamp          int64   `json:"timestamp"`
+		RequestsPerSecond  float64 `json:"requestsPerSecond"`
+		ActiveConnections  int64   `json:"activeConnections"`
+		IngressBytesPerSec float64 `json:"ingressBytesPerSec"`
+		EgressBytesPerSec  float64 `json:"egressBytesPerSec"`
+	}
+	IngressTrafficDataPoint {
+		Timestamp          int64   `json:"timestamp"`
+		RequestsPerSecond  float64 `json:"requestsPerSecond"`
+		IngressBytesPerSec float64 `json:"ingressBytesPerSec"`
+		EgressBytesPerSec  float64 `json:"egressBytesPerSec"`
+	}
+	TrafficByDimension {
+		Name              string  `json:"name"`
+		Namespace         string  `json:"namespace,optional"`
+		RequestsPerSecond float64 `json:"requestsPerSecond"`
+		BytesPerSecond    float64 `json:"bytesPerSecond"`
+	}
+	TrafficByMethod {
+		Method            string  `json:"method"`
+		RequestsPerSecond float64 `json:"requestsPerSecond"`
+	}
+	IngressTrafficSummary {
+		TotalRequests     int64   `json:"totalRequests"`
+		TotalIngressBytes int64   `json:"totalIngressBytes"`
+		TotalEgressBytes  int64   `json:"totalEgressBytes"`
+		AvgRequestsPerSec float64 `json:"avgRequestsPerSec"`
+		MaxRequestsPerSec float64 `json:"maxRequestsPerSec"`
+		AvgRequestSize    float64 `json:"avgRequestSize"`
+		AvgResponseSize   float64 `json:"avgResponseSize"`
+	}
+	//================================ 性能指标 ================================
+	IngressPerformanceMetrics {
+		Overall         IngressLatencyStats       `json:"overall"`
+		ByHost          []LatencyByDimension      `json:"byHost"`
+		ByPath          []LatencyByDimension      `json:"byPath"`
+		UpstreamLatency IngressLatencyStats       `json:"upstreamLatency"`
+		Trend           []IngressLatencyDataPoint `json:"trend"`
+	}
+	IngressLatencyStats {
+		P50 float64 `json:"p50"`
+		P95 float64 `json:"p95"`
+		P99 float64 `json:"p99"`
+		Avg float64 `json:"avg"`
+		Max float64 `json:"max"`
+	}
+	LatencyByDimension {
+		Name      string              `json:"name"`
+		Namespace string              `json:"namespace,optional"`
+		Latency   IngressLatencyStats `json:"latency"`
+	}
+	IngressLatencyDataPoint {
+		Timestamp int64   `json:"timestamp"`
+		P50       float64 `json:"p50"`
+		P95       float64 `json:"p95"`
+		P99       float64 `json:"p99"`
+	}
+	//================================ 错误指标 ================================
+	IngressErrorMetrics {
+		Overall     IngressErrorRateStats         `json:"overall"`
+		StatusCodes IngressStatusCodeDistribution `json:"statusCodes"`
+		ByHost      []ErrorRateByDimension        `json:"byHost"`
+		ByPath      []ErrorRateByDimension        `json:"byPath"`
+		Trend       []IngressErrorDataPoint       `json:"trend"`
+	}
+	IngressErrorRateStats {
+		TotalErrorRate float64 `json:"totalErrorRate"`
+		Error4xxRate   float64 `json:"error4xxRate"`
+		Error5xxRate   float64 `json:"error5xxRate"`
+	}
+	IngressStatusCodeDistribution {
+		Status2xx map[string]float64 `json:"status2xx"`
+		Status3xx map[string]float64 `json:"status3xx"`
+		Status4xx map[string]float64 `json:"status4xx"`
+		Status5xx map[string]float64 `json:"status5xx"`
+	}
+	ErrorRateByDimension {
+		Name      string                `json:"name"`
+		Namespace string                `json:"namespace,optional"`
+		ErrorRate IngressErrorRateStats `json:"errorRate"`
+		TopErrors []StatusCodeRate      `json:"topErrors"`
+	}
+	StatusCodeRate {
+		StatusCode string  `json:"statusCode"`
+		Rate       float64 `json:"rate"`
+		Percent    float64 `json:"percent"`
+	}
+	IngressErrorDataPoint {
+		Timestamp      int64   `json:"timestamp"`
+		TotalErrorRate float64 `json:"totalErrorRate"`
+		Error4xxRate   float64 `json:"error4xxRate"`
+		Error5xxRate   float64 `json:"error5xxRate"`
+	}
+	//================================ 后端健康 ================================
+	IngressBackendMetrics {
+		UpstreamLatency    float64               `json:"upstreamLatency"`
+		EndpointsByService []ServiceEndpoints    `json:"endpointsByService"`
+		BackendHealth      []BackendHealthStatus `json:"backendHealth"`
+	}
+	ServiceEndpoints {
+		ServiceName        string `json:"serviceName"`
+		Namespace          string `json:"namespace"`
+		AvailableEndpoints int64  `json:"availableEndpoints"`
+		HasEndpoints       bool   `json:"hasEndpoints"`
+	}
+	BackendHealthStatus {
+		Upstream          string  `json:"upstream"`
+		ResponseLatency   float64 `json:"responseLatency"`
+		SuccessRate       float64 `json:"successRate"`
+		ActiveConnections int64   `json:"activeConnections"`
+	}
+	//================================ 证书指标 ================================
+	IngressCertificateMetrics {
+		HTTPSRequestPercent float64           `json:"httpsRequestPercent"`
+		Certificates        []CertificateInfo `json:"certificates"`
+		ExpiringCount       int64             `json:"expiringCount"`
+		ExpiredCount        int64             `json:"expiredCount"`
+	}
+	CertificateInfo {
+		Name           string `json:"name"`
+		Namespace      string `json:"namespace"`
+		ExpirationTime int64  `json:"expirationTime"`
+		DaysRemaining  int    `json:"daysRemaining"`
+		IsExpiring     bool   `json:"isExpiring"`
+		IsExpired      bool   `json:"isExpired"`
+	}
+	//================================ Ingress 对象状态 ================================
+	IngressObjectMetrics {
+		Namespace   string            `json:"namespace"`
+		IngressName string            `json:"ingressName"`
+		PathCount   int64             `json:"pathCount"`
+		RuleCount   int64             `json:"ruleCount"`
+		TLSEnabled  bool              `json:"tlsEnabled"`
+		Hosts       []string          `json:"hosts"`
+		Paths       []IngressPathInfo `json:"paths"`
+		CreatedAt   int64             `json:"createdAt"`
+		Labels      map[string]string `json:"labels"`
+		Annotations map[string]string `json:"annotations"`
+	}
+	IngressPathInfo {
+		Host        string `json:"host"`
+		Path        string `json:"path"`
+		PathType    string `json:"pathType"`
+		ServiceName string `json:"serviceName"`
+		ServicePort int32  `json:"servicePort"`
+	}
+	//================================ 限流指标 ================================
+	IngressRateLimitMetrics {
+		Namespace        string                      `json:"namespace"`
+		IngressName      string                      `json:"ingressName"`
+		LimitedRequests  float64                     `json:"limitedRequests"`
+		LimitTriggerRate float64                     `json:"limitTriggerRate"`
+		ByPath           []RateLimitByPath           `json:"byPath"`
+		Trend            []IngressRateLimitDataPoint `json:"trend"`
+	}
+	RateLimitByPath {
+		Path                string  `json:"path"`
+		LimitedRequests     float64 `json:"limitedRequests"`
+		TotalRequests       float64 `json:"totalRequests"`
+		LimitTriggerPercent float64 `json:"limitTriggerPercent"`
+	}
+	IngressRateLimitDataPoint {
+		Timestamp        int64   `json:"timestamp"`
+		LimitedRequests  float64 `json:"limitedRequests"`
+		LimitTriggerRate float64 `json:"limitTriggerRate"`
+	}
+	//================================ Ingress 排行 ================================
+	IngressRanking {
+		TopByQPS       []IngressRankingItem `json:"topByQPS"`
+		TopByErrorRate []IngressRankingItem `json:"topByErrorRate"`
+		TopByLatency   []IngressRankingItem `json:"topByLatency"`
+		TopByTraffic   []IngressRankingItem `json:"topByTraffic"`
+	}
+	IngressRankingItem {
+		Namespace   string  `json:"namespace"`
+		IngressName string  `json:"ingressName"`
+		Value       float64 `json:"value"`
+		Unit        string  `json:"unit"`
+	}
+	PathRanking {
+		TopByQPS       []PathRankingItem `json:"topByQPS"`
+		TopByErrorRate []PathRankingItem `json:"topByErrorRate"`
+		TopByLatency   []PathRankingItem `json:"topByLatency"`
+	}
+	PathRankingItem {
+		Host  string  `json:"host"`
+		Path  string  `json:"path"`
+		Value float64 `json:"value"`
+		Unit  string  `json:"unit"`
+	}
+	HostRanking {
+		TopByQPS       []HostRankingItem `json:"topByQPS"`
+		TopByErrorRate []HostRankingItem `json:"topByErrorRate"`
+		TopByLatency   []HostRankingItem `json:"topByLatency"`
+	}
+	HostRankingItem {
+		Host  string  `json:"host"`
+		Value float64 `json:"value"`
+		Unit  string  `json:"unit"`
+	}
+	//================================ 请求和响应结构 ================================
+	GetIngressMetricsRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Namespace   string `form:"namespace" validate:"required"`
+		IngressName string `form:"ingressName" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetIngressMetricsResponse {
+		Data IngressMetrics `json:"data"`
+	}
+	GetControllerHealthRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetControllerHealthResponse {
+		Data IngressControllerHealth `json:"data"`
+	}
+	GetIngressTrafficRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Namespace   string `form:"namespace" validate:"required"`
+		IngressName string `form:"ingressName" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetIngressTrafficResponse {
+		Data IngressTrafficMetrics `json:"data"`
+	}
+	GetIngressTrafficByHostRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Host        string `form:"host" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetIngressTrafficByHostResponse {
+		Data IngressTrafficMetrics `json:"data"`
+	}
+	GetIngressTrafficByPathRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Path        string `form:"path" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetIngressTrafficByPathResponse {
+		Data IngressTrafficMetrics `json:"data"`
+	}
+	GetIngressPerformanceRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Namespace   string `form:"namespace" validate:"required"`
+		IngressName string `form:"ingressName" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetIngressPerformanceResponse {
+		Data IngressPerformanceMetrics `json:"data"`
+	}
+	GetIngressLatencyByHostRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Host        string `form:"host" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetIngressLatencyByHostResponse {
+		Data IngressLatencyStats `json:"data"`
+	}
+	GetIngressLatencyByPathRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Path        string `form:"path" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetIngressLatencyByPathResponse {
+		Data IngressLatencyStats `json:"data"`
+	}
+	GetIngressErrorsRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Namespace   string `form:"namespace" validate:"required"`
+		IngressName string `form:"ingressName" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetIngressErrorsResponse {
+		Data IngressErrorMetrics `json:"data"`
+	}
+	GetIngressStatusCodesRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Namespace   string `form:"namespace" validate:"required"`
+		IngressName string `form:"ingressName" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetIngressStatusCodesResponse {
+		Data IngressStatusCodeDistribution `json:"data"`
+	}
+	GetIngressBackendsRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Namespace   string `form:"namespace" validate:"required"`
+		IngressName string `form:"ingressName" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetIngressBackendsResponse {
+		Data IngressBackendMetrics `json:"data"`
+	}
+	GetIngressCertificatesRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Namespace   string `form:"namespace" validate:"required"`
+		IngressName string `form:"ingressName" validate:"required"`
+	}
+	GetIngressCertificatesResponse {
+		Data IngressCertificateMetrics `json:"data"`
+	}
+	GetExpiringCertificatesRequest {
+		ClusterUuid   string `form:"clusterUuid" validate:"required"`
+		DaysThreshold int    `form:"daysThreshold,default=30" validate:"min=1,max=365"`
+	}
+	GetExpiringCertificatesResponse {
+		Data []CertificateInfo `json:"data"`
+	}
+	GetIngressObjectRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Namespace   string `form:"namespace" validate:"required"`
+		IngressName string `form:"ingressName" validate:"required"`
+	}
+	GetIngressObjectResponse {
+		Data IngressObjectMetrics `json:"data"`
+	}
+	GetIngressRateLimitRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Namespace   string `form:"namespace" validate:"required"`
+		IngressName string `form:"ingressName" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetIngressRateLimitResponse {
+		Data IngressRateLimitMetrics `json:"data"`
+	}
+	GetIngressRankingRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Limit       int    `form:"limit,default=10" validate:"min=1,max=100"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetIngressRankingResponse {
+		Data IngressRanking `json:"data"`
+	}
+	GetPathRankingRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Limit       int    `form:"limit,default=10" validate:"min=1,max=100"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetPathRankingResponse {
+		Data PathRanking `json:"data"`
+	}
+	GetHostRankingRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Limit       int    `form:"limit,default=10" validate:"min=1,max=100"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	GetHostRankingResponse {
+		Data HostRanking `json:"data"`
+	}
+	ListIngressMetricsRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Namespace   string `form:"namespace" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+	}
+	ListIngressMetricsResponse {
+		Data []IngressMetrics `json:"data"`
+	}
+	// ==================== Host 级别监控 ====================
+
+	HostMetrics {
+		Host        string                      `json:"host"`
+		Start       int64                       `json:"start"`
+		End         int64                       `json:"end"`
+		Current     HostMetricSnapshot          `json:"current"`
+		StatusCodes HostStatusCodeDistribution  `json:"statusCodes"`
+		ErrorRate   HostErrorRateStats          `json:"errorRate"`
+		Latency     HostLatencyStats            `json:"latency"`
+		Summary     HostMetricsSummary          `json:"summary"`
+		Trend       []HostMetricDataPoint       `json:"trend"`
+		ByPath      []HostPathMetrics           `json:"byPath"`
+	}
+
+	HostMetricSnapshot {
+		Timestamp           int64   `json:"timestamp"`
+		RequestsPerSecond   float64 `json:"requestsPerSecond"`
+		IngressBytesPerSec  float64 `json:"ingressBytesPerSec"`
+		EgressBytesPerSec   float64 `json:"egressBytesPerSec"`
+		ActiveConnections   int64   `json:"activeConnections"`
+	}
+
+	HostStatusCodeDistribution {
+		Status2xx map[string]int64 `json:"status2xx"`
+		Status3xx map[string]int64 `json:"status3xx"`
+		Status4xx map[string]int64 `json:"status4xx"`
+		Status5xx map[string]int64 `json:"status5xx"`
+	}
+
+	HostErrorRateStats {
+		TotalErrorRate float64        `json:"totalErrorRate"`
+		Error4xxRate   float64        `json:"error4xxRate"`
+		Error5xxRate   float64        `json:"error5xxRate"`
+		TopErrors      []HostTopError `json:"topErrors"`
+		Top4xxErrors   []HostTopError `json:"top4xxErrors"`
+		Top5xxErrors   []HostTopError `json:"top5xxErrors"`
+	}
+
+	HostTopError {
+		StatusCode string  `json:"statusCode"`
+		Count      int64   `json:"count"`
+		Percent    float64 `json:"percent"`
+	}
+
+	HostLatencyStats {
+		P50  float64 `json:"p50"`
+		P95  float64 `json:"p95"`
+		P99  float64 `json:"p99"`
+		Avg  float64 `json:"avg"`
+		Max  float64 `json:"max"`
+	}
+
+	HostMetricsSummary {
+		TotalRequests      int64   `json:"totalRequests"`
+		TotalIngressBytes  int64   `json:"totalIngressBytes"`
+		TotalEgressBytes   int64   `json:"totalEgressBytes"`
+		AvgRequestsPerSec  float64 `json:"avgRequestsPerSec"`
+		MaxRequestsPerSec  float64 `json:"maxRequestsPerSec"`
+		AvgRequestSize     float64 `json:"avgRequestSize"`
+		AvgResponseSize    float64 `json:"avgResponseSize"`
+	}
+
+	HostMetricDataPoint {
+		Timestamp           int64   `json:"timestamp"`
+		RequestsPerSecond   float64 `json:"requestsPerSecond"`
+		IngressBytesPerSec  float64 `json:"ingressBytesPerSec"`
+		EgressBytesPerSec   float64 `json:"egressBytesPerSec"`
+		Error4xxRate        float64 `json:"error4xxRate"`
+		Error5xxRate        float64 `json:"error5xxRate"`
+		P95Latency          float64 `json:"p95Latency"`
+	}
+
+	HostPathMetrics {
+		Path                string  `json:"path"`
+		RequestsPerSecond   float64 `json:"requestsPerSecond"`
+		ErrorRate           float64 `json:"errorRate"`
+		ErrorRatePercent    float64 `json:"errorRatePercent"`
+		P95Latency          float64 `json:"p95Latency"`
+	}
+
+	GetHostMetricsRequest {
+		ClusterUuid string `form:"clusterUuid" validate:"required"`
+		Host        string `form:"host" validate:"required"`
+		Start       string `form:"start,optional"`
+		End         string `form:"end,optional"`
+		Step        string `form:"step,optional"`
+	}
+	GetHostMetricsResponse {
+		Data HostMetrics `json:"data"`
+	}
+
+	GetMultiHostMetricsRequest {
+		ClusterUuid string   `json:"clusterUuid" validate:"required"`
+		Hosts       []string `json:"hosts" validate:"required"`
+		Start       string   `json:"start,optional"`
+		End         string   `json:"end,optional"`
+		Step        string   `json:"step,optional"`
+	}
+	GetMultiHostMetricsResponse {
+		Data []HostMetrics `json:"data"`
+	}
 )
 
-@server(
-    middleware: JWTAuthMiddleware
-    group: ingressmonitor
-    prefix: /console/v1/ingress-monitor
+@server (
+	middleware: JWTAuthMiddleware
+	group:      ingressmonitor
+	prefix:     /console/v1/ingress-monitor
 )
-
 service console-api {
-    @doc "获取 Ingress 综合指标"
-    @handler GetIngressMetricsHandler
-    get /metrics (GetIngressMetricsRequest) returns (GetIngressMetricsResponse)
+	@doc "获取 Ingress 综合指标"
+	@handler GetIngressMetricsHandler
+	get /metrics (GetIngressMetricsRequest) returns (GetIngressMetricsResponse)
 
-    @doc "获取 Ingress Controller 健康状态"
-    @handler GetControllerHealthHandler
-    get /controller/health (GetControllerHealthRequest) returns (GetControllerHealthResponse)
+	@doc "获取 Ingress Controller 健康状态"
+	@handler GetControllerHealthHandler
+	get /controller/health (GetControllerHealthRequest) returns (GetControllerHealthResponse)
 
-    @doc "获取 Ingress 流量指标"
-    @handler GetIngressTrafficHandler
-    get /traffic (GetIngressTrafficRequest) returns (GetIngressTrafficResponse)
+	@doc "获取 Ingress 流量指标"
+	@handler GetIngressTrafficHandler
+	get /traffic (GetIngressTrafficRequest) returns (GetIngressTrafficResponse)
 
-    @doc "按 Host 获取流量指标"
-    @handler GetIngressTrafficByHostHandler
-    get /traffic/host (GetIngressTrafficByHostRequest) returns (GetIngressTrafficByHostResponse)
+	@doc "按 Host 获取流量指标"
+	@handler GetIngressTrafficByHostHandler
+	get /traffic/host (GetIngressTrafficByHostRequest) returns (GetIngressTrafficByHostResponse)
 
-    @doc "按 Path 获取流量指标"
-    @handler GetIngressTrafficByPathHandler
-    get /traffic/path (GetIngressTrafficByPathRequest) returns (GetIngressTrafficByPathResponse)
+	@doc "按 Path 获取流量指标"
+	@handler GetIngressTrafficByPathHandler
+	get /traffic/path (GetIngressTrafficByPathRequest) returns (GetIngressTrafficByPathResponse)
 
-    @doc "获取 Ingress 性能指标"
-    @handler GetIngressPerformanceHandler
-    get /performance (GetIngressPerformanceRequest) returns (GetIngressPerformanceResponse)
+	@doc "获取 Ingress 性能指标"
+	@handler GetIngressPerformanceHandler
+	get /performance (GetIngressPerformanceRequest) returns (GetIngressPerformanceResponse)
 
-    @doc "按 Host 获取延迟指标"
-    @handler GetIngressLatencyByHostHandler
-    get /latency/host (GetIngressLatencyByHostRequest) returns (GetIngressLatencyByHostResponse)
+	@doc "按 Host 获取延迟指标"
+	@handler GetIngressLatencyByHostHandler
+	get /latency/host (GetIngressLatencyByHostRequest) returns (GetIngressLatencyByHostResponse)
 
-    @doc "按 Path 获取延迟指标"
-    @handler GetIngressLatencyByPathHandler
-    get /latency/path (GetIngressLatencyByPathRequest) returns (GetIngressLatencyByPathResponse)
+	@doc "按 Path 获取延迟指标"
+	@handler GetIngressLatencyByPathHandler
+	get /latency/path (GetIngressLatencyByPathRequest) returns (GetIngressLatencyByPathResponse)
 
-    @doc "获取 Ingress 错误指标"
-    @handler GetIngressErrorsHandler
-    get /errors (GetIngressErrorsRequest) returns (GetIngressErrorsResponse)
+	@doc "获取 Ingress 错误指标"
+	@handler GetIngressErrorsHandler
+	get /errors (GetIngressErrorsRequest) returns (GetIngressErrorsResponse)
 
-    @doc "获取 Ingress 状态码分布"
-    @handler GetIngressStatusCodesHandler
-    get /status-codes (GetIngressStatusCodesRequest) returns (GetIngressStatusCodesResponse)
+	@doc "获取 Ingress 状态码分布"
+	@handler GetIngressStatusCodesHandler
+	get /status-codes (GetIngressStatusCodesRequest) returns (GetIngressStatusCodesResponse)
 
-    @doc "获取 Ingress 后端健康状态"
-    @handler GetIngressBackendsHandler
-    get /backends (GetIngressBackendsRequest) returns (GetIngressBackendsResponse)
+	@doc "获取 Ingress 后端健康状态"
+	@handler GetIngressBackendsHandler
+	get /backends (GetIngressBackendsRequest) returns (GetIngressBackendsResponse)
 
-    @doc "获取 Ingress 证书信息"
-    @handler GetIngressCertificatesHandler
-    get /certificates (GetIngressCertificatesRequest) returns (GetIngressCertificatesResponse)
+	@doc "获取 Ingress 证书信息"
+	@handler GetIngressCertificatesHandler
+	get /certificates (GetIngressCertificatesRequest) returns (GetIngressCertificatesResponse)
 
-    @doc "获取即将过期的证书"
-    @handler GetExpiringCertificatesHandler
-    get /certificates/expiring (GetExpiringCertificatesRequest) returns (GetExpiringCertificatesResponse)
+	@doc "获取即将过期的证书"
+	@handler GetExpiringCertificatesHandler
+	get /certificates/expiring (GetExpiringCertificatesRequest) returns (GetExpiringCertificatesResponse)
 
-    @doc "获取 Ingress 对象信息"
-    @handler GetIngressObjectHandler
-    get /object (GetIngressObjectRequest) returns (GetIngressObjectResponse)
+	@doc "获取 Ingress 对象信息"
+	@handler GetIngressObjectHandler
+	get /object (GetIngressObjectRequest) returns (GetIngressObjectResponse)
 
-    @doc "获取 Ingress 限流指标"
-    @handler GetIngressRateLimitHandler
-    get /rate-limit (GetIngressRateLimitRequest) returns (GetIngressRateLimitResponse)
+	@doc "获取 Ingress 限流指标"
+	@handler GetIngressRateLimitHandler
+	get /rate-limit (GetIngressRateLimitRequest) returns (GetIngressRateLimitResponse)
 
-    @doc "获取 Ingress 排行"
-    @handler GetIngressRankingHandler
-    get /ranking (GetIngressRankingRequest) returns (GetIngressRankingResponse)
+	@doc "获取 Ingress 排行"
+	@handler GetIngressRankingHandler
+	get /ranking (GetIngressRankingRequest) returns (GetIngressRankingResponse)
 
-    @doc "获取 Path 排行"
-    @handler GetPathRankingHandler
-    get /ranking/path (GetPathRankingRequest) returns (GetPathRankingResponse)
+	@doc "获取 Path 排行"
+	@handler GetPathRankingHandler
+	get /ranking/path (GetPathRankingRequest) returns (GetPathRankingResponse)
 
-    @doc "获取 Host 排行"
-    @handler GetHostRankingHandler
-    get /ranking/host (GetHostRankingRequest) returns (GetHostRankingResponse)
+	@doc "获取 Host 排行"
+	@handler GetHostRankingHandler
+	get /ranking/host (GetHostRankingRequest) returns (GetHostRankingResponse)
 
-    @doc "列出 Namespace 下的 Ingress 指标"
-    @handler ListIngressMetricsHandler
-    get /list (ListIngressMetricsRequest) returns (ListIngressMetricsResponse)
+	@doc "列出 Namespace 下的 Ingress 指标"
+	@handler ListIngressMetricsHandler
+	get /list (ListIngressMetricsRequest) returns (ListIngressMetricsResponse)
+
+	@doc "获取单个 Host 级别监控详情"
+	@handler GetHostMetricsHandler
+	get /host-metrics (GetHostMetricsRequest) returns (GetHostMetricsResponse)
+
+	@doc "批量获取 Host 级别监控详情"
+	@handler GetMultiHostMetricsHandler
+	post /host-metrics/batch (GetMultiHostMetricsRequest) returns (GetMultiHostMetricsResponse)
 }
+

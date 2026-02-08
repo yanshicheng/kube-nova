@@ -1,4 +1,3 @@
-// applicationServiceLogic.go
 package core
 
 import (
@@ -34,6 +33,10 @@ func NewApplicationServiceLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 }
 
 func (l *ApplicationServiceLogic) ApplicationService(req *types.ApplicationServiceRequest) (resp string, err error) {
+	username, ok := l.ctx.Value("username").(string)
+	if !ok {
+		username = "system"
+	}
 
 	// 参数校验
 	if req.IsAllSvc && req.IsAppSvc {
@@ -126,6 +129,9 @@ func (l *ApplicationServiceLogic) ApplicationService(req *types.ApplicationServi
 	// 构建端口信息用于审计
 	portInfo := l.buildPortInfo(req.Ports)
 
+	// 构建选择器信息用于审计
+	selectorInfo := l.buildSelectorInfo(req.Selector)
+
 	// 创建 Service
 	serviceOperator := client.Services()
 	createdService, createErr := serviceOperator.Create(k8sService)
@@ -134,7 +140,7 @@ func (l *ApplicationServiceLogic) ApplicationService(req *types.ApplicationServi
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ApplicationId: req.ApplicationId,
 			Title:         "创建应用 Service",
-			ActionDetail:  fmt.Sprintf("应用 %s 创建 Service %s 失败, 级别: %s, 类型: %s, 端口: %s, 错误原因: %v", app.Data.NameCn, req.Name, serviceLevel, req.Type, portInfo, createErr),
+			ActionDetail:  fmt.Sprintf("用户 %s 为应用 %s 创建 Service %s 失败, 级别: %s, 类型: %s, 端口: %s, 选择器: %s, 错误原因: %v", username, app.Data.NameCn, req.Name, serviceLevel, req.Type, portInfo, selectorInfo, createErr),
 			Status:        0,
 		})
 		return "", fmt.Errorf("创建 Service 失败: %w", createErr)
@@ -144,7 +150,7 @@ func (l *ApplicationServiceLogic) ApplicationService(req *types.ApplicationServi
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ApplicationId: req.ApplicationId,
 		Title:         "创建应用 Service",
-		ActionDetail:  fmt.Sprintf("应用 %s 成功创建 Service %s, 级别: %s, 类型: %s, 端口: %s", app.Data.NameCn, createdService.Name, serviceLevel, req.Type, portInfo),
+		ActionDetail:  fmt.Sprintf("用户 %s 为应用 %s 成功创建 Service %s, 级别: %s, 类型: %s, 端口: %s, 选择器: %s", username, app.Data.NameCn, createdService.Name, serviceLevel, req.Type, portInfo, selectorInfo),
 		Status:        1,
 	})
 	if auditErr != nil {
@@ -161,9 +167,28 @@ func (l *ApplicationServiceLogic) buildPortInfo(ports []types.ServicePort) strin
 	}
 	var portStrs []string
 	for _, p := range ports {
-		portStrs = append(portStrs, fmt.Sprintf("%d->%s", p.Port, p.TargetPort))
+		portStr := fmt.Sprintf("%d→%s", p.Port, p.TargetPort)
+		if p.Name != "" {
+			portStr = fmt.Sprintf("%s:%s", p.Name, portStr)
+		}
+		if p.NodePort > 0 {
+			portStr = fmt.Sprintf("%s(NodePort:%d)", portStr, p.NodePort)
+		}
+		portStrs = append(portStrs, portStr)
 	}
 	return strings.Join(portStrs, ", ")
+}
+
+// buildSelectorInfo 构建选择器信息字符串用于审计日志
+func (l *ApplicationServiceLogic) buildSelectorInfo(selector map[string]string) string {
+	if len(selector) == 0 {
+		return "无"
+	}
+	var selectorStrs []string
+	for k, v := range selector {
+		selectorStrs = append(selectorStrs, fmt.Sprintf("%s=%s", k, v))
+	}
+	return strings.Join(selectorStrs, ", ")
 }
 
 // buildK8sService 构建 K8s Service 对象

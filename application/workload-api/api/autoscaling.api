@@ -13,9 +13,14 @@ import "./base.api"
 type (
     // ==================== 通用请求 ====================
 
-    // 版本ID请求
+    // 版本ID请求（GET 方法）
     VersionIdRequest {
         VersionId uint64 `form:"versionId" validate:"required,min=1"`
+    }
+
+    // 版本ID删除请求（DELETE 方法）
+    VersionIdDeleteRequest {
+        VersionId uint64 `json:"versionId" validate:"required,min=1"`
     }
 
 
@@ -259,7 +264,7 @@ service workload-api {
 
     @doc "删除 HPA 资源"
     @handler HPADeleteHandler
-    delete /hpa (VersionIdRequest) returns (string)
+    delete /hpa (VersionIdDeleteRequest) returns (string)
 
     // ==================== VPA API ====================
 
@@ -281,5 +286,5 @@ service workload-api {
 
     @doc "删除 VPA 资源"
     @handler VPADeleteHandler
-    delete /vpa (VersionIdRequest) returns (string)
+    delete /vpa (VersionIdDeleteRequest) returns (string)
 }

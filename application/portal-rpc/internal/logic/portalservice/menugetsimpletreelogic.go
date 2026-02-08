@@ -7,6 +7,7 @@ import (
 
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/pb"
+	"github.com/yanshicheng/kube-nova/common/handler/errorx"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -32,9 +33,15 @@ type tempMenuNode struct {
 }
 
 func (l *MenuGetSimpleTreeLogic) MenuGetSimpleTree(in *pb.GetSysMenuSimpleTreeReq) (*pb.GetSysMenuSimpleTreeResp, error) {
+	// 参数验证
+	if in.PlatformId == 0 {
+		l.Errorf("获取简单菜单树失败：平台ID不能为空")
+		return nil, errorx.Msg("平台ID不能为空")
+	}
+
 	// 构建查询条件，排除按钮类型菜单（menu_type=3）
-	queryConditions := "menu_type != 3"
-	args := []interface{}{}
+	queryConditions := "platform_id = ? AND menu_type != 3"
+	args := []interface{}{in.PlatformId}
 
 	// 如果指定了状态过滤条件
 	if in.Status != -1 {
@@ -55,7 +62,7 @@ func (l *MenuGetSimpleTreeLogic) MenuGetSimpleTree(in *pb.GetSysMenuSimpleTreeRe
 				Data: []*pb.SysMenuSimpleTreeNode{},
 			}, nil
 		}
-		l.Logger.Errorf("查询菜单数据失败: %v", err)
+		l.Logger.Errorf("查询菜单数据失败: platformId=%d, error=%v", in.PlatformId, err)
 		return nil, err
 	}
 

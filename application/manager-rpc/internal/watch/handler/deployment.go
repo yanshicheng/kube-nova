@@ -22,8 +22,11 @@ func (h *DefaultEventHandler) HandleDeploymentEvent(ctx context.Context, event *
 		return h.handleDeploymentAdd(ctx, event.ClusterUUID, deploy)
 
 	case incremental.EventUpdate:
-		// 按需求只处理新增和删除，UPDATE 事件跳过
-		return nil
+		deploy, ok := event.NewObject.(*appsv1.Deployment)
+		if !ok {
+			return errors.New("invalid deployment object")
+		}
+		return h.handleDeploymentUpdate(ctx, event.ClusterUUID, deploy)
 
 	case incremental.EventDelete:
 		deploy, ok := event.OldObject.(*appsv1.Deployment)
@@ -52,8 +55,35 @@ func (h *DefaultEventHandler) handleDeploymentAdd(ctx context.Context, clusterUU
 	logger.Infof("[Deployment-ADD] ClusterUUID: %s, Namespace: %s, Name: %s",
 		clusterUUID, deploy.Namespace, deploy.Name)
 
-	// 同步到数据库，传入 labels 和 annotations 用于 Flagger 识别
-	return h.syncWorkloadToDatabase(ctx, clusterUUID, deploy.Namespace, deploy.Name, "deployment", deploy.Labels, deploy.Annotations)
+	// 计算初始状态
+	status := CalculateDeploymentStatus(deploy)
+
+	// 同步到数据库，传入 labels 和 annotations 用于 Flagger 识别，以及计算好的状态
+	return h.syncWorkloadToDatabase(ctx, clusterUUID, deploy.Namespace, deploy.Name, "deployment", deploy.Labels, deploy.Annotations, status)
+}
+
+// handleDeploymentUpdate 处理 Deployment 更新事件
+// 主要用于更新版本的 status 字段（根据副本数是否满足判断健康状态）
+func (h *DefaultEventHandler) handleDeploymentUpdate(ctx context.Context, clusterUUID string, deploy *appsv1.Deployment) error {
+	logger := logx.WithContext(ctx)
+
+	// 如果是平台创建的资源，也需要更新状态
+	// 这里不跳过，因为状态更新对所有资源都适用
+
+	// 正在删除中的跳过
+	if deploy.DeletionTimestamp != nil {
+		logger.Debugf("[Deployment-UPDATE] 资源正在删除中，跳过状态更新: %s/%s", deploy.Namespace, deploy.Name)
+		return nil
+	}
+
+	// 计算新状态
+	newStatus := CalculateDeploymentStatus(deploy)
+
+	logger.Debugf("[Deployment-UPDATE] ClusterUUID: %s, Namespace: %s, Name: %s, CalculatedStatus: %d",
+		clusterUUID, deploy.Namespace, deploy.Name, newStatus)
+
+	// 更新数据库中的状态
+	return h.updateWorkloadStatus(ctx, clusterUUID, deploy.Namespace, deploy.Name, "deployment", newStatus)
 }
 
 // handleDeploymentDelete 处理 Deployment 删除事件
@@ -62,6 +92,7 @@ func (h *DefaultEventHandler) handleDeploymentDelete(ctx context.Context, cluste
 	logger.Infof("[Deployment-DELETE] ClusterUUID: %s, Namespace: %s, Name: %s",
 		clusterUUID, deploy.Namespace, deploy.Name)
 
-	// 从数据库删除（软删除），如果不存在会自动跳过
-	return h.deleteWorkloadFromDatabase(ctx, clusterUUID, deploy.Namespace, deploy.Name, "deployment")
+	// 从数据库删除（硬删除），如果不存在会自动跳过
+	// 传入 annotations 用于检测 API 删除标记
+	return h.deleteWorkloadFromDatabase(ctx, clusterUUID, deploy.Namespace, deploy.Name, "deployment", deploy.Annotations)
 }

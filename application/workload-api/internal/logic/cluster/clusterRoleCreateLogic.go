@@ -48,23 +48,21 @@ func (l *ClusterRoleCreateLogic) ClusterRoleCreate(req *types.ClusterResourceYam
 		l.Errorf("解析 YAML 失败: %v", err)
 		return "", fmt.Errorf("解析 YAML 失败: %v", err)
 	}
-	// 获取项目详情
-	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
-		ClusterUuid: req.ClusterUuid,
-		Namespace:   cr.Namespace,
+
+	// 注入注解
+	utils.AddAnnotations(&cr.ObjectMeta, &utils.AnnotationsInfo{
+		ServiceName: cr.Name,
 	})
-	if err != nil {
-		l.Errorf("获取项目详情失败: %v", err)
-		return "", fmt.Errorf("获取项目详情失败")
-	} else {
-		// 注入注解
-		utils.AddAnnotations(&cr.ObjectMeta, &utils.AnnotationsInfo{
-			ServiceName:   cr.Name,
-			ProjectName:   projectDetail.ProjectNameCn,
-			WorkspaceName: projectDetail.WorkspaceNameCn,
-			ProjectUuid:   projectDetail.ProjectUuid,
-		})
+
+	// 构建规则摘要用于审计
+	rulesSummary := FormatPolicyRulesShort(cr.Rules)
+
+	// 检查是否有聚合规则
+	var aggregationInfo string
+	if cr.AggregationRule != nil && len(cr.AggregationRule.ClusterRoleSelectors) > 0 {
+		aggregationInfo = fmt.Sprintf(", 聚合规则: %d 个选择器", len(cr.AggregationRule.ClusterRoleSelectors))
 	}
+
 	_, err = crOp.Create(&cr)
 	if err != nil {
 		l.Errorf("创建 ClusterRole 失败: %v", err)
@@ -72,18 +70,23 @@ func (l *ClusterRoleCreateLogic) ClusterRoleCreate(req *types.ClusterResourceYam
 		l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "创建 ClusterRole",
-			ActionDetail: fmt.Sprintf("创建 ClusterRole %s 失败，错误: %v", cr.Name, err),
+			ActionDetail: fmt.Sprintf("用户 %s 创建 ClusterRole %s 失败, 规则数量: %d, 错误: %v", username, cr.Name, len(cr.Rules), err),
 			Status:       0,
 		})
 		return "", fmt.Errorf("创建 ClusterRole 失败")
 	}
 
 	l.Infof("用户: %s, 成功创建 ClusterRole: %s", username, cr.Name)
+
+	// 构建详细审计信息
+	auditDetail := fmt.Sprintf("用户 %s 成功创建 ClusterRole %s, 规则数量: %d, 规则摘要: %s%s",
+		username, cr.Name, len(cr.Rules), rulesSummary, aggregationInfo)
+
 	// 记录成功审计日志
 	l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "创建 ClusterRole",
-		ActionDetail: fmt.Sprintf("创建 ClusterRole %s 成功，规则数量: %d", cr.Name, len(cr.Rules)),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	return "创建 ClusterRole 成功", nil

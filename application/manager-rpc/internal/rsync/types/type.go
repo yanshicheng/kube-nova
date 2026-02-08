@@ -2,6 +2,10 @@ package types
 
 import "context"
 
+const (
+	EnableHardDelete = true
+)
+
 // SyncService 定义了资源同步服务的接口
 // 提供项目和集群两个维度的资源同步功能
 type SyncService interface {

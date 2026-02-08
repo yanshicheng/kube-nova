@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
@@ -57,6 +58,35 @@ func (l *ConfigMapUpdateLogic) ConfigMapUpdate(req *types.ConfigMapRequest) (res
 		return "", fmt.Errorf("获取现有 ConfigMap 失败")
 	}
 
+	// 对比 Data 变更
+	dataDiff := CompareStringMaps(existingCM.Data, req.Data)
+	dataChangeDetail := BuildMapDiffDetail(dataDiff, AuditDetailConfig.RecordConfigMapValues)
+
+	// 对比 Labels 变更
+	labelsDiff := CompareStringMaps(existingCM.Labels, req.Labels)
+	labelsChangeDetail := BuildMapDiffDetail(labelsDiff, false)
+
+	// 对比 Annotations 变更
+	annotationsDiff := CompareStringMaps(existingCM.Annotations, req.Annotations)
+	annotationsChangeDetail := BuildMapDiffDetail(annotationsDiff, false)
+
+	// 构建变更详情
+	var changeDetails []string
+	if HasMapChanges(dataDiff) {
+		changeDetails = append(changeDetails, fmt.Sprintf("Data变更: %s", dataChangeDetail))
+	}
+	if HasMapChanges(labelsDiff) {
+		changeDetails = append(changeDetails, fmt.Sprintf("Labels变更: %s", labelsChangeDetail))
+	}
+	if HasMapChanges(annotationsDiff) {
+		changeDetails = append(changeDetails, fmt.Sprintf("Annotations变更: %s", annotationsChangeDetail))
+	}
+
+	changeDetailStr := "无变更"
+	if len(changeDetails) > 0 {
+		changeDetailStr = strings.Join(changeDetails, "; ")
+	}
+
 	// 更新字段
 	existingCM.Data = req.Data
 	if req.Labels != nil {
@@ -65,6 +95,7 @@ func (l *ConfigMapUpdateLogic) ConfigMapUpdate(req *types.ConfigMapRequest) (res
 	if req.Annotations != nil {
 		existingCM.Annotations = req.Annotations
 	}
+
 	// 获取项目详情
 	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
 		ClusterUuid: workloadInfo.Data.ClusterUuid,
@@ -82,6 +113,7 @@ func (l *ConfigMapUpdateLogic) ConfigMapUpdate(req *types.ConfigMapRequest) (res
 			ProjectUuid:   projectDetail.ProjectUuid,
 		})
 	}
+
 	// 执行更新
 	_, updateErr := configMapClient.Update(existingCM)
 	if updateErr != nil {
@@ -90,7 +122,7 @@ func (l *ConfigMapUpdateLogic) ConfigMapUpdate(req *types.ConfigMapRequest) (res
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			WorkspaceId:  req.WorkloadId,
 			Title:        "更新 ConfigMap",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 更新 ConfigMap %s 失败, 错误原因: %v", username, workloadInfo.Data.Namespace, req.Name, updateErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 更新 ConfigMap %s 失败, 错误原因: %v, 变更内容: %s", username, workloadInfo.Data.Namespace, req.Name, updateErr, changeDetailStr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("更新 ConfigMap 失败")
@@ -100,7 +132,7 @@ func (l *ConfigMapUpdateLogic) ConfigMapUpdate(req *types.ConfigMapRequest) (res
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		WorkspaceId:  req.WorkloadId,
 		Title:        "更新 ConfigMap",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功更新 ConfigMap %s, 更新后包含 %d 个数据项", username, workloadInfo.Data.Namespace, req.Name, len(req.Data)),
+		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功更新 ConfigMap %s, %s", username, workloadInfo.Data.Namespace, req.Name, changeDetailStr),
 		Status:       1,
 	})
 	if auditErr != nil {

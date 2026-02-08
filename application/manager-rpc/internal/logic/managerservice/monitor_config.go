@@ -66,7 +66,7 @@ stringData:
 
       routes:
         - matchers:
-            - alertname = Watchdog
+            - alertname = Watch
           receiver: 'webhook'
           group_wait: 0s
           group_interval: 1m
@@ -249,7 +249,7 @@ route:
 
   routes:
     - matchers:
-        - alertname = Watchdog
+        - alertname = Watch
       receiver: 'webhook'
       group_wait: 0s
       group_interval: 1m

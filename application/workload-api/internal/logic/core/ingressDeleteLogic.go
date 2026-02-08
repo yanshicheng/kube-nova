@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
@@ -45,8 +46,28 @@ func (l *IngressDeleteLogic) IngressDelete(req *types.DefaultNameRequest) (resp 
 		return "", fmt.Errorf("获取集群客户端失败")
 	}
 
-	// 初始化 Ingress 客户端并删除
+	// 初始化 Ingress 客户端
 	ingressClient := client.Ingresses()
+
+	// 获取 Ingress 详情用于审计
+	existingIngress, _ := ingressClient.Get(workloadInfo.Data.Namespace, req.Name)
+	var hostsInfo string
+	var tlsEnabled bool
+	if existingIngress != nil {
+		var hosts []string
+		for _, rule := range existingIngress.Spec.Rules {
+			if rule.Host != "" {
+				hosts = append(hosts, rule.Host)
+			}
+		}
+		hostsInfo = strings.Join(hosts, ", ")
+		if hostsInfo == "" {
+			hostsInfo = "无"
+		}
+		tlsEnabled = len(existingIngress.Spec.TLS) > 0
+	}
+
+	// 删除 Ingress
 	deleteErr := ingressClient.Delete(workloadInfo.Data.Namespace, req.Name)
 	if deleteErr != nil {
 		l.Errorf("删除 Ingress 失败: %v", deleteErr)
@@ -54,17 +75,23 @@ func (l *IngressDeleteLogic) IngressDelete(req *types.DefaultNameRequest) (resp 
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			WorkspaceId:  req.WorkloadId,
 			Title:        "删除 Ingress",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 删除 Ingress %s 失败, 错误原因: %v", username, workloadInfo.Data.Namespace, req.Name, deleteErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 删除 Ingress %s 失败, 主机: %s, 错误原因: %v", username, workloadInfo.Data.Namespace, req.Name, hostsInfo, deleteErr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("删除 Ingress 失败: %v", deleteErr)
 	}
 
 	// 记录成功的审计日志
+	tlsStatus := "未启用"
+	if tlsEnabled {
+		tlsStatus = "已启用"
+	}
+	auditDetail := fmt.Sprintf("用户 %s 在命名空间 %s 成功删除 Ingress %s, 主机: %s, TLS: %s", username, workloadInfo.Data.Namespace, req.Name, hostsInfo, tlsStatus)
+
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		WorkspaceId:  req.WorkloadId,
 		Title:        "删除 Ingress",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功删除 Ingress %s", username, workloadInfo.Data.Namespace, req.Name),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	if auditErr != nil {

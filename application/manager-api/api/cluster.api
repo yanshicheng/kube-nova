@@ -216,7 +216,7 @@ type (
         // 修改集群头像
     ClusterUpdateAvatarRequest {
         Id uint64 `path:"id" validate:"required,gt=0"` // 集群ID
-        Avatar string `form:"avatar, optional" validate:"omitempty"`
+        Avatar string `json:"avatar,optional" validate:"omitempty"`
     }
         // 修改集群认证信息
     UpdateClusterAuthInfoRequest {

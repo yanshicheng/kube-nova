@@ -35,6 +35,7 @@ func (l *UpdateSysMenuLogic) UpdateSysMenu(req *types.UpdateSysMenuRequest) (res
 	_, err = l.svcCtx.PortalRpc.MenuUpdate(l.ctx, &pb.UpdateSysMenuReq{
 		Id:            req.Id,
 		ParentId:      req.ParentId,
+		PlatformId:    req.PlatformId,
 		MenuType:      req.MenuType,
 		Name:          req.Name,
 		Path:          req.Path,

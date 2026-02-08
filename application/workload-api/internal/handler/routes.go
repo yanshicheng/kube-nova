@@ -12,7 +12,9 @@ import (
 	cluster "github.com/yanshicheng/kube-nova/application/workload-api/internal/handler/cluster"
 	core "github.com/yanshicheng/kube-nova/application/workload-api/internal/handler/core"
 	monitoring "github.com/yanshicheng/kube-nova/application/workload-api/internal/handler/monitoring"
+	networkpolicy "github.com/yanshicheng/kube-nova/application/workload-api/internal/handler/networkpolicy"
 	node "github.com/yanshicheng/kube-nova/application/workload-api/internal/handler/node"
+	selector "github.com/yanshicheng/kube-nova/application/workload-api/internal/handler/selector"
 	workload "github.com/yanshicheng/kube-nova/application/workload-api/internal/handler/workload"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
 
@@ -1083,6 +1085,57 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
 			[]rest.Route{
 				{
+					// 获取 NetworkPolicy 列表
+					Method:  http.MethodGet,
+					Path:    "/",
+					Handler: networkpolicy.NetworkPolicyListHandler(serverCtx),
+				},
+				{
+					// 创建 NetworkPolicy
+					Method:  http.MethodPost,
+					Path:    "/",
+					Handler: networkpolicy.NetworkPolicyCreateHandler(serverCtx),
+				},
+				{
+					// 更新 NetworkPolicy
+					Method:  http.MethodPut,
+					Path:    "/",
+					Handler: networkpolicy.NetworkPolicyUpdateHandler(serverCtx),
+				},
+				{
+					// 删除 NetworkPolicy
+					Method:  http.MethodDelete,
+					Path:    "/",
+					Handler: networkpolicy.NetworkPolicyDeleteHandler(serverCtx),
+				},
+				{
+					// 获取受 NetworkPolicy 影响的 Pod
+					Method:  http.MethodGet,
+					Path:    "/affected-pods",
+					Handler: networkpolicy.NetworkPolicyGetAffectedPodsHandler(serverCtx),
+				},
+				{
+					// 获取 NetworkPolicy 详情
+					Method:  http.MethodGet,
+					Path:    "/detail",
+					Handler: networkpolicy.NetworkPolicyDetailHandler(serverCtx),
+				},
+				{
+					// 获取 NetworkPolicy YAML
+					Method:  http.MethodGet,
+					Path:    "/yaml",
+					Handler: networkpolicy.NetworkPolicyGetYamlHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/workload/v1/networkpolicy"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
+			[]rest.Route{
+				{
 					Method:  http.MethodGet,
 					Path:    "/",
 					Handler: node.GetNodeListHandler(serverCtx),
@@ -1162,10 +1215,49 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
 			[]rest.Route{
 				{
+					// 获取 Namespace 标签
+					Method:  http.MethodGet,
+					Path:    "/namespace-labels",
+					Handler: selector.GetNamespaceLabelsHandler(serverCtx),
+				},
+				{
+					// 获取工作负载 Pod 选择器
+					Method:  http.MethodGet,
+					Path:    "/pod-selector",
+					Handler: selector.GetWorkloadPodSelectorHandler(serverCtx),
+				},
+				{
+					// 获取工作负载资源列表
+					Method:  http.MethodGet,
+					Path:    "/workload-list",
+					Handler: selector.GetWorkloadResourceListHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/workload/v1/selector"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
+			[]rest.Route{
+				{
 					// 获取应用摘要
 					Method:  http.MethodGet,
 					Path:    "/:applicationId/summary",
 					Handler: workload.GetApplicationSummaryHandler(serverCtx),
+				},
+				{
+					// 查询高级容器配置
+					Method:  http.MethodGet,
+					Path:    "/:id/advanced-config",
+					Handler: workload.GetAdvancedConfigHandler(serverCtx),
+				},
+				{
+					// 修改高级容器配置
+					Method:  http.MethodPut,
+					Path:    "/:id/advanced-config",
+					Handler: workload.UpdateAdvancedConfigHandler(serverCtx),
 				},
 				{
 					// 获取配置历史（StatefulSet/DaemonSet）

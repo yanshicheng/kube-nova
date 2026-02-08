@@ -48,44 +48,39 @@ func (l *ClusterRoleBindingCreateLogic) ClusterRoleBindingCreate(req *types.Clus
 		l.Errorf("解析 YAML 失败: %v", err)
 		return "", fmt.Errorf("解析 YAML 失败: %v", err)
 	}
-	// 获取项目详情
-	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
-		ClusterUuid: req.ClusterUuid,
-		Namespace:   crb.Namespace,
+
+	// 注入注解
+	utils.AddAnnotations(&crb.ObjectMeta, &utils.AnnotationsInfo{
+		ServiceName: crb.Name,
 	})
-	if err != nil {
-		l.Errorf("获取项目详情失败: %v", err)
-		return "", fmt.Errorf("获取项目详情失败")
-	} else {
-		// 注入注解
-		utils.AddAnnotations(&crb.ObjectMeta, &utils.AnnotationsInfo{
-			ServiceName:   crb.Name,
-			ProjectName:   projectDetail.ProjectNameCn,
-			WorkspaceName: projectDetail.WorkspaceNameCn,
-			ProjectUuid:   projectDetail.ProjectUuid,
-		})
-	}
+
+	// 格式化主体列表用于审计
+	subjectsList := FormatSubjectsList(crb.Subjects)
 
 	_, err = crbOp.Create(&crb)
-
 	if err != nil {
 		l.Errorf("创建 ClusterRoleBinding 失败: %v", err)
 		// 记录失败审计日志
 		l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "创建 ClusterRoleBinding",
-			ActionDetail: fmt.Sprintf("创建 ClusterRoleBinding %s 失败，绑定角色: %s/%s，错误: %v", crb.Name, crb.RoleRef.Kind, crb.RoleRef.Name, err),
+			ActionDetail: fmt.Sprintf("用户 %s 创建 ClusterRoleBinding %s 失败, 绑定角色: %s/%s, 错误: %v", username, crb.Name, crb.RoleRef.Kind, crb.RoleRef.Name, err),
 			Status:       0,
 		})
 		return "", fmt.Errorf("创建 ClusterRoleBinding 失败")
 	}
 
 	l.Infof("用户: %s, 成功创建 ClusterRoleBinding: %s", username, crb.Name)
+
+	// 构建详细审计信息
+	auditDetail := fmt.Sprintf("用户 %s 成功创建 ClusterRoleBinding %s, 绑定角色: %s/%s, 主体数量: %d, 主体详情: %s",
+		username, crb.Name, crb.RoleRef.Kind, crb.RoleRef.Name, len(crb.Subjects), subjectsList)
+
 	// 记录成功审计日志
 	l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "创建 ClusterRoleBinding",
-		ActionDetail: fmt.Sprintf("创建 ClusterRoleBinding %s 成功，绑定角色: %s/%s，主体数量: %d", crb.Name, crb.RoleRef.Kind, crb.RoleRef.Name, len(crb.Subjects)),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	return "创建 ClusterRoleBinding 成功", nil

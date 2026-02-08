@@ -48,23 +48,38 @@ func (l *ClusterRoleBindingUpdateLogic) ClusterRoleBindingUpdate(req *types.Clus
 		l.Errorf("解析 YAML 失败: %v", err)
 		return "", fmt.Errorf("解析 YAML 失败: %v", err)
 	}
-	// 获取项目详情
-	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
-		ClusterUuid: req.ClusterUuid,
-		Namespace:   crb.Namespace,
-	})
+
+	// 获取旧的 ClusterRoleBinding 用于对比
+	oldCRB, err := crbOp.Get(crb.Name)
 	if err != nil {
-		l.Errorf("获取项目详情失败: %v", err)
-		return "", fmt.Errorf("获取项目详情失败")
-	} else {
-		// 注入注解
-		utils.AddAnnotations(&crb.ObjectMeta, &utils.AnnotationsInfo{
-			ServiceName:   crb.Name,
-			ProjectName:   projectDetail.ProjectNameCn,
-			WorkspaceName: projectDetail.WorkspaceNameCn,
-			ProjectUuid:   projectDetail.ProjectUuid,
-		})
+		l.Errorf("获取原 ClusterRoleBinding 失败: %v", err)
+		return "", fmt.Errorf("获取原 ClusterRoleBinding 失败")
 	}
+
+	// 注入注解
+	utils.AddAnnotations(&crb.ObjectMeta, &utils.AnnotationsInfo{
+		ServiceName: crb.Name,
+	})
+
+	// 对比主体变更
+	subjectDiff := CompareSubjects(oldCRB.Subjects, crb.Subjects)
+	subjectDiffDetail := BuildSubjectDiffDetail(subjectDiff)
+
+	// 对比标签变更
+	labelDiff := CompareStringMaps(oldCRB.Labels, crb.Labels)
+	labelDiffDetail := ""
+	if HasMapChanges(labelDiff) {
+		labelDiffDetail = "标签变更: " + BuildMapDiffDetail(labelDiff, true)
+	}
+
+	// 检查 RoleRef 是否变更（注意：K8s 不允许修改 RoleRef，但记录尝试）
+	roleRefChanged := oldCRB.RoleRef.Name != crb.RoleRef.Name || oldCRB.RoleRef.Kind != crb.RoleRef.Kind
+	var roleRefInfo string
+	if roleRefChanged {
+		roleRefInfo = fmt.Sprintf("角色引用变更: %s/%s → %s/%s (注意: K8s 不支持修改 RoleRef)",
+			oldCRB.RoleRef.Kind, oldCRB.RoleRef.Name, crb.RoleRef.Kind, crb.RoleRef.Name)
+	}
+
 	_, err = crbOp.Update(&crb)
 	if err != nil {
 		l.Errorf("更新 ClusterRoleBinding 失败: %v", err)
@@ -79,11 +94,30 @@ func (l *ClusterRoleBindingUpdateLogic) ClusterRoleBindingUpdate(req *types.Clus
 	}
 
 	l.Infof("用户: %s, 成功更新 ClusterRoleBinding: %s", username, crb.Name)
+
+	// 构建详细审计信息
+	var changeParts []string
+	changeParts = append(changeParts, fmt.Sprintf("用户 %s 成功更新 ClusterRoleBinding %s", username, crb.Name))
+	changeParts = append(changeParts, fmt.Sprintf("绑定角色: %s/%s", crb.RoleRef.Kind, crb.RoleRef.Name))
+	changeParts = append(changeParts, fmt.Sprintf("主体数量: %d → %d", len(oldCRB.Subjects), len(crb.Subjects)))
+
+	if HasSubjectChanges(subjectDiff) {
+		changeParts = append(changeParts, subjectDiffDetail)
+	}
+	if labelDiffDetail != "" {
+		changeParts = append(changeParts, labelDiffDetail)
+	}
+	if roleRefInfo != "" {
+		changeParts = append(changeParts, roleRefInfo)
+	}
+
+	auditDetail := joinNonEmpty(", ", changeParts...)
+
 	// 记录成功审计日志
 	l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "更新 ClusterRoleBinding",
-		ActionDetail: fmt.Sprintf("用户 %s 更新 ClusterRoleBinding %s 成功, 绑定角色: %s/%s, 主体数量: %d", username, crb.Name, crb.RoleRef.Kind, crb.RoleRef.Name, len(crb.Subjects)),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	return "更新 ClusterRoleBinding 成功", nil

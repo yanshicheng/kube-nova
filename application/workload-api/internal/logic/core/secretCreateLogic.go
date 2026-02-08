@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
@@ -81,7 +83,20 @@ func (l *SecretCreateLogic) SecretCreate(req *types.SecretRequest) (resp string,
 			WorkspaceName: projectDetail.WorkspaceNameCn,
 			ProjectUuid:   projectDetail.ProjectUuid,
 		})
-	} // 创建 Secret
+	}
+
+	// 构建创建详情
+	dataKeys := make([]string, 0, len(secret.Data))
+	for k := range secret.Data {
+		dataKeys = append(dataKeys, k)
+	}
+	sort.Strings(dataKeys)
+	dataKeysStr := strings.Join(dataKeys, ", ")
+	if dataKeysStr == "" {
+		dataKeysStr = "无"
+	}
+
+	// 创建 Secret
 	_, createErr := secretClient.Create(&secret)
 	if createErr != nil {
 		l.Errorf("创建 Secret 失败: %v", createErr)
@@ -89,7 +104,7 @@ func (l *SecretCreateLogic) SecretCreate(req *types.SecretRequest) (resp string,
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			WorkspaceId:  req.WorkloadId,
 			Title:        "创建 Secret",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 创建 Secret %s 失败, 类型: %s, 包含 %d 个数据项, 错误原因: %v", username, secret.Namespace, secret.Name, secret.Type, len(secret.Data), createErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 创建 Secret %s 失败, 类型: %s, 包含 %d 个数据项 (keys: %s), 错误原因: %v", username, secret.Namespace, secret.Name, secret.Type, len(secret.Data), dataKeysStr, createErr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("创建 Secret 失败")
@@ -99,7 +114,7 @@ func (l *SecretCreateLogic) SecretCreate(req *types.SecretRequest) (resp string,
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		WorkspaceId:  req.WorkloadId,
 		Title:        "创建 Secret",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功创建 Secret %s, 类型: %s, 包含 %d 个数据项", username, secret.Namespace, secret.Name, secret.Type, len(secret.Data)),
+		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功创建 Secret %s, 类型: %s, 包含 %d 个数据项 (keys: %s)", username, secret.Namespace, secret.Name, secret.Type, len(secret.Data), dataKeysStr),
 		Status:       1,
 	})
 	if auditErr != nil {

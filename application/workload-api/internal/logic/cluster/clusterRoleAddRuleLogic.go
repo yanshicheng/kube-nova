@@ -41,6 +41,13 @@ func (l *ClusterRoleAddRuleLogic) ClusterRoleAddRule(req *types.AddClusterRoleRu
 
 	crOp := client.ClusterRoles()
 
+	// 获取当前规则数量用于审计
+	existingCR, _ := crOp.Get(req.Name)
+	var oldRuleCount int
+	if existingCR != nil {
+		oldRuleCount = len(existingCR.Rules)
+	}
+
 	rule := rbacv1.PolicyRule{
 		Verbs:           req.Rule.Verbs,
 		APIGroups:       req.Rule.APIGroups,
@@ -49,6 +56,9 @@ func (l *ClusterRoleAddRuleLogic) ClusterRoleAddRule(req *types.AddClusterRoleRu
 		NonResourceURLs: req.Rule.NonResourceURLs,
 	}
 
+	// 格式化新规则用于审计
+	ruleDetail := FormatPolicyRule(rule)
+
 	err = crOp.AddRule(req.Name, rule)
 	if err != nil {
 		l.Errorf("添加 ClusterRole 规则失败: %v", err)
@@ -56,18 +66,23 @@ func (l *ClusterRoleAddRuleLogic) ClusterRoleAddRule(req *types.AddClusterRoleRu
 		l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "ClusterRole 添加规则",
-			ActionDetail: fmt.Sprintf("为 ClusterRole %s 添加规则失败，错误: %v", req.Name, err),
+			ActionDetail: fmt.Sprintf("用户 %s 为 ClusterRole %s 添加规则失败, 规则: %s, 错误: %v", username, req.Name, ruleDetail, err),
 			Status:       0,
 		})
 		return "", fmt.Errorf("添加 ClusterRole 规则失败")
 	}
 
-	l.Infof("用户: %s, 新增 ClusterRole %s 添加规则", username, req.Name)
+	l.Infof("用户: %s, 成功为 ClusterRole %s 添加规则", username, req.Name)
+
+	// 构建详细审计信息
+	auditDetail := fmt.Sprintf("用户 %s 成功为 ClusterRole %s 添加规则, 规则数量: %d → %d, 新增规则: %s",
+		username, req.Name, oldRuleCount, oldRuleCount+1, ruleDetail)
+
 	// 记录成功审计日志
 	l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "ClusterRole 添加规则",
-		ActionDetail: fmt.Sprintf("为 ClusterRole %s 添加规则成功，资源: %v，动作: %v", req.Name, req.Rule.Resources, req.Rule.Verbs),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	return "添加 ClusterRole 规则成功", nil

@@ -16,7 +16,7 @@ import (
 // 修改资源配额
 func UpdateResourceQuotaHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.UpdateResourcesRequest
+		var req types.CommUpdateResourcesRequest
 		if err := httpx.Parse(r, &req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return

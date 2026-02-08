@@ -43,20 +43,7 @@ func (l *GetTokenLogic) GetToken(in *pb.GetTokenRequest) (*pb.GetTokenResponse, 
 		l.recordLoginLog(0, in.Username, 0)
 		return nil, code.FindAccountErr
 	}
-	// 验证是否需要重置密码
-	if user.IsNeedResetPwd == 1 {
-		l.Infof("账号需要重置密码, 账号: %s", in.Username)
-		// 记录登录失败日志
-		l.recordLoginLog(user.Id, user.Username, 0)
-		return nil, code.ResetPasswordTip
-	}
-	// 检查账号是否被冻结
-	if user.Status == 0 {
-		l.Infof("账号已被冻结, 账号: %s", in.Username)
-		// 记录登录失败日志
-		l.recordLoginLog(user.Id, user.Username, 0)
-		return nil, code.FrozenAccountsErr
-	}
+
 	// 处理密码验证逻辑
 	if err := l.verifyPassword(in.Password, user.Password); err != nil {
 		// 如果密码验证失败，记录登录失败次数
@@ -67,6 +54,22 @@ func (l *GetTokenLogic) GetToken(in *pb.GetTokenRequest) (*pb.GetTokenResponse, 
 		// 记录登录失败日志
 		l.recordLoginLog(user.Id, user.Username, 0)
 		return nil, code.LoginErr
+	}
+
+	// 验证是否需要重置密码
+	if user.IsNeedResetPwd == 1 {
+		l.Infof("账号需要重置密码, 账号: %s", in.Username)
+		// 记录登录失败日志
+		l.recordLoginLog(user.Id, user.Username, 0)
+		return nil, code.ResetPasswordTip
+	}
+
+	// 检查账号是否被冻结
+	if user.Status == 0 {
+		l.Infof("账号已被冻结, 账号: %s", in.Username)
+		// 记录登录失败日志
+		l.recordLoginLog(user.Id, user.Username, 0)
+		return nil, code.FrozenAccountsErr
 	}
 
 	// 查询所有角色信息

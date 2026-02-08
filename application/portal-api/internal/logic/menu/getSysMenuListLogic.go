@@ -2,6 +2,7 @@ package menu
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/yanshicheng/kube-nova/application/portal-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/portal-api/internal/types"
@@ -26,12 +27,19 @@ func NewGetSysMenuListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ge
 
 func (l *GetSysMenuListLogic) GetSysMenuList(req *types.GetSysMenuListRequest) (resp *types.GetSysMenuListResponse, err error) {
 
+	// 验证 platformId 参数
+	if req.PlatformId == 0 {
+		l.Errorf("平台ID不能为空")
+		return nil, fmt.Errorf("平台ID不能为空")
+	}
+
 	// 调用 RPC 服务获取菜单列表
 	res, err := l.svcCtx.PortalRpc.MenuGetList(l.ctx, &pb.GetSysMenuListReq{
 		Page:       req.Page,
 		PageSize:   req.PageSize,
 		OrderField: req.OrderStr,
 		IsAsc:      req.IsAsc,
+		PlatformId: req.PlatformId,
 		ParentId:   req.ParentId,
 		MenuType:   req.MenuType,
 		Name:       req.Name,
@@ -41,7 +49,7 @@ func (l *GetSysMenuListLogic) GetSysMenuList(req *types.GetSysMenuListRequest) (
 		IsMenu:     req.IsMenu,
 	})
 	if err != nil {
-		l.Errorf("获取菜单列表失败: error=%v", err)
+		l.Errorf("获取菜单列表失败: platformId=%d, error=%v", req.PlatformId, err)
 		return nil, err
 	}
 
@@ -51,6 +59,7 @@ func (l *GetSysMenuListLogic) GetSysMenuList(req *types.GetSysMenuListRequest) (
 		menus = append(menus, types.SysMenu{
 			Id:            menu.Id,
 			ParentId:      menu.ParentId,
+			PlatformId:    menu.PlatformId,
 			MenuType:      menu.MenuType,
 			Name:          menu.Name,
 			Path:          menu.Path,

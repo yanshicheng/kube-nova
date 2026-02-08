@@ -82,12 +82,14 @@ func (l *AddApplicationResourceLogic) AddApplicationResource(req *types.AddAppli
 
 	// 注入注解，包括资源级别和 Pod 模板级别
 	injectAnnotations(k8sObj, req.ResourceType, &utils.AnnotationsInfo{
-		ServiceName:   req.ResourceName,
-		ProjectName:   req.NameCn,
-		Version:       req.Version,
-		Description:   req.Description,
-		ProjectUuid:   project.Data.Uuid,
-		WorkspaceName: workspace.Data.Name,
+		ServiceName:     req.ResourceName,
+		ApplicationName: req.NameCn,
+		ApplicationEn:   req.NameEn,
+		ProjectName:     project.Data.Name,
+		ProjectUuid:     project.Data.Uuid,
+		Version:         req.Version,
+		Description:     req.Description,
+		WorkspaceName:   workspace.Data.Name,
 	})
 
 	// 验证 resourceType

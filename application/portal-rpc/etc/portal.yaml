@@ -64,3 +64,24 @@ AuthConfig:
   RefreshSecret: zk5Lp8m+0g7lvvLcnbUHPzQFEsRAmvNIn9tXdx0o80U=
   RefreshExpire: 604800
   RefreshAfter: 604800
+
+# 告警聚合器配置
+Aggregator:
+  Enabled: true                    # 启用告警聚合器
+  MaxBufferSize: 1000             # 最大缓冲区大小
+  GlobalBufferWindow: 30s         # 全局缓冲窗口，用于跨调用聚合（30秒）
+  SeverityWindows:                # 不同级别的聚合时间窗口
+    Critical: 0s                  # Critical 级别立即发送
+    Warning: 1m                   # Warning 级别聚合1分钟
+    Info: 1m                      # Info 级别聚合1分钟
+    Default: 1m                   # 默认级别聚合1分钟
+
+# Leader Election 配置（用于告警聚合器）
+# 支持三级降级策略：InCluster -> Kubeconfig -> Redis
+LeaderElection:
+  Enabled: true                              # 是否启用 Leader Election
+  LeaseName: portal-rpc-aggregator-leader    # Lease 资源名称
+  LeaseNamespace: kube-nova                  # Lease 资源所在命名空间
+  LeaseDuration: 15s                         # 租约有效期
+  RenewDeadline: 10s                         # 续约超时
+  RetryPeriod: 2s                            # 重试间隔

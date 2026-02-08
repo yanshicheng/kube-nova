@@ -27,34 +27,34 @@ type (
 
         // 添加API请求
     AddSysAPIRequest {
-        ParentId uint64 `json:"parentId,optional" default:"0" validate:"gte=0"`                           // 父级API ID，0为顶级
-        Name string `json:"name" validate:"omitempty,min=2,max=100"`                                       // API名称，必填
-        Path string `json:"path" validate:"omitempty,max=255"`                                             // API路径，必填
+        ParentId uint64 `json:"parentId,optional" default:"0" validate:"gte=0"`                              // 父级API ID，0为顶级
+        Name string `json:"name" validate:"omitempty,min=2,max=100"`                                         // API名称，必填
+        Path string `json:"path" validate:"omitempty,max=255"`                                               // API路径，必填
         Method string `json:"method" validate:"omitempty,oneof=GET POST PUT DELETE PATCH OPTIONS HEAD *"`    // HTTP方法，必填
-        IsPermission int64 `json:"isPermission" validate:"omitempty`                            // 是否为权限，必填
+        IsPermission int64 `json:"isPermission" validate:"omitempty`                                         // 是否为权限，必填
     }
 
         // 更新API请求
     UpdateSysAPIRequest {
-        Id uint64 `path:"id" validate:"required,gt=0"`                                                    // API ID，必填
-        ParentId uint64 `json:"parentId,optional" default:"0" validate:"gte=0"`                           // 父级API ID
-        Name string `json:"name" validate:"required,min=2,max=100"`                                       // API名称，必填
-        Path string `json:"path" validate:"omitempty,max=255"`                                             // API路径，必填
+        Id uint64 `path:"id" validate:"required,gt=0"`                                                       // API ID，必填
+        ParentId uint64 `json:"parentId,optional" default:"0" validate:"gte=0"`                              // 父级API ID
+        Name string `json:"name" validate:"required,min=2,max=100"`                                          // API名称，必填
+        Path string `json:"path" validate:"omitempty,max=255"`                                               // API路径，必填
         Method string `json:"method" validate:"omitempty,oneof=GET POST PUT DELETE PATCH OPTIONS HEAD *"`    // HTTP方法，必填
-        IsPermission int64 `json:"isPermission" validate:"omitempty`                            // 是否为权限，必填
+        IsPermission int64 `json:"isPermission" validate:"omitempty`                                         // 是否为权限，必填
     }
 
         // 搜索API请求
     SearchSysAPIRequest {
-        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                          // 当前页码
-        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"`         // 每页条数
-        OrderStr string `form:"orderStr,optional" default:"id" validate:"omitempty"`                      // 排序字段
-        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                           // 是否升序
-        ParentId uint64 `form:"parentId,optional" validate:"omitempty"`                                   // 父级API ID
-        Name string `form:"name,optional" validate:"omitempty,max=100"`                                   // API名称
-        Path string `form:"path,optional" validate:"omitempty,max=255"`                                   // API路径
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`                                   // 当前页码
+        PageSize uint64 `form:"pageSize,optional" default:"10" validate:"required,min=1,max=200"`                  // 每页条数
+        OrderStr string `form:"orderStr,optional" default:"id" validate:"omitempty"`                               // 排序字段
+        IsAsc bool `form:"isAsc,optional" default:"false" validate:"omitempty"`                                    // 是否升序
+        ParentId uint64 `form:"parentId,optional" validate:"omitempty"`                                            // 父级API ID
+        Name string `form:"name,optional" validate:"omitempty,max=100"`                                            // API名称
+        Path string `form:"path,optional" validate:"omitempty,max=255"`                                            // API路径
         Method string `form:"method,optional" validate:"omitempty,oneof=GET POST PUT DELETE PATCH OPTIONS HEAD *"` // HTTP方法
-        IsPermission int64 `form:"isPermission,optional" validate:"omitempty`                  // 是否为权限
+        IsPermission int64 `form:"isPermission,optional" validate:"omitempty`                                      // 是否为权限
     }
 
         // 搜索API响应
@@ -83,6 +83,7 @@ type (
         Id uint64 `json:"id"`                            // 主键ID
         Name string `json:"name"`                        // API名称
         IsPermission int64 `json:"isPermission"`         // 是否为权限
+        Method string `json:"method"`                    // HTTP方法
         Children []SysAPITreeNode `json:"children"`      // 子节点
     }
 
@@ -91,7 +92,7 @@ type (
         // 可以添加过滤条件，暂时无参数
     }
 
-        // 获取API权限树响应
+    // 获取API权限树响应
 
 )
 
@@ -123,7 +124,7 @@ service portal-api {
 
     // 获取分组树
     @handler GetGroupsTreeHandler
-    get /groups/tree (GetGroupsTreeRequest) returns ( []GroupTreeNode)
+    get /groups/tree (GetGroupsTreeRequest) returns ([]GroupTreeNode)
     @handler GetSysAPITreeHandler
-    get /tree (GetSysAPITreeRequest) returns ([]SysAPITreeNode )
+    get /tree (GetSysAPITreeRequest) returns ([]SysAPITreeNode)
 }

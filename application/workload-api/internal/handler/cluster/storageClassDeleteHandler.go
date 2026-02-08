@@ -1,8 +1,9 @@
+// Code scaffolded by goctl. Safe to edit.
+// goctl 1.9.2
+
 package cluster
 
 import (
-	"net/http"
-
 	"github.com/go-playground/validator/v10"
 	"github.com/mcuadros/go-defaults"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/logic/cluster"
@@ -11,12 +12,13 @@ import (
 	"github.com/yanshicheng/kube-nova/common/handler/errorx"
 	"github.com/yanshicheng/kube-nova/common/verify"
 	"github.com/zeromicro/go-zero/rest/httpx"
+	"net/http"
 )
 
 // 删除 StorageClass
 func StorageClassDeleteHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.ClusterResourceNameRequest
+		var req types.ClusterResourceDeleteRequest
 		if err := httpx.Parse(r, &req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return

@@ -41,12 +41,24 @@ func (l *ClusterRoleBindingAddSubjectLogic) ClusterRoleBindingAddSubject(req *ty
 
 	crbOp := client.ClusterRoleBindings()
 
+	// 获取当前主体数量用于审计
+	existingCRB, _ := crbOp.Get(req.Name)
+	var oldSubjectCount int
+	var roleRef string
+	if existingCRB != nil {
+		oldSubjectCount = len(existingCRB.Subjects)
+		roleRef = fmt.Sprintf("%s/%s", existingCRB.RoleRef.Kind, existingCRB.RoleRef.Name)
+	}
+
 	subject := rbacv1.Subject{
 		Kind:      req.Subject.Kind,
 		Name:      req.Subject.Name,
 		Namespace: req.Subject.Namespace,
 		APIGroup:  req.Subject.APIGroup,
 	}
+
+	// 格式化新主体用于审计
+	subjectDetail := FormatSubject(subject)
 
 	err = crbOp.AddSubject(req.Name, subject)
 	if err != nil {
@@ -55,18 +67,23 @@ func (l *ClusterRoleBindingAddSubjectLogic) ClusterRoleBindingAddSubject(req *ty
 		l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "ClusterRoleBinding 添加主体",
-			ActionDetail: fmt.Sprintf(" ClusterRoleBinding %s 添加主体 %s/%s 失败，错误: %v", req.Name, req.Subject.Kind, req.Subject.Name, err),
+			ActionDetail: fmt.Sprintf("用户 %s 为 ClusterRoleBinding %s 添加主体 %s 失败, 错误: %v", username, req.Name, subjectDetail, err),
 			Status:       0,
 		})
 		return "", fmt.Errorf("添加主体失败")
 	}
 
 	l.Infof("用户: %s, 成功为 ClusterRoleBinding %s 添加主体 %s/%s", username, req.Name, req.Subject.Kind, req.Subject.Name)
+
+	// 构建详细审计信息
+	auditDetail := fmt.Sprintf("用户 %s 成功为 ClusterRoleBinding %s 添加主体, 绑定角色: %s, 主体数量: %d → %d, 新增主体: %s",
+		username, req.Name, roleRef, oldSubjectCount, oldSubjectCount+1, subjectDetail)
+
 	// 记录成功审计日志
 	l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,
 		Title:        "ClusterRoleBinding 添加主体",
-		ActionDetail: fmt.Sprintf("ClusterRoleBinding %s 添加主体 %s/%s 成功", req.Name, req.Subject.Kind, req.Subject.Name),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	return "添加主体成功", nil

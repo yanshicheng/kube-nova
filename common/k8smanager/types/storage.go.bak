@@ -4,15 +4,15 @@ package types
 
 // StorageConfig 存储配置
 type StorageConfig struct {
-	Volumes              []VolumeConfig                `json:"volumes,omitempty"`              // 卷列表
-	VolumeMounts         []VolumeMountConfig           `json:"volumeMounts,omitempty"`         // 卷挂载列表（按容器）
-	VolumeClaimTemplates []PersistentVolumeClaimConfig `json:"volumeClaimTemplates,omitempty"` // PVC 模板（StatefulSet）
+	Volumes              []VolumeConfig                `json:"volumes"`              // 卷列表（Pod 级别）
+	VolumeMounts         []VolumeMountConfig           `json:"volumeMounts"`         // 卷挂载列表（按容器，包含所有容器）
+	VolumeClaimTemplates []PersistentVolumeClaimConfig `json:"volumeClaimTemplates"` // PVC 模板（StatefulSet 专用）
 }
 
 // VolumeConfig 卷配置
 type VolumeConfig struct {
 	Name                  string                   `json:"name"`
-	Type                  string                   `json:"type"` // emptyDir, hostPath, configMap, secret, persistentVolumeClaim, nfs, etc.
+	Type                  string                   `json:"type"` // emptyDir, hostPath, configMap, secret, persistentVolumeClaim, nfs, downwardAPI, projected, csi
 	EmptyDir              *EmptyDirVolumeConfig    `json:"emptyDir,omitempty"`
 	HostPath              *HostPathVolumeConfig    `json:"hostPath,omitempty"`
 	ConfigMap             *ConfigMapVolumeConfig   `json:"configMap,omitempty"`
@@ -140,10 +140,11 @@ type SecretReference struct {
 	Name string `json:"name"`
 }
 
-// VolumeMountConfig 卷挂载配置
+// VolumeMountConfig 容器卷挂载配置
 type VolumeMountConfig struct {
 	ContainerName string        `json:"containerName"` // 容器名称
-	Mounts        []VolumeMount `json:"mounts"`        // 挂载列表
+	ContainerType ContainerType `json:"containerType"` // 容器类型：init/main/ephemeral
+	Mounts        []VolumeMount `json:"mounts"`        // 挂载列表，空数组表示无挂载
 }
 
 // VolumeMount 卷挂载
@@ -177,9 +178,11 @@ type StorageResourceList struct {
 	Storage string `json:"storage"` // 如: "10Gi"
 }
 
-// UpdateStorageConfigRequest 更新存储配置请求
+// UpdateStorageConfigRequest 更新存储配置请求（全量更新）
 type UpdateStorageConfigRequest struct {
-	Volumes              []VolumeConfig                `json:"volumes,omitempty"`
-	VolumeMounts         []VolumeMountConfig           `json:"volumeMounts,omitempty"`
+	Name                 string                        `json:"name"`                           // 资源名称
+	Namespace            string                        `json:"namespace"`                      // 命名空间
+	Volumes              []VolumeConfig                `json:"volumes"`                        // 全量替换 Pod 卷
+	VolumeMounts         []VolumeMountConfig           `json:"volumeMounts"`                   // 全量替换所有容器的挂载
 	VolumeClaimTemplates []PersistentVolumeClaimConfig `json:"volumeClaimTemplates,omitempty"` // 仅 StatefulSet
 }

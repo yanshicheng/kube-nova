@@ -1,4 +1,3 @@
-// applicationServiceUpdateLogic.go
 package core
 
 import (
@@ -10,6 +9,7 @@ import (
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/types"
 	"github.com/yanshicheng/kube-nova/common/utils"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -30,6 +30,11 @@ func NewApplicationServiceUpdateLogic(ctx context.Context, svcCtx *svc.ServiceCo
 }
 
 func (l *ApplicationServiceUpdateLogic) ApplicationServiceUpdate(req *types.ApplicationServiceRequest) (resp string, err error) {
+	username, ok := l.ctx.Value("username").(string)
+	if !ok {
+		username = "system"
+	}
+
 	// 参数校验
 	if req.IsAllSvc && req.IsAppSvc {
 		return "", fmt.Errorf("IsAllSvc 和 IsAppSvc 不能同时为 true")
@@ -90,6 +95,9 @@ func (l *ApplicationServiceUpdateLogic) ApplicationServiceUpdate(req *types.Appl
 		return "", fmt.Errorf("获取现有 Service 失败: %w，请确认 Service 是否存在", err)
 	}
 
+	// 提取现有 Service 的端口信息用于对比
+	oldPorts := l.extractServicePorts(existingService)
+
 	// 构建新的 Service 对象
 	createLogic := NewApplicationServiceLogic(l.ctx, l.svcCtx)
 	updatedService := createLogic.buildK8sService(req, workspace.Data.Namespace)
@@ -114,8 +122,40 @@ func (l *ApplicationServiceUpdateLogic) ApplicationServiceUpdate(req *types.Appl
 		return "", fmt.Errorf("获取应用失败: %w", err)
 	}
 
-	// 构建端口信息用于审计
-	portInfo := l.buildPortInfo(req.Ports)
+	// 对比变更
+	var changeDetails []string
+
+	// 类型变更
+	if string(existingService.Spec.Type) != req.Type {
+		changeDetails = append(changeDetails, fmt.Sprintf("类型: %s → %s", existingService.Spec.Type, req.Type))
+	}
+
+	// 端口变更
+	portDiff := CompareServicePorts(oldPorts, req.Ports)
+	portChangeDetail := BuildPortDiffDetail(portDiff)
+	if portChangeDetail != "端口无变更" && portChangeDetail != "" {
+		changeDetails = append(changeDetails, portChangeDetail)
+	}
+
+	// 选择器变更
+	selectorDiff := CompareStringMaps(existingService.Spec.Selector, req.Selector)
+	if HasMapChanges(selectorDiff) {
+		selectorChangeDetail := BuildMapDiffDetail(selectorDiff, true)
+		changeDetails = append(changeDetails, fmt.Sprintf("选择器变更: %s", selectorChangeDetail))
+	}
+
+	// Labels 变更
+	labelsDiff := CompareStringMaps(existingService.Labels, req.Labels)
+	if HasMapChanges(labelsDiff) {
+		labelsChangeDetail := BuildMapDiffDetail(labelsDiff, false)
+		changeDetails = append(changeDetails, fmt.Sprintf("Labels变更: %s", labelsChangeDetail))
+	}
+
+	changeDetailStr := "无变更"
+	if len(changeDetails) > 0 {
+		changeDetailStr = strings.Join(changeDetails, "; ")
+	}
+
 	// 获取项目详情
 	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
 		ClusterUuid: workspace.Data.ClusterUuid,
@@ -133,6 +173,7 @@ func (l *ApplicationServiceUpdateLogic) ApplicationServiceUpdate(req *types.Appl
 			ProjectUuid:   projectDetail.ProjectUuid,
 		})
 	}
+
 	// 更新 Service
 	result, updateErr := serviceOperator.Update(updatedService)
 	if updateErr != nil {
@@ -140,7 +181,7 @@ func (l *ApplicationServiceUpdateLogic) ApplicationServiceUpdate(req *types.Appl
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ApplicationId: req.ApplicationId,
 			Title:         "更新应用 Service",
-			ActionDetail:  fmt.Sprintf("应用 %s 更新 Service %s 失败, 级别: %s, 类型: %s, 端口: %s, 错误原因: %v", app.Data.NameCn, req.Name, serviceLevel, req.Type, portInfo, updateErr),
+			ActionDetail:  fmt.Sprintf("用户 %s 为应用 %s 更新 Service %s 失败, 级别: %s, 错误原因: %v, 变更内容: %s", username, app.Data.NameCn, req.Name, serviceLevel, updateErr, changeDetailStr),
 			Status:        0,
 		})
 		return "", fmt.Errorf("更新 Service 失败: %w", updateErr)
@@ -150,7 +191,7 @@ func (l *ApplicationServiceUpdateLogic) ApplicationServiceUpdate(req *types.Appl
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ApplicationId: req.ApplicationId,
 		Title:         "更新应用 Service",
-		ActionDetail:  fmt.Sprintf("应用 %s 成功更新 Service %s, 级别: %s, 类型: %s, 端口: %s", app.Data.NameCn, result.Name, serviceLevel, req.Type, portInfo),
+		ActionDetail:  fmt.Sprintf("用户 %s 为应用 %s 成功更新 Service %s, 级别: %s, %s", username, app.Data.NameCn, result.Name, serviceLevel, changeDetailStr),
 		Status:        1,
 	})
 	if auditErr != nil {
@@ -158,6 +199,21 @@ func (l *ApplicationServiceUpdateLogic) ApplicationServiceUpdate(req *types.Appl
 	}
 
 	return fmt.Sprintf("Service %s 更新成功", result.Name), nil
+}
+
+// extractServicePorts 从 k8s Service 提取端口信息
+func (l *ApplicationServiceUpdateLogic) extractServicePorts(svc *corev1.Service) []types.ServicePort {
+	var ports []types.ServicePort
+	for _, p := range svc.Spec.Ports {
+		ports = append(ports, types.ServicePort{
+			Name:       p.Name,
+			Protocol:   string(p.Protocol),
+			Port:       p.Port,
+			TargetPort: p.TargetPort.String(),
+			NodePort:   p.NodePort,
+		})
+	}
+	return ports
 }
 
 // buildPortInfo 构建端口信息字符串用于审计日志

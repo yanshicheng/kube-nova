@@ -86,13 +86,24 @@ func (l *PodLogsStreamLogic) PodLogsStream(req *types.PodLogsStreamReq) error {
 	}
 
 	var tailLinesPtr *int64
+	const maxTailLines int64 = 100000
 	if req.TailLines > 0 {
-		// 用户指定了行数
-		tailLinesPtr = &req.TailLines
-		l.Infof("[日志流] 设置尾部行数: %d", req.TailLines)
+		// 用户指定了行数，限制最大值
+		tailLines := req.TailLines
+		if tailLines > maxTailLines {
+			tailLines = maxTailLines
+			l.Infof("[日志流] TailLines 超过最大限制，已调整为 %d", maxTailLines)
+		}
+		tailLinesPtr = &tailLines
+		l.Infof("[日志流] 设置尾部行数: %d", tailLines)
+	} else if req.TailLines < 0 {
+		// 负数视为无效，使用默认值
+		defaultTailLines := int64(100)
+		tailLinesPtr = &defaultTailLines
+		l.Infof("[日志流] TailLines 为负数，使用默认值: %d", defaultTailLines)
 	} else {
-		// TailLines = 0 或未传递，获取全部日志
-		l.Info("[日志流] TailLines=0 或未设置，获取全部日志")
+		// TailLines = 0，获取全部日志
+		l.Info("[日志流] TailLines=0，获取全部日志")
 		tailLinesPtr = nil
 	}
 

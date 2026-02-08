@@ -2,6 +2,7 @@ package portalservicelogic
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/pb"
@@ -58,6 +59,9 @@ func (l *UserUpdateLogic) UserUpdate(in *pb.UpdateSysUserReq) (*pb.UpdateSysUser
 	existUser.Status = in.Status
 	existUser.IsNeedResetPwd = in.IsNeedResetPwd
 	existUser.UpdatedBy = in.UpdatedBy
+	existUser.DingtalkId = sql.NullString{String: in.DingtalkId, Valid: in.DingtalkId != ""}
+	existUser.WechatId = sql.NullString{String: in.WechatId, Valid: in.WechatId != ""}
+	existUser.FeishuId = sql.NullString{String: in.FeishuId, Valid: in.FeishuId != ""}
 
 	// 更新到数据库
 	err = l.svcCtx.SysUser.Update(l.ctx, existUser)

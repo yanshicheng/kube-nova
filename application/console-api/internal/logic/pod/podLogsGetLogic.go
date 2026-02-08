@@ -62,8 +62,14 @@ func (l *PodLogsGetLogic) PodLogsGet(req *types.PodLogsGetReq) (resp *types.PodL
 
 	// 5. 构建日志选项
 	tailLines := req.TailLines
-	if tailLines == 0 {
+	if tailLines <= 0 {
 		tailLines = 1000 // 默认获取最后 1000 行
+	}
+	// 限制最大行数，防止内存溢出
+	const maxTailLines int64 = 100000
+	if tailLines > maxTailLines {
+		tailLines = maxTailLines
+		l.Infof("TailLines 超过最大限制，已调整为 %d", maxTailLines)
 	}
 
 	logOpts := &corev1.PodLogOptions{

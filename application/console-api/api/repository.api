@@ -248,11 +248,11 @@ type (
         RegistryProjectName string `form:"registryProjectName,optional" validate:"required"`
     }
     BindProjectIds {
-        Id uint64 `json:"id"`              // 绑定记录ID
+        Id uint64 `json:"id"`               // 绑定记录ID
         ProjectId uint64 `json:"projectId"` // 业务项目ID
     }
     ListProjectRegistryBindingsResponse {
-        Data []BindProjectIds `json:"data"` 
+        Data []BindProjectIds `json:"data"`
     }
 
         //================================仓库项目操作================================
@@ -262,10 +262,10 @@ type (
         OwnerName string `json:"ownerName,optional"`
         IsPublic bool `json:"isPublic"`
         RepoCount int64 `json:"repoCount"`
-        StorageLimit        int64  `json:"storageLimit"`         // 字节数
-        StorageUsed         int64  `json:"storageUsed"`          // 字节数
+        StorageLimit int64 `json:"storageLimit"`                // 字节数
+        StorageUsed int64 `json:"storageUsed"`                  // 字节数
         StorageLimitDisplay string `json:"storageLimitDisplay"` // 如 "10.00GB"
-        StorageUsedDisplay  string `json:"storageUsedDisplay"`  // 如 "5.00GB"
+        StorageUsedDisplay string `json:"storageUsedDisplay"`   // 如 "5.00GB"
         CreationTime int64 `json:"creationTime"`
         UpdateTime int64 `json:"updateTime"`
     }
@@ -335,7 +335,7 @@ type (
     }
 
     DeleteProjectRequest {
-        RegistryUuid string `form:"registryUuid" validate:"required"`
+        RegistryUuid string `json:"registryUuid" validate:"required"`
         ProjectName string `path:"projectName" validate:"required"`
     }
     DeleteProjectResponse {
@@ -382,8 +382,8 @@ type (
     }
 
     DeleteRepositoryRequest {
-        RegistryUuid string `form:"registryUuid" validate:"required"`
-        ProjectName string `form:"projectName" validate:"required"`
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        ProjectName string `json:"projectName" validate:"required"`
         RepoName string `path:"repoName" validate:"required"`
     }
     DeleteRepositoryResponse {
@@ -440,9 +440,9 @@ type (
     }
 
     DeleteArtifactRequest {
-        RegistryUuid string `form:"registryUuid" validate:"required"`
-        ProjectName string `form:"projectName" validate:"required"`
-        RepoName string `form:"repoName" validate:"required"`
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        ProjectName string `json:"projectName" validate:"required"`
+        RepoName string `json:"repoName" validate:"required"`
         Reference string `path:"reference" validate:"required"`
     }
     DeleteArtifactResponse {
@@ -450,9 +450,9 @@ type (
     }
 
     DeleteTagRequest {
-        RegistryUuid string `form:"registryUuid" validate:"required"`
-        ProjectName string `form:"projectName" validate:"required"`
-        RepoName string `form:"repoName" validate:"required"`
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        ProjectName string `json:"projectName" validate:"required"`
+        RepoName string `json:"repoName" validate:"required"`
         TagName string `path:"tagName" validate:"required"`
     }
     DeleteTagResponse {
@@ -608,8 +608,8 @@ type (
     }
 
     DeleteProjectMemberRequest {
-        RegistryUuid string `form:"registryUuid" validate:"required"`
-        ProjectName string `form:"projectName" validate:"required"`
+        RegistryUuid string `json:"registryUuid" validate:"required"`
+        ProjectName string `json:"projectName" validate:"required"`
         MemberId int64 `path:"memberId" validate:"required"`
     }
     DeleteProjectMemberResponse {
@@ -676,7 +676,7 @@ type (
     }
 
     DeleteUserRequest {
-        RegistryUuid string `form:"registryUuid" validate:"required"`
+        RegistryUuid string `json:"registryUuid" validate:"required"`
         UserId int64 `path:"userId" validate:"required"`
     }
     DeleteUserResponse {
@@ -816,7 +816,8 @@ type (
         ProjectName string `form:"projectName" validate:"required"`
     }
     GetRetentionPolicyResponse {
-        Data RetentionPolicy `json:"data"`
+        Exists bool `json:"exists"`
+        Data *RetentionPolicy `json:"data,optional"`
     }
 
     CreateRetentionPolicyRequest {
@@ -834,11 +835,13 @@ type (
     UpdateRetentionPolicyRequest {
         RegistryUuid string `json:"registryUuid" validate:"required"`
         PolicyId int64 `json:"policyId" validate:"required"`
+        ProjectName string `json:"projectName" validate:"required"`
         Algorithm string `json:"algorithm" validate:"required"`
         Rules []RetentionRule `json:"rules" validate:"required"`
         Schedule string `json:"schedule,optional"`
     }
     UpdateRetentionPolicyResponse {
+        Id int64 `json:"id"`
         Message string `json:"message"`
     }
 
@@ -968,7 +971,7 @@ type (
     }
 
     DeleteReplicationPolicyRequest {
-        RegistryUuid string `form:"registryUuid" validate:"required"`
+        RegistryUuid string `json:"registryUuid" validate:"required"`
         PolicyId int64 `path:"policyId" validate:"required"`
     }
     DeleteReplicationPolicyResponse {

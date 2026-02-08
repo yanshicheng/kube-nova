@@ -74,8 +74,35 @@ func (l *IngressUpdateLogic) IngressUpdate(req *types.IngressRequest) (resp stri
 		newIngress.Namespace = workloadInfo.Data.Namespace
 	}
 
-	// 构建主机信息用于审计
-	hostInfo := l.buildHostInfo(&newIngress)
+	// 对比变更
+	ruleDiff := CompareIngressRules(existing, &newIngress)
+	ruleChangeDetail := BuildIngressDiffDetail(ruleDiff)
+
+	// Labels 变更
+	labelsDiff := CompareStringMaps(existing.Labels, newIngress.Labels)
+	labelsChangeDetail := BuildMapDiffDetail(labelsDiff, false)
+
+	// Annotations 变更
+	annotationsDiff := CompareStringMaps(existing.Annotations, newIngress.Annotations)
+	annotationsChangeDetail := BuildMapDiffDetail(annotationsDiff, false)
+
+	// 构建变更详情
+	var changeDetails []string
+	if ruleChangeDetail != "规则无变更" && ruleChangeDetail != "" {
+		changeDetails = append(changeDetails, ruleChangeDetail)
+	}
+	if HasMapChanges(labelsDiff) {
+		changeDetails = append(changeDetails, fmt.Sprintf("Labels变更: %s", labelsChangeDetail))
+	}
+	if HasMapChanges(annotationsDiff) {
+		changeDetails = append(changeDetails, fmt.Sprintf("Annotations变更: %s", annotationsChangeDetail))
+	}
+
+	changeDetailStr := "无变更"
+	if len(changeDetails) > 0 {
+		changeDetailStr = strings.Join(changeDetails, "; ")
+	}
+
 	// 获取项目详情
 	projectDetail, err := l.svcCtx.ManagerRpc.GetClusterNsDetail(l.ctx, &managerservice.GetClusterNsDetailReq{
 		ClusterUuid: workloadInfo.Data.ClusterUuid,
@@ -93,6 +120,7 @@ func (l *IngressUpdateLogic) IngressUpdate(req *types.IngressRequest) (resp stri
 			ProjectUuid:   projectDetail.ProjectUuid,
 		})
 	}
+
 	// 更新 Ingress
 	updated, updateErr := ingressClient.Update(&newIngress)
 	if updateErr != nil {
@@ -101,7 +129,7 @@ func (l *IngressUpdateLogic) IngressUpdate(req *types.IngressRequest) (resp stri
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			WorkspaceId:  req.WorkloadId,
 			Title:        "更新 Ingress",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 更新 Ingress %s 失败, 主机: %s, 错误原因: %v", username, workloadInfo.Data.Namespace, req.Name, hostInfo, updateErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 更新 Ingress %s 失败, 错误原因: %v, 变更内容: %s", username, workloadInfo.Data.Namespace, req.Name, updateErr, changeDetailStr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("更新 Ingress 失败: %v", updateErr)
@@ -111,7 +139,7 @@ func (l *IngressUpdateLogic) IngressUpdate(req *types.IngressRequest) (resp stri
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		WorkspaceId:  req.WorkloadId,
 		Title:        "更新 Ingress",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功更新 Ingress %s, 主机: %s", username, updated.Namespace, updated.Name, hostInfo),
+		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功更新 Ingress %s, %s", username, updated.Namespace, updated.Name, changeDetailStr),
 		Status:       1,
 	})
 	if auditErr != nil {
@@ -120,18 +148,4 @@ func (l *IngressUpdateLogic) IngressUpdate(req *types.IngressRequest) (resp stri
 
 	l.Infof("成功更新 Ingress: %s/%s", updated.Namespace, updated.Name)
 	return fmt.Sprintf("成功更新 Ingress: %s", updated.Name), nil
-}
-
-// buildHostInfo 构建主机信息字符串用于审计日志
-func (l *IngressUpdateLogic) buildHostInfo(ingress *networkingv1.Ingress) string {
-	var hosts []string
-	for _, rule := range ingress.Spec.Rules {
-		if rule.Host != "" {
-			hosts = append(hosts, rule.Host)
-		}
-	}
-	if len(hosts) == 0 {
-		return "无"
-	}
-	return strings.Join(hosts, ", ")
 }

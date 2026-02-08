@@ -50,6 +50,7 @@ func convertPbAPITreeToTypes(pbNodes []*pb.SysAPITreeNode) []types.SysAPITreeNod
 			Id:           node.Id,
 			Name:         node.Name,
 			IsPermission: node.IsPermission,
+			Method:       node.Method,
 		}
 
 		// 递归转换子节点

@@ -1,9 +1,10 @@
-// secretDeleteLogic.go
 package core
 
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
@@ -49,6 +50,22 @@ func (l *SecretDeleteLogic) SecretDelete(req *types.DefaultNameRequest) (resp st
 	// 初始化 Secret 客户端
 	secretClient := client.Secrets()
 
+	// 获取 Secret 详情用于审计
+	existingSecret, _ := secretClient.Get(workloadInfo.Data.Namespace, req.Name)
+	var secretType string
+	var dataKeysStr string
+	var dataCount int
+	if existingSecret != nil {
+		secretType = string(existingSecret.Type)
+		dataCount = len(existingSecret.Data)
+		dataKeys := make([]string, 0, len(existingSecret.Data))
+		for k := range existingSecret.Data {
+			dataKeys = append(dataKeys, k)
+		}
+		sort.Strings(dataKeys)
+		dataKeysStr = strings.Join(dataKeys, ", ")
+	}
+
 	// 删除 Secret
 	deleteErr := secretClient.Delete(workloadInfo.Data.Namespace, req.Name)
 	if deleteErr != nil {
@@ -57,17 +74,22 @@ func (l *SecretDeleteLogic) SecretDelete(req *types.DefaultNameRequest) (resp st
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			WorkspaceId:  req.WorkloadId,
 			Title:        "删除 Secret",
-			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 删除 Secret %s 失败, 错误原因: %v", username, workloadInfo.Data.Namespace, req.Name, deleteErr),
+			ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 删除 Secret %s 失败, 类型: %s, 错误原因: %v", username, workloadInfo.Data.Namespace, req.Name, secretType, deleteErr),
 			Status:       0,
 		})
 		return "", fmt.Errorf("删除 Secret 失败")
 	}
 
 	// 记录成功的审计日志
+	auditDetail := fmt.Sprintf("用户 %s 在命名空间 %s 成功删除 Secret %s, 类型: %s", username, workloadInfo.Data.Namespace, req.Name, secretType)
+	if dataCount > 0 {
+		auditDetail = fmt.Sprintf("%s, 删除前包含 %d 个数据项 (keys: %s)", auditDetail, dataCount, dataKeysStr)
+	}
+
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		WorkspaceId:  req.WorkloadId,
 		Title:        "删除 Secret",
-		ActionDetail: fmt.Sprintf("用户 %s 在命名空间 %s 成功删除 Secret %s", username, workloadInfo.Data.Namespace, req.Name),
+		ActionDetail: auditDetail,
 		Status:       1,
 	})
 	if auditErr != nil {

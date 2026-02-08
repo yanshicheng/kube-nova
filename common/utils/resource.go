@@ -94,6 +94,11 @@ func (v *K8sResourceValidator) Validate(obj runtime.Object) error {
 	}
 
 	// 2. 验证 Name
+	fmt.Println("actualName: ", actualName)
+	fmt.Println("actualName: ", actualName)
+	fmt.Println("actualName: ", actualName)
+	fmt.Println("actualName: ", actualName)
+	fmt.Println("actualName: ", actualName)
 	if actualName != v.ExpectedName {
 		return fmt.Errorf("资源的 name [%s] 与期望的 name [%s] 不一致 (格式应为: nameEn-version)",
 			actualName, v.ExpectedName)

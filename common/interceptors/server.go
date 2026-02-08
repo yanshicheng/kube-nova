@@ -56,9 +56,23 @@ func ServerErrorInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		resp, err = handler(ctx, req)
 		if err != nil {
-			logx.WithContext(ctx).Errorf("【RPC SRV ERR】 %v", err)
+			// 跳过健康检查请求的错误日志
+			if !isHealthCheckRequest(info.FullMethod, req) {
+				logx.WithContext(ctx).Errorf("【RPC SRV ERR】 %v", err)
+			}
 		}
 		// TODO
 		return resp, errorx.FromError(err).Err()
 	}
+}
+
+// isHealthCheckRequest 判断是否为健康检查请求
+func isHealthCheckRequest(method string, req interface{}) bool {
+	// 检查是否为 GetClusterAuthInfo 方法且 ClusterUuid 为 __health_check__
+	if strings.HasSuffix(method, "/GetClusterAuthInfo") {
+		if r, ok := req.(interface{ GetClusterUuid() string }); ok {
+			return r.GetClusterUuid() == "__health_check__"
+		}
+	}
+	return false
 }

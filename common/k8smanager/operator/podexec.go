@@ -183,6 +183,19 @@ func (p *podOperator) ExecCommandWithTimeout(
 	p.log.Infof("执行带超时命令: namespace=%s, pod=%s, container=%s, timeout=%v, command=%v",
 		namespace, name, container, timeout, command)
 
+	if namespace == "" {
+		return "", "", fmt.Errorf("命名空间不能为空")
+	}
+	if name == "" {
+		return "", "", fmt.Errorf("Pod名称不能为空")
+	}
+	if len(command) == 0 {
+		return "", "", fmt.Errorf("命令不能为空")
+	}
+	if timeout <= 0 {
+		return "", "", fmt.Errorf("超时时间必须大于0")
+	}
+
 	// 确保有有效的容器名称
 	container, err = p.ensureContainer(namespace, name, container)
 	if err != nil {
@@ -209,6 +222,7 @@ func (p *podOperator) ExecCommandWithTimeout(
 	// 在 goroutine 中执行命令
 	done := make(chan error, 1)
 	go func() {
+		// 注意：当context被取消时，executor.Stream应该检测到并返回
 		done <- executor.Stream(remotecommand.StreamOptions{
 			Stdin:  nil,
 			Stdout: &stdoutBuf,
@@ -220,6 +234,15 @@ func (p *podOperator) ExecCommandWithTimeout(
 	// 等待执行完成或超时
 	select {
 	case <-timeoutCtx.Done():
+		// Context已取消，goroutine应该会很快退出
+		// 我们等待一小段时间让goroutine退出
+		select {
+		case <-done:
+			// Goroutine已完成
+		case <-time.After(100 * time.Millisecond):
+			// Goroutine可能仍在运行，但我们已经返回
+			p.log.Info("命令执行超时，goroutine可能仍在运行")
+		}
 		p.log.Errorf("命令执行超时: %s/%s/%s, timeout=%v", namespace, name, container, timeout)
 		return stdoutBuf.String(), stderrBuf.String(), fmt.Errorf("命令执行超时: %v", timeout)
 	case err := <-done:
@@ -243,6 +266,13 @@ func (p *podOperator) ExecInteractiveShell(
 	streams types.IOStreams,
 	resizeChan <-chan remotecommand.TerminalSize,
 ) error {
+
+	if namespace == "" {
+		return fmt.Errorf("命名空间不能为空")
+	}
+	if name == "" {
+		return fmt.Errorf("Pod名称不能为空")
+	}
 
 	p.log.Infof("创建交互式Shell: namespace=%s, pod=%s, container=%s", namespace, name, container)
 
@@ -351,6 +381,16 @@ func (p *podOperator) ExecCommandInAllContainers(
 	command []string,
 ) (map[string]*types.ExecResponse, error) {
 
+	if namespace == "" {
+		return nil, fmt.Errorf("命名空间不能为空")
+	}
+	if name == "" {
+		return nil, fmt.Errorf("Pod名称不能为空")
+	}
+	if len(command) == 0 {
+		return nil, fmt.Errorf("命令不能为空")
+	}
+
 	p.log.Infof("在所有容器中执行命令: namespace=%s, pod=%s, command=%v",
 		namespace, name, command)
 
@@ -396,6 +436,16 @@ func (p *podOperator) ExecBatch(
 	namespace, name, container string,
 	commands [][]string,
 ) ([]*types.ExecResponse, error) {
+
+	if namespace == "" {
+		return nil, fmt.Errorf("命名空间不能为空")
+	}
+	if name == "" {
+		return nil, fmt.Errorf("Pod名称不能为空")
+	}
+	if len(commands) == 0 {
+		return nil, fmt.Errorf("命令列表不能为空")
+	}
 
 	p.log.Infof("批量执行命令: namespace=%s, pod=%s, container=%s, 命令数=%d",
 		namespace, name, container, len(commands))
@@ -448,6 +498,16 @@ func (p *podOperator) ExecScript(
 	script string,
 	interpreter string,
 ) (*types.ExecResponse, error) {
+
+	if namespace == "" {
+		return nil, fmt.Errorf("命名空间不能为空")
+	}
+	if name == "" {
+		return nil, fmt.Errorf("Pod名称不能为空")
+	}
+	if script == "" {
+		return nil, fmt.Errorf("脚本内容不能为空")
+	}
 
 	p.log.Infof("执行脚本: namespace=%s, pod=%s, container=%s, 解释器=%s",
 		namespace, name, container, interpreter)

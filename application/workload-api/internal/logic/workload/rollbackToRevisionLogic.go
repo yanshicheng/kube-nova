@@ -33,14 +33,36 @@ func (l *RollbackToRevisionLogic) RollbackToRevision(req *types.RollbackToRevisi
 		return "", err
 	}
 
+	resourceType := strings.ToUpper(versionDetail.ResourceType)
+
+	// 获取当前版本信息
+	var currentRevision int64
+	var revisions []k8sTypes.RevisionInfo
+	switch resourceType {
+	case "DEPLOYMENT":
+		revisions, err = controller.Deployment.GetRevisions(versionDetail.Namespace, versionDetail.ResourceName)
+	case "DAEMONSET":
+		revisions, err = controller.DaemonSet.GetRevisions(versionDetail.Namespace, versionDetail.ResourceName)
+	case "STATEFULSET":
+		revisions, err = controller.StatefulSet.GetRevisions(versionDetail.Namespace, versionDetail.ResourceName)
+	default:
+		return "", fmt.Errorf("资源类型 %s 不支持回滚到版本操作", resourceType)
+	}
+
+	if err != nil {
+		l.Errorf("获取版本历史失败: %v", err)
+		// 继续执行，审计日志中记录无法获取当前版本
+	} else {
+		currentRevision = GetCurrentRevision(revisions)
+	}
+
 	rollbackReq := &k8sTypes.RollbackToRevisionRequest{
 		Name:      versionDetail.ResourceName,
 		Namespace: versionDetail.Namespace,
 		Revision:  req.Revision,
 	}
 
-	resourceType := strings.ToUpper(versionDetail.ResourceType)
-
+	// 执行回滚
 	switch resourceType {
 	case "DEPLOYMENT":
 		err = controller.Deployment.Rollback(rollbackReq)
@@ -48,18 +70,24 @@ func (l *RollbackToRevisionLogic) RollbackToRevision(req *types.RollbackToRevisi
 		err = controller.DaemonSet.Rollback(rollbackReq)
 	case "STATEFULSET":
 		err = controller.StatefulSet.Rollback(rollbackReq)
-	default:
-		return "", fmt.Errorf("资源类型 %s 不支持回滚到版本操作", resourceType)
+	}
+
+	// 生成变更详情
+	var changeDetail string
+	if currentRevision > 0 {
+		changeDetail = BuildRevisionRollbackDescription(resourceType, versionDetail.Namespace, versionDetail.ResourceName, currentRevision, req.Revision)
+	} else {
+		changeDetail = fmt.Sprintf("%s %s/%s 回滚到版本 %d (无法获取当前版本)", resourceType, versionDetail.Namespace, versionDetail.ResourceName, req.Revision)
 	}
 
 	if err != nil {
 		l.Errorf("回滚到版本失败: %v", err)
 		recordAuditLog(l.ctx, l.svcCtx, versionDetail, "版本回滚",
-			fmt.Sprintf("%s %s/%s 回滚到版本 %d 失败: %v", resourceType, versionDetail.Namespace, versionDetail.ResourceName, req.Revision, err), 2)
+			fmt.Sprintf("%s 失败: %v", changeDetail, err), 2)
 		return "", fmt.Errorf("回滚失败")
 	}
 
 	recordAuditLog(l.ctx, l.svcCtx, versionDetail, "版本回滚",
-		fmt.Sprintf("%s %s/%s 成功回滚到版本 %d", resourceType, versionDetail.Namespace, versionDetail.ResourceName, req.Revision), 1)
+		fmt.Sprintf("%s 成功", changeDetail), 1)
 	return "回滚成功", nil
 }

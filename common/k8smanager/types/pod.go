@@ -95,35 +95,6 @@ type PodDetailInfo struct {
 	CreationTime int64             `json:"creationTime"` // 毫秒时间戳
 }
 
-// ContainerInfoList 容器信息列表
-type ContainerInfoList struct {
-	InitContainers      []ContainerInfo `json:"initContainers"`
-	Containers          []ContainerInfo `json:"containers"`
-	EphemeralContainers []ContainerInfo `json:"ephemeralContainers,omitempty"`
-}
-
-// ContainerInfo 容器信息
-type ContainerInfo struct {
-	Name         string                  `json:"name"`
-	Image        string                  `json:"image"`
-	Ready        bool                    `json:"ready"`
-	RestartCount int32                   `json:"restartCount"`
-	State        string                  `json:"state"` // Running, Waiting, Terminated
-	Status       *ContainerStatusDetails `json:"status,omitempty"`
-}
-
-// ContainerStatusDetails 容器状态详情（简化版本）- 现在可以安全使用 ContainerStateInfo
-type ContainerStatusDetails struct {
-	State        ContainerStateInfo `json:"state"`
-	LastState    ContainerStateInfo `json:"lastState,omitempty"`
-	Ready        bool               `json:"ready"`
-	RestartCount int32              `json:"restartCount"`
-	Image        string             `json:"image"`
-	ImageID      string             `json:"imageID"`
-	ContainerID  string             `json:"containerID,omitempty"`
-	Started      *bool              `json:"started,omitempty"`
-}
-
 // ========== Pod 资源查询 ==========
 
 // GetPodsRequest 获取 Pods 请求

@@ -12,23 +12,30 @@ import "./base.api"
 
 // ==================== 通用请求 ====================
 type (
-    // 监控资源列表请求（带 namespace）
+    // 监控资源列表请求（GET 方法，使用 form tag）
     MonitoringResourceListRequest {
         ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Namespace   string `form:"namespace,optional" `
+        Namespace   string `form:"namespace,optional"`
         Search      string `form:"search,optional"` // 搜索关键字
     }
 
-        // 监控资源名称请求
+    // 监控资源名称请求（GET 方法，使用 form tag）
     MonitoringResourceNameRequest {
         ClusterUuid string `form:"clusterUuid" validate:"required"`
-        Namespace   string `form:"namespace,optional" `
+        Namespace   string `form:"namespace,optional"`
         Name        string `form:"name,optional"`
     }
 
-        // 监控资源 YAML 创建/更新请求
+    // 监控资源删除请求（DELETE 方法，使用 json tag）
+    MonitoringResourceDeleteRequest {
+        ClusterUuid string `json:"clusterUuid" validate:"required"`
+        Namespace   string `json:"namespace" validate:"required"`
+        Name        string `json:"name" validate:"required"`
+    }
+
+    // 监控资源 YAML 创建/更新请求（POST/PUT 方法，使用 json tag）
     MonitoringResourceYamlRequest {
-        ClusterUuid string `form:"clusterUuid" validate:"required"`
+        ClusterUuid string `json:"clusterUuid" validate:"required"`
         Namespace   string `json:"namespace" validate:"required"`
         YamlStr     string `json:"yamlStr" validate:"required"`
     }
@@ -100,7 +107,7 @@ service workload-api {
 
     @doc "删除 Probe"
     @handler ProbeDeleteHandler
-    delete /probe (MonitoringResourceNameRequest) returns (string)
+    delete /probe (MonitoringResourceDeleteRequest) returns (string)
 
     // ==================== PrometheusRule 接口 ====================
 
@@ -122,5 +129,5 @@ service workload-api {
 
     @doc "删除 PrometheusRule"
     @handler PrometheusRuleDeleteHandler
-    delete /prometheusrule (MonitoringResourceNameRequest) returns (string)
+    delete /prometheusrule (MonitoringResourceDeleteRequest) returns (string)
 }

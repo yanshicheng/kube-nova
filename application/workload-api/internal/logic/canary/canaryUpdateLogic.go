@@ -91,11 +91,13 @@ func (l *CanaryUpdateLogic) CanaryUpdate(req *types.UpdateCanaryRequest) (resp s
 
 	// 注入注解
 	utils.AddAnnotations(&canary.ObjectMeta, &utils.AnnotationsInfo{
-		ServiceName:   canary.Name,
-		ProjectName:   versionDetail.ProjectNameCn,
-		WorkspaceName: versionDetail.WorkspaceNameCn,
-		ProjectUuid:   versionDetail.ProjectUuid,
-		OwnedByApp:    versionDetail.ApplicationNameCn,
+		ServiceName:     canary.Name,
+		ApplicationEn:   versionDetail.ApplicationNameEn,
+		ApplicationName: versionDetail.ApplicationNameCn,
+		ProjectName:     versionDetail.ProjectNameCn,
+		WorkspaceName:   versionDetail.WorkspaceNameCn,
+		ProjectUuid:     versionDetail.ProjectUuid,
+		OwnedByApp:      versionDetail.ApplicationNameCn,
 	})
 
 	// 更新 Canary 资源

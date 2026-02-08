@@ -20,6 +20,7 @@ var whiteList = []string{
 	"/portal/v1/auth/login",
 	"/portal/v1/menu/roles/tree",
 	"/ws/v1/site-messages",
+	"/portal/v1/platform/user/platforms",
 }
 
 // SuperAdminRole 是超级管理员角色代码
@@ -56,9 +57,11 @@ func NewCasbinRBACManager(
 	m.AddDef("e", "e", "some(where (p.eft == allow))")
 
 	// 匹配器说明:
-	//   - keyMatch2: 支持 RESTful 路径匹配，如 /portal/v1/user/* 可以匹配 /portal/v1/user/123
+	//   - keyMatch3: 支持更灵活的路径匹配
+	//     * /user/api/xxx/* 可以匹配 /user/api/xxx/123 和 /user/api/xxx
+	//     * /user/api/xxx 可以精确匹配 /user/api/xxx
 	//   - r.act == p.act || p.act == "*": 支持方法通配符，* 可以匹配所有方法
-	m.AddDef("m", "m", "r.sub == p.sub && keyMatch2(r.obj, p.obj) && (r.act == p.act || p.act == \"*\")")
+	m.AddDef("m", "m", "r.sub == p.sub && (keyMatch3(r.obj, p.obj) || keyMatch2(r.obj, p.obj)) && (r.act == p.act || p.act == \"*\")")
 
 	// 创建适配器，从现有数据库表加载策略
 	adapter := NewCasbinAdapter(sysRole, sysApi, sysRoleApi)
