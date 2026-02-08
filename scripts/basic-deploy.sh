@@ -102,10 +102,9 @@ wait_for_services() {
     for app in "${apps[@]}"; do
         info "等待 ${app} Pod 达到 Ready 状态..."
 
-        # 修复点：添加 ,!job-name 排除掉初始化任务(Job)的 Pod
-        # 这样只等待真正的 Deployment/StatefulSet 服务 Pod
+        # 修复点：使用双引号以解析 ${app}，感叹号不需要在脚本里转义
         kubectl wait --for=condition=ready pod \
-            -l 'app=${app},!job-name' \
+            -l "app=${app},!job-name" \
             -n ${NAMESPACE} \
             --timeout=120s || error "${app} 启动超时"
     done
