@@ -1829,14 +1829,16 @@ func (d *deploymentOperator) GetResourceSummary(
 		return nil, err
 	}
 
-	selectorLabels := deployment.Spec.Selector.MatchLabels
-	if len(selectorLabels) == 0 {
-		return nil, fmt.Errorf("Deployment 没有选择器标签")
+	// 使用 Pod 模板标签，而不是 selector 标签
+	// Pod 模板标签包含了 Pod 实际拥有的完整标签集合
+	podLabels := deployment.Spec.Template.Labels
+	if len(podLabels) == 0 {
+		return nil, fmt.Errorf("Deployment 没有 Pod 模板标签")
 	}
 
 	return getWorkloadResourceSummary(
 		namespace,
-		selectorLabels,
+		podLabels, // 使用 Pod 模板标签
 		domainSuffix,
 		nodeLb,
 		podOp,

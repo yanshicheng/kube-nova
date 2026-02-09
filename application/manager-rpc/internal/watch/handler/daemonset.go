@@ -46,7 +46,8 @@ func (h *DefaultEventHandler) handleDaemonSetAdd(ctx context.Context, clusterUUI
 	// 如果是平台创建的资源，跳过
 	if ds.Annotations != nil {
 		if managedBy, ok := ds.Annotations[utils.AnnotationManagedBy]; ok && managedBy == utils.ManagedByPlatform {
-			logger.Debugf("[DaemonSet-ADD] 平台创建的资源，跳过: %s/%s", ds.Namespace, ds.Name)
+			logger.Infof("[DaemonSet-ADD] 平台创建的资源，跳过同步: %s/%s (注解: %s=%s)",
+				ds.Namespace, ds.Name, utils.AnnotationManagedBy, managedBy)
 			return nil
 		}
 	}

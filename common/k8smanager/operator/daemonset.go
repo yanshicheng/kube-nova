@@ -1719,14 +1719,16 @@ func (d *daemonSetOperator) GetResourceSummary(
 		return nil, err
 	}
 
-	selectorLabels := daemonSet.Spec.Selector.MatchLabels
-	if len(selectorLabels) == 0 {
-		return nil, fmt.Errorf("DaemonSet 没有选择器标签")
+	// 使用 Pod 模板标签，而不是 selector 标签
+	// Pod 模板标签包含了 Pod 实际拥有的完整标签集合
+	podLabels := daemonSet.Spec.Template.Labels
+	if len(podLabels) == 0 {
+		return nil, fmt.Errorf("DaemonSet 没有 Pod 模板标签")
 	}
 
 	return getWorkloadResourceSummary(
 		namespace,
-		selectorLabels,
+		podLabels, // 使用 Pod 模板标签
 		domainSuffix,
 		nodeLb,
 		podOp,

@@ -159,32 +159,41 @@ func (h *DefaultEventHandler) syncWorkloadToDatabase(ctx context.Context, cluste
 	// 初始化同步结果
 	syncResult := &SyncResult{}
 
-	// Step 4: 检查版本是否已存在且绑定了应用
-	existingApp, existingVersion, err := h.findApplicationAndVersionByResourceName(ctx, workspace.Id, resourceName, resourceType)
+	// Step 4: 检查版本是否存在（通过 resourceName 查找）
+	existingVersion, err := h.findVersionByResourceName(ctx, workspace.Id, resourceName, resourceType)
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
-		return fmt.Errorf("查询现有应用和版本失败: %v", err)
+		return fmt.Errorf("查询现有版本失败: %v", err)
 	}
 
-	if existingApp != nil && existingVersion != nil {
-		// 版本存在且已绑定应用，执行智能检查逻辑
+	if existingVersion != nil {
+		// 版本存在，检查并更新版本信息
+		logger.Debugf("[Workload-SYNC] 版本已存在: VersionID=%d, ResourceName=%s", existingVersion.Id, resourceName)
+
+		// 获取关联的应用
+		existingApp, err := h.svcCtx.ProjectApplication.FindOne(ctx, existingVersion.ApplicationId)
+		if err != nil {
+			return fmt.Errorf("查询版本关联的应用失败: %v", err)
+		}
+
+		// 检查并修正现有绑定
 		shouldSkip, err := h.checkAndCorrectExistingBinding(ctx, existingApp, existingVersion, versionRole, annotations, status, syncResult)
 		if err != nil {
 			return fmt.Errorf("检查现有绑定失败: %v", err)
 		}
 
-		if shouldSkip {
-			// 跳过处理，但仍需检查是否有变更用于审计日志
-			if !syncResult.HasChange() {
-				logger.Debugf("[Workload-SYNC] 版本已正确绑定，无变更，跳过: resourceName=%s", resourceName)
-				return nil
-			}
-			// 有变更，继续创建审计日志
-			logger.Infof("[Workload-SYNC] 版本绑定已修正: ClusterUUID=%s, Namespace=%s, ResourceName=%s, AppNameEn=%s, AppID=%d, Changes=%v",
-				clusterUUID, namespace, resourceName, appNameEn, existingApp.Id, syncResult.ChangeDetails)
+		if shouldSkip && !syncResult.HasChange() {
+			logger.Debugf("[Workload-SYNC] 版本已正确绑定，无变更，跳过: resourceName=%s", resourceName)
+			return nil
+		}
+
+		// 有变更，创建审计日志
+		if syncResult.HasChange() {
+			logger.Infof("[Workload-SYNC] 版本信息已更新: ClusterUUID=%s, Namespace=%s, ResourceName=%s, AppNameEn=%s, AppID=%d, Changes=%v",
+				clusterUUID, namespace, resourceName, existingApp.NameEn, existingApp.Id, syncResult.ChangeDetails)
 
 			// 创建审计日志
 			projectId, projectName := h.getProjectInfo(ctx, workspace.ProjectClusterId)
-			actionDetail := h.buildSyncAuditDetail(resourceType, appNameEn, resourceName, status, syncResult)
+			actionDetail := h.buildSyncAuditDetail(resourceType, existingApp.NameEn, resourceName, status, syncResult)
 
 			h.createAuditLog(ctx, &AuditLogInfo{
 				ClusterName:     h.getClusterName(ctx, clusterUUID),
@@ -199,30 +208,24 @@ func (h *DefaultEventHandler) syncWorkloadToDatabase(ctx context.Context, cluste
 				ActionDetail:    actionDetail,
 				Status:          1,
 			})
-
-			return nil
 		}
-	}
 
-	// Step 5: 确保应用存在
-	application, err := h.ensureApplication(ctx, workspace.Id, appNameEn, appNameCn, resourceType, syncResult)
-	if err != nil {
-		return fmt.Errorf("确保应用存在失败: %v", err)
-	}
-
-	// Step 6: 确保版本存在
-	err = h.ensureVersion(ctx, application.Id, resourceName, versionRole, annotations, status, syncResult)
-	if err != nil {
-		return fmt.Errorf("确保版本存在失败: %v", err)
-	}
-
-	// Step 7: 只有在有实际变更时才创建审计日志
-	if !syncResult.HasChange() {
-		logger.Debugf("[Workload-SYNC] 无实际变更，跳过审计日志: ClusterUUID=%s, Namespace=%s, ResourceName=%s",
-			clusterUUID, namespace, resourceName)
 		return nil
 	}
 
+	// Step 5: 版本不存在，检查应用是否存在（通过应用名称查找）
+	application, err := h.findOrCreateApplication(ctx, workspace.Id, appNameEn, appNameCn, resourceType, syncResult)
+	if err != nil {
+		return fmt.Errorf("查找或创建应用失败: %v", err)
+	}
+
+	// Step 6: 创建版本
+	err = h.ensureVersion(ctx, application.Id, resourceName, versionRole, annotations, status, syncResult)
+	if err != nil {
+		return fmt.Errorf("创建版本失败: %v", err)
+	}
+
+	// Step 7: 创建审计日志
 	logger.Infof("[Workload-SYNC] 同步成功: ClusterUUID=%s, Namespace=%s, ResourceName=%s, AppNameEn=%s, AppID=%d, Status=%d, Changes=%v",
 		clusterUUID, namespace, resourceName, appNameEn, application.Id, status, syncResult.ChangeDetails)
 
@@ -510,6 +513,118 @@ func (h *DefaultEventHandler) findApplicationAndVersionByResourceName(ctx contex
 	}
 
 	return nil, nil, model.ErrNotFound
+}
+
+// findVersionByResourceName 通过 resourceName 查找版本（在所有应用中搜索）
+func (h *DefaultEventHandler) findVersionByResourceName(ctx context.Context, workspaceId uint64, resourceName, resourceType string) (*model.OnecProjectVersion, error) {
+	apps, err := h.svcCtx.ProjectApplication.SearchNoPage(ctx, "", false, "`workspace_id` = ? AND `resource_type` = ?", workspaceId, resourceType)
+	if err != nil {
+		if errors.Is(err, model.ErrNotFound) {
+			return nil, model.ErrNotFound
+		}
+		return nil, err
+	}
+
+	for _, app := range apps {
+		version, err := h.svcCtx.ProjectVersion.FindOneByApplicationIdResourceNameIncludeDeleted(ctx, app.Id, resourceName)
+		if err == nil {
+			return version, nil
+		}
+		if !errors.Is(err, model.ErrNotFound) {
+			return nil, err
+		}
+	}
+
+	return nil, model.ErrNotFound
+}
+
+// findOrCreateApplication 查找或创建应用
+func (h *DefaultEventHandler) findOrCreateApplication(ctx context.Context, workspaceId uint64, appNameEn, appNameCn, resourceType string, syncResult *SyncResult) (*model.OnecProjectApplication, error) {
+	logger := logx.WithContext(ctx)
+
+	// 首先尝试通过英文名查找应用
+	application, err := h.svcCtx.ProjectApplication.FindOneByWorkspaceIdNameEnResourceTypeIncludeDeleted(ctx, workspaceId, appNameEn, resourceType)
+	if err == nil {
+		if application.IsDeleted == 0 {
+			// 未删除，检查是否需要更新 NameCn
+			if application.NameCn != appNameCn {
+				oldNameCn := application.NameCn
+				application.NameCn = appNameCn
+				application.UpdatedBy = SystemOperator
+				if err := h.svcCtx.ProjectApplication.Update(ctx, application); err != nil {
+					logger.Errorf("[Application-UPDATE] 更新应用中文名失败: %v", err)
+				} else {
+					syncResult.ApplicationUpdated = true
+					syncResult.AddChangeDetail(fmt.Sprintf("应用中文名: %s -> %s", oldNameCn, appNameCn))
+					logger.Infof("[Application-UPDATE] 更新应用中文名成功: ID=%d, NameCn: %s -> %s",
+						application.Id, oldNameCn, appNameCn)
+				}
+			}
+			return application, nil
+		}
+
+		// 软删除状态，恢复
+		logger.Infof("[Application-RESTORE] 恢复软删除的应用: ID=%d, NameEn=%s", application.Id, appNameEn)
+		if err := h.svcCtx.ProjectApplication.RestoreSoftDeleted(ctx, application.Id, SystemOperator); err != nil {
+			return nil, fmt.Errorf("恢复应用失败: %v", err)
+		}
+
+		syncResult.ApplicationRestored = true
+		syncResult.AddChangeDetail("恢复软删除应用")
+
+		application, err = h.svcCtx.ProjectApplication.FindOneByWorkspaceIdNameEnResourceType(ctx, workspaceId, appNameEn, resourceType)
+		if err != nil {
+			return nil, fmt.Errorf("查询恢复后的应用失败: %v", err)
+		}
+
+		if application.NameCn != appNameCn {
+			application.NameCn = appNameCn
+			application.UpdatedBy = SystemOperator
+			if err := h.svcCtx.ProjectApplication.Update(ctx, application); err != nil {
+				logger.Errorf("[Application-UPDATE] 更新恢复后的应用中文名失败: %v", err)
+			}
+		}
+
+		return application, nil
+	}
+
+	if !errors.Is(err, model.ErrNotFound) {
+		return nil, fmt.Errorf("查询应用失败: %v", err)
+	}
+
+	// 应用不存在，创建新应用
+	newApp := &model.OnecProjectApplication{
+		WorkspaceId:  workspaceId,
+		NameCn:       appNameCn,
+		NameEn:       appNameEn,
+		ResourceType: resourceType,
+		Description:  fmt.Sprintf("从 K8s %s 自动同步", resourceType),
+		CreatedBy:    SystemOperator,
+		UpdatedBy:    SystemOperator,
+		IsDeleted:    0,
+	}
+
+	result, err := h.svcCtx.ProjectApplication.Insert(ctx, newApp)
+	if err != nil {
+		if strings.Contains(err.Error(), "Duplicate entry") || strings.Contains(err.Error(), "1062") {
+			return h.svcCtx.ProjectApplication.FindOneByWorkspaceIdNameEnResourceType(ctx, workspaceId, appNameEn, resourceType)
+		}
+		return nil, fmt.Errorf("创建应用失败: %v", err)
+	}
+
+	insertId, err := result.LastInsertId()
+	if err != nil {
+		return nil, fmt.Errorf("获取插入ID失败: %v", err)
+	}
+	newApp.Id = uint64(insertId)
+
+	syncResult.ApplicationCreated = true
+	syncResult.AddChangeDetail("创建新应用")
+
+	logger.Infof("[Application-CREATE] 创建应用成功: ID=%d, WorkspaceID=%d, NameEn=%s, NameCn=%s, Type=%s",
+		newApp.Id, workspaceId, appNameEn, appNameCn, resourceType)
+
+	return newApp, nil
 }
 
 // resourceTypeToKind 将资源类型转换为 Kind 格式

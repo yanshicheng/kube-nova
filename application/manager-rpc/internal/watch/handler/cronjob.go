@@ -51,7 +51,8 @@ func (h *DefaultEventHandler) handleCronJobAdd(ctx context.Context, clusterUUID 
 	// 如果是平台创建的资源，跳过
 	if cj.Annotations != nil {
 		if managedBy, ok := cj.Annotations[utils.AnnotationManagedBy]; ok && managedBy == utils.ManagedByPlatform {
-			logger.Debugf("[CronJob-ADD] 平台创建的资源，跳过: %s/%s", cj.Namespace, cj.Name)
+			logger.Infof("[CronJob-ADD] 平台创建的资源，跳过同步: %s/%s (注解: %s=%s)",
+				cj.Namespace, cj.Name, utils.AnnotationManagedBy, managedBy)
 			return nil
 		}
 	}

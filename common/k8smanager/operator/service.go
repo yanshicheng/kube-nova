@@ -619,18 +619,34 @@ func (s *serviceOperator) GetResourceServices(req *types.GetResourceServicesRequ
 }
 
 func (s *serviceOperator) GetServicesByLabels(namespace string, labels map[string]string) ([]types.ServiceInfo, error) {
-	serviceList, err := s.client.CoreV1().Services(namespace).List(s.ctx, metav1.ListOptions{})
+	// 构建 label selector 字符串
+	var selectors []string
+	for k, v := range labels {
+		selectors = append(selectors, fmt.Sprintf("%s=%s", k, v))
+	}
+	labelSelector := strings.Join(selectors, ",")
+
+	// 使用 label selector 进行高效查询
+	listOptions := metav1.ListOptions{}
+	if labelSelector != "" {
+		listOptions.LabelSelector = labelSelector
+	}
+
+	serviceList, err := s.client.CoreV1().Services(namespace).List(s.ctx, listOptions)
 	if err != nil {
 		return nil, fmt.Errorf("获取Service列表失败: %v", err)
 	}
 
-	matchingServices := make([]types.ServiceInfo, 0)
+	matchingServices := make([]types.ServiceInfo, 0, len(serviceList.Items))
 
 	for _, svc := range serviceList.Items {
 		if svc.Spec.Selector == nil {
 			continue
 		}
 
+		// 检查 Service 的 selector 是否匹配工作负载的标签
+		// 这里仍需要检查，因为 label selector 是查询 Service 的 metadata.labels
+		// 而我们需要匹配的是 Service 的 spec.selector
 		matches := true
 		for k, v := range svc.Spec.Selector {
 			if labelValue, ok := labels[k]; !ok || labelValue != v {

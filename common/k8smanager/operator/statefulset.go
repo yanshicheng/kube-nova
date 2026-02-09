@@ -1830,16 +1830,17 @@ func (s *statefulSetOperator) GetResourceSummary(
 		return nil, err
 	}
 
-	// 获取 Pod 选择器标签
-	selectorLabels := statefulSet.Spec.Selector.MatchLabels
-	if len(selectorLabels) == 0 {
-		return nil, fmt.Errorf("StatefulSet 没有选择器标签")
+	// 使用 Pod 模板标签，而不是 selector 标签
+	// Pod 模板标签包含了 Pod 实际拥有的完整标签集合
+	podLabels := statefulSet.Spec.Template.Labels
+	if len(podLabels) == 0 {
+		return nil, fmt.Errorf("StatefulSet 没有 Pod 模板标签")
 	}
 
 	// 使用通用辅助函数获取摘要
 	return getWorkloadResourceSummary(
 		namespace,
-		selectorLabels,
+		podLabels, // 使用 Pod 模板标签
 		domainSuffix,
 		nodeLb,
 		podOp,

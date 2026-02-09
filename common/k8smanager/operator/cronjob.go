@@ -2053,14 +2053,16 @@ func (c *cronJobOperator) GetResourceSummary(
 		return nil, err
 	}
 
+	// 使用 Pod 模板标签，而不是 selector 标签
+	// Pod 模板标签包含了 Pod 实际拥有的完整标签集合
 	podLabels := cronJob.Spec.JobTemplate.Spec.Template.Labels
 	if len(podLabels) == 0 {
-		return nil, fmt.Errorf("CronJob 没有 Pod 标签")
+		return nil, fmt.Errorf("CronJob 没有 Pod 模板标签")
 	}
 
 	return getWorkloadResourceSummary(
 		namespace,
-		podLabels,
+		podLabels, // 使用 Pod 模板标签
 		domainSuffix,
 		nodeLb,
 		podOp,

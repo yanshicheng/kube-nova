@@ -95,86 +95,114 @@ func (l *GetApplicationSummaryLogic) GetApplicationSummary(req *types.GetApplica
 	serviceOp := client.Services()
 	ingressOp := client.Ingresses()
 
-	// 收集所有版本的摘要
-	versionSummaries := make([]*k8sTypes.WorkloadResourceSummary, 0, len(versions.Data))
+	// 收集所有版本的摘要 - 使用并行处理优化性能
+	versionSummaries := make([]*k8sTypes.WorkloadResourceSummary, len(versions.Data))
 
 	// 根据资源类型获取摘要
 	resourceType := strings.ToLower(app.Data.ResourceType)
 
-	for _, version := range versions.Data {
-		var summary *k8sTypes.WorkloadResourceSummary
-		var err error
+	// 使用 goroutine 并行处理多个版本
+	type versionResult struct {
+		index   int
+		summary *k8sTypes.WorkloadResourceSummary
+		err     error
+	}
 
-		switch resourceType {
-		case "deployment":
-			summary, err = client.Deployment().GetResourceSummary(
-				req.Namespace,
-				version.ResourceName,
-				domainSuffix,
-				nodeLb,
-				podOp,
-				serviceOp,
-				ingressOp,
-			)
+	resultChan := make(chan versionResult, len(versions.Data))
 
-		case "statefulset":
-			summary, err = client.StatefulSet().GetResourceSummary(
-				req.Namespace,
-				version.ResourceName,
-				domainSuffix,
-				nodeLb,
-				podOp,
-				serviceOp,
-				ingressOp,
-			)
+	for i, version := range versions.Data {
+		go func(index int, ver *managerservice.OnecProjectVersion) {
+			var summary *k8sTypes.WorkloadResourceSummary
+			var err error
 
-		case "daemonset":
-			summary, err = client.DaemonSet().GetResourceSummary(
-				req.Namespace,
-				version.ResourceName,
-				domainSuffix,
-				nodeLb,
-				podOp,
-				serviceOp,
-				ingressOp,
-			)
+			switch resourceType {
+			case "deployment":
+				summary, err = client.Deployment().GetResourceSummary(
+					req.Namespace,
+					ver.ResourceName,
+					domainSuffix,
+					nodeLb,
+					podOp,
+					serviceOp,
+					ingressOp,
+				)
 
-		case "cronjob":
-			summary, err = client.CronJob().GetResourceSummary(
-				req.Namespace,
-				version.ResourceName,
-				domainSuffix,
-				nodeLb,
-				podOp,
-				serviceOp,
-				ingressOp,
-			)
+			case "statefulset":
+				summary, err = client.StatefulSet().GetResourceSummary(
+					req.Namespace,
+					ver.ResourceName,
+					domainSuffix,
+					nodeLb,
+					podOp,
+					serviceOp,
+					ingressOp,
+				)
 
-		default:
-			l.Errorf("不支持的资源类型: %s", app.Data.ResourceType)
-			return nil, fmt.Errorf("资源类型 %s 不支持获取应用摘要", app.Data.ResourceType)
-		}
+			case "daemonset":
+				summary, err = client.DaemonSet().GetResourceSummary(
+					req.Namespace,
+					ver.ResourceName,
+					domainSuffix,
+					nodeLb,
+					podOp,
+					serviceOp,
+					ingressOp,
+				)
 
-		if err != nil {
-			l.Errorf("获取版本 %s 的资源摘要失败: %v", version.ResourceName, err)
+			case "cronjob":
+				summary, err = client.CronJob().GetResourceSummary(
+					req.Namespace,
+					ver.ResourceName,
+					domainSuffix,
+					nodeLb,
+					podOp,
+					serviceOp,
+					ingressOp,
+				)
+
+			default:
+				err = fmt.Errorf("资源类型 %s 不支持获取应用摘要", app.Data.ResourceType)
+			}
+
+			resultChan <- versionResult{
+				index:   index,
+				summary: summary,
+				err:     err,
+			}
+		}(i, version)
+	}
+
+	// 收集所有结果
+	successCount := 0
+	for i := 0; i < len(versions.Data); i++ {
+		result := <-resultChan
+
+		if result.err != nil {
+			l.Errorf("获取版本 %s 的资源摘要失败: %v", versions.Data[result.index].ResourceName, result.err)
 			// 单个版本失败不影响其他版本，继续处理
 			continue
 		}
 
-		l.Infof("版本 %s 摘要: PodCount=%d, ServiceCount=%d, IsAppSelector=%v",
-			version.ResourceName, summary.PodCount, summary.ServiceCount, summary.IsAppSelector)
-
-		versionSummaries = append(versionSummaries, summary)
+		versionSummaries[result.index] = result.summary
+		successCount++
 	}
 
 	// 如果所有版本都失败了
-	if len(versionSummaries) == 0 {
+	if successCount == 0 {
 		l.Errorf("所有版本的资源摘要获取都失败了")
 		return nil, fmt.Errorf("获取应用摘要失败: 所有版本都失败")
 	}
 
+	// 过滤掉失败的版本，只保留成功的
+	validSummaries := make([]*k8sTypes.WorkloadResourceSummary, 0, successCount)
+	for _, summary := range versionSummaries {
+		if summary != nil {
+			validSummaries = append(validSummaries, summary)
+		}
+	}
+
 	// 合并所有版本的摘要
-	applicationSummary := MergeApplicationSummaries(versionSummaries, len(versions.Data))
+	applicationSummary := MergeApplicationSummaries(validSummaries, len(versions.Data))
 
 	l.Infof("应用 %d 最终摘要: PodCount=%d, ServiceCount=%d, IngressCount=%d",
 		req.ApplicationId, applicationSummary.PodCount, applicationSummary.ServiceCount, applicationSummary.IngressCount)

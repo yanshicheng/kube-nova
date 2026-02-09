@@ -46,7 +46,8 @@ func (h *DefaultEventHandler) handleStatefulSetAdd(ctx context.Context, clusterU
 	// 如果是平台创建的资源，跳过
 	if sts.Annotations != nil {
 		if managedBy, ok := sts.Annotations[utils.AnnotationManagedBy]; ok && managedBy == utils.ManagedByPlatform {
-			logger.Debugf("[StatefulSet-ADD] 平台创建的资源，跳过: %s/%s", sts.Namespace, sts.Name)
+			logger.Infof("[StatefulSet-ADD] 平台创建的资源，跳过同步: %s/%s (注解: %s=%s)",
+				sts.Namespace, sts.Name, utils.AnnotationManagedBy, managedBy)
 			return nil
 		}
 	}

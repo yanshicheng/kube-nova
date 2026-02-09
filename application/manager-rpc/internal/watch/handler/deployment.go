@@ -47,7 +47,8 @@ func (h *DefaultEventHandler) handleDeploymentAdd(ctx context.Context, clusterUU
 	// 平台创建的资源会带有 ikubeops.com/managed-by: kube-nova 注解
 	if deploy.Annotations != nil {
 		if managedBy, ok := deploy.Annotations[utils.AnnotationManagedBy]; ok && managedBy == utils.ManagedByPlatform {
-			logger.Debugf("[Deployment-ADD] 平台创建的资源，跳过: %s/%s", deploy.Namespace, deploy.Name)
+			logger.Infof("[Deployment-ADD] 平台创建的资源，跳过同步: %s/%s (注解: %s=%s)",
+				deploy.Namespace, deploy.Name, utils.AnnotationManagedBy, managedBy)
 			return nil
 		}
 	}

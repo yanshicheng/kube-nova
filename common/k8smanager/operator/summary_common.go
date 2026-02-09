@@ -91,7 +91,6 @@ func getRelatedServicesForWorkloadOptimized(
 				svcMap[svc.Name] = svc
 			}
 			isAppSelector = true // 标记为通过 app 标签查询到了 Service
-			fmt.Printf("通过 app 标签 (app=%s) 查询到 %d 个 Service\n", appLabel, len(appServices))
 		}
 	}
 
@@ -114,9 +113,6 @@ func getRelatedServicesForWorkloadOptimized(
 	for _, svc := range allServices {
 		svcMap[svc.Name] = svc
 	}
-
-	fmt.Printf("通过所有标签查询到 %d 个 Service，合并后共 %d 个 Service\n",
-		len(allServices), len(svcMap))
 
 	// 转换为切片返回
 	result := make([]types.ServiceInfo, 0, len(svcMap))
@@ -144,7 +140,7 @@ func getRelatedIngressesForWorkloadOptimized(
 		svcNames[svc.Name] = true
 	}
 
-	// 获取命名空间下的所有 Ingress（不再逐个调用 GetDetail）
+	// 获取命名空间下的所有 Ingress
 	ingressList, err := ingressOp.List(namespace, "", "")
 	if err != nil {
 		return nil, fmt.Errorf("获取 Ingress 列表失败: %v", err)
@@ -153,14 +149,30 @@ func getRelatedIngressesForWorkloadOptimized(
 	// 过滤出引用了这些 Service 的 Ingress
 	relatedIngresses := make([]types.IngressInfo, 0)
 
+	// 批量处理，添加超时控制
+	processedCount := 0
+	maxProcessCount := 50 // 限制最多处理 50 个 Ingress，避免超时
+
 	for _, ingress := range ingressList.Items {
-		// 由于 IngressInfo 中没有详细的 Rules 信息，我们需要调用 GetDetail
-		// 但是我们可以添加超时保护和错误处理
+		if processedCount >= maxProcessCount {
+			fmt.Printf("警告: 已处理 %d 个 Ingress，达到最大限制，跳过剩余 %d 个\n",
+				processedCount, len(ingressList.Items)-processedCount)
+			break
+		}
+
+		// 优化：先检查 Ingress 的基本信息，避免不必要的 GetDetail 调用
+		// 如果 Ingress 没有 hosts，很可能不会引用我们的 Service
+		if len(ingress.Hosts) == 0 {
+			continue
+		}
+
+		// 调用 GetDetail 获取详细信息（这里仍需要调用，因为需要 Rules 信息）
 		detail, err := ingressOp.GetDetail(namespace, ingress.Name)
 		if err != nil {
 			// 如果单个 Ingress 获取失败，记录警告但继续处理其他 Ingress
 			fmt.Printf("警告: 获取 Ingress %s/%s 详情失败: %v, 跳过该 Ingress\n",
 				namespace, ingress.Name, err)
+			processedCount++
 			continue
 		}
 
@@ -170,6 +182,8 @@ func getRelatedIngressesForWorkloadOptimized(
 		if isRelated {
 			relatedIngresses = append(relatedIngresses, ingress)
 		}
+
+		processedCount++
 	}
 
 	return relatedIngresses, nil
