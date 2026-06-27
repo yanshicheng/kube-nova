@@ -213,6 +213,15 @@ func (m *DevopsProjectChannelBindingModel) ClearDefaultByProjectGroup(ctx contex
 	return err
 }
 
+// DeleteSoftByProject 根据项目ID软删除所有渠道绑定（不限 scope）
+func (m *DevopsProjectChannelBindingModel) DeleteSoftByProject(ctx context.Context, projectID, updatedBy string) error {
+	_, err := m.conn.UpdateMany(ctx,
+		bson.M{"projectId": projectID, "isDeleted": false},
+		bson.M{"$set": bson.M{"isDeleted": true, "updatedBy": updatedBy, "updateAt": now()}},
+	)
+	return err
+}
+
 func (m *DevopsProjectChannelBindingModel) DeleteSoftByProjectScope(ctx context.Context, projectID, usageScope, updatedBy string) error {
 	_, err := m.conn.UpdateMany(ctx,
 		bson.M{"projectId": projectID, "usageScope": usageScope, "isDeleted": false},

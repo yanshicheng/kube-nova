@@ -85,3 +85,10 @@ LeaderElection:
   LeaseDuration: 15s                         # 租约有效期
   RenewDeadline: 10s                         # 续约超时
   RetryPeriod: 2s                            # 重试间隔
+# 下游 RPC 服务
+ManagerRpc:
+  Endpoints:
+    - 127.0.0.1:30011
+DevopsManagerRpc:
+  Endpoints:
+    - 127.0.0.1:30031

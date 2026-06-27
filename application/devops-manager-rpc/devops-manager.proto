@@ -19,6 +19,7 @@ message DevopsProject {
   string id = 1;
   string name = 2;
   string code = 3;
+  string portalProjectUuid = 20; // 关联 portal 项目 UUID
   string description = 4;
   string pipelineEngineType = 5;
   string defaultEngineChannelId = 6;
@@ -2027,6 +2028,33 @@ message DeleteJenkinsCredentialSyncReq {
   string updatedBy = 6;
 }
 
+
+//--------------------------------项目依赖检查（供 portal 调用）--------------------------------
+message DevopsCheckProjectDependenciesReq {
+  string portalProjectUuid = 1; // portal 项目 UUID
+}
+message DevopsCheckProjectDependenciesResp {
+  repeated DevopsProjectDependency dependencies = 1; // 依赖列表
+}
+message DevopsProjectDependency {
+  string resourceType = 1; // 资源类型
+  int64 count = 2; // 数量
+  string message = 3; // 描述信息
+}
+
+//--------------------------------项目信息同步（供 portal 调用）--------------------------------
+message DevopsSyncProjectInfoReq {
+  string portalProjectUuid = 1; // portal 项目 UUID
+  string name = 2; // 项目名称
+  string description = 3; // 项目描述
+}
+
+//--------------------------------项目删除同步（供 portal 调用）--------------------------------
+message DevopsSyncProjectDeletedReq {
+  string portalProjectUuid = 1; // portal 项目 UUID
+  string updatedBy = 2; // 操作人
+}
+
 service ProjectService {
   rpc ProjectCreate(CreateProjectReq) returns (IdResp);
   rpc ProjectUpdate(UpdateProjectReq) returns (EmptyResp);
@@ -2073,6 +2101,11 @@ service ProjectService {
   rpc ProjectMemberSet(SetProjectMembersReq) returns (EmptyResp);
   rpc ProjectMemberDelete(DeleteByIdReq) returns (EmptyResp);
   rpc ProjectMemberList(ListProjectMemberReq) returns (ListProjectMemberResp);
+
+  //-----------------------项目依赖检查与同步（供 portal 调用）-----------------------
+  rpc CheckProjectDependencies(DevopsCheckProjectDependenciesReq) returns (DevopsCheckProjectDependenciesResp);
+  rpc SyncProjectInfo(DevopsSyncProjectInfoReq) returns (EmptyResp);
+  rpc SyncProjectDeleted(DevopsSyncProjectDeletedReq) returns (EmptyResp);
 }
 
 service ChannelService {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	portalprojectservice "github.com/yanshicheng/kube-nova/application/portal-rpc/client/projectservice"
+	"github.com/yanshicheng/kube-nova/common/interceptors"
 	"github.com/yanshicheng/kube-nova/application/devops-manager-rpc/internal/adapter"
 	"github.com/yanshicheng/kube-nova/application/devops-manager-rpc/internal/channelcheck"
 	"github.com/yanshicheng/kube-nova/application/devops-manager-rpc/internal/config"
@@ -13,6 +15,7 @@ import (
 	"github.com/yanshicheng/kube-nova/pkg/storage"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/redis"
+	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type ServiceContext struct {
@@ -43,11 +46,13 @@ type ServiceContext struct {
 	ChannelParamLookup       *stepChannelParamLookup
 	Storage                  storage.Uploader
 	ChannelVariableSpecModel model.ChannelVariableSpecModel
+	PortalRpc                portalprojectservice.ProjectService
 	ChannelManagerAdapter    *adapter.ChannelManagerAdapter
 	CredentialManagerAdapter *adapter.CredentialManagerAdapter
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	portalRpc := portalprojectservice.NewProjectService(zrpc.MustNewClient(c.PortalRpc, zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor())))
 	projectModel := model.NewDevopsProjectModel(c.Mongo.Url, c.Mongo.Db)
 	projectMavenModel := model.NewDevopsProjectMavenConfigModel(c.Mongo.Url, c.Mongo.Db)
 	configTypeModel := model.NewDevopsConfigTypeModel(c.Mongo.Url, c.Mongo.Db)
@@ -111,6 +116,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 
 	svcCtx := &ServiceContext{
 		Config:                   c,
+		PortalRpc:                portalRpc,
 		Cache:                    redis.MustNewRedis(c.Cache),
 		ProjectModel:             projectModel,
 		ProjectMavenModel:        projectMavenModel,

@@ -46,3 +46,7 @@ StorageConf:
   ClientCertFile: ""
   ClientKeyFile: ""
   UseTLS: true
+# Portal RPC 服务
+PortalRpc:
+  Endpoints:
+    - 127.0.0.1:30010

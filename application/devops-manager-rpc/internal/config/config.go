@@ -12,6 +12,7 @@ type Config struct {
 		Url string
 		Db  string
 	}
+	PortalRpc  zrpc.RpcClientConf
 	Bootstrap struct {
 		DefaultDataEnabled    bool
 		TektonStepSyncEnabled bool

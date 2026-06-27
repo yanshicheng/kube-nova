@@ -247,3 +247,19 @@ func (s *ProjectServiceServer) ProjectMemberList(ctx context.Context, in *pb.Lis
 	l := projectservicelogic.NewProjectMemberListLogic(ctx, s.svcCtx)
 	return l.ProjectMemberList(in)
 }
+
+// -----------------------项目依赖检查与同步（供 portal 调用）-----------------------
+func (s *ProjectServiceServer) CheckProjectDependencies(ctx context.Context, in *pb.DevopsCheckProjectDependenciesReq) (*pb.DevopsCheckProjectDependenciesResp, error) {
+	l := projectservicelogic.NewCheckProjectDependenciesLogic(ctx, s.svcCtx)
+	return l.CheckProjectDependencies(in)
+}
+
+func (s *ProjectServiceServer) SyncProjectInfo(ctx context.Context, in *pb.DevopsSyncProjectInfoReq) (*pb.EmptyResp, error) {
+	l := projectservicelogic.NewSyncProjectInfoLogic(ctx, s.svcCtx)
+	return l.SyncProjectInfo(in)
+}
+
+func (s *ProjectServiceServer) SyncProjectDeleted(ctx context.Context, in *pb.DevopsSyncProjectDeletedReq) (*pb.EmptyResp, error) {
+	l := projectservicelogic.NewSyncProjectDeletedLogic(ctx, s.svcCtx)
+	return l.SyncProjectDeleted(in)
+}

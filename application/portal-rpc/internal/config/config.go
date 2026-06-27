@@ -30,6 +30,8 @@ type Config struct {
 	DemoMode   bool
 	PortalName string
 	PortalUrl  string
+	ManagerRpc        zrpc.RpcClientConf
+	DevopsManagerRpc  zrpc.RpcClientConf
 
 	// 告警聚合器配置
 	Aggregator AggregatorConfig

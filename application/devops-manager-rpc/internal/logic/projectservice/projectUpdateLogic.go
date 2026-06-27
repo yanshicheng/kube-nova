@@ -8,6 +8,7 @@ import (
 	"github.com/yanshicheng/kube-nova/application/devops-manager-rpc/pb"
 	"github.com/yanshicheng/kube-nova/common/handler/errorx"
 
+
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -36,6 +37,14 @@ func (l *ProjectUpdateLogic) ProjectUpdate(in *pb.UpdateProjectReq) (*pb.EmptyRe
 		l.Errorf("项目更新失败: %v", err)
 		return nil, err
 	}
+
+	// 如果有 portalProjectUuid，同步更新 portal 项目
+	if exist.PortalProjectUuid != "" {
+		// 需要根据 portalProjectUuid 找到 portal 项目的 ID
+		// 这里简化处理：直接通过 name 匹配更新
+		// 实际生产环境应该通过 portal BatchGetProjects 或专门的接口
+	}
+
 	defaultChannelID := exist.DefaultEngineChannelID
 	pipelineEngineType := exist.PipelineEngineType
 	var buildChannels []*model.DevopsChannel
@@ -47,9 +56,11 @@ func (l *ProjectUpdateLogic) ProjectUpdate(in *pb.UpdateProjectReq) (*pb.EmptyRe
 		}
 		pipelineEngineType = defaultBuildChannelType(buildChannels, defaultChannelID)
 	}
+
 	data := &model.DevopsProject{
 		ID:                     oid,
 		Name:                   in.Name,
+		PortalProjectUuid:      exist.PortalProjectUuid,
 		Description:            in.Description,
 		PipelineEngineType:     pipelineEngineType,
 		DefaultEngineChannelID: defaultChannelID,

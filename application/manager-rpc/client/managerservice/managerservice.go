@@ -283,6 +283,9 @@ type (
 	LogQueryModeOptionsReq               = pb.LogQueryModeOptionsReq
 	LogQueryModeOptionsResp              = pb.LogQueryModeOptionsResp
 	LogQueryRecord                       = pb.LogQueryRecord
+	ManagerCheckProjectDependenciesReq   = pb.ManagerCheckProjectDependenciesReq
+	ManagerCheckProjectDependenciesResp  = pb.ManagerCheckProjectDependenciesResp
+	ManagerProjectDependency             = pb.ManagerProjectDependency
 	ManualRetryLogAlertEventReq          = pb.ManualRetryLogAlertEventReq
 	ManualRetryLogAlertEventResp         = pb.ManualRetryLogAlertEventResp
 	MigrateWorkspaceReq                  = pb.MigrateWorkspaceReq
@@ -663,6 +666,8 @@ type (
 		GetPrometheusConfig(ctx context.Context, in *GetPrometheusConfigReq, opts ...grpc.CallOption) (*GetPrometheusConfigResp, error)
 		// 配置Alertmanager
 		SetAlertmanagerConfig(ctx context.Context, in *SetAlertmanagerConfigReq, opts ...grpc.CallOption) (*SetAlertmanagerConfigResp, error)
+		// -----------------------项目依赖检查（供 portal 调用）-----------------------
+		CheckProjectDependencies(ctx context.Context, in *ManagerCheckProjectDependenciesReq, opts ...grpc.CallOption) (*ManagerCheckProjectDependenciesResp, error)
 	}
 
 	defaultManagerService struct {
@@ -1563,4 +1568,10 @@ func (m *defaultManagerService) GetPrometheusConfig(ctx context.Context, in *Get
 func (m *defaultManagerService) SetAlertmanagerConfig(ctx context.Context, in *SetAlertmanagerConfigReq, opts ...grpc.CallOption) (*SetAlertmanagerConfigResp, error) {
 	client := pb.NewManagerServiceClient(m.cli.Conn())
 	return client.SetAlertmanagerConfig(ctx, in, opts...)
+}
+
+// -----------------------项目依赖检查（供 portal 调用）-----------------------
+func (m *defaultManagerService) CheckProjectDependencies(ctx context.Context, in *ManagerCheckProjectDependenciesReq, opts ...grpc.CallOption) (*ManagerCheckProjectDependenciesResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.CheckProjectDependencies(ctx, in, opts...)
 }

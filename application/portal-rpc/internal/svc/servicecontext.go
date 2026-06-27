@@ -5,13 +5,17 @@ import (
 
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/authz"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/config"
+	devopsprojectservice "github.com/yanshicheng/kube-nova/application/devops-manager-rpc/client/projectservice"
+	managerservice "github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/message"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/model"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/notification"
+	"github.com/yanshicheng/kube-nova/common/interceptors"
 	notification2 "github.com/yanshicheng/kube-nova/application/portal-rpc/internal/notification"
 	"github.com/yanshicheng/kube-nova/pkg/storage"
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type ServiceContext struct {
@@ -20,6 +24,7 @@ type ServiceContext struct {
 	Storage storage.Uploader `json:"Storage,omitempty"`
 
 	// 数据模型
+	OnecProjectModel             model.OnecProjectModel             `json:"OnecProjectModel,omitempty"`
 	SysUser                      model.SysUserModel                 `json:"SysUser,omitempty"`
 	SysUserRole                  model.SysUserRoleModel             `json:"SysUserRole,omitempty"`
 	SysUserDept                  model.SysUserDeptModel             `json:"SysUserDept,omitempty"`
@@ -47,6 +52,10 @@ type ServiceContext struct {
 
 	// 告警通知管理器
 	AlertManager notification2.Manager `json:"AlertManager,omitempty"`
+
+	// RPC 客户端
+	ManagerRpc        managerservice.ManagerService
+	DevopsManagerRpc  devopsprojectservice.ProjectService
 
 	// 消息推送器
 	MessagePusher *message.MessagePusher `json:"MessagePusher,omitempty"`
@@ -82,6 +91,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		log.Fatalf("初始化上传器失败: %v", err)
 	}
 
+	// 初始化 RPC 客户端
+	managerRpc := managerservice.NewManagerService(zrpc.MustNewClient(c.ManagerRpc, zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor())))
+	devopsManagerRpc := devopsprojectservice.NewProjectService(zrpc.MustNewClient(c.DevopsManagerRpc, zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor())))
+
 	// 初始化 Redis
 	rdb := redis.MustNewRedis(c.Cache)
 
@@ -99,6 +112,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	sysDept := model.NewSysDeptModel(sqlConn, c.DBCache)
 	sysPlatform := model.NewSysPlatformModel(sqlConn, c.DBCache)
 	sysUserPlatform := model.NewSysUserPlatformModel(sqlConn, c.DBCache)
+	onecProjectModel := model.NewOnecProjectModel(sqlConn, c.DBCache)
 	siteMessagesModel := model.NewSiteMessagesModel(sqlConn, c.DBCache)
 	alertChannelsModel := model.NewAlertChannelsModel(sqlConn, c.DBCache)
 	alertGroupsModel := model.NewAlertGroupsModel(sqlConn, c.DBCache)
@@ -180,6 +194,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Config:                       c,
 		Cache:                        rdb,
 		Storage:                      uploader,
+		OnecProjectModel:             onecProjectModel,
 		SysUser:                      sysUser,
 		SysRole:                      sysRole,
 		SysRoleMenu:                  sysRoleMenu,
@@ -203,6 +218,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		AlertGroupMembersModel:       alertGroupMembersModel,
 		AlertGroupAppsModel:          alertGroupAppsModel,
 		AlertManager:                 alertManager,
+		ManagerRpc:                   managerRpc,
+		DevopsManagerRpc:             devopsManagerRpc,
 		MessagePusher:                messagePusher,
 		AggregatorService:            aggregatorService,
 	}

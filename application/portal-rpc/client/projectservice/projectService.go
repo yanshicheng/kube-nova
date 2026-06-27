@@ -2,7 +2,7 @@
 // goctl 1.9.2
 // Source: portal.proto
 
-package sysauthservice
+package projectservice
 
 import (
 	"context"
@@ -274,56 +274,52 @@ type (
 	VerifyTokenRequest                 = pb.VerifyTokenRequest
 	VerifyTokenResponse                = pb.VerifyTokenResponse
 
-	SysAuthService interface {
-		// 获取令牌
-		GetToken(ctx context.Context, in *GetTokenRequest, opts ...grpc.CallOption) (*GetTokenResponse, error)
-		// 验证令牌
-		VerifyToken(ctx context.Context, in *VerifyTokenRequest, opts ...grpc.CallOption) (*VerifyTokenResponse, error)
-		// 注销
-		Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
-		// 刷新令牌
-		RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error)
-		// api 鉴权
-		ApiAuth(ctx context.Context, in *ApiAuthRequest, opts ...grpc.CallOption) (*ApiAuthResponse, error)
+	ProjectService interface {
+		CreateProject(ctx context.Context, in *PortalCreateProjectReq, opts ...grpc.CallOption) (*PortalCreateProjectResp, error)
+		UpdateProject(ctx context.Context, in *PortalUpdateProjectReq, opts ...grpc.CallOption) (*PortalUpdateProjectResp, error)
+		DeleteProject(ctx context.Context, in *PortalDeleteProjectReq, opts ...grpc.CallOption) (*PortalDeleteProjectResp, error)
+		GetProject(ctx context.Context, in *PortalGetProjectReq, opts ...grpc.CallOption) (*PortalGetProjectResp, error)
+		ListProjects(ctx context.Context, in *PortalListProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error)
+		BatchGetProjects(ctx context.Context, in *PortalBatchGetProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error)
 	}
 
-	defaultSysAuthService struct {
+	defaultProjectService struct {
 		cli zrpc.Client
 	}
 )
 
-func NewSysAuthService(cli zrpc.Client) SysAuthService {
-	return &defaultSysAuthService{
+func NewProjectService(cli zrpc.Client) ProjectService {
+	return &defaultProjectService{
 		cli: cli,
 	}
 }
 
-// 获取令牌
-func (m *defaultSysAuthService) GetToken(ctx context.Context, in *GetTokenRequest, opts ...grpc.CallOption) (*GetTokenResponse, error) {
-	client := pb.NewSysAuthServiceClient(m.cli.Conn())
-	return client.GetToken(ctx, in, opts...)
+func (m *defaultProjectService) CreateProject(ctx context.Context, in *PortalCreateProjectReq, opts ...grpc.CallOption) (*PortalCreateProjectResp, error) {
+	client := pb.NewProjectServiceClient(m.cli.Conn())
+	return client.CreateProject(ctx, in, opts...)
 }
 
-// 验证令牌
-func (m *defaultSysAuthService) VerifyToken(ctx context.Context, in *VerifyTokenRequest, opts ...grpc.CallOption) (*VerifyTokenResponse, error) {
-	client := pb.NewSysAuthServiceClient(m.cli.Conn())
-	return client.VerifyToken(ctx, in, opts...)
+func (m *defaultProjectService) UpdateProject(ctx context.Context, in *PortalUpdateProjectReq, opts ...grpc.CallOption) (*PortalUpdateProjectResp, error) {
+	client := pb.NewProjectServiceClient(m.cli.Conn())
+	return client.UpdateProject(ctx, in, opts...)
 }
 
-// 注销
-func (m *defaultSysAuthService) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error) {
-	client := pb.NewSysAuthServiceClient(m.cli.Conn())
-	return client.Logout(ctx, in, opts...)
+func (m *defaultProjectService) DeleteProject(ctx context.Context, in *PortalDeleteProjectReq, opts ...grpc.CallOption) (*PortalDeleteProjectResp, error) {
+	client := pb.NewProjectServiceClient(m.cli.Conn())
+	return client.DeleteProject(ctx, in, opts...)
 }
 
-// 刷新令牌
-func (m *defaultSysAuthService) RefreshToken(ctx context.Context, in *RefreshTokenRequest, opts ...grpc.CallOption) (*RefreshTokenResponse, error) {
-	client := pb.NewSysAuthServiceClient(m.cli.Conn())
-	return client.RefreshToken(ctx, in, opts...)
+func (m *defaultProjectService) GetProject(ctx context.Context, in *PortalGetProjectReq, opts ...grpc.CallOption) (*PortalGetProjectResp, error) {
+	client := pb.NewProjectServiceClient(m.cli.Conn())
+	return client.GetProject(ctx, in, opts...)
 }
 
-// api 鉴权
-func (m *defaultSysAuthService) ApiAuth(ctx context.Context, in *ApiAuthRequest, opts ...grpc.CallOption) (*ApiAuthResponse, error) {
-	client := pb.NewSysAuthServiceClient(m.cli.Conn())
-	return client.ApiAuth(ctx, in, opts...)
+func (m *defaultProjectService) ListProjects(ctx context.Context, in *PortalListProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error) {
+	client := pb.NewProjectServiceClient(m.cli.Conn())
+	return client.ListProjects(ctx, in, opts...)
+}
+
+func (m *defaultProjectService) BatchGetProjects(ctx context.Context, in *PortalBatchGetProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error) {
+	client := pb.NewProjectServiceClient(m.cli.Conn())
+	return client.BatchGetProjects(ctx, in, opts...)
 }

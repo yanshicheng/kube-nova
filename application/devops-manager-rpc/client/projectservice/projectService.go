@@ -56,6 +56,8 @@ type (
 	DevopsChannel                       = pb.DevopsChannel
 	DevopsChannelGroup                  = pb.DevopsChannelGroup
 	DevopsChannelType                   = pb.DevopsChannelType
+	DevopsCheckProjectDependenciesReq   = pb.DevopsCheckProjectDependenciesReq
+	DevopsCheckProjectDependenciesResp  = pb.DevopsCheckProjectDependenciesResp
 	DevopsConfigType                    = pb.DevopsConfigType
 	DevopsCredential                    = pb.DevopsCredential
 	DevopsHost                          = pb.DevopsHost
@@ -65,12 +67,15 @@ type (
 	DevopsProject                       = pb.DevopsProject
 	DevopsProjectChannelBinding         = pb.DevopsProjectChannelBinding
 	DevopsProjectConfig                 = pb.DevopsProjectConfig
+	DevopsProjectDependency             = pb.DevopsProjectDependency
 	DevopsProjectMavenConfig            = pb.DevopsProjectMavenConfig
 	DevopsProjectMember                 = pb.DevopsProjectMember
 	DevopsProjectMemberInput            = pb.DevopsProjectMemberInput
 	DevopsStepCategory                  = pb.DevopsStepCategory
 	DevopsStepParam                     = pb.DevopsStepParam
 	DevopsStepTemplate                  = pb.DevopsStepTemplate
+	DevopsSyncProjectDeletedReq         = pb.DevopsSyncProjectDeletedReq
+	DevopsSyncProjectInfoReq            = pb.DevopsSyncProjectInfoReq
 	DevopsSystem                        = pb.DevopsSystem
 	DevopsTektonTaskParam               = pb.DevopsTektonTaskParam
 	DevopsTektonTaskResult              = pb.DevopsTektonTaskResult
@@ -280,6 +285,10 @@ type (
 		ProjectMemberSet(ctx context.Context, in *SetProjectMembersReq, opts ...grpc.CallOption) (*EmptyResp, error)
 		ProjectMemberDelete(ctx context.Context, in *DeleteByIdReq, opts ...grpc.CallOption) (*EmptyResp, error)
 		ProjectMemberList(ctx context.Context, in *ListProjectMemberReq, opts ...grpc.CallOption) (*ListProjectMemberResp, error)
+		// -----------------------项目依赖检查与同步（供 portal 调用）-----------------------
+		CheckProjectDependencies(ctx context.Context, in *DevopsCheckProjectDependenciesReq, opts ...grpc.CallOption) (*DevopsCheckProjectDependenciesResp, error)
+		SyncProjectInfo(ctx context.Context, in *DevopsSyncProjectInfoReq, opts ...grpc.CallOption) (*EmptyResp, error)
+		SyncProjectDeleted(ctx context.Context, in *DevopsSyncProjectDeletedReq, opts ...grpc.CallOption) (*EmptyResp, error)
 	}
 
 	defaultProjectService struct {
@@ -516,4 +525,20 @@ func (m *defaultProjectService) ProjectMemberDelete(ctx context.Context, in *Del
 func (m *defaultProjectService) ProjectMemberList(ctx context.Context, in *ListProjectMemberReq, opts ...grpc.CallOption) (*ListProjectMemberResp, error) {
 	client := pb.NewProjectServiceClient(m.cli.Conn())
 	return client.ProjectMemberList(ctx, in, opts...)
+}
+
+// -----------------------项目依赖检查与同步（供 portal 调用）-----------------------
+func (m *defaultProjectService) CheckProjectDependencies(ctx context.Context, in *DevopsCheckProjectDependenciesReq, opts ...grpc.CallOption) (*DevopsCheckProjectDependenciesResp, error) {
+	client := pb.NewProjectServiceClient(m.cli.Conn())
+	return client.CheckProjectDependencies(ctx, in, opts...)
+}
+
+func (m *defaultProjectService) SyncProjectInfo(ctx context.Context, in *DevopsSyncProjectInfoReq, opts ...grpc.CallOption) (*EmptyResp, error) {
+	client := pb.NewProjectServiceClient(m.cli.Conn())
+	return client.SyncProjectInfo(ctx, in, opts...)
+}
+
+func (m *defaultProjectService) SyncProjectDeleted(ctx context.Context, in *DevopsSyncProjectDeletedReq, opts ...grpc.CallOption) (*EmptyResp, error) {
+	client := pb.NewProjectServiceClient(m.cli.Conn())
+	return client.SyncProjectDeleted(ctx, in, opts...)
 }

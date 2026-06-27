@@ -911,3 +911,9 @@ func (s *ManagerServiceServer) SetAlertmanagerConfig(ctx context.Context, in *pb
 	l := managerservicelogic.NewSetAlertmanagerConfigLogic(ctx, s.svcCtx)
 	return l.SetAlertmanagerConfig(in)
 }
+
+// -----------------------项目依赖检查（供 portal 调用）-----------------------
+func (s *ManagerServiceServer) CheckProjectDependencies(ctx context.Context, in *pb.ManagerCheckProjectDependenciesReq) (*pb.ManagerCheckProjectDependenciesResp, error) {
+	l := managerservicelogic.NewCheckProjectDependenciesLogic(ctx, s.svcCtx)
+	return l.CheckProjectDependencies(in)
+}

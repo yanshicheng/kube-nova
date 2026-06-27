@@ -15,6 +15,7 @@ type DevopsProject struct {
 	ID                     bson.ObjectID `bson:"_id,omitempty"`
 	Name                   string        `bson:"name,omitempty"`
 	Code                   string        `bson:"code,omitempty"`
+	PortalProjectUuid      string        `bson:"portalProjectUuid,omitempty"`
 	Description            string        `bson:"description,omitempty"`
 	PipelineEngineType     string        `bson:"pipelineEngineType,omitempty"`
 	DefaultEngineChannelID string        `bson:"defaultEngineChannelId,omitempty"`
@@ -77,6 +78,7 @@ func (m *DevopsProjectModel) Update(ctx context.Context, data *DevopsProject) er
 		bson.M{"_id": data.ID, "isDeleted": false},
 		bson.M{"$set": bson.M{
 			"name":                   data.Name,
+			"portalProjectUuid":      data.PortalProjectUuid,
 			"description":            data.Description,
 			"pipelineEngineType":     data.PipelineEngineType,
 			"defaultEngineChannelId": data.DefaultEngineChannelID,
@@ -161,4 +163,34 @@ func (m *DevopsProjectModel) List(ctx context.Context, filter DevopsProjectListF
 		return nil, 0, err
 	}
 	return data, uint64(total), nil
+}
+
+// FindOneByPortalUuid 根据 portal 项目 UUID 查询 DevOps 项目
+func (m *DevopsProjectModel) FindOneByPortalUuid(ctx context.Context, portalProjectUuid string) (*DevopsProject, error) {
+	var data DevopsProject
+	err := m.conn.FindOne(ctx, &data, bson.M{"portalProjectUuid": portalProjectUuid, "isDeleted": false})
+	if err != nil {
+		return nil, err
+	}
+	return &data, nil
+}
+
+// UpdateNameByPortalUuid 根据 portal 项目 UUID 同步更新项目名称和描述
+func (m *DevopsProjectModel) UpdateNameByPortalUuid(ctx context.Context, portalProjectUuid, name, description, updatedBy string) error {
+	res, err := m.conn.UpdateOne(ctx,
+		bson.M{"portalProjectUuid": portalProjectUuid, "isDeleted": false},
+		bson.M{"$set": bson.M{
+			"name":        name,
+			"description": description,
+			"updatedBy":   updatedBy,
+			"updateAt":    now(),
+		}},
+	)
+	if err != nil {
+		return err
+	}
+	if isNotFoundUpdate(res) {
+		return ErrNotFound
+	}
+	return nil
 }

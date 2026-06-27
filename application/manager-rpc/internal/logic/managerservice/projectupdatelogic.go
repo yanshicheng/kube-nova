@@ -7,6 +7,8 @@ import (
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/pb"
 	"github.com/yanshicheng/kube-nova/common/handler/errorx"
 
+	portalpb "github.com/yanshicheng/kube-nova/application/portal-rpc/pb"
+
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -24,33 +26,25 @@ func NewProjectUpdateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Pro
 	}
 }
 
-// ProjectUpdate 更新项目信息
+// ProjectUpdate 更新项目（委托 portal-rpc）
 func (l *ProjectUpdateLogic) ProjectUpdate(in *pb.UpdateOnecProjectReq) (*pb.UpdateOnecProjectResp, error) {
-	// 判断参数
 	if in.Id <= 0 {
-		l.Logger.Error("项目ID不能小于等于0")
 		return nil, errorx.Msg("项目ID不能小于等于0")
 	}
 	if in.Name == "" {
-		l.Logger.Error("项目名称不能为空")
 		return nil, errorx.Msg("项目名称不能为空")
 	}
-	// 查询项目是否存在
-	project, err := l.svcCtx.OnecProjectModel.FindOne(l.ctx, in.Id)
-	if err != nil {
-		l.Logger.Errorf("查询项目失败，ID: %d, 错误: %v", in.Id, err)
-		return nil, errorx.Msg("项目不存在")
-	}
 
-	// 更新项目信息
-	project.Name = in.Name
-	project.Description = in.Description
-	project.UpdatedBy = in.UpdatedBy
-
-	err = l.svcCtx.OnecProjectModel.Update(l.ctx, project)
+	_, err := l.svcCtx.PortalProjectRpc.UpdateProject(l.ctx, &portalpb.PortalUpdateProjectReq{
+		Id:          in.Id,
+		Name:        in.Name,
+		Description: in.Description,
+		UpdatedBy:   in.UpdatedBy,
+	})
 	if err != nil {
-		l.Logger.Errorf("更新项目失败，ID: %d, 错误: %v", in.Id, err)
+		l.Errorf("调用 portal 更新项目失败，ID: %d, 错误: %v", in.Id, err)
 		return nil, errorx.Msg("更新项目失败")
 	}
+
 	return &pb.UpdateOnecProjectResp{}, nil
 }

@@ -608,6 +608,73 @@ message UploadImageResponse {
   string imageUrl = 2;
 }
 
+//--------------------------------项目表（统一项目管理入口）--------------------------------
+message PortalProject {
+  uint64 id = 1; // 主键，自增 ID
+  string name = 2; // 项目的中文名称
+  string uuid = 3; // 项目的唯一标识符（英文）
+  int64 isSystem = 4; // 是否为系统级别项目
+  string description = 5; // 项目描述信息
+  string createdBy = 6; // 记录创建人
+  string updatedBy = 7; // 记录最后更新人
+  int64 createdAt = 8; // 记录创建时间
+  int64 updatedAt = 9; // 记录更新时间
+}
+
+message PortalCreateProjectReq {
+  string name = 1; // 项目的中文名称
+  int64 isSystem = 2; // 是否为系统级别项目
+  string description = 3; // 项目描述信息
+  string createdBy = 4; // 记录创建人
+}
+
+message PortalCreateProjectResp {
+  uint64 id = 1; // 新创建的项目 ID
+  string uuid = 2; // 新创建的项目 UUID
+}
+
+message PortalUpdateProjectReq {
+  uint64 id = 1; // 主键，自增 ID
+  string name = 2; // 项目的中文名称
+  string description = 3; // 项目描述信息
+  string updatedBy = 4; // 记录最后更新人
+}
+
+message PortalUpdateProjectResp {}
+
+message PortalDeleteProjectReq {
+  uint64 id = 1; // 项目 ID
+  string updatedBy = 2; // 操作人
+}
+
+message PortalDeleteProjectResp {}
+
+message PortalGetProjectReq {
+  uint64 id = 1; // 项目 ID
+}
+
+message PortalGetProjectResp {
+  PortalProject data = 1;
+}
+
+message PortalListProjectsReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string name = 3; // 项目名称（模糊搜索）
+  string uuid = 4; // 项目 UUID（精确搜索）
+  int64 isSystem = 5; // 是否为系统级别项目，-1 表示不过滤
+}
+
+message PortalListProjectsResp {
+  repeated PortalProject data = 1;
+  uint64 total = 2;
+}
+
+message PortalBatchGetProjectsReq {
+  repeated uint64 ids = 1; // 项目 ID 列表
+}
+
+
 // 获取存储的访问 url
 message GetStorageUrlRequest {}
 message GetStorageUrlResponse {
@@ -1339,6 +1406,17 @@ service PortalService {
   // 获取平台地址
   rpc GetKubeNovaPlatformUrl(GetPlatformUrlReq) returns (GetPlatformUrlResp);
 }
+
+//--------------------------------项目管理服务--------------------------------
+service ProjectService {
+  rpc CreateProject(PortalCreateProjectReq) returns (PortalCreateProjectResp);
+  rpc UpdateProject(PortalUpdateProjectReq) returns (PortalUpdateProjectResp);
+  rpc DeleteProject(PortalDeleteProjectReq) returns (PortalDeleteProjectResp);
+  rpc GetProject(PortalGetProjectReq) returns (PortalGetProjectResp);
+  rpc ListProjects(PortalListProjectsReq) returns (PortalListProjectsResp);
+  rpc BatchGetProjects(PortalBatchGetProjectsReq) returns (PortalListProjectsResp);
+}
+
 
 
 

@@ -283,6 +283,9 @@ type (
 	LogQueryModeOptionsReq               = pb.LogQueryModeOptionsReq
 	LogQueryModeOptionsResp              = pb.LogQueryModeOptionsResp
 	LogQueryRecord                       = pb.LogQueryRecord
+	ManagerCheckProjectDependenciesReq   = pb.ManagerCheckProjectDependenciesReq
+	ManagerCheckProjectDependenciesResp  = pb.ManagerCheckProjectDependenciesResp
+	ManagerProjectDependency             = pb.ManagerProjectDependency
 	ManualRetryLogAlertEventReq          = pb.ManualRetryLogAlertEventReq
 	ManualRetryLogAlertEventResp         = pb.ManualRetryLogAlertEventResp
 	MigrateWorkspaceReq                  = pb.MigrateWorkspaceReq

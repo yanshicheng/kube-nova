@@ -56,6 +56,8 @@ type (
 	DevopsChannel                       = pb.DevopsChannel
 	DevopsChannelGroup                  = pb.DevopsChannelGroup
 	DevopsChannelType                   = pb.DevopsChannelType
+	DevopsCheckProjectDependenciesReq   = pb.DevopsCheckProjectDependenciesReq
+	DevopsCheckProjectDependenciesResp  = pb.DevopsCheckProjectDependenciesResp
 	DevopsConfigType                    = pb.DevopsConfigType
 	DevopsCredential                    = pb.DevopsCredential
 	DevopsHost                          = pb.DevopsHost
@@ -65,12 +67,15 @@ type (
 	DevopsProject                       = pb.DevopsProject
 	DevopsProjectChannelBinding         = pb.DevopsProjectChannelBinding
 	DevopsProjectConfig                 = pb.DevopsProjectConfig
+	DevopsProjectDependency             = pb.DevopsProjectDependency
 	DevopsProjectMavenConfig            = pb.DevopsProjectMavenConfig
 	DevopsProjectMember                 = pb.DevopsProjectMember
 	DevopsProjectMemberInput            = pb.DevopsProjectMemberInput
 	DevopsStepCategory                  = pb.DevopsStepCategory
 	DevopsStepParam                     = pb.DevopsStepParam
 	DevopsStepTemplate                  = pb.DevopsStepTemplate
+	DevopsSyncProjectDeletedReq         = pb.DevopsSyncProjectDeletedReq
+	DevopsSyncProjectInfoReq            = pb.DevopsSyncProjectInfoReq
 	DevopsSystem                        = pb.DevopsSystem
 	DevopsTektonTaskParam               = pb.DevopsTektonTaskParam
 	DevopsTektonTaskResult              = pb.DevopsTektonTaskResult

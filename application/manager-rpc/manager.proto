@@ -662,6 +662,19 @@ message ProjectSyncReq {
 message ProjectSyncResp {
 }
 
+//--------------------------------项目依赖检查（供 portal 删除前调用）--------------------------------
+message ManagerCheckProjectDependenciesReq {
+  uint64 projectId = 1; // 项目 ID
+}
+message ManagerCheckProjectDependenciesResp {
+  repeated ManagerProjectDependency dependencies = 1; // 依赖列表
+}
+message ManagerProjectDependency {
+  string resourceType = 1; // 资源类型: project_cluster, project_admin, project_audit_log
+  int64 count = 2; // 数量
+  string message = 3; // 描述信息
+}
+
 //--------------------------------项目管理员表，关联项目与用户的多对多关系--------------------------------
 message OnecProjectAdmin {
   uint64 id = 1; //主键，自增 ID
@@ -3926,5 +3939,8 @@ service ManagerService {
 
   // 配置Alertmanager
   rpc SetAlertmanagerConfig(SetAlertmanagerConfigReq) returns (SetAlertmanagerConfigResp);
+
+  //-----------------------项目依赖检查（供 portal 调用）-----------------------
+  rpc CheckProjectDependencies(ManagerCheckProjectDependenciesReq) returns (ManagerCheckProjectDependenciesResp);
 
 }

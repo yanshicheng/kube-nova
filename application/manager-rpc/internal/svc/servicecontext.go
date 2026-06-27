@@ -15,6 +15,7 @@ import (
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/watch/incremental"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/alertservice"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/portalservice"
+	portalprojectservice "github.com/yanshicheng/kube-nova/application/portal-rpc/client/projectservice"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/storageservice"
 	"github.com/yanshicheng/kube-nova/common/interceptors"
 	"github.com/yanshicheng/kube-nova/common/k8smanager/cluster"
@@ -57,6 +58,7 @@ type ServiceContext struct {
 	OnecBillingConfigBindingModel model.OnecBillingConfigBindingModel
 	Storage                       storageservice.StorageService
 	PortalRpc                     portalservice.PortalService
+	PortalProjectRpc              portalprojectservice.ProjectService
 	BillingService                billing.Service
 	K8sManager                    cluster.Manager
 	PrometheusManager             *promcluster.PrometheusManager
@@ -98,6 +100,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	}
 	managerRpc := zrpc.MustNewClient(managerRpcConf, zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor()))
 	alertRpc := zrpc.MustNewClient(c.PortalRpc, zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor()))
+	portalProjectRpc := portalprojectservice.NewProjectService(zrpc.MustNewClient(c.PortalRpc, zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor())))
 
 	// ==================== 初始化 Redis ====================
 	rds := redis.MustNewRedis(c.Cache)
@@ -194,6 +197,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		//ControllerRpc:         controllerservice.NewControllerService(controllerRpc),
 		Storage:                       storageservice.NewStorageService(zrpc.MustNewClient(c.PortalRpc)),
 		PortalRpc:                     portalservice.NewPortalService(alertRpc),
+		PortalProjectRpc:              portalProjectRpc,
 		OnecClusterModel:              clusterModel,
 		OnecClusterAppModel:           model.NewOnecClusterAppModel(sqlConn, c.DBCache),
 		OnecClusterNodeModel:          clusterNodeModel,
