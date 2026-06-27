@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 
@@ -25,28 +24,30 @@ var (
 )
 
 // NewMinioStore 创建一个 MinioStore 实例，支持传入 TLS 相关的配置
-func NewMinioStore(endpoint, accessKey, accessSecret, CAFile, CAKey string, useTLS bool) (*MinioStore, error) {
+func NewMinioStore(endpoint, accessKey, accessSecret, CAFile, clientCertFile, clientKeyFile string, useTLS bool) (*MinioStore, error) {
 	var tlsConfig *tls.Config
+	if CAFile != "" || clientCertFile != "" || clientKeyFile != "" {
+		tlsConfig = &tls.Config{}
+	}
 	if CAFile != "" {
-		// 加载CA证书
+		// 加载 CA 证书
 		caCert, err := os.ReadFile(CAFile)
 		if err != nil {
-			log.Fatalln(err)
+			return nil, fmt.Errorf("加载 CA 证书失败: %v", err)
 		}
 		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(caCert)
+		if !caCertPool.AppendCertsFromPEM(caCert) {
+			return nil, fmt.Errorf("CA 证书格式不正确")
+		}
 
-		// 加载客户端证书
-		clientCert, err := tls.LoadX509KeyPair(CAFile, CAKey)
+		tlsConfig.RootCAs = caCertPool
+	}
+	if clientCertFile != "" || clientKeyFile != "" {
+		clientCert, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
 		if err != nil {
 			return nil, fmt.Errorf("加载客户端证书失败: %v", err)
 		}
-
-		// 设置TLS配置
-		tlsConfig = &tls.Config{
-			Certificates: []tls.Certificate{clientCert},
-			RootCAs:      caCertPool,
-		}
+		tlsConfig.Certificates = []tls.Certificate{clientCert}
 	}
 
 	// 创建 MinIO 客户端
@@ -88,8 +89,21 @@ func (m *MinioStore) Upload(bucketName, objectKey string, data io.Reader, size i
 		return fmt.Errorf("上传文件失败: %v", err)
 	}
 
-	log.Printf("Uploaded %s/%s, size: %v bytes, ETag: %s\n", bucketName, objectKey, uploadInfo.Size, uploadInfo.ETag)
+	fmt.Printf("Uploaded %s/%s, size: %v bytes, ETag: %s\n", bucketName, objectKey, uploadInfo.Size, uploadInfo.ETag)
 	return nil
+}
+
+// Download 方法实现文件下载
+func (m *MinioStore) Download(ctx context.Context, bucketName, objectKey string) (io.ReadCloser, int64, string, error) {
+	info, err := m.client.StatObject(ctx, bucketName, objectKey, minio.StatObjectOptions{})
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("获取对象信息失败: %v", err)
+	}
+	object, err := m.client.GetObject(ctx, bucketName, objectKey, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, 0, "", fmt.Errorf("下载对象失败: %v", err)
+	}
+	return object, info.Size, info.ContentType, nil
 }
 
 // Ping 方法检查 MinIO 服务器的可用性
@@ -102,6 +116,6 @@ func (m *MinioStore) Ping() error {
 	}
 
 	// 如果能够获取到桶的信息，则表示连接正常
-	log.Printf("MinIO 服务器可用, 当前桶数量: %d\n", len(buckets))
+	fmt.Printf("S3 兼容对象存储可用, 当前桶数量: %d\n", len(buckets))
 	return nil
 }

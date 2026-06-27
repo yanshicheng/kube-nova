@@ -1,0 +1,710 @@
+syntax = "v1"
+
+info(
+    title: "DevOps Project API"
+    desc: "DevOps 项目管理接口"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    DevopsProject {
+        Id string `json:"id"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        Description string `json:"description"`
+        PipelineEngineType string `json:"pipelineEngineType"`
+        DefaultEngineChannelId string `json:"defaultEngineChannelId"`
+        Status int64 `json:"status"`
+        ExtraConfig string `json:"extraConfig"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    CreateDevopsProjectRequest {
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        DefaultEngineChannelId string `json:"defaultEngineChannelId" validate:"required"`
+        BuildChannelIds []string `json:"buildChannelIds" validate:"required,min=1"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+        ExtraConfig string `json:"extraConfig,optional" validate:"omitempty"`
+    }
+
+    UpdateDevopsProjectRequest {
+        Id string `path:"id" validate:"required"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        DefaultEngineChannelId string `json:"defaultEngineChannelId" validate:"required"`
+        BuildChannelIds []string `json:"buildChannelIds" validate:"required,min=1"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+        ExtraConfig string `json:"extraConfig,optional" validate:"omitempty"`
+    }
+
+    ListDevopsProjectRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"20" validate:"required,min=1,max=200"`
+        Name string `form:"name,optional" validate:"omitempty,max=128"`
+        Code string `form:"code,optional" validate:"omitempty,max=64"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    ListDevopsProjectResponse {
+        Items []DevopsProject `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    DevopsProjectMavenConfig {
+        Id string `json:"id"`
+        ProjectId string `json:"projectId"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        Content string `json:"content"`
+        Description string `json:"description"`
+        Status int64 `json:"status"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    CreateDevopsProjectMavenConfigRequest {
+        ProjectId string `json:"projectId" validate:"required"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Code string `json:"code" validate:"required,min=1,max=64"`
+        Content string `json:"content" validate:"required"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    UpdateDevopsProjectMavenConfigRequest {
+        Id string `path:"id" validate:"required"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Content string `json:"content" validate:"required"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    ListDevopsProjectMavenConfigRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"20" validate:"required,min=1,max=200"`
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        Name string `form:"name,optional" validate:"omitempty,max=128"`
+        Code string `form:"code,optional" validate:"omitempty,max=64"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    ListDevopsProjectMavenConfigResponse {
+        Items []DevopsProjectMavenConfig `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    DevopsConfigType {
+        Id string `json:"id"`
+        ParentId string `json:"parentId"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        StorageType string `json:"storageType"`
+        Description string `json:"description"`
+        SortOrder int64 `json:"sortOrder"`
+        Status int64 `json:"status"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+        Children []DevopsConfigType `json:"children,optional"`
+    }
+
+    CreateDevopsConfigTypeRequest {
+        ParentId string `json:"parentId,optional" validate:"omitempty"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Code string `json:"code" validate:"required,min=1,max=64"`
+        StorageType string `json:"storageType,optional" default:"text" validate:"oneof=json xml yml text config"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        SortOrder int64 `json:"sortOrder,optional" default:"0" validate:"gte=0"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    UpdateDevopsConfigTypeRequest {
+        Id string `path:"id" validate:"required"`
+        ParentId string `json:"parentId,optional" validate:"omitempty"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        StorageType string `json:"storageType,optional" default:"text" validate:"oneof=json xml yml text config"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        SortOrder int64 `json:"sortOrder,optional" default:"0" validate:"gte=0"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    ListDevopsConfigTypeRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"20" validate:"required,min=1,max=200"`
+        ParentId string `form:"parentId,optional" validate:"omitempty"`
+        Name string `form:"name,optional" validate:"omitempty,max=128"`
+        Code string `form:"code,optional" validate:"omitempty,max=64"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    DevopsConfigTypeTreeRequest {
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    DevopsConfigTypeListResponse {
+        Items []DevopsConfigType `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    DevopsConfigTypeTreeResponse {
+        Items []DevopsConfigType `json:"items"`
+    }
+
+    DevopsProjectConfig {
+        Id string `json:"id"`
+        ProjectId string `json:"projectId"`
+        TypeId string `json:"typeId"`
+        TypeCode string `json:"typeCode"`
+        TypeName string `json:"typeName"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        Content string `json:"content"`
+        Description string `json:"description"`
+        Status int64 `json:"status"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    CreateDevopsProjectConfigRequest {
+        ProjectId string `json:"projectId" validate:"required"`
+        TypeId string `json:"typeId,optional" validate:"omitempty"`
+        TypeCode string `json:"typeCode,optional" validate:"omitempty,max=64"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Code string `json:"code" validate:"required,min=1,max=64"`
+        Content string `json:"content" validate:"required"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    UpdateDevopsProjectConfigRequest {
+        Id string `path:"id" validate:"required"`
+        TypeId string `json:"typeId,optional" validate:"omitempty"`
+        TypeCode string `json:"typeCode,optional" validate:"omitempty,max=64"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Content string `json:"content" validate:"required"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    ListDevopsProjectConfigRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"20" validate:"required,min=1,max=200"`
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        TypeId string `form:"typeId,optional" validate:"omitempty"`
+        TypeCode string `form:"typeCode,optional" validate:"omitempty,max=64"`
+        Name string `form:"name,optional" validate:"omitempty,max=128"`
+        Code string `form:"code,optional" validate:"omitempty,max=64"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    ListDevopsProjectConfigResponse {
+        Items []DevopsProjectConfig `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    DevopsProjectChannelBinding {
+        Id string `json:"id"`
+        ProjectId string `json:"projectId"`
+        ChannelId string `json:"channelId"`
+        ChannelGroupCode string `json:"channelGroupCode"`
+        ChannelName string `json:"channelName"`
+        ChannelCode string `json:"channelCode"`
+        ChannelType string `json:"channelType"`
+        UsageScope string `json:"usageScope"`
+        IsDefault bool `json:"isDefault"`
+        AllowUseGlobalCredential bool `json:"allowUseGlobalCredential"`
+        ProjectCredentialId string `json:"projectCredentialId"`
+        BindingConfig string `json:"bindingConfig"`
+        Status int64 `json:"status"`
+        HealthStatus string `json:"healthStatus"`
+        LastCheckAt int64 `json:"lastCheckAt"`
+        LastCheckMessage string `json:"lastCheckMessage"`
+        Metadata string `json:"metadata"`
+        ChannelConfig string `json:"channelConfig"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    BindDevopsProjectChannelsRequest {
+        Id string `path:"id" validate:"required"`
+        ChannelGroupCode string `json:"channelGroupCode,optional" validate:"omitempty,max=64"`
+        ChannelIds []string `json:"channelIds" validate:"required,min=1"`
+        DefaultChannelId string `json:"defaultChannelId,optional" validate:"omitempty"`
+        UsageScope string `json:"usageScope,optional" validate:"omitempty,max=64"`
+        AllowUseGlobalCredential bool `json:"allowUseGlobalCredential,optional"`
+        ProjectCredentialId string `json:"projectCredentialId,optional" validate:"omitempty"`
+        BindingConfig string `json:"bindingConfig,optional" validate:"omitempty"`
+    }
+
+    AddDevopsProjectChannelRequest {
+        Id string `path:"id" validate:"required"`
+        ChannelId string `json:"channelId" validate:"required"`
+        IsDefault bool `json:"isDefault,optional"`
+        AllowUseGlobalCredential bool `json:"allowUseGlobalCredential,optional"`
+        ProjectCredentialId string `json:"projectCredentialId,optional" validate:"omitempty"`
+        BindingConfig string `json:"bindingConfig,optional" validate:"omitempty"`
+    }
+
+    UpdateDevopsProjectChannelBindingRequest {
+        Id string `path:"id" validate:"required"`
+        IsDefault bool `json:"isDefault,optional"`
+        AllowUseGlobalCredential bool `json:"allowUseGlobalCredential,optional"`
+        ProjectCredentialId string `json:"projectCredentialId,optional" validate:"omitempty"`
+        BindingConfig string `json:"bindingConfig,optional" validate:"omitempty"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    ListDevopsProjectChannelBindingRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"20" validate:"required,min=1,max=200"`
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        ChannelId string `form:"channelId,optional" validate:"omitempty"`
+        ChannelGroupCode string `form:"channelGroupCode,optional" validate:"omitempty,max=64"`
+        ChannelType string `form:"channelType,optional" validate:"omitempty,max=64"`
+        UsageScope string `form:"usageScope,optional" validate:"omitempty,max=64"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    ListDevopsProjectChannelBindingResponse {
+        Items []DevopsProjectChannelBinding `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    TektonSecretBindingOption {
+        Id string `json:"id"`
+        ProjectId string `json:"projectId"`
+        ChannelId string `json:"channelId"`
+        ChannelName string `json:"channelName"`
+        ChannelCode string `json:"channelCode"`
+        Namespace string `json:"namespace"`
+        TaskNamespace string `json:"taskNamespace"`
+        ServiceAccountName string `json:"serviceAccountName"`
+        Status int64 `json:"status"`
+        HealthStatus string `json:"healthStatus"`
+    }
+
+    ListDevopsTektonSecretBindingRequest {
+        ProjectId string `form:"projectId" validate:"required"`
+    }
+
+    ListDevopsTektonSecretBindingResponse {
+        Items []TektonSecretBindingOption `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    TektonSecret {
+        Name string `json:"name"`
+        Type string `json:"type"`
+        Namespace string `json:"namespace"`
+        BindingId string `json:"bindingId"`
+        ChannelName string `json:"channelName"`
+        Keys []string `json:"keys"`
+        Data map[string]string `json:"data,optional"`
+        ManagedByKubeNova bool `json:"managedByKubeNova"`
+        CreatedAt int64 `json:"createdAt"`
+    }
+
+    ListDevopsTektonSecretRequest {
+        ProjectId string `form:"projectId" validate:"required"`
+        BindingId string `form:"bindingId,optional" validate:"omitempty"`
+        Keyword string `form:"keyword,optional" validate:"omitempty,max=128"`
+    }
+
+    ListDevopsTektonSecretResponse {
+        Items []TektonSecret `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    TektonPVC {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        BindingId string `json:"bindingId"`
+        ChannelName string `json:"channelName"`
+        StorageClassName string `json:"storageClassName"`
+        Storage string `json:"storage"`
+        AccessModes []string `json:"accessModes"`
+        VolumeMode string `json:"volumeMode"`
+        Status string `json:"status"`
+        CreatedAt int64 `json:"createdAt"`
+    }
+
+    TektonResource {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        BindingId string `json:"bindingId"`
+        ChannelName string `json:"channelName"`
+        ResourceType string `json:"resourceType"`
+        Kind string `json:"kind"`
+        ApiVersion string `json:"apiVersion"`
+        Status string `json:"status"`
+        Phase string `json:"phase"`
+        Reason string `json:"reason"`
+        Message string `json:"message"`
+        Keys []string `json:"keys"`
+        StorageClassName string `json:"storageClassName"`
+        Storage string `json:"storage"`
+        AccessModes []string `json:"accessModes"`
+        VolumeMode string `json:"volumeMode"`
+        Secrets []string `json:"secrets"`
+        ImagePullSecrets []string `json:"imagePullSecrets"`
+        ContainerNames []string `json:"containerNames"`
+        CreatedAt int64 `json:"createdAt"`
+        Yaml string `json:"yaml"`
+    }
+
+    ListDevopsTektonPVCRequest {
+        ProjectId string `form:"projectId" validate:"required"`
+        BindingId string `form:"bindingId,optional" validate:"omitempty"`
+        Keyword string `form:"keyword,optional" validate:"omitempty,max=128"`
+    }
+
+    ListDevopsTektonPVCResponse {
+        Items []TektonPVC `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    ListDevopsTektonResourceRequest {
+        ProjectId string `form:"projectId" validate:"required"`
+        BindingId string `form:"bindingId,optional" validate:"omitempty"`
+        ResourceType string `form:"resourceType" validate:"required,oneof=configMap pvc secret serviceAccount pod pipeline pipelineRun"`
+        Keyword string `form:"keyword,optional" validate:"omitempty,max=128"`
+    }
+
+    ListDevopsTektonResourceResponse {
+        Items []TektonResource `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    GetDevopsTektonSecretRequest {
+        ProjectId string `form:"projectId" validate:"required"`
+        BindingId string `form:"bindingId" validate:"required"`
+        Name string `path:"name" validate:"required,min=1,max=253"`
+    }
+
+    SaveDevopsTektonSecretRequest {
+        ProjectId string `json:"projectId" validate:"required"`
+        BindingId string `json:"bindingId" validate:"required"`
+        Name string `json:"name" validate:"required,min=1,max=253"`
+        Type string `json:"type" validate:"required,max=64"`
+        Data map[string]string `json:"data" validate:"required"`
+    }
+
+    UpdateDevopsTektonSecretRequest {
+        ProjectId string `json:"projectId" validate:"required"`
+        BindingId string `json:"bindingId" validate:"required"`
+        Name string `path:"name" validate:"required,min=1,max=253"`
+        Type string `json:"type" validate:"required,max=64"`
+        Data map[string]string `json:"data" validate:"required"`
+    }
+
+    DeleteDevopsTektonSecretRequest {
+        ProjectId string `form:"projectId" validate:"required"`
+        BindingId string `form:"bindingId" validate:"required"`
+        Name string `path:"name" validate:"required,min=1,max=253"`
+    }
+
+    GetDevopsTektonResourceRequest {
+        ProjectId string `form:"projectId" validate:"required"`
+        BindingId string `form:"bindingId" validate:"required"`
+        ResourceType string `form:"resourceType" validate:"required,oneof=configMap pvc secret serviceAccount pod pipeline pipelineRun"`
+        Name string `path:"name" validate:"required,min=1,max=253"`
+    }
+
+    DescribeDevopsTektonResourceResponse {
+        Content string `json:"content"`
+    }
+
+    LogDevopsTektonResourceRequest {
+        ProjectId string `form:"projectId" validate:"required"`
+        BindingId string `form:"bindingId" validate:"required"`
+        ResourceType string `form:"resourceType" validate:"required,oneof=pod pipelineRun"`
+        Name string `path:"name" validate:"required,min=1,max=253"`
+        Container string `form:"container,optional" validate:"omitempty,max=253"`
+        TailLines int64 `form:"tailLines,optional" validate:"omitempty,gte=0,lte=5000"`
+    }
+
+    LogDevopsTektonResourceResponse {
+        Content string `json:"content"`
+        Containers []string `json:"containers"`
+    }
+
+    SaveDevopsTektonResourceRequest {
+        ProjectId string `json:"projectId" validate:"required"`
+        BindingId string `json:"bindingId" validate:"required"`
+        ResourceType string `json:"resourceType" validate:"required,oneof=configMap pvc secret serviceAccount"`
+        Name string `json:"name" validate:"required,min=1,max=253"`
+        Yaml string `json:"yaml" validate:"required"`
+    }
+
+    DeleteDevopsTektonResourceRequest {
+        ProjectId string `form:"projectId" validate:"required"`
+        BindingId string `form:"bindingId" validate:"required"`
+        ResourceType string `form:"resourceType" validate:"required,oneof=configMap pvc secret serviceAccount pod pipeline pipelineRun"`
+        Name string `path:"name" validate:"required,min=1,max=253"`
+    }
+
+    ActionDevopsTektonResourceRequest {
+        ProjectId string `form:"projectId" validate:"required"`
+        BindingId string `form:"bindingId" validate:"required"`
+        ResourceType string `form:"resourceType" validate:"required,oneof=pipelineRun"`
+        Name string `path:"name" validate:"required,min=1,max=253"`
+        Action string `form:"action" validate:"required,oneof=cancel"`
+    }
+
+    SyncDevopsTektonSecretRequest {
+        ProjectId string `json:"projectId" validate:"required"`
+        SourceBindingId string `json:"sourceBindingId" validate:"required"`
+        Name string `path:"name" validate:"required,min=1,max=253"`
+        TargetBindingIds []string `json:"targetBindingIds" validate:"required,min=1"`
+    }
+
+    TestDevopsProjectChannelResponse {
+        Success bool `json:"success"`
+        HealthStatus string `json:"healthStatus"`
+        Message string `json:"message"`
+        CheckedAt int64 `json:"checkedAt"`
+        Metadata string `json:"metadata"`
+    }
+
+    DevopsProjectMember {
+        Id string `json:"id"`
+        ProjectId string `json:"projectId"`
+        UserId uint64 `json:"userId"`
+        Username string `json:"username"`
+        Nickname string `json:"nickname"`
+        Role string `json:"role"`
+        Status int64 `json:"status"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    DevopsProjectMemberInput {
+        UserId uint64 `json:"userId" validate:"required,gt=0"`
+        Username string `json:"username" validate:"required,max=64"`
+        Nickname string `json:"nickname,optional" validate:"omitempty,max=64"`
+        Role string `json:"role" validate:"required,oneof=owner maintainer developer viewer"`
+    }
+
+    SetDevopsProjectMembersRequest {
+        Id string `path:"id" validate:"required"`
+        Members []DevopsProjectMemberInput `json:"members" validate:"required"`
+    }
+
+    ListDevopsProjectMemberRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"20" validate:"required,min=1,max=200"`
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        UserId uint64 `form:"userId,optional" validate:"omitempty"`
+        Role string `form:"role,optional" validate:"omitempty,oneof=owner maintainer developer viewer"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    ListDevopsProjectMemberResponse {
+        Items []DevopsProjectMember `json:"items"`
+        Total uint64 `json:"total"`
+    }
+)
+
+@server(
+    prefix: /devops/v1
+    group: project
+    middleware: JWTAuthMiddleware
+)
+service devops-api {
+    @doc "创建 DevOps 项目"
+    @handler DevopsProjectCreate
+    post /project (CreateDevopsProjectRequest) returns (IdResponse)
+
+    @doc "更新 DevOps 项目"
+    @handler DevopsProjectUpdate
+    put /project/:id (UpdateDevopsProjectRequest)
+
+    @doc "删除 DevOps 项目"
+    @handler DevopsProjectDelete
+    delete /project/:id (DefaultStringIdRequest)
+
+    @doc "分页查询 DevOps 项目"
+    @handler DevopsProjectList
+    get /project/list (ListDevopsProjectRequest) returns (ListDevopsProjectResponse)
+
+    @doc "创建项目 Maven 配置"
+    @handler DevopsProjectMavenConfigCreate
+    post /project/maven-config (CreateDevopsProjectMavenConfigRequest) returns (IdResponse)
+
+    @doc "更新项目 Maven 配置"
+    @handler DevopsProjectMavenConfigUpdate
+    put /project/maven-config/:id (UpdateDevopsProjectMavenConfigRequest)
+
+    @doc "删除项目 Maven 配置"
+    @handler DevopsProjectMavenConfigDelete
+    delete /project/maven-config/:id (DefaultStringIdRequest)
+
+    @doc "分页查询项目 Maven 配置"
+    @handler DevopsProjectMavenConfigList
+    get /project/maven-config/list (ListDevopsProjectMavenConfigRequest) returns (ListDevopsProjectMavenConfigResponse)
+
+    @doc "获取项目 Maven 配置"
+    @handler DevopsProjectMavenConfigGet
+    get /project/maven-config/:id (DefaultStringIdRequest) returns (DevopsProjectMavenConfig)
+
+    @doc "创建配置中心类型"
+    @handler DevopsConfigTypeCreate
+    post /config/type (CreateDevopsConfigTypeRequest) returns (IdResponse)
+
+    @doc "更新配置中心类型"
+    @handler DevopsConfigTypeUpdate
+    put /config/type/:id (UpdateDevopsConfigTypeRequest)
+
+    @doc "删除配置中心类型"
+    @handler DevopsConfigTypeDelete
+    delete /config/type/:id (DefaultStringIdRequest)
+
+    @doc "分页查询配置中心类型"
+    @handler DevopsConfigTypeList
+    get /config/type/list (ListDevopsConfigTypeRequest) returns (DevopsConfigTypeListResponse)
+
+    @doc "查询配置中心类型树"
+    @handler DevopsConfigTypeTree
+    get /config/type/tree (DevopsConfigTypeTreeRequest) returns (DevopsConfigTypeTreeResponse)
+
+    @doc "获取配置中心类型"
+    @handler DevopsConfigTypeGet
+    get /config/type/:id (DefaultStringIdRequest) returns (DevopsConfigType)
+
+    @doc "创建配置中心项目配置"
+    @handler DevopsProjectConfigCreate
+    post /config/project (CreateDevopsProjectConfigRequest) returns (IdResponse)
+
+    @doc "更新配置中心项目配置"
+    @handler DevopsProjectConfigUpdate
+    put /config/project/:id (UpdateDevopsProjectConfigRequest)
+
+    @doc "删除配置中心项目配置"
+    @handler DevopsProjectConfigDelete
+    delete /config/project/:id (DefaultStringIdRequest)
+
+    @doc "分页查询配置中心项目配置"
+    @handler DevopsProjectConfigList
+    get /config/project/list (ListDevopsProjectConfigRequest) returns (ListDevopsProjectConfigResponse)
+
+    @doc "获取配置中心项目配置"
+    @handler DevopsProjectConfigGet
+    get /config/project/:id (DefaultStringIdRequest) returns (DevopsProjectConfig)
+
+    @doc "绑定项目构建渠道"
+    @handler DevopsProjectChannelBind
+    put /project/:id/channel (BindDevopsProjectChannelsRequest)
+
+    @doc "新增项目渠道绑定"
+    @handler DevopsProjectChannelAdd
+    post /project/:id/channel/item (AddDevopsProjectChannelRequest)
+
+    @doc "更新项目渠道绑定"
+    @handler DevopsProjectChannelUpdate
+    put /project/channel/:id (UpdateDevopsProjectChannelBindingRequest)
+
+    @doc "删除项目渠道绑定"
+    @handler DevopsProjectChannelDelete
+    delete /project/channel/:id (DefaultStringIdRequest)
+
+    @doc "分页查询项目渠道绑定"
+    @handler DevopsProjectChannelList
+    get /project/channel/list (ListDevopsProjectChannelBindingRequest) returns (ListDevopsProjectChannelBindingResponse)
+
+    @doc "测试项目渠道绑定"
+    @handler DevopsProjectChannelTest
+    post /project/channel/:id/test (DefaultStringIdRequest) returns (TestDevopsProjectChannelResponse)
+
+    @doc "查询项目 Tekton Secret 可用渠道"
+    @handler DevopsTektonSecretBindingList
+    get /project/tekton/secret/binding/list (ListDevopsTektonSecretBindingRequest) returns (ListDevopsTektonSecretBindingResponse)
+
+    @doc "查询项目 Tekton Secret"
+    @handler DevopsTektonSecretList
+    get /project/tekton/secret/list (ListDevopsTektonSecretRequest) returns (ListDevopsTektonSecretResponse)
+
+    @doc "查询项目 Tekton PVC"
+    @handler DevopsTektonPVCList
+    get /project/tekton/pvc/list (ListDevopsTektonPVCRequest) returns (ListDevopsTektonPVCResponse)
+
+    @doc "查询项目 Tekton 资源"
+    @handler DevopsTektonResourceList
+    get /project/tekton/resource/list (ListDevopsTektonResourceRequest) returns (ListDevopsTektonResourceResponse)
+
+    @doc "获取项目 Tekton Secret"
+    @handler DevopsTektonSecretGet
+    get /project/tekton/secret/detail/:name (GetDevopsTektonSecretRequest) returns (TektonSecret)
+
+    @doc "创建项目 Tekton Secret"
+    @handler DevopsTektonSecretCreate
+    post /project/tekton/secret (SaveDevopsTektonSecretRequest)
+
+    @doc "更新项目 Tekton Secret"
+    @handler DevopsTektonSecretUpdate
+    put /project/tekton/secret/detail/:name (UpdateDevopsTektonSecretRequest)
+
+    @doc "删除项目 Tekton Secret"
+    @handler DevopsTektonSecretDelete
+    delete /project/tekton/secret/detail/:name (DeleteDevopsTektonSecretRequest)
+
+    @doc "同步项目 Tekton Secret 到其他渠道"
+    @handler DevopsTektonSecretSync
+    post /project/tekton/secret/detail/:name/sync (SyncDevopsTektonSecretRequest)
+
+    @doc "获取项目 Tekton 资源"
+    @handler DevopsTektonResourceGet
+    get /project/tekton/resource/detail/:name (GetDevopsTektonResourceRequest) returns (TektonResource)
+
+    @doc "获取项目 Tekton 资源 Describe"
+    @handler DevopsTektonResourceDescribe
+    get /project/tekton/resource/describe/:name (GetDevopsTektonResourceRequest) returns (DescribeDevopsTektonResourceResponse)
+
+    @doc "获取项目 Tekton Pod 或 PipelineRun 日志"
+    @handler DevopsTektonResourceLog
+    get /project/tekton/resource/log/:name (LogDevopsTektonResourceRequest) returns (LogDevopsTektonResourceResponse)
+
+    @doc "保存项目 Tekton 资源"
+    @handler DevopsTektonResourceSave
+    post /project/tekton/resource (SaveDevopsTektonResourceRequest)
+
+    @doc "删除项目 Tekton 资源"
+    @handler DevopsTektonResourceDelete
+    delete /project/tekton/resource/detail/:name (DeleteDevopsTektonResourceRequest)
+
+    @doc "执行项目 Tekton 资源动作"
+    @handler DevopsTektonResourceAction
+    post /project/tekton/resource/action/:name (ActionDevopsTektonResourceRequest)
+
+    @doc "设置项目成员"
+    @handler DevopsProjectMemberSet
+    put /project/:id/member (SetDevopsProjectMembersRequest)
+
+    @doc "删除项目成员"
+    @handler DevopsProjectMemberDelete
+    delete /project/member/:id (DefaultStringIdRequest)
+
+    @doc "分页查询项目成员"
+    @handler DevopsProjectMemberList
+    get /project/member/list (ListDevopsProjectMemberRequest) returns (ListDevopsProjectMemberResponse)
+
+    @doc "获取 DevOps 项目详情"
+    @handler DevopsProjectGet
+    get /project/:id (DefaultStringIdRequest) returns (DevopsProject)
+}

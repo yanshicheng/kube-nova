@@ -164,8 +164,33 @@ func gRPCStatusFromErrorX(code ErrorX) (*status.Status, error) {
 		}
 	}
 
-	stas := status.New(codes.Code(int32(sts.Code())), sts.Message())
+	stas := status.New(toGRPCCode(sts.Code()), sts.Message())
 	return stas.WithDetails(sts.Proto())
+}
+
+func toGRPCCode(code int) codes.Code {
+	switch codes.Code(code) {
+	case codes.OK,
+		codes.Canceled,
+		codes.Unknown,
+		codes.InvalidArgument,
+		codes.DeadlineExceeded,
+		codes.NotFound,
+		codes.AlreadyExists,
+		codes.PermissionDenied,
+		codes.ResourceExhausted,
+		codes.FailedPrecondition,
+		codes.Aborted,
+		codes.OutOfRange,
+		codes.Unimplemented,
+		codes.Internal,
+		codes.Unavailable,
+		codes.DataLoss,
+		codes.Unauthenticated:
+		return codes.Code(code)
+	default:
+		return codes.Unknown
+	}
 }
 
 func GrpcStatusToErrorX(gstatus *status.Status) ErrorX {

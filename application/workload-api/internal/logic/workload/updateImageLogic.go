@@ -41,6 +41,7 @@ func (l *UpdateImageLogic) UpdateImage(req *types.UpdateImageRequest) (resp stri
 	}
 
 	resourceType := strings.ToUpper(versionDetail.ResourceType)
+	containerType := k8sTypes.ContainerType(strings.TrimSpace(req.ContainerType))
 
 	// 获取原镜像配置
 	var oldImages *k8sTypes.ContainerInfoList
@@ -56,11 +57,15 @@ func (l *UpdateImageLogic) UpdateImage(req *types.UpdateImageRequest) (resp stri
 	}
 
 	// 查找原镜像
-	oldImage := l.findContainerImage(oldImages, req.ContainerName)
+	oldImage := l.findContainerImage(oldImages, req.ContainerName, containerType)
+	containerLabel := req.ContainerName
+	if containerType != "" {
+		containerLabel = fmt.Sprintf("%s(%s)", req.ContainerName, containerType)
+	}
 
 	if req.Reason == "" {
 		req.Reason = fmt.Sprintf("更新镜像: %s/%s, 容器: %s, 新镜像: %s, 操作人: %s",
-			versionDetail.Namespace, versionDetail.ResourceName, req.ContainerName, req.Image, username)
+			versionDetail.Namespace, versionDetail.ResourceName, containerLabel, req.Image, username)
 	} else {
 		req.Reason = fmt.Sprintf("%s, 操作人: %s", req.Reason, username)
 	}
@@ -70,6 +75,7 @@ func (l *UpdateImageLogic) UpdateImage(req *types.UpdateImageRequest) (resp stri
 		Name:          versionDetail.ResourceName,
 		Namespace:     versionDetail.Namespace,
 		ContainerName: req.ContainerName,
+		ContainerType: containerType,
 		Image:         req.Image,
 		Reason:        req.Reason,
 	}
@@ -85,7 +91,7 @@ func (l *UpdateImageLogic) UpdateImage(req *types.UpdateImageRequest) (resp stri
 	}
 
 	// 处理容器名称显示
-	containerInfo := req.ContainerName
+	containerInfo := containerLabel
 	if containerInfo == "" {
 		containerInfo = "默认容器"
 	}
@@ -108,7 +114,7 @@ func (l *UpdateImageLogic) UpdateImage(req *types.UpdateImageRequest) (resp stri
 }
 
 // findContainerImage 查找指定容器的镜像
-func (l *UpdateImageLogic) findContainerImage(images *k8sTypes.ContainerInfoList, containerName string) string {
+func (l *UpdateImageLogic) findContainerImage(images *k8sTypes.ContainerInfoList, containerName string, containerType k8sTypes.ContainerType) string {
 	if images == nil {
 		return "未知"
 	}
@@ -121,26 +127,66 @@ func (l *UpdateImageLogic) findContainerImage(images *k8sTypes.ContainerInfoList
 		return "未知"
 	}
 
+	if containerType == k8sTypes.ContainerTypeInit {
+		if image := l.findInitContainerImage(images, containerName); image != "" {
+			return image
+		}
+		return "未知"
+	}
+	if containerType == k8sTypes.ContainerTypeEphemeral {
+		if image := l.findEphemeralContainerImage(images, containerName); image != "" {
+			return image
+		}
+		return "未知"
+	}
+	if containerType == k8sTypes.ContainerTypeMain {
+		if image := l.findMainContainerImage(images, containerName); image != "" {
+			return image
+		}
+		return "未知"
+	}
+
 	// 在主容器中查找
+	if image := l.findMainContainerImage(images, containerName); image != "" {
+		return image
+	}
+
+	// 在初始化容器中查找
+	if image := l.findInitContainerImage(images, containerName); image != "" {
+		return image
+	}
+
+	// 在临时容器中查找
+	if image := l.findEphemeralContainerImage(images, containerName); image != "" {
+		return image
+	}
+
+	return "未知"
+}
+
+func (l *UpdateImageLogic) findMainContainerImage(images *k8sTypes.ContainerInfoList, containerName string) string {
 	for _, c := range images.Containers {
 		if c.Name == containerName {
 			return c.Image
 		}
 	}
+	return ""
+}
 
-	// 在初始化容器中查找
+func (l *UpdateImageLogic) findInitContainerImage(images *k8sTypes.ContainerInfoList, containerName string) string {
 	for _, c := range images.InitContainers {
 		if c.Name == containerName {
 			return c.Image
 		}
 	}
+	return ""
+}
 
-	// 在临时容器中查找
+func (l *UpdateImageLogic) findEphemeralContainerImage(images *k8sTypes.ContainerInfoList, containerName string) string {
 	for _, c := range images.EphemeralContainers {
 		if c.Name == containerName {
 			return c.Image
 		}
 	}
-
-	return "未知"
+	return ""
 }

@@ -66,12 +66,13 @@ type CommContainerInfoList struct {
 
 // UpdateImageRequest 更新单个镜像请求
 type UpdateImageRequest struct {
-	Name          string `json:"name"`
-	Namespace     string `json:"namespace"`
-	ContainerName string `json:"containerName"`
-	Image         string `json:"image"`
-	Message       string `json:"message"`
-	Reason        string `json:"reason,omitempty"`
+	Name          string        `json:"name"`
+	Namespace     string        `json:"namespace"`
+	ContainerName string        `json:"containerName"`
+	ContainerType ContainerType `json:"containerType,omitempty"`
+	Image         string        `json:"image"`
+	Message       string        `json:"message"`
+	Reason        string        `json:"reason,omitempty"`
 }
 
 // UpdateImagesRequest 批量更新镜像请求

@@ -1,0 +1,43 @@
+Name: devops-pipeline.rpc
+ListenOn: 0.0.0.0:30032
+Timeout: 30000
+Mode: dev
+
+Log:
+  ServiceName: devops-pipeline-rpc
+  Mode: "console"
+  Encoding: "plain"
+  TimeFormat: "2006-01-02 15:04:05"
+  Path: "logs"
+  Level: "info"
+  Compress: false
+  Stat: true
+  KeepDays: 7
+  StackCooldownMillis: 100
+  MaxBackups: 0
+  MaxSize: 0
+  Rotation: "daily"
+
+Mongo:
+  Url: mongodb://root:12345678@172.16.1.61:27017/?authSource=admin
+  Db: kube_nova_devops
+
+Cache:
+  Host: 127.0.0.1:6379
+  Type: node
+  Pass: "123456"
+  Tls: false
+  NonBlock: true
+  PingTimeout: 3s
+
+DevopsManagerRpc:
+  Endpoints:
+    - 127.0.0.1:30031
+  NonBlock: true
+  Timeout: 30000
+
+DevopsQualityRpc:
+  Endpoints:
+    - 127.0.0.1:30033
+  NonBlock: true
+  Timeout: 30000

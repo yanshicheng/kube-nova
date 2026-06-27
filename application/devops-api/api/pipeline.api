@@ -1,0 +1,1575 @@
+syntax = "v1"
+
+info(
+    title: "DevOps Pipeline Config API"
+    desc: "DevOps 流水线配置接口"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    StepParamOption {
+        Label string `json:"label"`
+        Value string `json:"value"`
+    }
+
+    CompoundParamField {
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Code string `json:"code" validate:"required,min=1,max=128"`
+        DefaultValue string `json:"defaultValue,optional" validate:"omitempty"`
+        ParamType string `json:"paramType" validate:"required,max=128"`
+        Mode string `json:"mode" validate:"required,oneof=env paas"`
+        Required bool `json:"required,optional"`
+        Readonly bool `json:"readonly,optional"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        SelectList []StepParamOption `json:"selectList,optional"`
+        AllowCustom bool `json:"allowCustom,optional"`
+        RuntimeMode string `json:"runtimeMode,optional" validate:"omitempty,oneof=env"`
+        Config StepParamConfig `json:"config,optional"`
+    }
+
+    StepParamConfig {
+        Options []StepParamOption `json:"options,optional"`
+        ChannelGroupCode string `json:"channelGroupCode,optional" validate:"omitempty,max=64"`
+        ChannelTypeFilter string `json:"channelTypeFilter,optional" validate:"omitempty,max=64"`
+        ChannelParamCode string `json:"channelParamCode,optional" validate:"omitempty,max=128"`
+        ChannelBindingId string `json:"channelBindingId,optional" validate:"omitempty"`
+        MappingField string `json:"mappingField,optional" validate:"omitempty,max=128"`
+        VoucherModel string `json:"voucherModel,optional" validate:"omitempty,max=64"`
+        CredentialId string `json:"credentialId,optional" validate:"omitempty"`
+        CredentialMode string `json:"credentialMode,optional" validate:"omitempty,oneof=field jsonData jsonBase64 jenkinsCredentialId"`
+        CredentialSourceParamCode string `json:"credentialSourceParamCode,optional" validate:"omitempty,max=128"`
+        ProjectParamCode string `json:"projectParamCode,optional" validate:"omitempty,max=128"`
+        ComponentParamCode string `json:"componentParamCode,optional" validate:"omitempty,max=128"`
+        Provider string `json:"provider,optional" validate:"omitempty,max=64"`
+        ValidateRemote bool `json:"validateRemote,optional"`
+        CompoundFields []CompoundParamField `json:"compoundFields,optional"`
+        FullRow bool `json:"fullRow,optional"`
+        RenderMode string `json:"renderMode,optional" validate:"omitempty,oneof=normal inventory"`
+        ConfigTypeId string `json:"configTypeId,optional" validate:"omitempty"`
+        ConfigTypeCode string `json:"configTypeCode,optional" validate:"omitempty,max=64"`
+        ValueMode string `json:"valueMode,optional" validate:"omitempty,oneof=string text credentialsSecretFile base64"`
+        DependencyParamCodes []StepParamDependency `json:"dependencyParamCodes,optional"`
+    }
+
+    StepParamDependency {
+        Field string `json:"field"`
+        ParamCode string `json:"paramCode"`
+    }
+
+    StepArtifactConfig {
+        Enabled bool `json:"enabled,optional"`
+        Type string `json:"type,optional" validate:"omitempty,oneof=report artifact"`
+        Name string `json:"name,optional" validate:"omitempty,max=128"`
+        Path string `json:"path,optional" validate:"omitempty,max=512"`
+        Required bool `json:"required,optional"`
+        ContentType string `json:"contentType,optional" validate:"omitempty,max=128"`
+    }
+
+    DevopsStepParam {
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Code string `json:"code" validate:"required,min=1,max=128"`
+        DefaultValue string `json:"defaultValue,optional" validate:"omitempty"`
+        ParamType string `json:"paramType" validate:"required,max=128"`
+        Mode string `json:"mode" validate:"required,oneof=params env paas"`
+        Required bool `json:"required,optional"`
+        Readonly bool `json:"readonly,optional"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        SelectList []StepParamOption `json:"selectList,optional"`
+        AllowCustom bool `json:"allowCustom,optional"`
+        ChannelGroupCode string `json:"channelGroupCode,optional" validate:"omitempty,max=64"`
+        MappingField string `json:"mappingField,optional" validate:"omitempty,max=64"`
+        VoucherModel string `json:"voucherModel,optional" validate:"omitempty,max=64"`
+        SortOrder int64 `json:"sortOrder,optional" default:"0" validate:"gte=0"`
+        RuntimeMode string `json:"runtimeMode,optional" validate:"omitempty,oneof=params env"`
+        RuntimeConfig bool `json:"runtimeConfig,optional"`
+        Config StepParamConfig `json:"config,optional"`
+    }
+
+    TektonPropertySpec {
+        Type string `json:"type,optional" validate:"omitempty,oneof=string array object"`
+    }
+
+    DevopsTektonTaskParam {
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Type string `json:"type,optional" default:"string" validate:"omitempty,oneof=string array object"`
+        DefaultValue string `json:"defaultValue,optional" validate:"omitempty"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Enum []string `json:"enum,optional"`
+        Properties map[string]TektonPropertySpec `json:"properties,optional"`
+        Required bool `json:"required,optional"`
+    }
+
+    DevopsTektonTaskResult {
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Type string `json:"type,optional" default:"string" validate:"omitempty,oneof=string array object"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Value string `json:"value,optional" validate:"omitempty"`
+        Properties map[string]TektonPropertySpec `json:"properties,optional"`
+    }
+
+    DevopsTektonWorkspace {
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Optional bool `json:"optional,optional"`
+        ReadOnly bool `json:"readOnly,optional"`
+        MountPath string `json:"mountPath,optional" validate:"omitempty,max=256"`
+    }
+
+    DevopsStepCategory {
+        Id string `json:"id"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        Description string `json:"description"`
+        Icon string `json:"icon"`
+        IconColor string `json:"iconColor"`
+        SortOrder int64 `json:"sortOrder"`
+        Status int64 `json:"status"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    CreateDevopsStepCategoryRequest {
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Code string `json:"code" validate:"required,min=2,max=64"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Icon string `json:"icon,optional" validate:"omitempty,max=128"`
+        IconColor string `json:"iconColor,optional" validate:"omitempty,max=32"`
+        SortOrder int64 `json:"sortOrder,optional" default:"0" validate:"gte=0"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    UpdateDevopsStepCategoryRequest {
+        Id string `path:"id" validate:"required"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Icon string `json:"icon,optional" validate:"omitempty,max=128"`
+        IconColor string `json:"iconColor,optional" validate:"omitempty,max=32"`
+        SortOrder int64 `json:"sortOrder,optional" default:"0" validate:"gte=0"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    ListDevopsStepCategoryRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"20" validate:"required,min=1,max=200"`
+        Name string `form:"name,optional" validate:"omitempty,max=128"`
+        Code string `form:"code,optional" validate:"omitempty,max=64"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    ListDevopsStepCategoryResponse {
+        Items []DevopsStepCategory `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    DevopsStepTemplate {
+        Id string `json:"id"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        Icon string `json:"icon"`
+        IconColor string `json:"iconColor"`
+        Description string `json:"description"`
+        Type string `json:"type"`
+        CategoryId string `json:"categoryId"`
+        CategoryName string `json:"categoryName"`
+        EngineType string `json:"engineType"`
+        EngineChannelGroupCode string `json:"engineChannelGroupCode"`
+        EngineChannelType string `json:"engineChannelType"`
+        StageContent string `json:"stageContent"`
+        Params []DevopsStepParam `json:"params"`
+        TaskParams []DevopsTektonTaskParam `json:"taskParams"`
+        TaskResults []DevopsTektonTaskResult `json:"taskResults"`
+        TaskWorkspaces []DevopsTektonWorkspace `json:"taskWorkspaces"`
+        ArtifactConfig StepArtifactConfig `json:"artifactConfig"`
+        Status int64 `json:"status"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    CreateDevopsStepTemplateRequest {
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Code string `json:"code" validate:"required,min=2,max=64"`
+        Icon string `json:"icon,optional" validate:"omitempty,max=128"`
+        IconColor string `json:"iconColor,optional" validate:"omitempty,max=32"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Type string `json:"type,optional" default:"task" validate:"oneof=task manual_approval"`
+        CategoryId string `json:"categoryId" validate:"required"`
+        StageContent string `json:"stageContent" validate:"required,min=1"`
+        Params []DevopsStepParam `json:"params,optional"`
+        TaskParams []DevopsTektonTaskParam `json:"taskParams,optional"`
+        TaskResults []DevopsTektonTaskResult `json:"taskResults,optional"`
+        TaskWorkspaces []DevopsTektonWorkspace `json:"taskWorkspaces,optional"`
+        ArtifactConfig StepArtifactConfig `json:"artifactConfig,optional"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    UpdateDevopsStepTemplateRequest {
+        Id string `path:"id" validate:"required"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Icon string `json:"icon,optional" validate:"omitempty,max=128"`
+        IconColor string `json:"iconColor,optional" validate:"omitempty,max=32"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Type string `json:"type,optional" default:"task" validate:"oneof=task manual_approval"`
+        CategoryId string `json:"categoryId" validate:"required"`
+        StageContent string `json:"stageContent" validate:"required,min=1"`
+        Params []DevopsStepParam `json:"params,optional"`
+        TaskParams []DevopsTektonTaskParam `json:"taskParams,optional"`
+        TaskResults []DevopsTektonTaskResult `json:"taskResults,optional"`
+        TaskWorkspaces []DevopsTektonWorkspace `json:"taskWorkspaces,optional"`
+        ArtifactConfig StepArtifactConfig `json:"artifactConfig,optional"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    UpdateStatusRequest {
+        Id string `path:"id" validate:"required"`
+        Status int64 `json:"status" validate:"oneof=0 1"`
+    }
+
+    ListDevopsStepTemplateRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"12" validate:"required,min=1,max=200"`
+        Name string `form:"name,optional" validate:"omitempty,max=128"`
+        Code string `form:"code,optional" validate:"omitempty,max=64"`
+        CategoryId string `form:"categoryId,optional" validate:"omitempty"`
+        EngineType string `form:"engineType,optional" default:"jenkins" validate:"omitempty,oneof=jenkins tekton"`
+        Type string `form:"type,optional" validate:"omitempty,oneof=task manual_approval"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    ListDevopsStepTemplateResponse {
+        Items []DevopsStepTemplate `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    TektonStepImageItem {
+        Id string `json:"id"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        Image string `json:"image"`
+        ImageType string `json:"imageType"`
+        ParamName string `json:"paramName"`
+    }
+
+    ListTektonStepImageRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"50" validate:"required,min=1,max=200"`
+        Name string `form:"name,optional" validate:"omitempty,max=128"`
+        Code string `form:"code,optional" validate:"omitempty,max=64"`
+        CategoryId string `form:"categoryId,optional" validate:"omitempty"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    ListTektonStepImageResponse {
+        Items []TektonStepImageItem `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    UpdateTektonStepImageItem {
+        Id string `json:"id" validate:"required"`
+        Image string `json:"image,optional"`
+        NewImage string `json:"newImage" validate:"required,min=1"`
+        ImageType string `json:"imageType" validate:"required,oneof=image param"`
+        ParamName string `json:"paramName,optional" validate:"omitempty,max=128"`
+    }
+
+    BatchUpdateTektonStepImageRequest {
+        Items []UpdateTektonStepImageItem `json:"items" validate:"required,min=1,dive"`
+    }
+
+    BatchUpdateTektonStepImageResponse {
+        Total uint64 `json:"total"`
+        Updated uint64 `json:"updated"`
+    }
+
+    PipelineTemplateStep {
+        Id string `json:"id"`
+        StepId string `json:"stepId" validate:"required"`
+        StepCode string `json:"stepCode,optional" validate:"omitempty,max=128"`
+        StepName string `json:"stepName,optional" validate:"omitempty,max=128"`
+        NodeName string `json:"nodeName,optional" validate:"omitempty,max=128"`
+        ContainerName string `json:"containerName,optional" validate:"omitempty,max=128"`
+        StepType string `json:"stepType,optional" validate:"omitempty,oneof=task manual_approval"`
+        Icon string `json:"icon,optional" validate:"omitempty,max=128"`
+        IconColor string `json:"iconColor,optional" validate:"omitempty,max=32"`
+        ParentNodeId string `json:"parentNodeId,optional" validate:"omitempty,max=128"`
+        BranchType string `json:"branchType,optional" validate:"omitempty,oneof=next parallel"`
+        SortOrder int64 `json:"sortOrder,optional" default:"0" validate:"gte=0"`
+        Enabled bool `json:"enabled,optional"`
+        X int64 `json:"x,optional"`
+        Y int64 `json:"y,optional"`
+        ParamValues string `json:"paramValues,optional" validate:"omitempty"`
+        ArtifactConfig StepArtifactConfig `json:"artifactConfig,optional"`
+    }
+
+    DevopsPipelineTemplate {
+        Id string `json:"id"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        Icon string `json:"icon"`
+        IconColor string `json:"iconColor"`
+        Description string `json:"description"`
+        Scope string `json:"scope"`
+        ProjectId string `json:"projectId"`
+        EngineType string `json:"engineType"`
+        Steps []PipelineTemplateStep `json:"steps"`
+        TektonDagConfig string `json:"tektonDagConfig"`
+        TektonRunPolicy string `json:"tektonRunPolicy"`
+        TektonTriggerConfig string `json:"tektonTriggerConfig"`
+        TektonPrunerPolicyRef string `json:"tektonPrunerPolicyRef"`
+        TektonPipelineYamlSnapshot string `json:"tektonPipelineYamlSnapshot"`
+        Status int64 `json:"status"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    CreateDevopsPipelineTemplateRequest {
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Code string `json:"code" validate:"required,min=2,max=64"`
+        Icon string `json:"icon,optional" validate:"omitempty,max=128"`
+        IconColor string `json:"iconColor,optional" validate:"omitempty,max=32"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Scope string `json:"scope,optional" default:"system" validate:"oneof=system project"`
+        ProjectId string `json:"projectId,optional" validate:"omitempty"`
+        EngineType string `json:"engineType,optional" default:"jenkins" validate:"oneof=jenkins tekton"`
+        Steps []PipelineTemplateStep `json:"steps,optional"`
+        TektonDagConfig string `json:"tektonDagConfig,optional" validate:"omitempty"`
+        TektonRunPolicy string `json:"tektonRunPolicy,optional" validate:"omitempty"`
+        TektonTriggerConfig string `json:"tektonTriggerConfig,optional" validate:"omitempty"`
+        TektonPrunerPolicyRef string `json:"tektonPrunerPolicyRef,optional" validate:"omitempty"`
+        TektonPipelineYamlSnapshot string `json:"tektonPipelineYamlSnapshot,optional" validate:"omitempty"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    UpdateDevopsPipelineTemplateRequest {
+        Id string `path:"id" validate:"required"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Icon string `json:"icon,optional" validate:"omitempty,max=128"`
+        IconColor string `json:"iconColor,optional" validate:"omitempty,max=32"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Scope string `json:"scope,optional" default:"system" validate:"oneof=system project"`
+        ProjectId string `json:"projectId,optional" validate:"omitempty"`
+        EngineType string `json:"engineType,optional" default:"jenkins" validate:"oneof=jenkins tekton"`
+        Steps []PipelineTemplateStep `json:"steps,optional"`
+        TektonDagConfig string `json:"tektonDagConfig,optional" validate:"omitempty"`
+        TektonRunPolicy string `json:"tektonRunPolicy,optional" validate:"omitempty"`
+        TektonTriggerConfig string `json:"tektonTriggerConfig,optional" validate:"omitempty"`
+        TektonPrunerPolicyRef string `json:"tektonPrunerPolicyRef,optional" validate:"omitempty"`
+        TektonPipelineYamlSnapshot string `json:"tektonPipelineYamlSnapshot,optional" validate:"omitempty"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    SaveDevopsPipelineTemplateStepsRequest {
+        Id string `path:"id" validate:"required"`
+        Steps []PipelineTemplateStep `json:"steps,optional"`
+    }
+
+    ListDevopsPipelineTemplateRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"12" validate:"required,min=1,max=200"`
+        Name string `form:"name,optional" validate:"omitempty,max=128"`
+        Code string `form:"code,optional" validate:"omitempty,max=64"`
+        Scope string `form:"scope,optional" validate:"omitempty,oneof=system project"`
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        EngineType string `form:"engineType,optional" validate:"omitempty,oneof=jenkins tekton"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    ListDevopsPipelineTemplateResponse {
+        Items []DevopsPipelineTemplate `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    PipelinePreviewResponse {
+        Pipeline string `json:"pipeline"`
+    }
+
+    TektonRuntimeResource {
+        Name string `json:"name"`
+        Namespace string `json:"namespace"`
+        Kind string `json:"kind"`
+        ApiVersion string `json:"apiVersion"`
+        Description string `json:"description"`
+        Params []string `json:"params"`
+        Workspaces []string `json:"workspaces"`
+        Results []string `json:"results"`
+        Provisioner string `json:"provisioner"`
+        ReclaimPolicy string `json:"reclaimPolicy"`
+        VolumeBindingMode string `json:"volumeBindingMode"`
+        AllowVolumeExpansion bool `json:"allowVolumeExpansion"`
+        Secrets []string `json:"secrets"`
+        ImagePullSecrets []string `json:"imagePullSecrets"`
+        CreatedAt int64 `json:"createdAt"`
+        Yaml string `json:"yaml"`
+        Keys []string `json:"keys"`
+    }
+
+    ListTektonRuntimeResourceRequest {
+        ResourceType string `form:"resourceType" validate:"required,oneof=task clusterTask serviceAccount storageClass configMap"`
+        ProjectId string `form:"projectId" validate:"required"`
+        SystemId string `form:"systemId,optional" validate:"omitempty"`
+        EnvironmentId string `form:"environmentId,optional" validate:"omitempty"`
+        BuildChannelBindingId string `form:"buildChannelBindingId" validate:"required"`
+        Keyword string `form:"keyword,optional" validate:"omitempty,max=128"`
+    }
+
+    ListTektonRuntimeResourceResponse {
+        Items []TektonRuntimeResource `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    PipelineTemplateVariable {
+        StepId string `json:"stepId"`
+        StepNodeId string `json:"stepNodeId"`
+        StepCode string `json:"stepCode"`
+        StepName string `json:"stepName"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        SourceCode string `json:"sourceCode"`
+        ParamType string `json:"paramType"`
+        Mode string `json:"mode"`
+        DefaultValue string `json:"defaultValue"`
+        CurrentValue string `json:"currentValue"`
+        Required bool `json:"required"`
+        Readonly bool `json:"readonly"`
+        Description string `json:"description"`
+        SortOrder int64 `json:"sortOrder"`
+        RuntimeMode string `json:"runtimeMode"`
+        RuntimeConfig bool `json:"runtimeConfig"`
+        Config StepParamConfig `json:"config"`
+    }
+
+    PipelineTemplateVariablesResponse {
+        Items []PipelineTemplateVariable `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    CredentialTypeOption {
+        CredentialType string `json:"credentialType"`
+        Name string `json:"name"`
+        MappingFields []string `json:"mappingFields"`
+        DefaultMappingField string `json:"defaultMappingField"`
+    }
+
+    CredentialTypeOptionsResponse {
+        Items []CredentialTypeOption `json:"items"`
+    }
+
+    ListJenkinsCredentialSyncRequest {
+        ProjectId string `form:"projectId" validate:"required"`
+        BuildChannelBindingId string `form:"buildChannelBindingId" validate:"required"`
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"20" validate:"required,min=1,max=200"`
+    }
+
+    JenkinsCredentialSyncRecord {
+        CredentialId string `json:"credentialId"`
+        CredentialName string `json:"credentialName"`
+        CredentialCode string `json:"credentialCode"`
+        CredentialType string `json:"credentialType"`
+        JenkinsCredentialId string `json:"jenkinsCredentialId"`
+        SyncStatus string `json:"syncStatus"`
+        SyncMessage string `json:"syncMessage"`
+        LastSyncAt int64 `json:"lastSyncAt"`
+        ReferenceCount int64 `json:"referenceCount"`
+    }
+
+    ListJenkinsCredentialSyncResponse {
+        Items []JenkinsCredentialSyncRecord `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    JenkinsCredentialReferenceRequest {
+        ProjectId string `form:"projectId" validate:"required"`
+        BuildChannelBindingId string `form:"buildChannelBindingId" validate:"required"`
+        CredentialId string `form:"credentialId" validate:"required"`
+    }
+
+    JenkinsCredentialReference {
+        PipelineId string `json:"pipelineId"`
+        PipelineName string `json:"pipelineName"`
+        PipelineCode string `json:"pipelineCode"`
+        ParamCode string `json:"paramCode"`
+        ParamName string `json:"paramName"`
+        ReferenceType string `json:"referenceType"`
+    }
+
+    JenkinsCredentialReferenceResponse {
+        Items []JenkinsCredentialReference `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    DeleteJenkinsCredentialSyncRequest {
+        ProjectId string `form:"projectId" validate:"required"`
+        BuildChannelBindingId string `form:"buildChannelBindingId" validate:"required"`
+        CredentialId string `form:"credentialId" validate:"required"`
+    }
+
+    ChannelGroupOption {
+        Code string `json:"code"`
+        Name string `json:"name"`
+    }
+
+    ChannelGroupOptionsResponse {
+        Items []ChannelGroupOption `json:"items"`
+    }
+
+    ChannelMappingFieldOptionsRequest {
+        ChannelGroupCode string `form:"channelGroupCode,optional" validate:"omitempty,max=64"`
+        ChannelType      string `form:"channelType,optional" validate:"omitempty,max=64"`
+        ChannelTypeId    string `form:"channelTypeId,optional" validate:"omitempty,max=64"`
+    }
+
+    ChannelMappingFieldOption {
+        GroupCode string `json:"groupCode,optional"`
+        Field string `json:"field"`
+        Name string `json:"name"`
+        Kind string `json:"kind"`
+        UiControl string `json:"uiControl"`
+        Provider string `json:"provider"`
+        Dependencies []ChannelMappingFieldDependency `json:"dependencies,optional"`
+        AllOf []ChannelMappingFieldDependency `json:"allOf,optional"`
+        AnyOf []ChannelMappingFieldDependency `json:"anyOf,optional"`
+        AllowManualInput bool `json:"allowManualInput,optional"`
+        AddressBuilder string `json:"addressBuilder,optional"`
+        Required bool `json:"required,optional"`
+        ChannelTypes []string `json:"channelTypes,optional"`
+        ValueType string `json:"valueType,optional"`
+        OutputMode string `json:"outputMode,optional"`
+        OutputTemplate string `json:"outputTemplate,optional"`
+        CredentialPolicy string `json:"credentialPolicy,optional"`
+        FallbackAddressFields []string `json:"fallbackAddressFields,optional"`
+        ResolveEndpoint bool `json:"resolveEndpoint,optional"`
+        Options []StepParamOption `json:"options,optional"`
+        SortOrder int64 `json:"sortOrder,optional"`
+    }
+
+    ChannelMappingFieldDependency {
+        Field string `json:"field"`
+        Source string `json:"source"`
+        Name string `json:"name"`
+        Required bool `json:"required,optional"`
+    }
+
+    ChannelMappingFieldOptionsResponse {
+        Items []ChannelMappingFieldOption `json:"items"`
+    }
+    StepChannelParamMappingItem {
+        Id                string `json:"id"`
+        ParamType         string `json:"paramType"`
+        ParamName         string `json:"paramName"`
+        GroupCode         string `json:"groupCode"`
+        ChannelTypeFilter string `json:"channelTypeFilter"`
+        Description       string `json:"description"`
+        SortOrder         int64  `json:"sortOrder"`
+        Status            int64  `json:"status"`
+        IsSystem          bool   `json:"isSystem"`
+    }
+
+    CreateStepChannelParamMappingRequest {
+        ParamType         string `json:"paramType" validate:"required,min=2,max=128"`
+        ParamName         string `json:"paramName" validate:"required,min=1,max=128"`
+        GroupCode         string `json:"groupCode" validate:"required,max=64"`
+        ChannelTypeFilter string `json:"channelTypeFilter,optional" validate:"omitempty,max=64"`
+        Description       string `json:"description,optional" validate:"omitempty,max=512"`
+        SortOrder         int64  `json:"sortOrder,optional" validate:"gte=0"`
+        Status            int64  `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    UpdateStepChannelParamMappingRequest {
+        Id                string `path:"id" validate:"required"`
+        ParamName         string `json:"paramName" validate:"required,min=1,max=128"`
+        GroupCode         string `json:"groupCode" validate:"required,max=64"`
+        ChannelTypeFilter string `json:"channelTypeFilter,optional" validate:"omitempty,max=64"`
+        Description       string `json:"description,optional" validate:"omitempty,max=512"`
+        SortOrder         int64  `json:"sortOrder,optional" validate:"gte=0"`
+        Status            int64  `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    StepChannelParamMappingListRequest {
+        ParamType string `json:"paramType,optional"`
+        GroupCode string `json:"groupCode,optional"`
+        Status    int64  `json:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+        Page      int64  `json:"page,optional"`
+        PageSize  int64  `json:"pageSize,optional"`
+    }
+
+    StepChannelParamMappingListResponse {
+        Items []StepChannelParamMappingItem `json:"items"`
+        Total int64                         `json:"total"`
+    }
+
+
+    DevopsSystem {
+        Id string `json:"id"`
+        ProjectId string `json:"projectId"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        Description string `json:"description"`
+        OwnerUserIds []uint64 `json:"ownerUserIds"`
+        Status int64 `json:"status"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    CreateDevopsSystemRequest {
+        ProjectId string `json:"projectId" validate:"required"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Code string `json:"code" validate:"required,min=2,max=64"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        OwnerUserIds []uint64 `json:"ownerUserIds,optional"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    UpdateDevopsSystemRequest {
+        Id string `path:"id" validate:"required"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        OwnerUserIds []uint64 `json:"ownerUserIds,optional"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    ListDevopsSystemRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"12" validate:"required,min=1,max=200"`
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        Name string `form:"name,optional" validate:"omitempty,max=128"`
+        Code string `form:"code,optional" validate:"omitempty,max=64"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    ListDevopsSystemResponse {
+        Items []DevopsSystem `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    DevopsPipelineEnvironment {
+        Id string `json:"id"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        Description string `json:"description"`
+        Icon string `json:"icon"`
+        IconColor string `json:"iconColor"`
+        SortOrder int64 `json:"sortOrder"`
+        Status int64 `json:"status"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    CreateDevopsPipelineEnvironmentRequest {
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Code string `json:"code" validate:"required,min=2,max=64"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Icon string `json:"icon,optional" validate:"omitempty,max=128"`
+        IconColor string `json:"iconColor,optional" validate:"omitempty,max=32"`
+        SortOrder int64 `json:"sortOrder,optional" default:"0" validate:"gte=0"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    UpdateDevopsPipelineEnvironmentRequest {
+        Id string `path:"id" validate:"required"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Description string `json:"description,optional" validate:"omitempty,max=512"`
+        Icon string `json:"icon,optional" validate:"omitempty,max=128"`
+        IconColor string `json:"iconColor,optional" validate:"omitempty,max=32"`
+        SortOrder int64 `json:"sortOrder,optional" default:"0" validate:"gte=0"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    ListDevopsPipelineEnvironmentRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"12" validate:"required,min=1,max=200"`
+        Name string `form:"name,optional" validate:"omitempty,max=128"`
+        Code string `form:"code,optional" validate:"omitempty,max=64"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    ListDevopsPipelineEnvironmentResponse {
+        Items []DevopsPipelineEnvironment `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    PipelineParam {
+        Name string `json:"name"`
+        Code string `json:"code"`
+        SourceCode string `json:"sourceCode,optional"`
+        StepNodeId string `json:"stepNodeId,optional"`
+        DefaultValue string `json:"defaultValue"`
+        CurrentValue string `json:"currentValue"`
+        ParamType string `json:"paramType"`
+        Mode string `json:"mode"`
+        Required bool `json:"required"`
+        Readonly bool `json:"readonly"`
+        Description string `json:"description"`
+        SelectList []StepParamOption `json:"selectList,optional"`
+        AllowCustom bool `json:"allowCustom,optional"`
+        SortOrder int64 `json:"sortOrder,optional"`
+        RuntimeMode string `json:"runtimeMode,optional"`
+        RuntimeConfig bool `json:"runtimeConfig,optional"`
+        Config StepParamConfig `json:"config,optional"`
+    }
+
+    DynamicParamOptionsRequest {
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        SystemId string `form:"systemId,optional" validate:"omitempty"`
+        EnvironmentId string `form:"environmentId,optional" validate:"omitempty"`
+        ParamType string `form:"paramType" validate:"required"`
+        ChannelBindingId string `form:"channelBindingId,optional" validate:"omitempty"`
+        ProjectValue string `form:"projectValue,optional" validate:"omitempty"`
+        ComponentValue string `form:"componentValue,optional" validate:"omitempty,max=128"`
+        ConfigTypeId string `form:"configTypeId,optional" validate:"omitempty"`
+        ConfigTypeCode string `form:"configTypeCode,optional" validate:"omitempty,max=64"`
+        MappingField string `form:"mappingField,optional" validate:"omitempty,max=128"`
+        DependencyValues string `form:"dependencyValues,optional" validate:"omitempty"`
+        Keyword string `form:"keyword,optional" validate:"omitempty,max=128"`
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"20" validate:"required,min=1,max=200"`
+    }
+
+    DynamicParamOption {
+        Label string `json:"label"`
+        Value string `json:"value"`
+        Metadata string `json:"metadata"`
+    }
+
+    DynamicParamOptionsResponse {
+        Items []DynamicParamOption `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    JenkinsAgent {
+        Type string `json:"type,optional"`
+        Label string `json:"label,optional"`
+        DockerImage string `json:"dockerImage,optional"`
+        DockerArgs string `json:"dockerArgs,optional"`
+        Raw string `json:"raw,optional"`
+        Id string `json:"id,optional"`
+        Name string `json:"name,optional"`
+        AgentType string `json:"agentType,optional"`
+        MatchMode string `json:"matchMode,optional"`
+        MatchValue string `json:"matchValue,optional"`
+        Cloud string `json:"cloud,optional"`
+        PodYaml string `json:"podYaml,optional"`
+        Containers []JenkinsAgentContainer `json:"containers,optional"`
+    }
+
+    JenkinsAgentContainer {
+        Name string `json:"name"`
+        Image string `json:"image,optional"`
+    }
+
+    DevopsJenkinsAgent {
+        Id string `json:"id"`
+        ChannelId string `json:"channelId"`
+        ChannelName string `json:"channelName"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        AgentType string `json:"agentType"`
+        MatchMode string `json:"matchMode"`
+        MatchValue string `json:"matchValue"`
+        Cloud string `json:"cloud"`
+        PodYaml string `json:"podYaml"`
+        Containers []JenkinsAgentContainer `json:"containers"`
+        Status int64 `json:"status"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    CreateDevopsJenkinsAgentRequest {
+        ChannelId string `json:"channelId" validate:"required"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Code string `json:"code,optional" validate:"omitempty,max=64"`
+        AgentType string `json:"agentType" validate:"required,oneof=static dynamic"`
+        MatchMode string `json:"matchMode,optional" default:"label" validate:"omitempty,oneof=name label"`
+        MatchValue string `json:"matchValue,optional" validate:"omitempty,max=128"`
+        Cloud string `json:"cloud,optional" validate:"omitempty,max=128"`
+        PodYaml string `json:"podYaml,optional" validate:"omitempty"`
+        Containers []JenkinsAgentContainer `json:"containers,optional"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    UpdateDevopsJenkinsAgentRequest {
+        Id string `path:"id" validate:"required"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Code string `json:"code,optional" validate:"omitempty,max=64"`
+        AgentType string `json:"agentType" validate:"required,oneof=static dynamic"`
+        MatchMode string `json:"matchMode,optional" default:"label" validate:"omitempty,oneof=name label"`
+        MatchValue string `json:"matchValue,optional" validate:"omitempty,max=128"`
+        Cloud string `json:"cloud,optional" validate:"omitempty,max=128"`
+        PodYaml string `json:"podYaml,optional" validate:"omitempty"`
+        Containers []JenkinsAgentContainer `json:"containers,optional"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    ListDevopsJenkinsAgentRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"20" validate:"required,min=1,max=200"`
+        ChannelId string `form:"channelId,optional" validate:"omitempty"`
+        BuildChannelBindingId string `form:"buildChannelBindingId,optional" validate:"omitempty"`
+        Name string `form:"name,optional" validate:"omitempty,max=128"`
+        AgentType string `form:"agentType,optional" validate:"omitempty,oneof=static dynamic"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    ListDevopsJenkinsAgentResponse {
+        Items []DevopsJenkinsAgent `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    JenkinsTool {
+        Name string `json:"name"`
+        Type string `json:"type"`
+        Version string `json:"version"`
+    }
+
+    JenkinsOption {
+        Name string `json:"name"`
+        Value string `json:"value"`
+    }
+
+    JenkinsTrigger {
+        Type string `json:"type"`
+        Spec string `json:"spec"`
+        Enabled bool `json:"enabled"`
+    }
+
+    PipelineScanPlanItem {
+        StepId string `json:"stepId,optional" validate:"omitempty,max=128"`
+        StageId string `json:"stageId,optional" validate:"omitempty,max=128"`
+        Tool string `json:"tool" validate:"required,max=64"`
+        ToolMode string `json:"toolMode" validate:"required,oneof=service service_api local local_report hybrid"`
+        ToolBindingId string `json:"toolBindingId,optional" validate:"omitempty,max=64"`
+        TargetType string `json:"targetType,optional" validate:"omitempty,max=64"`
+        TargetName string `json:"targetName,optional" validate:"omitempty,max=256"`
+        TargetParamCode string `json:"targetParamCode,optional" validate:"omitempty,max=128"`
+        ReportSource string `json:"reportSource,optional" validate:"omitempty,max=64"`
+        ReportPath string `json:"reportPath,optional" validate:"omitempty,max=512"`
+        ReportFormat string `json:"reportFormat" validate:"required,max=64"`
+        Required bool `json:"required,optional"`
+        Enforce bool `json:"enforce,optional"`
+        Parser string `json:"parser,optional" validate:"omitempty,max=64"`
+    }
+
+    JenkinsAgentListRequest {
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        SystemId string `form:"systemId,optional" validate:"omitempty"`
+        EnvironmentId string `form:"environmentId,optional" validate:"omitempty"`
+        BuildChannelBindingId string `form:"buildChannelBindingId" validate:"required"`
+    }
+
+    JenkinsAgentOption {
+        Id string `json:"id"`
+        Name string `json:"name"`
+        DisplayName string `json:"displayName"`
+        Label string `json:"label"`
+        Offline bool `json:"offline"`
+        TemporarilyOffline bool `json:"temporarilyOffline"`
+        Labels []string `json:"labels"`
+        AgentType string `json:"agentType"`
+        MatchMode string `json:"matchMode"`
+        MatchValue string `json:"matchValue"`
+        Cloud string `json:"cloud"`
+        PodYaml string `json:"podYaml"`
+        Containers []JenkinsAgentContainer `json:"containers"`
+    }
+
+    JenkinsAgentListResponse {
+        Items []JenkinsAgentOption `json:"items"`
+    }
+
+    DevopsPipeline {
+        Id string `json:"id"`
+        ProjectId string `json:"projectId"`
+        ProjectName string `json:"projectName"`
+        ProjectCode string `json:"projectCode"`
+        SystemId string `json:"systemId"`
+        SystemName string `json:"systemName"`
+        SystemCode string `json:"systemCode"`
+        EnvironmentId string `json:"environmentId"`
+        EnvironmentName string `json:"environmentName"`
+        EnvironmentCode string `json:"environmentCode"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        EngineType string `json:"engineType"`
+        TemplateId string `json:"templateId"`
+        BuildChannelBindingId string `json:"buildChannelBindingId"`
+        BuildChannelName string `json:"buildChannelName"`
+        Steps []PipelineTemplateStep `json:"steps"`
+        Params []PipelineParam `json:"params"`
+        Agent JenkinsAgent `json:"agent"`
+        Tools []JenkinsTool `json:"tools"`
+        Options []JenkinsOption `json:"options"`
+        Triggers []JenkinsTrigger `json:"triggers"`
+        JobName string `json:"jobName"`
+        JobFullName string `json:"jobFullName"`
+        TriggerMode string `json:"triggerMode"`
+        SyncStatus string `json:"syncStatus"`
+        SyncMessage string `json:"syncMessage"`
+        LastRunStatus string `json:"lastRunStatus"`
+        Status int64 `json:"status"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+        LastRunId string `json:"lastRunId"`
+        LastRunBuildNumber int64 `json:"lastRunBuildNumber"`
+        LastRunBuildUrl string `json:"lastRunBuildUrl"`
+        LastRunStartedAt string `json:"lastRunStartedAt"`
+        ScanEnabled bool `json:"scanEnabled"`
+        ScanMode string `json:"scanMode"`
+        RejectUnexpectedReports bool `json:"rejectUnexpectedReports"`
+        Enforce bool `json:"enforce"`
+        ScanItems []PipelineScanPlanItem `json:"scanItems"`
+        TektonDagConfig string `json:"tektonDagConfig"`
+        TektonRunPolicy string `json:"tektonRunPolicy"`
+        TektonTriggerConfig string `json:"tektonTriggerConfig"`
+        TektonPrunerPolicyRef string `json:"tektonPrunerPolicyRef"`
+        TektonPipelineYamlSnapshot string `json:"tektonPipelineYamlSnapshot"`
+        TektonTemplateId string `json:"tektonTemplateId"`
+        TektonTemplateSnapshot string `json:"tektonTemplateSnapshot"`
+        TektonParamBindings string `json:"tektonParamBindings"`
+        TektonWorkspaceBindings string `json:"tektonWorkspaceBindings"`
+        TektonResourceBindings string `json:"tektonResourceBindings"`
+    }
+
+    SaveDevopsPipelineRequest {
+        ProjectId string `json:"projectId" validate:"required"`
+        SystemId string `json:"systemId" validate:"required"`
+        EnvironmentId string `json:"environmentId" validate:"required"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        Code string `json:"code" validate:"required,min=2,max=64"`
+        EngineType string `json:"engineType,optional" default:"jenkins" validate:"oneof=jenkins tekton"`
+        TemplateId string `json:"templateId,optional" validate:"omitempty"`
+        BuildChannelBindingId string `json:"buildChannelBindingId" validate:"required"`
+        Steps []PipelineTemplateStep `json:"steps,optional"`
+        Params []PipelineParam `json:"params,optional"`
+        Agent JenkinsAgent `json:"agent,optional"`
+        Tools []JenkinsTool `json:"tools,optional"`
+        Options []JenkinsOption `json:"options,optional"`
+        Triggers []JenkinsTrigger `json:"triggers,optional"`
+        TriggerMode string `json:"triggerMode,optional" default:"manual" validate:"omitempty,oneof=manual scheduled"`
+        ScanEnabled bool `json:"scanEnabled,optional"`
+        ScanMode string `json:"scanMode,optional" validate:"omitempty,max=64"`
+        RejectUnexpectedReports bool `json:"rejectUnexpectedReports,optional"`
+        Enforce bool `json:"enforce,optional"`
+        ScanItems []PipelineScanPlanItem `json:"scanItems,optional"`
+        TektonDagConfig string `json:"tektonDagConfig,optional" validate:"omitempty"`
+        TektonRunPolicy string `json:"tektonRunPolicy,optional" validate:"omitempty"`
+        TektonTriggerConfig string `json:"tektonTriggerConfig,optional" validate:"omitempty"`
+        TektonPrunerPolicyRef string `json:"tektonPrunerPolicyRef,optional" validate:"omitempty"`
+        TektonTemplateId string `json:"tektonTemplateId,optional" validate:"omitempty"`
+        TektonTemplateSnapshot string `json:"tektonTemplateSnapshot,optional" validate:"omitempty"`
+        TektonParamBindings string `json:"tektonParamBindings,optional" validate:"omitempty"`
+        TektonWorkspaceBindings string `json:"tektonWorkspaceBindings,optional" validate:"omitempty"`
+        TektonResourceBindings string `json:"tektonResourceBindings,optional" validate:"omitempty"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    UpdateDevopsPipelineRequest {
+        Id string `path:"id" validate:"required"`
+        SystemId string `json:"systemId,optional" validate:"omitempty"`
+        EnvironmentId string `json:"environmentId,optional" validate:"omitempty"`
+        Name string `json:"name" validate:"required,min=1,max=128"`
+        EngineType string `json:"engineType,optional" validate:"omitempty,oneof=jenkins tekton"`
+        TemplateId string `json:"templateId,optional" validate:"omitempty"`
+        BuildChannelBindingId string `json:"buildChannelBindingId,optional" validate:"omitempty"`
+        Steps []PipelineTemplateStep `json:"steps,optional"`
+        Params []PipelineParam `json:"params,optional"`
+        Agent JenkinsAgent `json:"agent,optional"`
+        Tools []JenkinsTool `json:"tools,optional"`
+        Options []JenkinsOption `json:"options,optional"`
+        Triggers []JenkinsTrigger `json:"triggers,optional"`
+        TriggerMode string `json:"triggerMode,optional" default:"manual" validate:"omitempty,oneof=manual scheduled"`
+        ScanEnabled bool `json:"scanEnabled,optional"`
+        ScanMode string `json:"scanMode,optional" validate:"omitempty,max=64"`
+        RejectUnexpectedReports bool `json:"rejectUnexpectedReports,optional"`
+        Enforce bool `json:"enforce,optional"`
+        ScanItems []PipelineScanPlanItem `json:"scanItems,optional"`
+        TektonDagConfig string `json:"tektonDagConfig,optional" validate:"omitempty"`
+        TektonRunPolicy string `json:"tektonRunPolicy,optional" validate:"omitempty"`
+        TektonTriggerConfig string `json:"tektonTriggerConfig,optional" validate:"omitempty"`
+        TektonPrunerPolicyRef string `json:"tektonPrunerPolicyRef,optional" validate:"omitempty"`
+        TektonTemplateId string `json:"tektonTemplateId,optional" validate:"omitempty"`
+        TektonTemplateSnapshot string `json:"tektonTemplateSnapshot,optional" validate:"omitempty"`
+        TektonParamBindings string `json:"tektonParamBindings,optional" validate:"omitempty"`
+        TektonWorkspaceBindings string `json:"tektonWorkspaceBindings,optional" validate:"omitempty"`
+        TektonResourceBindings string `json:"tektonResourceBindings,optional" validate:"omitempty"`
+        Status int64 `json:"status,optional" default:"1" validate:"oneof=0 1"`
+    }
+
+    ListDevopsPipelineRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"12" validate:"required,min=1,max=200"`
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        SystemId string `form:"systemId,optional" validate:"omitempty"`
+        EnvironmentId string `form:"environmentId,optional" validate:"omitempty"`
+        Name string `form:"name,optional" validate:"omitempty,max=128"`
+        Code string `form:"code,optional" validate:"omitempty,max=64"`
+        EngineType string `form:"engineType,optional" validate:"omitempty,oneof=jenkins tekton"`
+        SyncStatus string `form:"syncStatus,optional" validate:"omitempty"`
+        LastRunStatus string `form:"lastRunStatus,optional" validate:"omitempty"`
+        TriggerMode string `form:"triggerMode,optional" validate:"omitempty,oneof=manual scheduled"`
+        Status int64 `form:"status,optional" default:"-1" validate:"oneof=-1 0 1"`
+    }
+
+    ListDevopsPipelineResponse {
+        Items []DevopsPipeline `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    RunDevopsPipelineRequest {
+        Id string `path:"id" validate:"required"`
+        Params string `json:"params,optional" validate:"omitempty"`
+        Workspaces string `json:"workspaces,optional" validate:"omitempty"`
+        TriggerType string `json:"triggerType,optional" validate:"omitempty"`
+    }
+
+    DevopsPipelineRun {
+        Id string `json:"id"`
+        ProjectId string `json:"projectId"`
+        ProjectName string `json:"projectName"`
+        ProjectCode string `json:"projectCode"`
+        SystemId string `json:"systemId"`
+        SystemName string `json:"systemName"`
+        SystemCode string `json:"systemCode"`
+        EnvironmentId string `json:"environmentId"`
+        EnvironmentName string `json:"environmentName"`
+        EnvironmentCode string `json:"environmentCode"`
+        PipelineId string `json:"pipelineId"`
+        PipelineName string `json:"pipelineName"`
+        PipelineCode string `json:"pipelineCode"`
+        EngineType string `json:"engineType"`
+        JenkinsJobName string `json:"jenkinsJobName"`
+        JenkinsJobFullName string `json:"jenkinsJobFullName"`
+        JenkinsBuildNumber int64 `json:"jenkinsBuildNumber"`
+        JenkinsQueueId string `json:"jenkinsQueueId"`
+        JenkinsBuildUrl string `json:"jenkinsBuildUrl"`
+        BuildId int64 `json:"buildId"`
+        TektonNamespace string `json:"tektonNamespace"`
+        TektonPipelineName string `json:"tektonPipelineName"`
+        TektonPipelineRunName string `json:"tektonPipelineRunName"`
+        TriggerType string `json:"triggerType"`
+        TriggerUserId uint64 `json:"triggerUserId"`
+        TriggerUsername string `json:"triggerUsername"`
+        Status string `json:"status"`
+        StartedAt string `json:"startedAt"`
+        FinishedAt string `json:"finishedAt"`
+        DurationSeconds int64 `json:"durationSeconds"`
+        ErrorMessage string `json:"errorMessage"`
+        LogStorageType string `json:"logStorageType"`
+        LogObjectKey string `json:"logObjectKey"`
+        LogSize int64 `json:"logSize"`
+        LogArchivedAt string `json:"logArchivedAt"`
+    }
+
+    ListDevopsPipelineRunRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"12" validate:"required,min=1,max=200"`
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        PipelineId string `form:"pipelineId,optional" validate:"omitempty"`
+        Status string `form:"status,optional" validate:"omitempty"`
+    }
+
+    ListDevopsPipelineRunResponse {
+        Items []DevopsPipelineRun `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    DevopsPipelineRunStage {
+        Id string `json:"id"`
+        RunId string `json:"runId"`
+        PipelineId string `json:"pipelineId"`
+        NodeId string `json:"nodeId"`
+        StageName string `json:"stageName"`
+        StageType string `json:"stageType"`
+        Status string `json:"status"`
+        StartedAt string `json:"startedAt"`
+        FinishedAt string `json:"finishedAt"`
+        DurationSeconds int64 `json:"durationSeconds"`
+        JenkinsNodeId string `json:"jenkinsNodeId"`
+        LogObjectKey string `json:"logObjectKey"`
+        ErrorMessage string `json:"errorMessage"`
+        TektonTaskRunName string `json:"tektonTaskRunName"`
+        TektonPodName string `json:"tektonPodName"`
+        ContainerName string `json:"containerName"`
+        ContainerNames []string `json:"containerNames"`
+        TektonTaskRuns []TektonTaskRunSnapshot `json:"tektonTaskRuns"`
+    }
+
+    TektonTaskRunSnapshot {
+        Name string `json:"name"`
+        PipelineTaskName string `json:"pipelineTaskName"`
+        PodName string `json:"podName"`
+        ContainerName string `json:"containerName"`
+        ContainerNames []string `json:"containerNames"`
+        Status string `json:"status"`
+        StartedAt string `json:"startedAt"`
+        FinishedAt string `json:"finishedAt"`
+        DurationSeconds int64 `json:"durationSeconds"`
+        ErrorMessage string `json:"errorMessage"`
+    }
+
+    ListDevopsPipelineRunStageRequest {
+        RunId string `path:"runId" validate:"required"`
+    }
+
+    ListDevopsPipelineRunStageResponse {
+        Items []DevopsPipelineRunStage `json:"items"`
+    }
+
+    DevopsPipelineRunLogRequest {
+        RunId string `path:"runId" validate:"required"`
+        StageId string `form:"stageId,optional" validate:"omitempty"`
+        Full bool `form:"full,optional"`
+        TaskRunName string `form:"taskRunName,optional" validate:"omitempty,max=253"`
+        PodName string `form:"podName,optional" validate:"omitempty,max=253"`
+        ContainerName string `form:"containerName,optional" validate:"omitempty,max=253"`
+    }
+
+    DevopsPipelineRunLogResponse {
+        Content string `json:"content"`
+        Archived bool `json:"archived"`
+        Source string `json:"source"`
+        Changed bool `json:"changed"`
+    }
+
+    DevopsPipelineRunYamlSnapshotRequest {
+        RunId string `path:"runId" validate:"required"`
+    }
+
+    DevopsPipelineRunYamlSnapshotResponse {
+        RunId string `json:"runId"`
+        PipelineId string `json:"pipelineId"`
+        EngineType string `json:"engineType"`
+        TektonNamespace string `json:"tektonNamespace"`
+        TektonPipelineName string `json:"tektonPipelineName"`
+        TektonPipelineRunName string `json:"tektonPipelineRunName"`
+        TektonPipelineYamlSnapshot string `json:"tektonPipelineYamlSnapshot"`
+        TektonPipelineRunYamlSnapshot string `json:"tektonPipelineRunYamlSnapshot"`
+        PipelineSnapshot string `json:"pipelineSnapshot"`
+    }
+
+    DevopsPipelineRunInputParam {
+        Name string `json:"name"`
+        Type string `json:"type"`
+        Description string `json:"description"`
+        DefaultValue string `json:"defaultValue"`
+        Options []StepParamOption `json:"options"`
+    }
+
+    DevopsPipelineRunInput {
+        Id string `json:"id"`
+        Name string `json:"name"`
+        Message string `json:"message"`
+        Params []DevopsPipelineRunInputParam `json:"params"`
+    }
+
+    ListDevopsPipelineRunInputRequest {
+        RunId string `path:"id" validate:"required"`
+    }
+
+    ListDevopsPipelineRunInputResponse {
+        Items []DevopsPipelineRunInput `json:"items"`
+    }
+
+    DevopsPipelineRunInputActionRequest {
+        RunId string `path:"id" validate:"required"`
+        InputId string `path:"inputId" validate:"required"`
+        Params string `json:"params,optional" validate:"omitempty"`
+    }
+
+    DevopsPipelineRunArtifact {
+        Id string `json:"id"`
+        RunId string `json:"runId"`
+        StageId string `json:"stageId"`
+        StepId string `json:"stepId"`
+        Name string `json:"name"`
+        Type string `json:"type"`
+        Bucket string `json:"bucket"`
+        ObjectKey string `json:"objectKey"`
+        Size int64 `json:"size"`
+        ContentType string `json:"contentType"`
+        Status string `json:"status"`
+        ErrorMessage string `json:"errorMessage"`
+        Url string `json:"url"`
+        CreatedAt string `json:"createdAt"`
+    }
+
+    ListDevopsPipelineRunArtifactRequest {
+        RunId string `path:"runId" validate:"required"`
+    }
+
+    ListDevopsPipelineRunArtifactResponse {
+        Items []DevopsPipelineRunArtifact `json:"items"`
+    }
+
+    DevopsPipelineDashboardRequest {
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+    }
+
+    DevopsPipelineDashboardOverview {
+        BuildCount int64 `json:"buildCount"`
+        SuccessCount int64 `json:"successCount"`
+        FailureCount int64 `json:"failureCount"`
+        AbortedCount int64 `json:"abortedCount"`
+        TotalDurationSeconds int64 `json:"totalDurationSeconds"`
+        SuccessRate float64 `json:"successRate"`
+        FailureRate float64 `json:"failureRate"`
+        AvgDurationSeconds int64 `json:"avgDurationSeconds"`
+        ProjectCount int64 `json:"projectCount"`
+        SystemCount int64 `json:"systemCount"`
+        EnvironmentCount int64 `json:"environmentCount"`
+        PipelineCount int64 `json:"pipelineCount"`
+        ChannelCount int64 `json:"channelCount"`
+    }
+
+    DevopsPipelineDashboardMetric {
+        Id string `json:"id"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        BuildCount int64 `json:"buildCount"`
+        SuccessCount int64 `json:"successCount"`
+        FailureCount int64 `json:"failureCount"`
+        AbortedCount int64 `json:"abortedCount"`
+        TotalDurationSeconds int64 `json:"totalDurationSeconds"`
+        SuccessRate float64 `json:"successRate"`
+        FailureRate float64 `json:"failureRate"`
+        AvgDurationSeconds int64 `json:"avgDurationSeconds"`
+        LastRunAt string `json:"lastRunAt"`
+    }
+
+    DevopsPipelineDashboardTrend {
+        Date string `json:"date"`
+        BuildCount int64 `json:"buildCount"`
+        SuccessCount int64 `json:"successCount"`
+        FailureCount int64 `json:"failureCount"`
+        DurationSeconds int64 `json:"durationSeconds"`
+    }
+
+    DevopsPipelineDashboardResponse {
+        Overview DevopsPipelineDashboardOverview `json:"overview"`
+        Trends []DevopsPipelineDashboardTrend `json:"trends"`
+        ProjectRanks []DevopsPipelineDashboardMetric `json:"projectRanks"`
+        SystemRanks []DevopsPipelineDashboardMetric `json:"systemRanks"`
+        PipelineRanks []DevopsPipelineDashboardMetric `json:"pipelineRanks"`
+        EnvironmentRanks []DevopsPipelineDashboardMetric `json:"environmentRanks"`
+        ChannelRanks []DevopsPipelineDashboardMetric `json:"channelRanks"`
+    }
+)
+
+@server(
+    prefix: /devops/v1
+    group: pipeline
+    middleware: JWTAuthMiddleware
+)
+service devops-api {
+    @doc "创建步骤分类"
+    @handler DevopsStepCategoryCreate
+    post /pipeline/category (CreateDevopsStepCategoryRequest) returns (IdResponse)
+
+    @doc "更新步骤分类"
+    @handler DevopsStepCategoryUpdate
+    put /pipeline/category/:id (UpdateDevopsStepCategoryRequest)
+
+    @doc "删除步骤分类"
+    @handler DevopsStepCategoryDelete
+    delete /pipeline/category/:id (DefaultStringIdRequest)
+
+    @doc "分页查询步骤分类"
+    @handler DevopsStepCategoryList
+    get /pipeline/category/list (ListDevopsStepCategoryRequest) returns (ListDevopsStepCategoryResponse)
+
+    @doc "获取步骤分类详情"
+    @handler DevopsStepCategoryGet
+    get /pipeline/category/:id (DefaultStringIdRequest) returns (DevopsStepCategory)
+
+    @doc "创建 Jenkins 步骤"
+    @handler DevopsJenkinsStepCreate
+    post /pipeline/jenkins/step (CreateDevopsStepTemplateRequest) returns (IdResponse)
+
+    @doc "更新 Jenkins 步骤"
+    @handler DevopsJenkinsStepUpdate
+    put /pipeline/jenkins/step/:id (UpdateDevopsStepTemplateRequest)
+
+    @doc "删除 Jenkins 步骤"
+    @handler DevopsJenkinsStepDelete
+    delete /pipeline/jenkins/step/:id (DefaultStringIdRequest)
+
+    @doc "分页查询 Jenkins 步骤"
+    @handler DevopsJenkinsStepList
+    get /pipeline/jenkins/step/list (ListDevopsStepTemplateRequest) returns (ListDevopsStepTemplateResponse)
+
+    @doc "获取 Jenkins 步骤详情"
+    @handler DevopsJenkinsStepGet
+    get /pipeline/jenkins/step/:id (DefaultStringIdRequest) returns (DevopsStepTemplate)
+
+    @doc "更新 Jenkins 步骤状态"
+    @handler DevopsJenkinsStepStatus
+    put /pipeline/jenkins/step/:id/status (UpdateStatusRequest)
+
+    @doc "创建 Tekton 步骤"
+    @handler DevopsTektonStepCreate
+    post /pipeline/tekton/step (CreateDevopsStepTemplateRequest) returns (IdResponse)
+
+    @doc "更新 Tekton 步骤"
+    @handler DevopsTektonStepUpdate
+    put /pipeline/tekton/step/:id (UpdateDevopsStepTemplateRequest)
+
+    @doc "删除 Tekton 步骤"
+    @handler DevopsTektonStepDelete
+    delete /pipeline/tekton/step/:id (DefaultStringIdRequest)
+
+    @doc "分页查询 Tekton 步骤"
+    @handler DevopsTektonStepList
+    get /pipeline/tekton/step/list (ListDevopsStepTemplateRequest) returns (ListDevopsStepTemplateResponse)
+
+    @doc "查询 Tekton 步骤镜像"
+    @handler DevopsTektonStepImageList
+    get /pipeline/tekton/step/image/list (ListTektonStepImageRequest) returns (ListTektonStepImageResponse)
+
+    @doc "批量更新 Tekton 步骤镜像"
+    @handler DevopsTektonStepImageBatchUpdate
+    put /pipeline/tekton/step/image/batch (BatchUpdateTektonStepImageRequest) returns (BatchUpdateTektonStepImageResponse)
+
+    @doc "获取 Tekton 步骤详情"
+    @handler DevopsTektonStepGet
+    get /pipeline/tekton/step/:id (DefaultStringIdRequest) returns (DevopsStepTemplate)
+
+    @doc "更新 Tekton 步骤状态"
+    @handler DevopsTektonStepStatus
+    put /pipeline/tekton/step/:id/status (UpdateStatusRequest)
+
+    @doc "创建流水线模板"
+    @handler DevopsPipelineTemplateCreate
+    post /pipeline/template (CreateDevopsPipelineTemplateRequest) returns (IdResponse)
+
+    @doc "更新流水线模板"
+    @handler DevopsPipelineTemplateUpdate
+    put /pipeline/template/:id (UpdateDevopsPipelineTemplateRequest)
+
+    @doc "删除流水线模板"
+    @handler DevopsPipelineTemplateDelete
+    delete /pipeline/template/:id (DefaultStringIdRequest)
+
+    @doc "分页查询流水线模板"
+    @handler DevopsPipelineTemplateList
+    get /pipeline/template/list (ListDevopsPipelineTemplateRequest) returns (ListDevopsPipelineTemplateResponse)
+
+    @doc "获取流水线模板详情"
+    @handler DevopsPipelineTemplateGet
+    get /pipeline/template/:id (DefaultStringIdRequest) returns (DevopsPipelineTemplate)
+
+    @doc "更新流水线模板状态"
+    @handler DevopsPipelineTemplateStatus
+    put /pipeline/template/:id/status (UpdateStatusRequest)
+
+    @doc "保存流水线模板步骤编排"
+    @handler DevopsPipelineTemplateStepsSave
+    put /pipeline/template/:id/steps (SaveDevopsPipelineTemplateStepsRequest)
+
+    @doc "预览 Jenkins Pipeline"
+    @handler DevopsPipelineTemplatePreview
+    get /pipeline/template/:id/preview (DefaultStringIdRequest) returns (PipelinePreviewResponse)
+
+    @doc "查看流水线模板变量"
+    @handler DevopsPipelineTemplateVariables
+    get /pipeline/template/:id/variables (DefaultStringIdRequest) returns (PipelineTemplateVariablesResponse)
+
+    @doc "凭证类型选项"
+    @handler DevopsCredentialTypeOptions
+    get /pipeline/options/credential-types returns (CredentialTypeOptionsResponse)
+
+    @doc "查询 Jenkins 凭证同步记录"
+    @handler DevopsJenkinsCredentialSyncList
+    get /pipeline/jenkins/credential-sync/list (ListJenkinsCredentialSyncRequest) returns (ListJenkinsCredentialSyncResponse)
+
+    @doc "查询 Jenkins 凭证引用流水线"
+    @handler DevopsJenkinsCredentialReferences
+    get /pipeline/jenkins/credential-sync/references (JenkinsCredentialReferenceRequest) returns (JenkinsCredentialReferenceResponse)
+
+    @doc "删除 Jenkins 凭证副本"
+    @handler DevopsJenkinsCredentialSyncDelete
+    delete /pipeline/jenkins/credential-sync (DeleteJenkinsCredentialSyncRequest)
+
+    @doc "渠道分组选项"
+    @handler DevopsChannelGroupOptions
+    get /pipeline/options/channel-groups returns (ChannelGroupOptionsResponse)
+
+    @doc "渠道映射字段选项"
+    @handler DevopsChannelMappingFieldOptions
+    get /pipeline/options/channel-mapping-fields (ChannelMappingFieldOptionsRequest) returns (ChannelMappingFieldOptionsResponse)
+
+    @doc "动态参数选项"
+    @handler DevopsDynamicParamOptions
+    get /pipeline/options/dynamic-params (DynamicParamOptionsRequest) returns (DynamicParamOptionsResponse)
+
+    @doc "创建系统"
+    @handler DevopsSystemCreate
+    post /project/system (CreateDevopsSystemRequest) returns (IdResponse)
+
+    @doc "更新系统"
+    @handler DevopsSystemUpdate
+    put /project/system/:id (UpdateDevopsSystemRequest)
+
+    @doc "删除系统"
+    @handler DevopsSystemDelete
+    delete /project/system/:id (DefaultStringIdRequest)
+
+    @doc "查询系统"
+    @handler DevopsSystemList
+    get /project/system/list (ListDevopsSystemRequest) returns (ListDevopsSystemResponse)
+
+    @doc "系统详情"
+    @handler DevopsSystemGet
+    get /project/system/:id (DefaultStringIdRequest) returns (DevopsSystem)
+
+    @doc "创建流水线环境"
+    @handler DevopsPipelineEnvironmentCreate
+    post /pipeline/environment (CreateDevopsPipelineEnvironmentRequest) returns (IdResponse)
+
+    @doc "更新流水线环境"
+    @handler DevopsPipelineEnvironmentUpdate
+    put /pipeline/environment/:id (UpdateDevopsPipelineEnvironmentRequest)
+
+    @doc "删除流水线环境"
+    @handler DevopsPipelineEnvironmentDelete
+    delete /pipeline/environment/:id (DefaultStringIdRequest)
+
+    @doc "查询流水线环境"
+    @handler DevopsPipelineEnvironmentList
+    get /pipeline/environment/list (ListDevopsPipelineEnvironmentRequest) returns (ListDevopsPipelineEnvironmentResponse)
+
+    @doc "流水线环境详情"
+    @handler DevopsPipelineEnvironmentGet
+    get /pipeline/environment/:id (DefaultStringIdRequest) returns (DevopsPipelineEnvironment)
+
+    @doc "查询 Jenkins Agent"
+    @handler DevopsPipelineJenkinsAgentList
+    get /pipeline/options/jenkins-agents (JenkinsAgentListRequest) returns (JenkinsAgentListResponse)
+
+    @doc "创建 Jenkins Agent"
+    @handler DevopsJenkinsAgentCreate
+    post /pipeline/jenkins-agent (CreateDevopsJenkinsAgentRequest) returns (IdResponse)
+
+    @doc "更新 Jenkins Agent"
+    @handler DevopsJenkinsAgentUpdate
+    put /pipeline/jenkins-agent/:id (UpdateDevopsJenkinsAgentRequest)
+
+    @doc "删除 Jenkins Agent"
+    @handler DevopsJenkinsAgentDelete
+    delete /pipeline/jenkins-agent/:id (DefaultStringIdRequest)
+
+    @doc "查询 Jenkins Agent"
+    @handler DevopsJenkinsAgentList
+    get /pipeline/jenkins-agent/list (ListDevopsJenkinsAgentRequest) returns (ListDevopsJenkinsAgentResponse)
+
+    @doc "Jenkins Agent 详情"
+    @handler DevopsJenkinsAgentGet
+    get /pipeline/jenkins-agent/:id (DefaultStringIdRequest) returns (DevopsJenkinsAgent)
+
+    @doc "创建流水线"
+    @handler DevopsPipelineCreate
+    post /pipeline/instance (SaveDevopsPipelineRequest) returns (IdResponse)
+
+    @doc "更新流水线"
+    @handler DevopsPipelineUpdate
+    put /pipeline/instance/:id (UpdateDevopsPipelineRequest)
+
+    @doc "删除流水线"
+    @handler DevopsPipelineDelete
+    delete /pipeline/instance/:id (DefaultStringIdRequest)
+
+    @doc "查询流水线"
+    @handler DevopsPipelineList
+    get /pipeline/instance/list (ListDevopsPipelineRequest) returns (ListDevopsPipelineResponse)
+
+    @doc "流水线详情"
+    @handler DevopsPipelineGet
+    get /pipeline/instance/:id (DefaultStringIdRequest) returns (DevopsPipeline)
+
+    @doc "预览流水线"
+    @handler DevopsPipelinePreview
+    get /pipeline/instance/:id/preview (DefaultStringIdRequest) returns (PipelinePreviewResponse)
+
+    @doc "查询 Tekton 运行时资源"
+    @handler DevopsTektonRuntimeResourceList
+    get /pipeline/tekton/runtime-resource/list (ListTektonRuntimeResourceRequest) returns (ListTektonRuntimeResourceResponse)
+
+    @doc "运行流水线"
+    @handler DevopsPipelineRun
+    post /pipeline/instance/:id/run (RunDevopsPipelineRequest) returns (IdResponse)
+
+    @doc "停止流水线执行"
+    @handler DevopsPipelineRunStop
+    post /pipeline/run/:id/stop (DefaultStringIdRequest)
+
+    @doc "删除流水线执行记录"
+    @handler DevopsPipelineRunDelete
+    delete /pipeline/run/:id (DefaultStringIdRequest)
+
+    @doc "查询流水线执行记录"
+    @handler DevopsPipelineRunList
+    get /pipeline/run/list (ListDevopsPipelineRunRequest) returns (ListDevopsPipelineRunResponse)
+
+    @doc "查询流水线阶段状态"
+    @handler DevopsPipelineRunStageList
+    get /pipeline/run/:runId/stage/list (ListDevopsPipelineRunStageRequest) returns (ListDevopsPipelineRunStageResponse)
+
+    @doc "查询流水线日志"
+    @handler DevopsPipelineRunLog
+    get /pipeline/run/:runId/log (DevopsPipelineRunLogRequest) returns (DevopsPipelineRunLogResponse)
+
+    @doc "查询流水线 YAML 快照"
+    @handler DevopsPipelineRunYamlSnapshot
+    get /pipeline/run/:runId/yaml-snapshot (DevopsPipelineRunYamlSnapshotRequest) returns (DevopsPipelineRunYamlSnapshotResponse)
+
+    @doc "查询流水线人工确认"
+    @handler DevopsPipelineRunInputList
+    get /pipeline/run/:id/input/list (ListDevopsPipelineRunInputRequest) returns (ListDevopsPipelineRunInputResponse)
+
+    @doc "继续流水线人工确认"
+    @handler DevopsPipelineRunInputProceed
+    post /pipeline/run/:id/input/:inputId/proceed (DevopsPipelineRunInputActionRequest)
+
+    @doc "终止流水线人工确认"
+    @handler DevopsPipelineRunInputAbort
+    post /pipeline/run/:id/input/:inputId/abort (DevopsPipelineRunInputActionRequest)
+
+    @doc "查询流水线运行产物"
+    @handler DevopsPipelineRunArtifactList
+    get /pipeline/run/:runId/artifact/list (ListDevopsPipelineRunArtifactRequest) returns (ListDevopsPipelineRunArtifactResponse)
+
+    @doc "流水线驾驶舱"
+    @handler DevopsPipelineDashboard
+    get /pipeline/dashboard (DevopsPipelineDashboardRequest) returns (DevopsPipelineDashboardResponse)
+
+    @doc "查询步骤参数到渠道分组映射"
+    @handler DevopsStepChannelParamMappingList
+    get /pipeline/options/step-channel-param-mapping (StepChannelParamMappingListRequest) returns (StepChannelParamMappingListResponse)
+
+    @doc "创建步骤参数到渠道分组映射"
+    @handler DevopsStepChannelParamMappingCreate
+    post /pipeline/options/step-channel-param-mapping (CreateStepChannelParamMappingRequest) returns (IdResponse)
+
+    @doc "更新步骤参数到渠道分组映射"
+    @handler DevopsStepChannelParamMappingUpdate
+    put /pipeline/options/step-channel-param-mapping/:id (UpdateStepChannelParamMappingRequest)
+
+    @doc "删除步骤参数到渠道分组映射"
+    @handler DevopsStepChannelParamMappingDelete
+    delete /pipeline/options/step-channel-param-mapping/:id (DefaultStringIdRequest)
+}

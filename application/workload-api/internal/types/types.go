@@ -2687,6 +2687,7 @@ type UpdateEnvVarsRequest struct {
 type UpdateImageRequest struct {
 	Id            uint64 `path:"id" validate:"required,min=1"`
 	ContainerName string `json:"containerName" validate:"required"`
+	ContainerType string `json:"containerType,optional"`
 	Image         string `json:"image" validate:"required"`
 	Reason        string `json:"reason,optional" `
 }

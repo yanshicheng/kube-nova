@@ -33,5 +33,7 @@ tmp
 .worktrees
 
 devops
+!common/devops/
+!common/devops/**
 
 docs

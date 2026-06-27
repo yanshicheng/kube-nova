@@ -1,0 +1,66 @@
+Name: devops-api
+Host: 0.0.0.0
+Port: 8813
+Timeout: 30000
+MaxBytes: 104857600
+Mode: dev
+
+Log:
+  ServiceName: devops-api
+  Mode: "console"
+  Encoding: "plain"
+  TimeFormat: "2006-01-02 15:04:05"
+  Path: "logs"
+  Level: "info"
+  Compress: false
+  Stat: true
+  KeepDays: 7
+  StackCooldownMillis: 100
+  MaxBackups: 0
+  MaxSize: 0
+  Rotation: "daily"
+
+Cache:
+  Host: 127.0.0.1:6379
+  Type: node
+  Pass: "123456"
+  Tls: false
+  NonBlock: true
+  PingTimeout: 3s
+
+PortalRpc:
+  Endpoints:
+    - 127.0.0.1:30010
+  NonBlock: true
+  Timeout: 30000
+
+DevopsManagerRpc:
+  Endpoints:
+    - 127.0.0.1:30031
+  NonBlock: true
+  Timeout: 30000
+
+DevopsPipelineRpc:
+  Endpoints:
+    - 127.0.0.1:30032
+  NonBlock: true
+  Timeout: 30000
+
+DevopsQualityRpc:
+  Endpoints:
+    - 127.0.0.1:30033
+  NonBlock: true
+  Timeout: 30000
+
+StorageConf:
+  Provider: s3
+  Endpoints: ["172.16.1.61:9000"]
+  EndpointProxy: "http://172.16.1.61:9000"
+  AccessKey: l6FELwlR5e2V6QwTlDVk
+  AccessSecret: vwjznVUAOO2ST7dVkvvzDjhCLifQDu0V62oSiqm0
+  BucketName: devops-artifacts
+  CAFile: ""
+  CAKey: ""
+  ClientCertFile: ""
+  ClientKeyFile: ""
+  UseTLS: false

@@ -465,21 +465,27 @@ func (c *cronJobOperator) UpdateImage(req *types.UpdateImageRequest) error {
 	if err != nil {
 		return err
 	}
+	containerType, err := normalizeUpdateContainerType(req.ContainerType)
+	if err != nil {
+		return err
+	}
 
 	var oldImage string
 	found := false
 
-	for i := range cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers {
-		container := &cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers[i]
-		if container.Name == req.ContainerName {
-			oldImage = container.Image
-			container.Image = req.Image
-			found = true
-			break
+	if matchUpdateContainerType(containerType, types.ContainerTypeInit) {
+		for i := range cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers {
+			container := &cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers[i]
+			if container.Name == req.ContainerName {
+				oldImage = container.Image
+				container.Image = req.Image
+				found = true
+				break
+			}
 		}
 	}
 
-	if !found {
+	if !found && matchUpdateContainerType(containerType, types.ContainerTypeMain) {
 		for i := range cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers {
 			container := &cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers[i]
 			if container.Name == req.ContainerName {
@@ -491,7 +497,7 @@ func (c *cronJobOperator) UpdateImage(req *types.UpdateImageRequest) error {
 		}
 	}
 
-	if !found {
+	if !found && matchUpdateContainerType(containerType, types.ContainerTypeEphemeral) {
 		for i := range cronJob.Spec.JobTemplate.Spec.Template.Spec.EphemeralContainers {
 			container := &cronJob.Spec.JobTemplate.Spec.Template.Spec.EphemeralContainers[i]
 			if container.Name == req.ContainerName {

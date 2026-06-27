@@ -123,8 +123,11 @@ func (l *GetTokenLogic) GetToken(in *pb.GetTokenRequest) (*pb.GetTokenResponse, 
 		return nil, code.RedisStorageErr
 	}
 	refreshToken, err := jwt.CreateJWTToken(&jwt.AccountInfo{
+		UserId:   user.Id,
 		UserName: user.Username,
+		NickName: user.Nickname,
 		Uuid:     uuid,
+		Roles:    rolesNames,
 	}, vars.RefreshSecret, uuid, vars.RefreshExpire)
 	if err != nil {
 		l.Errorf("生成JWT令牌失败, 错误: %v", err)

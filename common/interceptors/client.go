@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/yanshicheng/kube-nova/common/handler/errorx"
-	"github.com/zeromicro/go-zero/core/logx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -32,12 +31,7 @@ func ClientMetadataInterceptor() grpc.UnaryClientInterceptor {
 			ctx = metadata.AppendToOutgoingContext(ctx, "roles", rolesStr)
 		}
 
-		// 调用下一个拦截器
-		err := invoker(ctx, method, req, reply, cc, opts...)
-		if err != nil {
-			logx.Errorf("❌ [ClientMetadata] 调用失败: %v", err)
-		}
-		return err
+		return invoker(ctx, method, req, reply, cc, opts...)
 	}
 }
 

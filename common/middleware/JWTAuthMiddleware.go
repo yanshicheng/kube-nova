@@ -6,8 +6,6 @@ import (
 	"net/http"
 
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/sysauthservice"
-	"github.com/yanshicheng/kube-nova/common/vars"
-	"github.com/yanshicheng/kube-nova/pkg/jwt"
 )
 
 type Response struct {
@@ -48,18 +46,25 @@ func (m *JWTAuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 			token = "Bearer " + urlToken
 		}
 
-		JWTClaims, err := jwt.VerifyToken(token, vars.AccessSecret)
+		res, err := m.auth.VerifyToken(r.Context(), &sysauthservice.VerifyTokenRequest{
+			Token: token,
+		})
 		if err != nil {
 			w.WriteHeader(http.StatusOK) // 200
 			writeJSONResponse(w, 100002, "Token验证失败: "+err.Error(), nil)
 			return
 		}
+		if !res.IsValid {
+			w.WriteHeader(http.StatusOK) // 200
+			writeJSONResponse(w, res.ErrorType, res.ErrorMessage, nil)
+			return
+		}
 
-		ctx := context.WithValue(r.Context(), "username", JWTClaims.UserName.UserName)
-		ctx = context.WithValue(ctx, "userId", JWTClaims.UserName.UserId)
-		ctx = context.WithValue(ctx, "roles", JWTClaims.UserName.Roles)
-		ctx = context.WithValue(ctx, "nickName", JWTClaims.UserName.NickName)
-		ctx = context.WithValue(ctx, "uuid", JWTClaims.UserName.UserName)
+		ctx := context.WithValue(r.Context(), "username", res.Username)
+		ctx = context.WithValue(ctx, "userId", res.UserId)
+		ctx = context.WithValue(ctx, "roles", res.Roles)
+		ctx = context.WithValue(ctx, "nickName", res.NickName)
+		ctx = context.WithValue(ctx, "uuid", res.Uuid)
 
 		// 获取请求的 url
 		url := r.URL.Path
@@ -68,7 +73,7 @@ func (m *JWTAuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 		isAuth, authErr := m.auth.ApiAuth(ctx, &sysauthservice.ApiAuthRequest{
 			ApiPath:   url,
 			ApiMethod: method,
-			UserRoles: JWTClaims.UserName.Roles,
+			UserRoles: res.Roles,
 		})
 		if authErr != nil {
 			w.WriteHeader(http.StatusUnauthorized) // 401

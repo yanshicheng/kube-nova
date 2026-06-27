@@ -177,6 +177,59 @@ run-console-rpc: ## fmt vet 运行 portal-rpc 服务
 	@go run $(APPLICATION_DIR)/console-rpc/console.go  -f $(APPLICATION_DIR)/console-rpc/etc/console.yaml
 
 
+gen-devops-api:
+	@echo "正在生成 devops-api 服务代码..."
+	@goctl api go --api=$(APPLICATION_DIR)/devops-api/devops.api --dir=$(APPLICATION_DIR)/devops-api/ --style=goZero --home=$(TEMPLATE_HOME)
+
+run-devops-api: ## 运行 devops-api 服务
+	@echo "正在运行 devops-api 服务..."
+	@go run $(APPLICATION_DIR)/devops-api/devops.go  -f $(APPLICATION_DIR)/devops-api/etc/devops-api.yaml
+
+gen-devops-manager-rpc:
+	@echo "正在生成 devops-manager-rpc 服务代码..."
+	@goctl rpc protoc --style=goZero --home=$(TEMPLATE_HOME) \
+       -I=$(APPLICATION_DIR)/devops-manager-rpc/ \
+       --go_out=$(APPLICATION_DIR)/devops-manager-rpc/pb/ \
+       --go_opt=module="github.com/yanshicheng/kube-nova/application/devops-manager-rpc/pb" \
+       --go-grpc_out=$(APPLICATION_DIR)/devops-manager-rpc/pb/ \
+       --go-grpc_opt=module="github.com/yanshicheng/kube-nova/application/devops-manager-rpc/pb"  \
+       --zrpc_out=$(APPLICATION_DIR)/devops-manager-rpc/ -m \
+       $(APPLICATION_DIR)/devops-manager-rpc/devops-manager.proto
+
+run-devops-manager-rpc: ## 运行 devops-manager-rpc 服务
+	@echo "正在运行 devops-manager-rpc 服务..."
+	@go run $(APPLICATION_DIR)/devops-manager-rpc/devopsmanager.go  -f $(APPLICATION_DIR)/devops-manager-rpc/etc/devops-manager.yaml
+
+gen-devops-pipeline-rpc:
+	@echo "正在生成 devops-pipeline-rpc 服务代码..."
+	@goctl rpc protoc --style=goZero --home=$(TEMPLATE_HOME) \
+       -I=$(APPLICATION_DIR)/devops-pipeline-rpc/ \
+       --go_out=$(APPLICATION_DIR)/devops-pipeline-rpc/pb/ \
+       --go_opt=module="github.com/yanshicheng/kube-nova/application/devops-pipeline-rpc/pb" \
+       --go-grpc_out=$(APPLICATION_DIR)/devops-pipeline-rpc/pb/ \
+       --go-grpc_opt=module="github.com/yanshicheng/kube-nova/application/devops-pipeline-rpc/pb"  \
+       --zrpc_out=$(APPLICATION_DIR)/devops-pipeline-rpc/ -m \
+       $(APPLICATION_DIR)/devops-pipeline-rpc/devops-pipeline.proto
+
+run-devops-pipeline-rpc: ## 运行 devops-pipeline-rpc 服务
+	@echo "正在运行 devops-pipeline-rpc 服务..."
+	@go run $(APPLICATION_DIR)/devops-pipeline-rpc/devopspipeline.go  -f $(APPLICATION_DIR)/devops-pipeline-rpc/etc/devops-pipeline.yaml
+
+gen-devops-quality-rpc:
+	@echo "正在生成 devops-quality-rpc 服务代码..."
+	@goctl rpc protoc --style=goZero --home=$(TEMPLATE_HOME) \
+       -I=$(APPLICATION_DIR)/devops-quality-rpc/ \
+       --go_out=$(APPLICATION_DIR)/devops-quality-rpc/pb/ \
+       --go_opt=module="github.com/yanshicheng/kube-nova/application/devops-quality-rpc/pb" \
+       --go-grpc_out=$(APPLICATION_DIR)/devops-quality-rpc/pb/ \
+       --go-grpc_opt=module="github.com/yanshicheng/kube-nova/application/devops-quality-rpc/pb"  \
+       --zrpc_out=$(APPLICATION_DIR)/devops-quality-rpc/ -m \
+       $(APPLICATION_DIR)/devops-quality-rpc/devops-quality.proto
+
+run-devops-quality-rpc: ## 运行 devops-quality-rpc 服务
+	@echo "正在运行 devops-quality-rpc 服务..."
+	@go run $(APPLICATION_DIR)/devops-quality-rpc/devopsquality.go  -f $(APPLICATION_DIR)/devops-quality-rpc/etc/devops-quality.yaml
+
 
 
 

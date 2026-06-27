@@ -7,6 +7,7 @@ import (
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/code"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/common"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/pb"
+	"github.com/yanshicheng/kube-nova/common/vars"
 	"github.com/yanshicheng/kube-nova/pkg/jwt"
 
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/svc"
@@ -33,14 +34,14 @@ func (l *RefreshTokenLogic) RefreshToken(in *pb.RefreshTokenRequest) (*pb.Refres
 	if in.RefreshToken == "" {
 		return nil, code.RefreshTokenEmptyErr
 	}
-	jwtR, err := jwt.VerifyToken("Bearer "+in.RefreshToken, l.svcCtx.Config.AuthConfig.RefreshSecret)
+	jwtR, err := jwt.VerifyToken("Bearer "+in.RefreshToken, vars.RefreshSecret)
 	if err != nil {
 		return nil, err
 	}
 	// 查询用户信息
 	redisKey := fmt.Sprintf("%s%s", common.UuidKeyPrefix, jwtR.UserName.UserName)
 	if common.AllowMultiLogin {
-		redisKey = fmt.Sprintf("%s%s:%d", common.UuidKeyPrefix, jwtR.UserName.UserName, jwtR.UserName.UserId)
+		redisKey = fmt.Sprintf("%s%s:%s", common.UuidKeyPrefix, jwtR.UserName.UserName, jwtR.UserName.Uuid)
 	}
 	key, errs := l.svcCtx.Cache.Get(redisKey)
 	if errs != nil {
@@ -50,7 +51,7 @@ func (l *RefreshTokenLogic) RefreshToken(in *pb.RefreshTokenRequest) (*pb.Refres
 	if key == "" {
 		return nil, code.UUIDNotExistErr
 	}
-	jwtA, err := jwt.VerifyToken("Bearer "+in.RefreshToken, l.svcCtx.Config.AuthConfig.RefreshSecret)
+	jwtA, err := jwt.VerifyToken("Bearer "+in.RefreshToken, vars.RefreshSecret)
 	if err != nil {
 		return nil, err
 	}
@@ -60,12 +61,12 @@ func (l *RefreshTokenLogic) RefreshToken(in *pb.RefreshTokenRequest) (*pb.Refres
 		NickName: jwtA.UserName.NickName,
 		Uuid:     jwtA.UserName.Uuid,
 		Roles:    jwtA.UserName.Roles,
-	}, l.svcCtx.Config.AuthConfig.AccessSecret, jwtA.UserName.Uuid, l.svcCtx.Config.AuthConfig.AccessExpire)
+	}, vars.AccessSecret, jwtA.UserName.Uuid, vars.AccessExpire)
 	if errs != nil {
 		l.Errorf("生成JWT令牌失败, 错误: %v", err)
 		return nil, code.GenerateJWTTokenErr
 	}
-	errs = l.svcCtx.Cache.Setex(redisKey, accessToken.AccessToken, int(l.svcCtx.Config.AuthConfig.AccessExpire))
+	errs = l.svcCtx.Cache.Setex(redisKey, accessToken.AccessToken, int(vars.AccessExpire))
 	if errs != nil {
 		l.Errorf("存储访问令牌到 Redis 失败: %v", err)
 		return nil, code.RedisStorageErr

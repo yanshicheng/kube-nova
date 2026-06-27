@@ -1,5 +1,31 @@
 package operator
 
+import (
+	"fmt"
+	"strings"
+
+	"github.com/yanshicheng/kube-nova/common/k8smanager/types"
+)
+
+func normalizeUpdateContainerType(value types.ContainerType) (types.ContainerType, error) {
+	switch strings.ToLower(strings.TrimSpace(string(value))) {
+	case "":
+		return "", nil
+	case "init", "initcontainer", "initcontainers":
+		return types.ContainerTypeInit, nil
+	case "main", "container", "containers":
+		return types.ContainerTypeMain, nil
+	case "ephemeral", "ephemeralcontainer", "ephemeralcontainers":
+		return types.ContainerTypeEphemeral, nil
+	default:
+		return "", fmt.Errorf("容器类型 %s 不支持", value)
+	}
+}
+
+func matchUpdateContainerType(requested, current types.ContainerType) bool {
+	return requested == "" || requested == current
+}
+
 //// extractImageTag 提取镜像的简短标识（用于日志）
 //func extractImageTag(image string) string {
 //	// 处理 digest 格式: image@sha256:xxx

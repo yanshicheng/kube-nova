@@ -1,0 +1,48 @@
+Name: devops-manager.rpc
+ListenOn: 0.0.0.0:30031
+Timeout: 30000
+Mode: dev
+
+Log:
+  ServiceName: devops-manager-rpc
+  Mode: "console"
+  Encoding: "plain"
+  TimeFormat: "2006-01-02 15:04:05"
+  Path: "logs"
+  Level: "info"
+  Compress: false
+  Stat: true
+  KeepDays: 7
+  StackCooldownMillis: 100
+  MaxBackups: 0
+  MaxSize: 0
+  Rotation: "daily"
+
+Mongo:
+  Url: mongodb://root:12345678@172.16.1.61:27017/?authSource=admin
+  Db: kube_nova_devops
+
+Bootstrap:
+  DefaultDataEnabled: false
+  TektonStepSyncEnabled: false
+
+Cache:
+  Host: 127.0.0.1:6379
+  Type: node
+  Pass: "123456"
+  Tls: false
+  NonBlock: true
+  PingTimeout: 3s
+
+StorageConf:
+  Provider: minio
+  Endpoints: [ "minio-112.ikubeops.local:9000" ]
+  EndpointProxy: "https://minio-112.ikubeops.local:9000"
+  AccessKey: zUpdewwUPj63wGKMsELx
+  AccessSecret: 924F78GsdBKmticV0FunWM5V5r5KM67aA4jqZmYQ
+  BucketName: devops-artifacts
+  CAFile: "/Users/devops/data/project/kube-nova/kube-nova/application/portal-rpc/etc/public.crt"
+  CAKey: "/Users/devops/data/project/kube-nova/kube-nova/application/portal-rpc/etc/private.key"
+  ClientCertFile: ""
+  ClientKeyFile: ""
+  UseTLS: true

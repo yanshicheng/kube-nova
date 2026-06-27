@@ -1,0 +1,2280 @@
+syntax = "proto3";
+
+option go_package = "github.com/yanshicheng/kube-nova/application/devops-manager-rpc/pb";
+
+package pb;
+
+message IdResp {
+  string id = 1;
+}
+
+message EmptyResp {}
+
+message JenkinsAgentContainer {
+  string name = 1;
+  string image = 2;
+}
+
+message DevopsProject {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string description = 4;
+  string pipelineEngineType = 5;
+  string defaultEngineChannelId = 6;
+  int64 status = 7;
+  string extraConfig = 8;
+  string createdBy = 9;
+  string updatedBy = 10;
+  int64 createdAt = 11;
+  int64 updatedAt = 12;
+}
+
+message CreateProjectReq {
+  string name = 1;
+  string code = 2;
+  string description = 3;
+  string pipelineEngineType = 4;
+  string defaultEngineChannelId = 5;
+  int64 status = 6;
+  string extraConfig = 7;
+  string createdBy = 8;
+  repeated string buildChannelIds = 9;
+}
+
+message UpdateProjectReq {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string pipelineEngineType = 4;
+  string defaultEngineChannelId = 5;
+  int64 status = 6;
+  string extraConfig = 7;
+  string updatedBy = 8;
+  repeated string buildChannelIds = 9;
+}
+
+message DeleteByIdReq {
+  string id = 1;
+  string updatedBy = 2;
+  uint64 currentUserId = 3;
+  repeated string currentRoles = 4;
+}
+
+message GetByIdReq {
+  string id = 1;
+  uint64 currentUserId = 2;
+  repeated string currentRoles = 3;
+}
+
+message GetProjectResp {
+  DevopsProject data = 1;
+}
+
+message ListProjectReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string name = 3;
+  string code = 4;
+  string pipelineEngineType = 5;
+  int64 status = 6;
+  uint64 currentUserId = 7;
+  repeated string currentRoles = 8;
+}
+
+message ListProjectResp {
+  repeated DevopsProject data = 1;
+  uint64 total = 2;
+}
+
+message DevopsProjectMavenConfig {
+  string id = 1;
+  string projectId = 2;
+  string name = 3;
+  string code = 4;
+  string content = 5;
+  string description = 6;
+  int64 status = 7;
+  string createdBy = 8;
+  string updatedBy = 9;
+  int64 createdAt = 10;
+  int64 updatedAt = 11;
+}
+
+message CreateProjectMavenConfigReq {
+  string projectId = 1;
+  string name = 2;
+  string code = 3;
+  string content = 4;
+  string description = 5;
+  int64 status = 6;
+  string createdBy = 7;
+  uint64 currentUserId = 8;
+  repeated string currentRoles = 9;
+}
+
+message UpdateProjectMavenConfigReq {
+  string id = 1;
+  string name = 2;
+  string content = 3;
+  string description = 4;
+  int64 status = 5;
+  string updatedBy = 6;
+  uint64 currentUserId = 7;
+  repeated string currentRoles = 8;
+}
+
+message ListProjectMavenConfigReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string projectId = 3;
+  string name = 4;
+  string code = 5;
+  int64 status = 6;
+  uint64 currentUserId = 7;
+  repeated string currentRoles = 8;
+}
+
+message GetProjectMavenConfigResp {
+  DevopsProjectMavenConfig data = 1;
+}
+
+message ListProjectMavenConfigResp {
+  repeated DevopsProjectMavenConfig data = 1;
+  uint64 total = 2;
+}
+
+message DevopsConfigType {
+  string id = 1;
+  string parentId = 2;
+  string name = 3;
+  string code = 4;
+  string description = 5;
+  int64 sortOrder = 6;
+  int64 status = 7;
+  string createdBy = 8;
+  string updatedBy = 9;
+  int64 createdAt = 10;
+  int64 updatedAt = 11;
+  repeated DevopsConfigType children = 12;
+  string storageType = 13;
+}
+
+message CreateConfigTypeReq {
+  string parentId = 1;
+  string name = 2;
+  string code = 3;
+  string description = 4;
+  int64 sortOrder = 5;
+  int64 status = 6;
+  string createdBy = 7;
+  uint64 currentUserId = 8;
+  repeated string currentRoles = 9;
+  string storageType = 10;
+}
+
+message UpdateConfigTypeReq {
+  string id = 1;
+  string parentId = 2;
+  string name = 3;
+  string description = 4;
+  int64 sortOrder = 5;
+  int64 status = 6;
+  string updatedBy = 7;
+  uint64 currentUserId = 8;
+  repeated string currentRoles = 9;
+  string storageType = 10;
+}
+
+message ListConfigTypeReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string parentId = 3;
+  string name = 4;
+  string code = 5;
+  int64 status = 6;
+}
+
+message GetConfigTypeResp {
+  DevopsConfigType data = 1;
+}
+
+message ListConfigTypeResp {
+  repeated DevopsConfigType data = 1;
+  uint64 total = 2;
+}
+
+message ConfigTypeTreeReq {
+  int64 status = 1;
+}
+
+message ConfigTypeTreeResp {
+  repeated DevopsConfigType data = 1;
+}
+
+message DevopsProjectConfig {
+  string id = 1;
+  string projectId = 2;
+  string typeId = 3;
+  string typeCode = 4;
+  string typeName = 5;
+  string name = 6;
+  string code = 7;
+  string content = 8;
+  string description = 9;
+  int64 status = 10;
+  string createdBy = 11;
+  string updatedBy = 12;
+  int64 createdAt = 13;
+  int64 updatedAt = 14;
+}
+
+message CreateProjectConfigReq {
+  string projectId = 1;
+  string typeId = 2;
+  string typeCode = 3;
+  string name = 4;
+  string code = 5;
+  string content = 6;
+  string description = 7;
+  int64 status = 8;
+  string createdBy = 9;
+  uint64 currentUserId = 10;
+  repeated string currentRoles = 11;
+}
+
+message UpdateProjectConfigReq {
+  string id = 1;
+  string typeId = 2;
+  string typeCode = 3;
+  string name = 4;
+  string content = 5;
+  string description = 6;
+  int64 status = 7;
+  string updatedBy = 8;
+  uint64 currentUserId = 9;
+  repeated string currentRoles = 10;
+}
+
+message ListProjectConfigReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string projectId = 3;
+  string typeId = 4;
+  string typeCode = 5;
+  string name = 6;
+  string code = 7;
+  int64 status = 8;
+  uint64 currentUserId = 9;
+  repeated string currentRoles = 10;
+}
+
+message GetProjectConfigResp {
+  DevopsProjectConfig data = 1;
+}
+
+message ListProjectConfigResp {
+  repeated DevopsProjectConfig data = 1;
+  uint64 total = 2;
+}
+
+message DevopsChannelGroup {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string description = 4;
+  int64 sortOrder = 5;
+  bool isSystem = 6;
+  int64 status = 7;
+  string createdBy = 8;
+  string updatedBy = 9;
+  int64 createdAt = 10;
+  int64 updatedAt = 11;
+  string groupType = 12;
+  repeated string allowedChannelTypes = 13;
+  string icon = 14;
+  string iconColor = 15;
+}
+
+message CreateChannelGroupReq {
+  string name = 1;
+  string code = 2;
+  string description = 3;
+  int64 sortOrder = 4;
+  bool isSystem = 5;
+  int64 status = 6;
+  string createdBy = 7;
+  string groupType = 8;
+  repeated string allowedChannelTypes = 9;
+  string icon = 10;
+  string iconColor = 11;
+}
+
+message UpdateChannelGroupReq {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  int64 sortOrder = 4;
+  int64 status = 5;
+  string updatedBy = 6;
+  string groupType = 7;
+  repeated string allowedChannelTypes = 8;
+  string icon = 9;
+  string iconColor = 10;
+}
+
+message GetChannelGroupResp {
+  DevopsChannelGroup data = 1;
+}
+
+message ListChannelGroupReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string name = 3;
+  string code = 4;
+  int64 status = 5;
+  string groupType = 6;
+}
+
+message ListChannelGroupResp {
+  repeated DevopsChannelGroup data = 1;
+  uint64 total = 2;
+}
+
+message DevopsChannel {
+  string id = 1;
+  string groupId = 2;
+  string name = 3;
+  string code = 4;
+  string channelType = 5;
+  string endpoint = 6;
+  string description = 7;
+  string globalCredentialId = 8;
+  string config = 9;
+  string labels = 10;
+  string healthStatus = 11;
+  int64 lastCheckAt = 12;
+  string lastCheckMessage = 13;
+  int64 status = 14;
+  string createdBy = 15;
+  string updatedBy = 16;
+  int64 createdAt = 17;
+  int64 updatedAt = 18;
+  bool isSystem = 19;
+  string authType = 20;
+  string username = 21;
+  string password = 22;
+  string token = 23;
+  bool insecureSkipTls = 24;
+  string credentialId = 25;
+  string metadata = 26;
+  string icon = 27;
+  string iconColor = 28;
+}
+
+message CreateChannelReq {
+  string groupId = 1;
+  string name = 2;
+  string code = 3;
+  string channelType = 4;
+  string endpoint = 5;
+  string description = 6;
+  string globalCredentialId = 7;
+  string config = 8;
+  string labels = 9;
+  int64 status = 10;
+  string createdBy = 11;
+  string authType = 12;
+  string username = 13;
+  string password = 14;
+  string token = 15;
+  bool insecureSkipTls = 16;
+  string credentialId = 17;
+  string icon = 18;
+  string iconColor = 19;
+}
+
+message UpdateChannelReq {
+  string id = 1;
+  string groupId = 2;
+  string name = 3;
+  string channelType = 4;
+  string endpoint = 5;
+  string description = 6;
+  string globalCredentialId = 7;
+  string config = 8;
+  string labels = 9;
+  int64 status = 10;
+  string updatedBy = 11;
+  string authType = 12;
+  string username = 13;
+  string password = 14;
+  string token = 15;
+  bool insecureSkipTls = 16;
+  string credentialId = 17;
+  string icon = 18;
+  string iconColor = 19;
+}
+
+message GetChannelResp {
+  DevopsChannel data = 1;
+}
+
+message ListChannelReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string name = 3;
+  string code = 4;
+  string groupId = 5;
+  string channelType = 6;
+  int64 status = 7;
+}
+
+message ListChannelResp {
+  repeated DevopsChannel data = 1;
+  uint64 total = 2;
+}
+
+message TestChannelReq {
+  string id = 1;
+  string groupId = 2;
+  string name = 3;
+  string code = 4;
+  string channelType = 5;
+  string endpoint = 6;
+  string authType = 7;
+  string username = 8;
+  string password = 9;
+  string token = 10;
+  bool insecureSkipTls = 11;
+  string config = 12;
+  string credentialId = 13;
+}
+
+message TestChannelResp {
+  bool success = 1;
+  string healthStatus = 2;
+  string message = 3;
+  int64 checkedAt = 4;
+  string metadata = 5;
+}
+
+message DevopsChannelType {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  string groupCode = 4;
+  repeated string credentialTypes = 5;
+  string configSchema = 6;
+  string testStrategy = 7;
+  bool isSystem = 8;
+  int64 status = 9;
+  string createdBy = 10;
+  string updatedBy = 11;
+  int64 createdAt = 12;
+  int64 updatedAt = 13;
+  string icon = 14;
+  string iconColor = 15;
+  string connectionMode = 16;
+  string metadataStrategy = 17;
+  string mappingFields = 18;
+}
+
+message CreateChannelTypeReq {
+  string code = 1;
+  string name = 2;
+  string groupCode = 3;
+  repeated string credentialTypes = 4;
+  string configSchema = 5;
+  string testStrategy = 6;
+  bool isSystem = 7;
+  int64 status = 8;
+  string createdBy = 9;
+  string icon = 10;
+  string iconColor = 11;
+  string connectionMode = 12;
+  string metadataStrategy = 13;
+  string mappingFields = 14;
+}
+
+message UpdateChannelTypeReq {
+  string id = 1;
+  string name = 2;
+  string groupCode = 3;
+  repeated string credentialTypes = 4;
+  string configSchema = 5;
+  string testStrategy = 6;
+  int64 status = 7;
+  string updatedBy = 8;
+  string icon = 9;
+  string iconColor = 10;
+  string connectionMode = 11;
+  string metadataStrategy = 12;
+  string mappingFields = 13;
+}
+
+message GetChannelTypeResp {
+  DevopsChannelType data = 1;
+}
+
+message ListChannelTypeReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string name = 3;
+  string code = 4;
+  string groupCode = 5;
+  int64 status = 6;
+}
+
+message ListChannelTypeResp {
+  repeated DevopsChannelType data = 1;
+  uint64 total = 2;
+}
+
+message DevopsCredential {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string credentialType = 4;
+  string username = 5;
+  string password = 6;
+  string token = 7;
+  string privateKey = 8;
+  string passphrase = 9;
+  string kubeconfig = 10;
+  string secretText = 11;
+  string certificate = 12;
+  string description = 13;
+  int64 status = 14;
+  bool isSystem = 15;
+  string createdBy = 16;
+  string updatedBy = 17;
+  int64 createdAt = 18;
+  int64 updatedAt = 19;
+  string scope = 20;
+  string projectId = 21;
+  string jenkinsSyncStatus = 22;
+  string jenkinsSyncMessage = 23;
+  string jenkinsCredentialId = 24;
+  int64 jenkinsLastSyncAt = 25;
+  string jsonData = 26;
+  string channelGroupCode = 27;
+  string channelType = 28;
+}
+
+message CreateCredentialReq {
+  string name = 1;
+  string code = 2;
+  string credentialType = 3;
+  string username = 4;
+  string password = 5;
+  string token = 6;
+  string privateKey = 7;
+  string passphrase = 8;
+  string kubeconfig = 9;
+  string secretText = 10;
+  string certificate = 11;
+  string description = 12;
+  int64 status = 13;
+  bool isSystem = 14;
+  string createdBy = 15;
+  string scope = 16;
+  string projectId = 17;
+  uint64 currentUserId = 18;
+  repeated string currentRoles = 19;
+  string jsonData = 20;
+  string channelGroupCode = 21;
+  string channelType = 22;
+}
+
+message UpdateCredentialReq {
+  string id = 1;
+  string name = 2;
+  string credentialType = 3;
+  string username = 4;
+  string password = 5;
+  string token = 6;
+  string privateKey = 7;
+  string passphrase = 8;
+  string kubeconfig = 9;
+  string secretText = 10;
+  string certificate = 11;
+  string description = 12;
+  int64 status = 13;
+  string updatedBy = 14;
+  string scope = 15;
+  string projectId = 16;
+  uint64 currentUserId = 17;
+  repeated string currentRoles = 18;
+  string jsonData = 19;
+  string channelGroupCode = 20;
+  string channelType = 21;
+}
+
+message GetCredentialResp {
+  DevopsCredential data = 1;
+}
+
+message ListCredentialReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string name = 3;
+  string code = 4;
+  string credentialType = 5;
+  int64 status = 6;
+  string scope = 7;
+  string projectId = 8;
+  uint64 currentUserId = 9;
+  repeated string currentRoles = 10;
+  string buildChannelBindingId = 11;
+  string channelGroupCode = 12;
+  string channelType = 13;
+}
+
+message ListCredentialResp {
+  repeated DevopsCredential data = 1;
+  uint64 total = 2;
+}
+
+message CredentialUsage {
+  string resourceType = 1;
+  string resourceName = 2;
+  string resourceCode = 3;
+  string resourceId = 4;
+  string relation = 5;
+}
+
+message GetCredentialUsageResp {
+  repeated CredentialUsage data = 1;
+  uint64 total = 2;
+}
+
+message DevopsHost {
+  string id = 1;
+  string name = 2;
+  string ip = 3;
+  int64 port = 4;
+  string credentialId = 5;
+  string labels = 6;
+  string description = 7;
+  string healthStatus = 8;
+  int64 lastCheckAt = 9;
+  string lastCheckMessage = 10;
+  int64 status = 11;
+  string createdBy = 12;
+  string updatedBy = 13;
+  int64 createdAt = 14;
+  int64 updatedAt = 15;
+  string metadata = 16;
+}
+
+message CreateHostReq {
+  string name = 1;
+  string ip = 2;
+  int64 port = 3;
+  string credentialId = 4;
+  string labels = 5;
+  string description = 6;
+  int64 status = 7;
+  string createdBy = 8;
+}
+
+message UpdateHostReq {
+  string id = 1;
+  string name = 2;
+  string ip = 3;
+  int64 port = 4;
+  string credentialId = 5;
+  string labels = 6;
+  string description = 7;
+  int64 status = 8;
+  string updatedBy = 9;
+}
+
+message GetHostResp {
+  DevopsHost data = 1;
+}
+
+message ListHostReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string name = 3;
+  string ip = 4;
+  int64 status = 5;
+}
+
+message ListHostResp {
+  repeated DevopsHost data = 1;
+  uint64 total = 2;
+}
+
+message TestHostReq {
+  string id = 1;
+  string name = 2;
+  string ip = 3;
+  int64 port = 4;
+  string credentialId = 5;
+}
+
+message DevopsProjectChannelBinding {
+  string id = 1;
+  string projectId = 2;
+  string channelId = 3;
+  string channelGroupCode = 4;
+  string channelName = 5;
+  string channelCode = 6;
+  string channelType = 7;
+  string usageScope = 8;
+  bool isDefault = 9;
+  bool allowUseGlobalCredential = 10;
+  string projectCredentialId = 11;
+  string bindingConfig = 12;
+  int64 status = 13;
+  string createdBy = 14;
+  string updatedBy = 15;
+  int64 createdAt = 16;
+  int64 updatedAt = 17;
+  string healthStatus = 18;
+  int64 lastCheckAt = 19;
+  string lastCheckMessage = 20;
+  string metadata = 21;
+  string channelConfig = 22;
+}
+
+message BindProjectChannelsReq {
+  string projectId = 1;
+  repeated string channelIds = 2;
+  string defaultChannelId = 3;
+  string usageScope = 4;
+  bool allowUseGlobalCredential = 5;
+  string projectCredentialId = 6;
+  string bindingConfig = 7;
+  string updatedBy = 8;
+  string channelGroupCode = 9;
+}
+
+message AddProjectChannelReq {
+  string projectId = 1;
+  string channelId = 2;
+  bool isDefault = 3;
+  bool allowUseGlobalCredential = 4;
+  string projectCredentialId = 5;
+  string bindingConfig = 6;
+  string createdBy = 7;
+}
+
+message UpdateProjectChannelBindingReq {
+  string id = 1;
+  bool isDefault = 2;
+  bool allowUseGlobalCredential = 3;
+  string projectCredentialId = 4;
+  string bindingConfig = 5;
+  int64 status = 6;
+  string updatedBy = 7;
+}
+
+message ListProjectChannelBindingReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string projectId = 3;
+  string channelId = 4;
+  string channelType = 5;
+  string usageScope = 6;
+  int64 status = 7;
+  string channelGroupCode = 8;
+  uint64 currentUserId = 9;
+  repeated string currentRoles = 10;
+}
+
+message ListProjectChannelBindingResp {
+  repeated DevopsProjectChannelBinding data = 1;
+  uint64 total = 2;
+}
+
+message TektonSecretBindingOption {
+  string id = 1;
+  string projectId = 2;
+  string channelId = 3;
+  string channelName = 4;
+  string channelCode = 5;
+  string namespace = 6;
+  string taskNamespace = 7;
+  string serviceAccountName = 8;
+  int64 status = 9;
+  string healthStatus = 10;
+}
+
+message ListTektonSecretBindingReq {
+  string projectId = 1;
+  uint64 currentUserId = 2;
+  repeated string currentRoles = 3;
+}
+
+message ListTektonSecretBindingResp {
+  repeated TektonSecretBindingOption data = 1;
+  uint64 total = 2;
+}
+
+message TektonSecret {
+  string name = 1;
+  string type = 2;
+  string namespace = 3;
+  string bindingId = 4;
+  string channelName = 5;
+  repeated string keys = 6;
+  map<string, string> data = 7;
+  bool managedByKubeNova = 8;
+  int64 createdAt = 9;
+}
+
+message ListTektonSecretReq {
+  string projectId = 1;
+  string bindingId = 2;
+  string keyword = 3;
+  uint64 currentUserId = 4;
+  repeated string currentRoles = 5;
+}
+
+message ListTektonSecretResp {
+  repeated TektonSecret data = 1;
+  uint64 total = 2;
+}
+
+message TektonPVC {
+  string name = 1;
+  string namespace = 2;
+  string bindingId = 3;
+  string channelName = 4;
+  string storageClassName = 5;
+  string storage = 6;
+  repeated string accessModes = 7;
+  string volumeMode = 8;
+  string status = 9;
+  int64 createdAt = 10;
+}
+
+message ListTektonPVCReq {
+  string projectId = 1;
+  string bindingId = 2;
+  string keyword = 3;
+  uint64 currentUserId = 4;
+  repeated string currentRoles = 5;
+}
+
+message ListTektonPVCResp {
+  repeated TektonPVC data = 1;
+  uint64 total = 2;
+}
+
+message GetTektonSecretReq {
+  string projectId = 1;
+  string bindingId = 2;
+  string name = 3;
+  uint64 currentUserId = 4;
+  repeated string currentRoles = 5;
+}
+
+message GetTektonSecretResp {
+  TektonSecret data = 1;
+}
+
+message SaveTektonSecretReq {
+  string projectId = 1;
+  string bindingId = 2;
+  string name = 3;
+  string type = 4;
+  map<string, string> data = 5;
+  string operator = 6;
+  uint64 currentUserId = 7;
+  repeated string currentRoles = 8;
+}
+
+message DeleteTektonSecretReq {
+  string projectId = 1;
+  string bindingId = 2;
+  string name = 3;
+  string operator = 4;
+  uint64 currentUserId = 5;
+  repeated string currentRoles = 6;
+}
+
+message SyncTektonSecretReq {
+  string projectId = 1;
+  string sourceBindingId = 2;
+  string name = 3;
+  repeated string targetBindingIds = 4;
+  string operator = 5;
+  uint64 currentUserId = 6;
+  repeated string currentRoles = 7;
+}
+
+message TektonResource {
+  string name = 1;
+  string namespace = 2;
+  string bindingId = 3;
+  string channelName = 4;
+  string resourceType = 5;
+  string kind = 6;
+  string apiVersion = 7;
+  string status = 8;
+  string phase = 9;
+  string reason = 10;
+  string message = 11;
+  repeated string keys = 12;
+  string storageClassName = 13;
+  string storage = 14;
+  repeated string accessModes = 15;
+  string volumeMode = 16;
+  repeated string secrets = 17;
+  repeated string imagePullSecrets = 18;
+  repeated string containerNames = 19;
+  int64 createdAt = 20;
+  string yaml = 21;
+}
+
+message ListTektonResourceReq {
+  string projectId = 1;
+  string bindingId = 2;
+  string resourceType = 3;
+  string keyword = 4;
+  uint64 currentUserId = 5;
+  repeated string currentRoles = 6;
+}
+
+message ListTektonResourceResp {
+  repeated TektonResource data = 1;
+  uint64 total = 2;
+}
+
+message GetTektonResourceReq {
+  string projectId = 1;
+  string bindingId = 2;
+  string resourceType = 3;
+  string name = 4;
+  uint64 currentUserId = 5;
+  repeated string currentRoles = 6;
+}
+
+message GetTektonResourceResp {
+  TektonResource data = 1;
+}
+
+message DescribeTektonResourceReq {
+  string projectId = 1;
+  string bindingId = 2;
+  string resourceType = 3;
+  string name = 4;
+  uint64 currentUserId = 5;
+  repeated string currentRoles = 6;
+}
+
+message DescribeTektonResourceResp {
+  string content = 1;
+}
+
+message LogTektonResourceReq {
+  string projectId = 1;
+  string bindingId = 2;
+  string resourceType = 3;
+  string name = 4;
+  string container = 5;
+  int64 tailLines = 6;
+  uint64 currentUserId = 7;
+  repeated string currentRoles = 8;
+}
+
+message LogTektonResourceResp {
+  string content = 1;
+  repeated string containers = 2;
+}
+
+message SaveTektonResourceReq {
+  string projectId = 1;
+  string bindingId = 2;
+  string resourceType = 3;
+  string name = 4;
+  string yaml = 5;
+  string operator = 6;
+  uint64 currentUserId = 7;
+  repeated string currentRoles = 8;
+}
+
+message DeleteTektonResourceReq {
+  string projectId = 1;
+  string bindingId = 2;
+  string resourceType = 3;
+  string name = 4;
+  string operator = 5;
+  uint64 currentUserId = 6;
+  repeated string currentRoles = 7;
+}
+
+message ActionTektonResourceReq {
+  string projectId = 1;
+  string bindingId = 2;
+  string resourceType = 3;
+  string name = 4;
+  string action = 5;
+  string operator = 6;
+  uint64 currentUserId = 7;
+  repeated string currentRoles = 8;
+}
+
+message DevopsProjectMember {
+  string id = 1;
+  string projectId = 2;
+  uint64 userId = 3;
+  string username = 4;
+  string nickname = 5;
+  string role = 6;
+  int64 status = 7;
+  string createdBy = 8;
+  string updatedBy = 9;
+  int64 createdAt = 10;
+  int64 updatedAt = 11;
+}
+
+message DevopsProjectMemberInput {
+  uint64 userId = 1;
+  string username = 2;
+  string nickname = 3;
+  string role = 4;
+}
+
+message SetProjectMembersReq {
+  string projectId = 1;
+  repeated DevopsProjectMemberInput members = 2;
+  string updatedBy = 3;
+}
+
+message ListProjectMemberReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string projectId = 3;
+  uint64 userId = 4;
+  string role = 5;
+  int64 status = 6;
+}
+
+message ListProjectMemberResp {
+  repeated DevopsProjectMember data = 1;
+  uint64 total = 2;
+}
+
+message DevopsSystem {
+  string id = 1;
+  string projectId = 2;
+  string name = 3;
+  string code = 4;
+  string description = 5;
+  repeated uint64 ownerUserIds = 6;
+  int64 status = 7;
+  string createdBy = 8;
+  string updatedBy = 9;
+  int64 createdAt = 10;
+  int64 updatedAt = 11;
+}
+
+message CreateSystemReq {
+  string projectId = 1;
+  string name = 2;
+  string code = 3;
+  string description = 4;
+  repeated uint64 ownerUserIds = 5;
+  int64 status = 6;
+  string createdBy = 7;
+  uint64 currentUserId = 8;
+  repeated string currentRoles = 9;
+}
+
+message UpdateSystemReq {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated uint64 ownerUserIds = 4;
+  int64 status = 5;
+  string updatedBy = 6;
+  uint64 currentUserId = 7;
+  repeated string currentRoles = 8;
+}
+
+message ListSystemReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string projectId = 3;
+  string name = 4;
+  string code = 5;
+  int64 status = 6;
+  uint64 currentUserId = 7;
+  repeated string currentRoles = 8;
+}
+
+message GetSystemResp {
+  DevopsSystem data = 1;
+}
+
+message ListSystemResp {
+  repeated DevopsSystem data = 1;
+  uint64 total = 2;
+}
+
+message DevopsPipelineEnvironment {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string description = 6;
+  string icon = 7;
+  string iconColor = 8;
+  int64 sortOrder = 9;
+  int64 status = 10;
+  string createdBy = 11;
+  string updatedBy = 12;
+  int64 createdAt = 13;
+  int64 updatedAt = 14;
+}
+
+message CreatePipelineEnvironmentReq {
+  string name = 1;
+  string code = 2;
+  string description = 5;
+  string icon = 6;
+  string iconColor = 7;
+  int64 sortOrder = 8;
+  int64 status = 9;
+  string createdBy = 10;
+  uint64 currentUserId = 11;
+  repeated string currentRoles = 12;
+}
+
+message UpdatePipelineEnvironmentReq {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string icon = 4;
+  string iconColor = 5;
+  int64 sortOrder = 6;
+  int64 status = 7;
+  string updatedBy = 8;
+  uint64 currentUserId = 9;
+  repeated string currentRoles = 10;
+}
+
+message ListPipelineEnvironmentReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string name = 3;
+  string code = 4;
+  int64 status = 7;
+  uint64 currentUserId = 8;
+  repeated string currentRoles = 9;
+}
+
+message GetPipelineEnvironmentResp {
+  DevopsPipelineEnvironment data = 1;
+}
+
+message ListPipelineEnvironmentResp {
+  repeated DevopsPipelineEnvironment data = 1;
+  uint64 total = 2;
+}
+
+message StepParamOption {
+  string label = 1;
+  string value = 2;
+}
+
+message StepParamConfig {
+  repeated StepParamOption options = 1;
+  string channelGroupCode = 2;
+  string channelParamCode = 3;
+  string channelBindingId = 4;
+  string mappingField = 5;
+  string voucherModel = 6;
+  string credentialId = 7;
+  string projectParamCode = 8;
+  string provider = 9;
+  bool validateRemote = 10;
+  string componentParamCode = 11;
+  repeated CompoundParamField compoundFields = 12;
+  string credentialMode = 13;
+  string credentialSourceParamCode = 14;
+  bool fullRow = 15;
+  string renderMode = 16;
+  string configTypeId = 17;
+  string configTypeCode = 18;
+  string valueMode = 19;
+  string channelTypeFilter = 20;
+  repeated StepParamDependency dependencyParamCodes = 21;
+}
+
+message StepParamDependency {
+  string field = 1;
+  string paramCode = 2;
+}
+
+message CompoundParamField {
+  string name = 1;
+  string code = 2;
+  string defaultValue = 3;
+  string paramType = 4;
+  string mode = 5;
+  bool required = 6;
+  bool readonly = 7;
+  string description = 8;
+  repeated StepParamOption selectList = 9;
+  bool allowCustom = 10;
+  string runtimeMode = 11;
+  StepParamConfig config = 12;
+}
+
+message StepArtifactConfig {
+  bool enabled = 1;
+  string type = 2;
+  string name = 3;
+  string path = 4;
+  bool required = 5;
+  string contentType = 6;
+}
+
+message DevopsStepParam {
+  string name = 1;
+  string code = 2;
+  string defaultValue = 3;
+  string paramType = 4;
+  string mode = 5;
+  bool required = 6;
+  string description = 7;
+  repeated StepParamOption selectList = 8;
+  bool allowCustom = 9;
+  string channelGroupCode = 10;
+  string mappingField = 11;
+  string voucherModel = 12;
+  bool readonly = 13;
+  int64 sortOrder = 14;
+  string runtimeMode = 15;
+  StepParamConfig config = 16;
+  bool runtimeConfig = 17;
+}
+
+message TektonPropertySpec {
+  string type = 1;
+}
+
+message DevopsTektonTaskParam {
+  string name = 1;
+  string type = 2;
+  string defaultValue = 3;
+  string description = 4;
+  repeated string enum = 5;
+  map<string, TektonPropertySpec> properties = 6;
+  bool required = 7;
+}
+
+message DevopsTektonTaskResult {
+  string name = 1;
+  string type = 2;
+  string description = 3;
+  string value = 4;
+  map<string, TektonPropertySpec> properties = 5;
+}
+
+message DevopsTektonWorkspace {
+  string name = 1;
+  string description = 2;
+  bool optional = 3;
+  bool readOnly = 4;
+  string mountPath = 5;
+}
+
+message DevopsStepCategory {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string description = 4;
+  string icon = 5;
+  string iconColor = 6;
+  int64 sortOrder = 7;
+  int64 status = 8;
+  string createdBy = 9;
+  string updatedBy = 10;
+  int64 createdAt = 11;
+  int64 updatedAt = 12;
+}
+
+message CreateStepCategoryReq {
+  string name = 1;
+  string code = 2;
+  string description = 3;
+  string icon = 4;
+  string iconColor = 5;
+  int64 sortOrder = 6;
+  int64 status = 7;
+  string createdBy = 8;
+}
+
+message UpdateStepCategoryReq {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string icon = 4;
+  string iconColor = 5;
+  int64 sortOrder = 6;
+  int64 status = 7;
+  string updatedBy = 8;
+}
+
+message GetStepCategoryResp {
+  DevopsStepCategory data = 1;
+}
+
+message ListStepCategoryReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string name = 3;
+  string code = 4;
+  int64 status = 5;
+}
+
+message ListStepCategoryResp {
+  repeated DevopsStepCategory data = 1;
+  uint64 total = 2;
+}
+
+message DevopsStepTemplate {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string icon = 4;
+  string iconColor = 5;
+  string description = 6;
+  string categoryId = 7;
+  string categoryName = 8;
+  string engineType = 9;
+  string engineChannelGroupCode = 10;
+  string engineChannelType = 11;
+  string stageContent = 12;
+  repeated DevopsStepParam params = 13;
+  int64 status = 14;
+  string createdBy = 15;
+  string updatedBy = 16;
+  int64 createdAt = 17;
+  int64 updatedAt = 18;
+  string type = 19;
+  StepArtifactConfig artifactConfig = 20;
+  repeated DevopsTektonTaskParam taskParams = 21;
+  repeated DevopsTektonTaskResult taskResults = 22;
+  repeated DevopsTektonWorkspace taskWorkspaces = 23;
+}
+
+message CreateStepTemplateReq {
+  string name = 1;
+  string code = 2;
+  string icon = 3;
+  string iconColor = 4;
+  string description = 5;
+  string categoryId = 6;
+  string stageContent = 7;
+  repeated DevopsStepParam params = 8;
+  int64 status = 9;
+  string createdBy = 10;
+  string type = 11;
+  StepArtifactConfig artifactConfig = 12;
+  repeated DevopsTektonTaskParam taskParams = 13;
+  repeated DevopsTektonTaskResult taskResults = 14;
+  repeated DevopsTektonWorkspace taskWorkspaces = 15;
+}
+
+message UpdateStepTemplateReq {
+  string id = 1;
+  string name = 2;
+  string icon = 3;
+  string iconColor = 4;
+  string description = 5;
+  string categoryId = 6;
+  string stageContent = 7;
+  repeated DevopsStepParam params = 8;
+  int64 status = 9;
+  string updatedBy = 10;
+  string type = 11;
+  StepArtifactConfig artifactConfig = 12;
+  repeated DevopsTektonTaskParam taskParams = 13;
+  repeated DevopsTektonTaskResult taskResults = 14;
+  repeated DevopsTektonWorkspace taskWorkspaces = 15;
+}
+
+message UpdateStatusReq {
+  string id = 1;
+  int64 status = 2;
+  string updatedBy = 3;
+  uint64 currentUserId = 4;
+  repeated string currentRoles = 5;
+}
+
+message GetStepTemplateResp {
+  DevopsStepTemplate data = 1;
+}
+
+message ListStepTemplateReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string name = 3;
+  string code = 4;
+  string categoryId = 5;
+  string engineType = 6;
+  int64 status = 7;
+  string type = 8;
+}
+
+message ListStepTemplateResp {
+  repeated DevopsStepTemplate data = 1;
+  uint64 total = 2;
+}
+
+message TektonStepImageItem {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string image = 4;
+  string imageType = 5;
+  string paramName = 6;
+}
+
+message ListTektonStepImageReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string name = 3;
+  string code = 4;
+  string categoryId = 5;
+  int64 status = 6;
+}
+
+message ListTektonStepImageResp {
+  repeated TektonStepImageItem data = 1;
+  uint64 total = 2;
+}
+
+message UpdateTektonStepImageItem {
+  string id = 1;
+  string image = 2;
+  string newImage = 3;
+  string imageType = 4;
+  string paramName = 5;
+}
+
+message BatchUpdateTektonStepImageReq {
+  repeated UpdateTektonStepImageItem items = 1;
+  string updatedBy = 2;
+}
+
+message BatchUpdateTektonStepImageResp {
+  uint64 total = 1;
+  uint64 updated = 2;
+}
+
+message PipelineTemplateStep {
+  string id = 1;
+  string stepId = 2;
+  string stepCode = 3;
+  string stepName = 4;
+  int64 sortOrder = 5;
+  bool enabled = 6;
+  int64 x = 7;
+  int64 y = 8;
+  string paramValues = 9;
+  string stepType = 10;
+  string icon = 11;
+  string iconColor = 12;
+  string parentNodeId = 13;
+  string branchType = 14;
+  string nodeName = 15;
+  StepArtifactConfig artifactConfig = 16;
+  string containerName = 17;
+}
+
+message DevopsJenkinsAgent {
+  string id = 1;
+  string channelId = 2;
+  string channelName = 3;
+  string name = 4;
+  string code = 5;
+  string agentType = 6;
+  string matchMode = 7;
+  string matchValue = 8;
+  string cloud = 9;
+  string podYaml = 10;
+  repeated JenkinsAgentContainer containers = 11;
+  int64 status = 12;
+  string createdBy = 13;
+  string updatedBy = 14;
+  int64 createdAt = 15;
+  int64 updatedAt = 16;
+}
+
+message CreateJenkinsAgentReq {
+  string channelId = 1;
+  string name = 2;
+  string code = 3;
+  string agentType = 4;
+  string matchMode = 5;
+  string matchValue = 6;
+  string cloud = 7;
+  string podYaml = 8;
+  repeated JenkinsAgentContainer containers = 9;
+  int64 status = 10;
+  string createdBy = 11;
+}
+
+message UpdateJenkinsAgentReq {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string agentType = 4;
+  string matchMode = 5;
+  string matchValue = 6;
+  string cloud = 7;
+  string podYaml = 8;
+  repeated JenkinsAgentContainer containers = 9;
+  int64 status = 10;
+  string updatedBy = 11;
+}
+
+message ListJenkinsAgentReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string channelId = 3;
+  string buildChannelBindingId = 4;
+  string name = 5;
+  string agentType = 6;
+  int64 status = 7;
+}
+
+message GetJenkinsAgentResp {
+  DevopsJenkinsAgent data = 1;
+}
+
+message ListJenkinsAgentResp {
+  repeated DevopsJenkinsAgent data = 1;
+  uint64 total = 2;
+}
+
+message DevopsPipelineTemplate {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string icon = 4;
+  string iconColor = 5;
+  string description = 6;
+  string scope = 7;
+  string projectId = 8;
+  string engineType = 9;
+  repeated PipelineTemplateStep steps = 10;
+  int64 status = 11;
+  string createdBy = 12;
+  string updatedBy = 13;
+  int64 createdAt = 14;
+  int64 updatedAt = 15;
+  string tektonDagConfig = 16;
+  string tektonRunPolicy = 17;
+  string tektonTriggerConfig = 18;
+  string tektonPrunerPolicyRef = 19;
+  string tektonPipelineYamlSnapshot = 20;
+}
+
+message CreatePipelineTemplateReq {
+  string name = 1;
+  string code = 2;
+  string icon = 3;
+  string iconColor = 4;
+  string description = 5;
+  string scope = 6;
+  string projectId = 7;
+  repeated PipelineTemplateStep steps = 8;
+  int64 status = 9;
+  string createdBy = 10;
+  uint64 currentUserId = 11;
+  repeated string currentRoles = 12;
+  string engineType = 13;
+  string tektonDagConfig = 14;
+  string tektonRunPolicy = 15;
+  string tektonTriggerConfig = 16;
+  string tektonPrunerPolicyRef = 17;
+  string tektonPipelineYamlSnapshot = 18;
+}
+
+message UpdatePipelineTemplateReq {
+  string id = 1;
+  string name = 2;
+  string icon = 3;
+  string iconColor = 4;
+  string description = 5;
+  string scope = 6;
+  string projectId = 7;
+  repeated PipelineTemplateStep steps = 8;
+  int64 status = 9;
+  string updatedBy = 10;
+  uint64 currentUserId = 11;
+  repeated string currentRoles = 12;
+  string engineType = 13;
+  string tektonDagConfig = 14;
+  string tektonRunPolicy = 15;
+  string tektonTriggerConfig = 16;
+  string tektonPrunerPolicyRef = 17;
+  string tektonPipelineYamlSnapshot = 18;
+}
+
+message SavePipelineTemplateStepsReq {
+  string id = 1;
+  repeated PipelineTemplateStep steps = 2;
+  string updatedBy = 3;
+  uint64 currentUserId = 4;
+  repeated string currentRoles = 5;
+}
+
+message GetPipelineTemplateResp {
+  DevopsPipelineTemplate data = 1;
+}
+
+message ListPipelineTemplateReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string name = 3;
+  string code = 4;
+  string scope = 5;
+  string projectId = 6;
+  string engineType = 7;
+  int64 status = 8;
+  uint64 currentUserId = 9;
+  repeated string currentRoles = 10;
+}
+
+message ListPipelineTemplateResp {
+  repeated DevopsPipelineTemplate data = 1;
+  uint64 total = 2;
+}
+
+message PipelinePreviewResp {
+  string pipeline = 1;
+}
+
+message PipelineTemplateVariable {
+  string stepId = 1;
+  string stepCode = 2;
+  string stepName = 3;
+  string name = 4;
+  string code = 5;
+  string paramType = 6;
+  string mode = 7;
+  string defaultValue = 8;
+  string currentValue = 9;
+  bool required = 10;
+  string description = 11;
+  bool readonly = 12;
+  int64 sortOrder = 13;
+  string runtimeMode = 14;
+  StepParamConfig config = 15;
+  bool runtimeConfig = 16;
+  string stepNodeId = 17;
+  string sourceCode = 18;
+}
+
+message PipelineTemplateVariablesResp {
+  repeated PipelineTemplateVariable data = 1;
+  uint64 total = 2;
+}
+
+message CredentialTypeOption {
+  string credentialType = 1;
+  string name = 2;
+  repeated string mappingFields = 3;
+  string defaultMappingField = 4;
+}
+
+message CredentialTypeOptionsResp {
+  repeated CredentialTypeOption data = 1;
+}
+
+message ChannelGroupOption {
+  string code = 1;
+  string name = 2;
+}
+
+message ChannelGroupOptionsResp {
+  repeated ChannelGroupOption data = 1;
+}
+
+message ChannelMappingFieldOption {
+  string field = 1;
+  string name = 2;
+  string kind = 3;
+  string uiControl = 4;
+  string provider = 5;
+  repeated ChannelMappingFieldDependency dependencies = 6;
+  bool allowManualInput = 7;
+  string addressBuilder = 8;
+  bool required = 9;
+  string groupCode = 10;
+  repeated string channelTypes = 11;
+  string valueType = 12;
+  string outputMode = 13;
+  string outputTemplate = 14;
+  string credentialPolicy = 15;
+  repeated string fallbackAddressFields = 16;
+  bool resolveEndpoint = 17;
+  repeated ChannelMappingFieldDependency allOf = 18;
+  repeated ChannelMappingFieldDependency anyOf = 19;
+  repeated StepParamOption options = 20;
+  int64 sortOrder = 21;
+}
+
+message ChannelMappingFieldDependency {
+  string field = 1;
+  string source = 2;
+  string name = 3;
+  bool required = 4;
+}
+
+message ChannelMappingFieldOptionsReq {
+  string channelGroupCode = 1;
+  string channelType = 2;
+  string channelTypeId = 3;
+}
+
+message ChannelMappingFieldOptionsResp {
+  repeated ChannelMappingFieldOption data = 1;
+}
+
+message StepChannelParamMappingItem {
+  string id = 7;
+  string paramType = 1;
+  string paramName = 2;
+  string groupCode = 3;
+  string channelTypeFilter = 4;
+  string description = 5;
+  int64 sortOrder = 6;
+  int64 status = 8;
+  bool isSystem = 9;
+}
+
+message CreateStepChannelParamMappingReq {
+  string paramType = 1;
+  string paramName = 2;
+  string groupCode = 3;
+  string channelTypeFilter = 4;
+  string description = 5;
+  int64 sortOrder = 6;
+  int64 status = 7;
+  string createdBy = 8;
+}
+
+message UpdateStepChannelParamMappingReq {
+  string id = 1;
+  string paramName = 2;
+  string groupCode = 3;
+  string channelTypeFilter = 4;
+  string description = 5;
+  int64 sortOrder = 6;
+  int64 status = 7;
+  string updatedBy = 8;
+}
+
+message ListStepChannelParamMappingReq {
+  string paramType = 1;
+  string groupCode = 2;
+  int64 status = 3;
+  int64 page = 4;
+  int64 pageSize = 5;
+}
+
+message ListStepChannelParamMappingResp {
+  repeated StepChannelParamMappingItem items = 1;
+  int64 total = 2;
+}
+
+message DynamicParamOptionsReq {
+  string projectId = 1;
+  string systemId = 2;
+  string environmentId = 3;
+  string paramType = 4;
+  string channelBindingId = 5;
+  string projectValue = 6;
+  string keyword = 7;
+  uint64 page = 8;
+  uint64 pageSize = 9;
+  uint64 currentUserId = 10;
+  repeated string currentRoles = 11;
+  string componentValue = 12;
+  string configTypeId = 13;
+  string configTypeCode = 14;
+  string mappingField = 15;
+  string dependencyValues = 16;
+}
+
+message DynamicParamOption {
+  string label = 1;
+  string value = 2;
+  string metadata = 3;
+}
+
+message DynamicParamOptionsResp {
+  repeated DynamicParamOption data = 1;
+  uint64 total = 2;
+}
+
+message UploadPipelineArtifactReq {
+  string objectKey = 1;
+  bytes data = 2;
+  string contentType = 3;
+}
+
+message UploadPipelineArtifactResp {
+  string bucket = 1;
+  string objectKey = 2;
+  string url = 3;
+  int64 size = 4;
+}
+
+message PipelineArtifactUrlReq {
+  string objectKey = 1;
+}
+
+message PipelineArtifactUrlResp {
+  string url = 1;
+}
+
+message ResolvePipelineRuntimeReq {
+  string projectId = 1;
+  string systemId = 2;
+  string environmentId = 3;
+  string buildChannelBindingId = 4;
+  uint64 currentUserId = 5;
+  repeated string currentRoles = 6;
+}
+
+message ResolvePipelineRuntimeResp {
+  DevopsProject project = 1;
+  DevopsSystem system = 2;
+  DevopsPipelineEnvironment environment = 3;
+  DevopsProjectChannelBinding binding = 4;
+  DevopsChannel channel = 5;
+  DevopsCredential credential = 6;
+  bool credentialReady = 7;
+  string credentialMessage = 8;
+}
+
+message ResolveChannelBindingReq {
+  string projectId = 1;
+  string channelBindingId = 2;
+  uint64 currentUserId = 3;
+  repeated string currentRoles = 4;
+}
+
+message ResolveChannelBindingResp {
+  DevopsProjectChannelBinding binding = 1;
+  DevopsChannel channel = 2;
+  DevopsCredential credential = 3;
+  bool credentialReady = 4;
+  string credentialMessage = 5;
+}
+
+message ResolveCredentialValueReq {
+  string projectId = 1;
+  string credentialId = 2;
+  string credentialType = 3;
+  string mappingField = 4;
+  uint64 currentUserId = 5;
+  repeated string currentRoles = 6;
+  string buildChannelBindingId = 7;
+  string credentialMode = 8;
+}
+
+message ResolveCredentialValueResp {
+  string value = 1;
+}
+
+message ResolveChannelCredentialValueReq {
+  string projectId = 1;
+  string sourceParamType = 2;
+  string sourceValue = 3;
+  string sourceChannelBindingId = 4;
+  string mappingField = 5;
+  string credentialMode = 6;
+  string buildChannelBindingId = 7;
+  uint64 currentUserId = 8;
+  repeated string currentRoles = 9;
+}
+
+message ResolveChannelCredentialValueResp {
+  string value = 1;
+  string credentialId = 2;
+  string jenkinsCredentialId = 3;
+}
+
+message ResolveMavenConfigReq {
+  string projectId = 1;
+  string mavenConfigId = 2;
+  uint64 currentUserId = 3;
+  repeated string currentRoles = 4;
+}
+
+message ResolveMavenConfigResp {
+  string content = 1;
+  string name = 2;
+  string code = 3;
+}
+
+message ResolveProjectConfigReq {
+  string projectId = 1;
+  string configId = 2;
+  string typeId = 3;
+  string typeCode = 4;
+  uint64 currentUserId = 5;
+  repeated string currentRoles = 6;
+}
+
+message ResolveProjectConfigResp {
+  string content = 1;
+  string name = 2;
+  string code = 3;
+  string typeCode = 4;
+}
+
+message ResolveHostGroupTargetsReq {
+  string projectId = 1;
+  string hostGroupBindingId = 2;
+  string renderMode = 3;
+  uint64 currentUserId = 4;
+  repeated string currentRoles = 5;
+}
+
+message ResolveHostGroupTargetsResp {
+  string value = 1;
+  string renderMode = 2;
+}
+
+message SyncJenkinsCredentialsReq {
+  string projectId = 1;
+  string buildChannelBindingId = 2;
+  repeated string credentialIds = 3;
+  uint64 currentUserId = 4;
+  repeated string currentRoles = 5;
+}
+
+message JenkinsCredentialMapping {
+  string credentialId = 1;
+  string jenkinsCredentialId = 2;
+  string syncStatus = 3;
+  string syncMessage = 4;
+}
+
+message SyncJenkinsCredentialsResp {
+  repeated JenkinsCredentialMapping data = 1;
+}
+
+message ListJenkinsCredentialSyncReq {
+  string projectId = 1;
+  string buildChannelBindingId = 2;
+  uint64 page = 3;
+  uint64 pageSize = 4;
+  uint64 currentUserId = 5;
+  repeated string currentRoles = 6;
+}
+
+message JenkinsCredentialSyncRecord {
+  string credentialId = 1;
+  string credentialName = 2;
+  string credentialCode = 3;
+  string credentialType = 4;
+  string jenkinsCredentialId = 5;
+  string syncStatus = 6;
+  string syncMessage = 7;
+  int64 lastSyncAt = 8;
+  int64 referenceCount = 9;
+}
+
+message ListJenkinsCredentialSyncResp {
+  repeated JenkinsCredentialSyncRecord data = 1;
+  uint64 total = 2;
+}
+
+message JenkinsCredentialReferenceReq {
+  string projectId = 1;
+  string buildChannelBindingId = 2;
+  string credentialId = 3;
+  uint64 currentUserId = 4;
+  repeated string currentRoles = 5;
+}
+
+message JenkinsCredentialReference {
+  string pipelineId = 1;
+  string pipelineName = 2;
+  string pipelineCode = 3;
+  string paramCode = 4;
+  string paramName = 5;
+  string referenceType = 6;
+}
+
+message ListJenkinsCredentialReferencesResp {
+  repeated JenkinsCredentialReference data = 1;
+  uint64 total = 2;
+}
+
+message DeleteJenkinsCredentialSyncReq {
+  string projectId = 1;
+  string buildChannelBindingId = 2;
+  string credentialId = 3;
+  uint64 currentUserId = 4;
+  repeated string currentRoles = 5;
+  string updatedBy = 6;
+}
+
+service ProjectService {
+  rpc ProjectCreate(CreateProjectReq) returns (IdResp);
+  rpc ProjectUpdate(UpdateProjectReq) returns (EmptyResp);
+  rpc ProjectDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc ProjectGet(GetByIdReq) returns (GetProjectResp);
+  rpc ProjectList(ListProjectReq) returns (ListProjectResp);
+  rpc ProjectMavenConfigCreate(CreateProjectMavenConfigReq) returns (IdResp);
+  rpc ProjectMavenConfigUpdate(UpdateProjectMavenConfigReq) returns (EmptyResp);
+  rpc ProjectMavenConfigDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc ProjectMavenConfigGet(GetByIdReq) returns (GetProjectMavenConfigResp);
+  rpc ProjectMavenConfigList(ListProjectMavenConfigReq) returns (ListProjectMavenConfigResp);
+  rpc ConfigTypeCreate(CreateConfigTypeReq) returns (IdResp);
+  rpc ConfigTypeUpdate(UpdateConfigTypeReq) returns (EmptyResp);
+  rpc ConfigTypeDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc ConfigTypeGet(GetByIdReq) returns (GetConfigTypeResp);
+  rpc ConfigTypeList(ListConfigTypeReq) returns (ListConfigTypeResp);
+  rpc ConfigTypeTree(ConfigTypeTreeReq) returns (ConfigTypeTreeResp);
+  rpc ProjectConfigCreate(CreateProjectConfigReq) returns (IdResp);
+  rpc ProjectConfigUpdate(UpdateProjectConfigReq) returns (EmptyResp);
+  rpc ProjectConfigDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc ProjectConfigGet(GetByIdReq) returns (GetProjectConfigResp);
+  rpc ProjectConfigList(ListProjectConfigReq) returns (ListProjectConfigResp);
+  rpc ProjectChannelBind(BindProjectChannelsReq) returns (EmptyResp);
+  rpc ProjectChannelAdd(AddProjectChannelReq) returns (EmptyResp);
+  rpc ProjectChannelUpdate(UpdateProjectChannelBindingReq) returns (EmptyResp);
+  rpc ProjectChannelDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc ProjectChannelList(ListProjectChannelBindingReq) returns (ListProjectChannelBindingResp);
+  rpc ProjectChannelTest(GetByIdReq) returns (TestChannelResp);
+  rpc TektonSecretBindingList(ListTektonSecretBindingReq) returns (ListTektonSecretBindingResp);
+  rpc TektonSecretList(ListTektonSecretReq) returns (ListTektonSecretResp);
+  rpc TektonPVCList(ListTektonPVCReq) returns (ListTektonPVCResp);
+  rpc TektonSecretGet(GetTektonSecretReq) returns (GetTektonSecretResp);
+  rpc TektonSecretCreate(SaveTektonSecretReq) returns (EmptyResp);
+  rpc TektonSecretUpdate(SaveTektonSecretReq) returns (EmptyResp);
+  rpc TektonSecretDelete(DeleteTektonSecretReq) returns (EmptyResp);
+  rpc TektonSecretSync(SyncTektonSecretReq) returns (EmptyResp);
+  rpc TektonResourceList(ListTektonResourceReq) returns (ListTektonResourceResp);
+  rpc TektonResourceGet(GetTektonResourceReq) returns (GetTektonResourceResp);
+  rpc TektonResourceDescribe(DescribeTektonResourceReq) returns (DescribeTektonResourceResp);
+  rpc TektonResourceLog(LogTektonResourceReq) returns (LogTektonResourceResp);
+  rpc TektonResourceSave(SaveTektonResourceReq) returns (EmptyResp);
+  rpc TektonResourceDelete(DeleteTektonResourceReq) returns (EmptyResp);
+  rpc TektonResourceAction(ActionTektonResourceReq) returns (EmptyResp);
+  rpc ProjectMemberSet(SetProjectMembersReq) returns (EmptyResp);
+  rpc ProjectMemberDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc ProjectMemberList(ListProjectMemberReq) returns (ListProjectMemberResp);
+}
+
+service ChannelService {
+  rpc ChannelGroupCreate(CreateChannelGroupReq) returns (IdResp);
+  rpc ChannelGroupUpdate(UpdateChannelGroupReq) returns (EmptyResp);
+  rpc ChannelGroupDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc ChannelGroupGet(GetByIdReq) returns (GetChannelGroupResp);
+  rpc ChannelGroupList(ListChannelGroupReq) returns (ListChannelGroupResp);
+  rpc ChannelTypeCreate(CreateChannelTypeReq) returns (IdResp);
+  rpc ChannelTypeUpdate(UpdateChannelTypeReq) returns (EmptyResp);
+  rpc ChannelTypeDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc ChannelTypeGet(GetByIdReq) returns (GetChannelTypeResp);
+  rpc ChannelTypeList(ListChannelTypeReq) returns (ListChannelTypeResp);
+  rpc CredentialCreate(CreateCredentialReq) returns (IdResp);
+  rpc CredentialUpdate(UpdateCredentialReq) returns (EmptyResp);
+  rpc CredentialDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc CredentialGet(GetByIdReq) returns (GetCredentialResp);
+  rpc CredentialList(ListCredentialReq) returns (ListCredentialResp);
+  rpc CredentialUsage(GetByIdReq) returns (GetCredentialUsageResp);
+  rpc HostCreate(CreateHostReq) returns (IdResp);
+  rpc HostUpdate(UpdateHostReq) returns (EmptyResp);
+  rpc HostDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc HostGet(GetByIdReq) returns (GetHostResp);
+  rpc HostList(ListHostReq) returns (ListHostResp);
+  rpc HostTest(GetByIdReq) returns (TestChannelResp);
+  rpc HostTestConfig(TestHostReq) returns (TestChannelResp);
+  rpc ChannelCreate(CreateChannelReq) returns (IdResp);
+  rpc ChannelUpdate(UpdateChannelReq) returns (EmptyResp);
+  rpc ChannelDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc ChannelGet(GetByIdReq) returns (GetChannelResp);
+  rpc ChannelList(ListChannelReq) returns (ListChannelResp);
+  rpc ChannelTest(TestChannelReq) returns (TestChannelResp);
+  rpc ChannelTektonStepSync(DeleteByIdReq) returns (EmptyResp);
+}
+
+service PipelineConfigService {
+  rpc SystemCreate(CreateSystemReq) returns (IdResp);
+  rpc SystemUpdate(UpdateSystemReq) returns (EmptyResp);
+  rpc SystemDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc SystemGet(GetByIdReq) returns (GetSystemResp);
+  rpc SystemList(ListSystemReq) returns (ListSystemResp);
+  rpc PipelineEnvironmentCreate(CreatePipelineEnvironmentReq) returns (IdResp);
+  rpc PipelineEnvironmentUpdate(UpdatePipelineEnvironmentReq) returns (EmptyResp);
+  rpc PipelineEnvironmentDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc PipelineEnvironmentGet(GetByIdReq) returns (GetPipelineEnvironmentResp);
+  rpc PipelineEnvironmentList(ListPipelineEnvironmentReq) returns (ListPipelineEnvironmentResp);
+  rpc StepCategoryCreate(CreateStepCategoryReq) returns (IdResp);
+  rpc StepCategoryUpdate(UpdateStepCategoryReq) returns (EmptyResp);
+  rpc StepCategoryDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc StepCategoryGet(GetByIdReq) returns (GetStepCategoryResp);
+  rpc StepCategoryList(ListStepCategoryReq) returns (ListStepCategoryResp);
+  rpc JenkinsStepCreate(CreateStepTemplateReq) returns (IdResp);
+  rpc JenkinsStepUpdate(UpdateStepTemplateReq) returns (EmptyResp);
+  rpc JenkinsStepDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc JenkinsStepGet(GetByIdReq) returns (GetStepTemplateResp);
+  rpc JenkinsStepList(ListStepTemplateReq) returns (ListStepTemplateResp);
+  rpc JenkinsStepStatus(UpdateStatusReq) returns (EmptyResp);
+  rpc TektonStepCreate(CreateStepTemplateReq) returns (IdResp);
+  rpc TektonStepUpdate(UpdateStepTemplateReq) returns (EmptyResp);
+  rpc TektonStepDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc TektonStepGet(GetByIdReq) returns (GetStepTemplateResp);
+  rpc TektonStepList(ListStepTemplateReq) returns (ListStepTemplateResp);
+  rpc TektonStepStatus(UpdateStatusReq) returns (EmptyResp);
+  rpc TektonStepImageList(ListTektonStepImageReq) returns (ListTektonStepImageResp);
+  rpc TektonStepImageBatchUpdate(BatchUpdateTektonStepImageReq) returns (BatchUpdateTektonStepImageResp);
+  rpc PipelineTemplateCreate(CreatePipelineTemplateReq) returns (IdResp);
+  rpc PipelineTemplateUpdate(UpdatePipelineTemplateReq) returns (EmptyResp);
+  rpc PipelineTemplateDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc PipelineTemplateGet(GetByIdReq) returns (GetPipelineTemplateResp);
+  rpc PipelineTemplateList(ListPipelineTemplateReq) returns (ListPipelineTemplateResp);
+  rpc PipelineTemplateStatus(UpdateStatusReq) returns (EmptyResp);
+  rpc PipelineTemplateStepsSave(SavePipelineTemplateStepsReq) returns (EmptyResp);
+  rpc PipelineTemplatePreview(GetByIdReq) returns (PipelinePreviewResp);
+  rpc PipelineTemplateVariables(GetByIdReq) returns (PipelineTemplateVariablesResp);
+  rpc CredentialTypeOptions(EmptyResp) returns (CredentialTypeOptionsResp);
+  rpc ChannelGroupOptions(EmptyResp) returns (ChannelGroupOptionsResp);
+  rpc ChannelMappingFieldOptions(ChannelMappingFieldOptionsReq) returns (ChannelMappingFieldOptionsResp);
+  rpc ListStepChannelParamMapping(ListStepChannelParamMappingReq) returns (ListStepChannelParamMappingResp);
+  rpc CreateStepChannelParamMapping(CreateStepChannelParamMappingReq) returns (IdResp);
+  rpc UpdateStepChannelParamMapping(UpdateStepChannelParamMappingReq) returns (EmptyResp);
+  rpc DeleteStepChannelParamMapping(DeleteByIdReq) returns (EmptyResp);
+  rpc DynamicParamOptions(DynamicParamOptionsReq) returns (DynamicParamOptionsResp);
+  rpc JenkinsAgentCreate(CreateJenkinsAgentReq) returns (IdResp);
+  rpc JenkinsAgentUpdate(UpdateJenkinsAgentReq) returns (EmptyResp);
+  rpc JenkinsAgentDelete(DeleteByIdReq) returns (EmptyResp);
+  rpc JenkinsAgentGet(GetByIdReq) returns (GetJenkinsAgentResp);
+  rpc JenkinsAgentList(ListJenkinsAgentReq) returns (ListJenkinsAgentResp);
+  rpc UploadPipelineArtifact(UploadPipelineArtifactReq) returns (UploadPipelineArtifactResp);
+  rpc PipelineArtifactUrl(PipelineArtifactUrlReq) returns (PipelineArtifactUrlResp);
+  rpc ResolvePipelineRuntime(ResolvePipelineRuntimeReq) returns (ResolvePipelineRuntimeResp);
+  rpc ResolveChannelBinding(ResolveChannelBindingReq) returns (ResolveChannelBindingResp);
+  rpc ResolveCredentialValue(ResolveCredentialValueReq) returns (ResolveCredentialValueResp);
+  rpc ResolveChannelCredentialValue(ResolveChannelCredentialValueReq) returns (ResolveChannelCredentialValueResp);
+  rpc ResolveMavenConfig(ResolveMavenConfigReq) returns (ResolveMavenConfigResp);
+  rpc ResolveProjectConfig(ResolveProjectConfigReq) returns (ResolveProjectConfigResp);
+  rpc ResolveHostGroupTargets(ResolveHostGroupTargetsReq) returns (ResolveHostGroupTargetsResp);
+  rpc SyncJenkinsCredentials(SyncJenkinsCredentialsReq) returns (SyncJenkinsCredentialsResp);
+  rpc JenkinsCredentialSyncList(ListJenkinsCredentialSyncReq) returns (ListJenkinsCredentialSyncResp);
+  rpc JenkinsCredentialReferences(JenkinsCredentialReferenceReq) returns (ListJenkinsCredentialReferencesResp);
+  rpc JenkinsCredentialSyncDelete(DeleteJenkinsCredentialSyncReq) returns (EmptyResp);
+}
+
+// 渠道变量相关消息定义
+message VariableSpec {
+  int64 id = 1;
+  string specProfile = 2;
+  string fieldKey = 3;
+  string fieldName = 4;
+  string fieldKind = 5;
+  string providerKey = 6;
+  string uiControl = 7;
+  string dependencies = 8;
+  bool allowManualInput = 9;
+  bool isRequired = 10;
+  string defaultValue = 11;
+  string placeholder = 12;
+  string helpText = 13;
+  int32 sortOrder = 14;
+}
+
+message GetChannelVariableSpecsReq {
+  string groupCode = 1;
+  string channelTypeCode = 2;
+  string specProfile = 3;
+}
+
+message GetChannelVariableSpecsResp {
+  repeated VariableSpec specs = 1;
+}
+
+message VariableOption {
+  string label = 1;
+  string value = 2;
+  bool disabled = 3;
+  repeated VariableOption children = 4;
+  string extra = 5;
+}
+
+message QueryDynamicOptionsReq {
+  int64 channelInstanceId = 1;
+  string providerKey = 2;
+  map<string, string> parentValues = 3;
+  int64 projectId = 4;
+}
+
+message QueryDynamicOptionsResp {
+  repeated VariableOption options = 1;
+}
+
+message ResolveAddressReq {
+  string address = 1;
+  string channelTypeCode = 2;
+  int64 projectId = 3;
+}
+
+message ResolveAddressResp {
+  bool resolved = 1;
+  int64 channelInstanceId = 2;
+  map<string, string> fields = 3;
+  string reason = 4;
+}
+
+message RenderOutputReq {
+  int64 channelInstanceId = 1;
+  string providerKey = 2;
+  map<string, string> values = 3;
+  int64 projectId = 4;
+}
+
+message RenderOutputResp {
+  string output = 1;
+}
+
+message ValidateVariableValuesReq {
+  string specProfile = 1;
+  map<string, string> values = 2;
+  int64 projectId = 3;
+}
+
+message ValidateVariableValuesResp {
+  bool valid = 1;
+  repeated string errors = 2;
+}
+
+message ResolveCredentialReq {
+  int64 endpointId = 1;
+  string address = 2;
+  string channelTypeCode = 3;
+  int64 projectId = 4;
+}
+
+message ResolveCredentialResp {
+  int64 credentialId = 1;
+  string credentialName = 2;
+  string credentialType = 3;
+}
+
+service ChannelVariableService {
+  rpc GetChannelVariableSpecs(GetChannelVariableSpecsReq) returns (GetChannelVariableSpecsResp);
+  rpc QueryDynamicOptions(QueryDynamicOptionsReq) returns (QueryDynamicOptionsResp);
+  rpc ResolveAddress(ResolveAddressReq) returns (ResolveAddressResp);
+  rpc RenderOutput(RenderOutputReq) returns (RenderOutputResp);
+  rpc ValidateVariableValues(ValidateVariableValuesReq) returns (ValidateVariableValuesResp);
+  rpc ResolveCredential(ResolveCredentialReq) returns (ResolveCredentialResp);
+}

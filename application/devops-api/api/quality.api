@@ -1,0 +1,491 @@
+syntax = "v1"
+
+info(
+    title: "DevOps Quality API"
+    desc: "DevOps 质量扫描报告接口"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+import "./base.api"
+
+type (
+    QualityScanPlanItem {
+        StepId string `json:"stepId,optional" validate:"omitempty,max=128"`
+        StageId string `json:"stageId,optional" validate:"omitempty,max=128"`
+        Tool string `json:"tool" validate:"required,max=64"`
+        ToolMode string `json:"toolMode" validate:"required,oneof=service service_api local local_report hybrid"`
+        ToolBindingId string `json:"toolBindingId,optional" validate:"omitempty,max=64"`
+        TargetType string `json:"targetType,optional" validate:"omitempty,max=64"`
+        TargetName string `json:"targetName,optional" validate:"omitempty,max=256"`
+        TargetParamCode string `json:"targetParamCode,optional" validate:"omitempty,max=128"`
+        ReportSource string `json:"reportSource,optional" validate:"omitempty,max=64"`
+        ReportPath string `json:"reportPath,optional" validate:"omitempty,max=512"`
+        ReportFormat string `json:"reportFormat" validate:"required,max=64"`
+        Required bool `json:"required,optional"`
+        Enforce bool `json:"enforce,optional"`
+        Parser string `json:"parser,optional" validate:"omitempty,max=64"`
+    }
+
+    CreateQualityScanPlanSnapshotRequest {
+        RunId string `json:"runId" validate:"required"`
+        PipelineId string `json:"pipelineId" validate:"required"`
+        ProjectId string `json:"projectId" validate:"required"`
+        ProjectName string `json:"projectName,optional" validate:"omitempty,max=128"`
+        ProjectCode string `json:"projectCode,optional" validate:"omitempty,max=128"`
+        SystemId string `json:"systemId,optional" validate:"omitempty"`
+        SystemName string `json:"systemName,optional" validate:"omitempty,max=128"`
+        SystemCode string `json:"systemCode,optional" validate:"omitempty,max=128"`
+        EnvironmentId string `json:"environmentId,optional" validate:"omitempty"`
+        EnvironmentName string `json:"environmentName,optional" validate:"omitempty,max=128"`
+        EnvironmentCode string `json:"environmentCode,optional" validate:"omitempty,max=128"`
+        ScanMode string `json:"scanMode,optional" validate:"omitempty,max=64"`
+        ScanEnabled bool `json:"scanEnabled,optional"`
+        RejectUnexpectedReports bool `json:"rejectUnexpectedReports,optional"`
+        Enforce bool `json:"enforce,optional"`
+        Items []QualityScanPlanItem `json:"items,optional"`
+    }
+
+    QualityScanPlanSnapshotRequest {
+        RunId string `path:"runId" validate:"required"`
+    }
+
+    QualityScanPlanSnapshotResponse {
+        Id string `json:"id"`
+        RunId string `json:"runId"`
+        PipelineId string `json:"pipelineId"`
+        ProjectId string `json:"projectId"`
+        ScanMode string `json:"scanMode"`
+        ScanEnabled bool `json:"scanEnabled"`
+        RejectUnexpectedReports bool `json:"rejectUnexpectedReports"`
+        Items []QualityScanPlanItem `json:"items"`
+        CreatedAt string `json:"createdAt"`
+    }
+
+    CompleteQualityScanReportRequest {
+        RunId string `json:"runId" validate:"required"`
+        StageId string `json:"stageId,optional" validate:"omitempty,max=128"`
+        StepId string `json:"stepId,optional" validate:"omitempty,max=128"`
+        Tool string `json:"tool" validate:"required,max=64"`
+        ReportFormat string `json:"reportFormat" validate:"required,max=64"`
+        TargetType string `json:"targetType,optional" validate:"omitempty,max=64"`
+        TargetName string `json:"targetName,optional" validate:"omitempty,max=256"`
+        ImageRef string `json:"imageRef,optional" validate:"omitempty,max=512"`
+        Bucket string `json:"bucket,optional" validate:"omitempty,max=128"`
+        ObjectKey string `json:"objectKey" validate:"required,max=1024"`
+        Size int64 `json:"size,optional" validate:"gte=0"`
+        ContentType string `json:"contentType,optional" validate:"omitempty,max=128"`
+        Sha256 string `json:"sha256,optional" validate:"omitempty,max=128"`
+        MetadataJson string `json:"metadataJson,optional" validate:"omitempty"`
+        SummaryJson string `json:"summaryJson,optional" validate:"omitempty"`
+        IssuesJson string `json:"issuesJson,optional" validate:"omitempty"`
+        ReportPath string `json:"reportPath,optional" validate:"omitempty,max=512"`
+        Parser string `json:"parser,optional" validate:"omitempty,max=64"`
+    }
+
+    UploadQualityScanReportRequest {
+        RunId string `form:"runId" validate:"required"`
+        StageId string `form:"stageId,optional" validate:"omitempty,max=128"`
+        StepId string `form:"stepId,optional" validate:"omitempty,max=128"`
+        Tool string `form:"tool" validate:"required,max=64"`
+        ReportFormat string `form:"reportFormat" validate:"required,max=64"`
+        TargetType string `form:"targetType,optional" validate:"omitempty,max=64"`
+        TargetName string `form:"targetName,optional" validate:"omitempty,max=256"`
+        ImageRef string `form:"imageRef,optional" validate:"omitempty,max=512"`
+        MetadataJson string `form:"metadataJson,optional" validate:"omitempty"`
+        ReportPath string `form:"reportPath,optional" validate:"omitempty,max=512"`
+        Parser string `form:"parser,optional" validate:"omitempty,max=64"`
+    }
+
+    QualityReportUploadEntryResult {
+        Id string `json:"id"`
+        EntryPath string `json:"entryPath"`
+        Status string `json:"status"`
+        Reason string `json:"reason"`
+        ReportId string `json:"reportId"`
+        ObjectKey string `json:"objectKey"`
+        Sha256 string `json:"sha256"`
+        Size int64 `json:"size"`
+    }
+
+    QualityReportUploadResponse {
+        BatchId string `json:"batchId"`
+        ReportIds []string `json:"reportIds"`
+        AcceptedCount int64 `json:"acceptedCount"`
+        RejectedCount int64 `json:"rejectedCount"`
+        IgnoredCount int64 `json:"ignoredCount"`
+        Entries []QualityReportUploadEntryResult `json:"entries"`
+    }
+
+    QualityScanReport {
+        Id string `json:"id"`
+        ProjectId string `json:"projectId"`
+        ProjectName string `json:"projectName"`
+        ProjectCode string `json:"projectCode"`
+        SystemId string `json:"systemId"`
+        SystemName string `json:"systemName"`
+        SystemCode string `json:"systemCode"`
+        EnvironmentId string `json:"environmentId"`
+        EnvironmentName string `json:"environmentName"`
+        EnvironmentCode string `json:"environmentCode"`
+        PipelineId string `json:"pipelineId"`
+        RunId string `json:"runId"`
+        StageId string `json:"stageId"`
+        StepId string `json:"stepId"`
+        Tool string `json:"tool"`
+        ToolMode string `json:"toolMode"`
+        ToolBindingId string `json:"toolBindingId"`
+        TargetType string `json:"targetType"`
+        TargetName string `json:"targetName"`
+        ImageRef string `json:"imageRef"`
+        ReportSource string `json:"reportSource"`
+        ReportFormat string `json:"reportFormat"`
+        Bucket string `json:"bucket"`
+        ObjectKey string `json:"objectKey"`
+        Size int64 `json:"size"`
+        ContentType string `json:"contentType"`
+        Sha256 string `json:"sha256"`
+        Status string `json:"status"`
+        RejectReason string `json:"rejectReason"`
+        GateStatus string `json:"gateStatus"`
+        SummaryJson string `json:"summaryJson"`
+        CreatedAt string `json:"createdAt"`
+        ReportPath string `json:"reportPath"`
+        Parser string `json:"parser"`
+        BatchId string `json:"batchId"`
+        EntryId string `json:"entryId"`
+        SourceType string `json:"sourceType"`
+        ArchiveEntryPath string `json:"archiveEntryPath"`
+        OriginalFileName string `json:"originalFileName"`
+        Current bool `json:"current"`
+        SupersededBy string `json:"supersededBy"`
+    }
+
+    ListQualityScanReportRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"20" validate:"required,min=1,max=200"`
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        SystemId string `form:"systemId,optional" validate:"omitempty"`
+        PipelineId string `form:"pipelineId,optional" validate:"omitempty"`
+        RunId string `form:"runId,optional" validate:"omitempty"`
+        Tool string `form:"tool,optional" validate:"omitempty,max=64"`
+        TargetType string `form:"targetType,optional" validate:"omitempty,max=64"`
+        Status string `form:"status,optional" validate:"omitempty,max=64"`
+        GateStatus string `form:"gateStatus,optional" validate:"omitempty,max=64"`
+    }
+
+    ListQualityScanReportResponse {
+        Items []QualityScanReport `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    QualityReportUploadBatch {
+        Id string `json:"id"`
+        ProjectId string `json:"projectId"`
+        ProjectName string `json:"projectName"`
+        ProjectCode string `json:"projectCode"`
+        SystemId string `json:"systemId"`
+        SystemName string `json:"systemName"`
+        SystemCode string `json:"systemCode"`
+        EnvironmentId string `json:"environmentId"`
+        EnvironmentName string `json:"environmentName"`
+        EnvironmentCode string `json:"environmentCode"`
+        PipelineId string `json:"pipelineId"`
+        PipelineName string `json:"pipelineName"`
+        RunId string `json:"runId"`
+        StageId string `json:"stageId"`
+        StepId string `json:"stepId"`
+        Tool string `json:"tool"`
+        ReportFormat string `json:"reportFormat"`
+        Parser string `json:"parser"`
+        SourceType string `json:"sourceType"`
+        OriginalFileName string `json:"originalFileName"`
+        Bucket string `json:"bucket"`
+        ObjectKey string `json:"objectKey"`
+        Size int64 `json:"size"`
+        ContentType string `json:"contentType"`
+        Sha256 string `json:"sha256"`
+        Status string `json:"status"`
+        AcceptedCount int64 `json:"acceptedCount"`
+        RejectedCount int64 `json:"rejectedCount"`
+        IgnoredCount int64 `json:"ignoredCount"`
+        Message string `json:"message"`
+        CreatedAt string `json:"createdAt"`
+    }
+
+    ListQualityReportUploadBatchRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"20" validate:"required,min=1,max=200"`
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        SystemId string `form:"systemId,optional" validate:"omitempty"`
+        PipelineId string `form:"pipelineId,optional" validate:"omitempty"`
+        RunId string `form:"runId,optional" validate:"omitempty"`
+        Tool string `form:"tool,optional" validate:"omitempty,max=64"`
+        Status string `form:"status,optional" validate:"omitempty,max=64"`
+    }
+
+    ListQualityReportUploadBatchResponse {
+        Items []QualityReportUploadBatch `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    QualityReportUploadEntry {
+        Id string `json:"id"`
+        BatchId string `json:"batchId"`
+        RunId string `json:"runId"`
+        StageId string `json:"stageId"`
+        StepId string `json:"stepId"`
+        Tool string `json:"tool"`
+        ReportFormat string `json:"reportFormat"`
+        Parser string `json:"parser"`
+        EntryPath string `json:"entryPath"`
+        OriginalFileName string `json:"originalFileName"`
+        Bucket string `json:"bucket"`
+        ObjectKey string `json:"objectKey"`
+        Size int64 `json:"size"`
+        ContentType string `json:"contentType"`
+        Sha256 string `json:"sha256"`
+        Status string `json:"status"`
+        Reason string `json:"reason"`
+        ReportId string `json:"reportId"`
+        CreatedAt string `json:"createdAt"`
+    }
+
+    ListQualityReportUploadEntryRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"100" validate:"required,min=1,max=200"`
+        BatchId string `form:"batchId" validate:"required"`
+        RunId string `form:"runId,optional" validate:"omitempty"`
+        Status string `form:"status,optional" validate:"omitempty,max=64"`
+    }
+
+    ListQualityReportUploadEntryResponse {
+        Items []QualityReportUploadEntry `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    QualityScanIssue {
+        Id string `json:"id"`
+        ReportId string `json:"reportId"`
+        ProjectId string `json:"projectId"`
+        SystemId string `json:"systemId"`
+        RunId string `json:"runId"`
+        Tool string `json:"tool"`
+        TargetType string `json:"targetType"`
+        IssueType string `json:"issueType"`
+        Severity string `json:"severity"`
+        Title string `json:"title"`
+        Description string `json:"description"`
+        FilePath string `json:"filePath"`
+        Line int64 `json:"line"`
+        Component string `json:"component"`
+        PackageName string `json:"packageName"`
+        ImageRef string `json:"imageRef"`
+        ImageDigest string `json:"imageDigest"`
+        CveId string `json:"cveId"`
+        InstalledVersion string `json:"installedVersion"`
+        FixedVersion string `json:"fixedVersion"`
+        RuleId string `json:"ruleId"`
+        Status string `json:"status"`
+        RawJson string `json:"rawJson"`
+        CreatedAt string `json:"createdAt"`
+    }
+
+    ListQualityScanIssueRequest {
+        Page uint64 `form:"page,optional" default:"1" validate:"required,min=1"`
+        PageSize uint64 `form:"pageSize,optional" default:"20" validate:"required,min=1,max=200"`
+        ReportId string `form:"reportId,optional" validate:"omitempty"`
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        SystemId string `form:"systemId,optional" validate:"omitempty"`
+        RunId string `form:"runId,optional" validate:"omitempty"`
+        Tool string `form:"tool,optional" validate:"omitempty,max=64"`
+        TargetType string `form:"targetType,optional" validate:"omitempty,max=64"`
+        IssueType string `form:"issueType,optional" validate:"omitempty,max=64"`
+        Severity string `form:"severity,optional" validate:"omitempty,max=64"`
+        Status string `form:"status,optional" validate:"omitempty,max=64"`
+    }
+
+    ListQualityScanIssueResponse {
+        Items []QualityScanIssue `json:"items"`
+        Total uint64 `json:"total"`
+    }
+
+    QualityGateEvaluateRequest {
+        RunId string `path:"runId" validate:"required"`
+    }
+
+    QualityGateMissingReport {
+        Tool string `json:"tool"`
+        StepId string `json:"stepId"`
+        ReportFormat string `json:"reportFormat"`
+        ReportPath string `json:"reportPath"`
+    }
+
+    QualityGateEvaluateResponse {
+        RunId string `json:"runId"`
+        GateStatus string `json:"gateStatus"`
+        Message string `json:"message"`
+        MissingReports []QualityGateMissingReport `json:"missingReports"`
+    }
+
+    QualityDashboardRequest {
+        ProjectId string `form:"projectId,optional" validate:"omitempty"`
+        SystemId string `form:"systemId,optional" validate:"omitempty"`
+        TargetType string `form:"targetType,optional" validate:"omitempty,max=64"`
+        StartDate string `form:"startDate,optional" validate:"omitempty,max=32"`
+        EndDate string `form:"endDate,optional" validate:"omitempty,max=32"`
+    }
+
+    QualityDashboardOverview {
+        ReportCount int64 `json:"reportCount"`
+        PassedCount int64 `json:"passedCount"`
+        FailedCount int64 `json:"failedCount"`
+        RejectedCount int64 `json:"rejectedCount"`
+        IssueCount int64 `json:"issueCount"`
+        CriticalCount int64 `json:"criticalCount"`
+        HighCount int64 `json:"highCount"`
+        GatePassRate float64 `json:"gatePassRate"`
+    }
+
+    QualityDashboardMetric {
+        Id string `json:"id"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        ReportCount int64 `json:"reportCount"`
+        IssueCount int64 `json:"issueCount"`
+        CriticalCount int64 `json:"criticalCount"`
+        HighCount int64 `json:"highCount"`
+        GatePassRate float64 `json:"gatePassRate"`
+    }
+
+    QualityDashboardResponse {
+        Overview QualityDashboardOverview `json:"overview"`
+        ProjectRanks []QualityDashboardMetric `json:"projectRanks"`
+        SystemRanks []QualityDashboardMetric `json:"systemRanks"`
+        ToolRanks []QualityDashboardMetric `json:"toolRanks"`
+    }
+
+    QualityRunTypeSummary {
+        TargetType string `json:"targetType"`
+        ReportCount int64 `json:"reportCount"`
+        IssueCount int64 `json:"issueCount"`
+        CriticalCount int64 `json:"criticalCount"`
+        HighCount int64 `json:"highCount"`
+        MediumCount int64 `json:"mediumCount"`
+        LowCount int64 `json:"lowCount"`
+    }
+
+    QualityImageSummary {
+        ImageRef string `json:"imageRef"`
+        ImageDigest string `json:"imageDigest"`
+        ReportCount int64 `json:"reportCount"`
+        IssueCount int64 `json:"issueCount"`
+        CriticalCount int64 `json:"criticalCount"`
+        HighCount int64 `json:"highCount"`
+        FixableCount int64 `json:"fixableCount"`
+    }
+
+    QualityRunSummaryRequest {
+        RunId string `path:"runId" validate:"required"`
+    }
+
+    QualityRunSummaryResponse {
+        RunId string `json:"runId"`
+        GateStatus string `json:"gateStatus"`
+        Overview QualityDashboardOverview `json:"overview"`
+        StaticCode QualityRunTypeSummary `json:"staticCode"`
+        Image QualityRunTypeSummary `json:"image"`
+        ScanPlan []QualityScanPlanItem `json:"scanPlan"`
+        Reports []QualityScanReport `json:"reports"`
+        StaticCodeIssues []QualityScanIssue `json:"staticCodeIssues"`
+        ImageIssues []QualityScanIssue `json:"imageIssues"`
+        MissingReports []QualityGateMissingReport `json:"missingReports"`
+        RejectedReports []QualityScanReport `json:"rejectedReports"`
+        RejectedEntries []QualityReportUploadEntry `json:"rejectedEntries"`
+        Images []QualityImageSummary `json:"images"`
+    }
+
+    QualityReportDownloadUrlResponse {
+        Url string `json:"url"`
+    }
+)
+
+@server(
+    prefix: /devops/v1
+    group: quality
+    middleware: JWTAuthMiddleware
+)
+service devops-api {
+    @doc "创建扫描计划快照"
+    @handler QualityScanPlanSnapshotCreate
+    post /quality/scan-plan/snapshot (CreateQualityScanPlanSnapshotRequest) returns (IdResponse)
+
+    @doc "获取扫描计划快照"
+    @handler QualityScanPlanSnapshotGet
+    get /quality/scan-plan/:runId (QualityScanPlanSnapshotRequest) returns (QualityScanPlanSnapshotResponse)
+
+    @doc "上传扫描报告"
+    @handler QualityScanReportUpload
+    post /quality/report/upload (UploadQualityScanReportRequest) returns (QualityReportUploadResponse)
+
+    @doc "完成扫描报告上报"
+    @handler QualityScanReportComplete
+    post /quality/report/complete (CompleteQualityScanReportRequest) returns (IdResponse)
+
+    @doc "查询扫描报告"
+    @handler QualityScanReportList
+    get /quality/report/list (ListQualityScanReportRequest) returns (ListQualityScanReportResponse)
+
+    @doc "扫描报告详情"
+    @handler QualityScanReportGet
+    get /quality/report/:id (DefaultStringIdRequest) returns (QualityScanReport)
+
+    @doc "查询扫描问题"
+    @handler QualityScanIssueList
+    get /quality/issue/list (ListQualityScanIssueRequest) returns (ListQualityScanIssueResponse)
+
+    @doc "扫描门禁评估"
+    @handler QualityGateEvaluate
+    post /quality/run/:runId/gate/evaluate (QualityGateEvaluateRequest) returns (QualityGateEvaluateResponse)
+
+    @doc "流水线运行质量汇总"
+    @handler QualityRunSummary
+    get /quality/run/:runId/summary (QualityRunSummaryRequest) returns (QualityRunSummaryResponse)
+
+    @doc "扫描报告下载地址"
+    @handler QualityScanReportDownloadUrl
+    get /quality/report/:id/download-url (DefaultStringIdRequest) returns (QualityReportDownloadUrlResponse)
+
+    @doc "扫描报告下载"
+    @handler QualityScanReportDownload
+    get /quality/report/:id/download (DefaultStringIdRequest) returns (string)
+
+    @doc "扫描报告预览"
+    @handler QualityScanReportPreview
+    get /quality/report/:id/preview (DefaultStringIdRequest) returns (string)
+
+    @doc "查询报告上传批次"
+    @handler QualityReportUploadBatchList
+    get /quality/report/upload-batch/list (ListQualityReportUploadBatchRequest) returns (ListQualityReportUploadBatchResponse)
+
+    @doc "查询报告上传批次明细"
+    @handler QualityReportUploadEntryList
+    get /quality/report/upload-entry/list (ListQualityReportUploadEntryRequest) returns (ListQualityReportUploadEntryResponse)
+
+    @doc "报告上传批次原件下载"
+    @handler QualityReportUploadBatchDownload
+    get /quality/report/upload-batch/:id/download (DefaultStringIdRequest) returns (string)
+
+    @doc "报告上传明细下载"
+    @handler QualityReportUploadEntryDownload
+    get /quality/report/upload-entry/:id/download (DefaultStringIdRequest) returns (string)
+
+    @doc "报告上传明细预览"
+    @handler QualityReportUploadEntryPreview
+    get /quality/report/upload-entry/:id/preview (DefaultStringIdRequest) returns (string)
+
+    @doc "质量看板"
+    @handler QualityDashboard
+    get /quality/dashboard (QualityDashboardRequest) returns (QualityDashboardResponse)
+}

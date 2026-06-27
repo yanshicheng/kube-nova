@@ -1,0 +1,695 @@
+syntax = "proto3";
+
+option go_package = "github.com/yanshicheng/kube-nova/application/devops-pipeline-rpc/pb";
+
+package devopspipelinepb;
+
+message EmptyResp {}
+
+message IdResp {
+  string id = 1;
+}
+
+message HealthReq {}
+
+message HealthResp {
+  string status = 1;
+}
+
+message StepParamOption {
+  string label = 1;
+  string value = 2;
+}
+
+message StepParamConfig {
+  repeated StepParamOption options = 1;
+  string channelGroupCode = 2;
+  string channelParamCode = 3;
+  string channelBindingId = 4;
+  string mappingField = 5;
+  string voucherModel = 6;
+  string credentialId = 7;
+  string projectParamCode = 8;
+  string provider = 9;
+  bool validateRemote = 10;
+  string componentParamCode = 11;
+  repeated CompoundParamField compoundFields = 12;
+  string credentialMode = 13;
+  string credentialSourceParamCode = 14;
+  bool fullRow = 15;
+  string renderMode = 16;
+  string configTypeId = 17;
+  string configTypeCode = 18;
+  string valueMode = 19;
+  string channelTypeFilter = 20;
+  repeated StepParamDependency dependencyParamCodes = 21;
+}
+
+message StepParamDependency {
+  string field = 1;
+  string paramCode = 2;
+}
+
+message CompoundParamField {
+  string name = 1;
+  string code = 2;
+  string defaultValue = 3;
+  string paramType = 4;
+  string mode = 5;
+  bool required = 6;
+  bool readonly = 7;
+  string description = 8;
+  repeated StepParamOption selectList = 9;
+  bool allowCustom = 10;
+  string runtimeMode = 11;
+  StepParamConfig config = 12;
+}
+
+message StepArtifactConfig {
+  bool enabled = 1;
+  string type = 2;
+  string name = 3;
+  string path = 4;
+  bool required = 5;
+  string contentType = 6;
+}
+
+message PipelineParam {
+  string name = 1;
+  string code = 2;
+  string defaultValue = 3;
+  string currentValue = 4;
+  string paramType = 5;
+  string mode = 6;
+  bool required = 7;
+  bool readonly = 8;
+  string description = 9;
+  repeated StepParamOption selectList = 10;
+  bool allowCustom = 11;
+  int64 sortOrder = 12;
+  string runtimeMode = 13;
+  StepParamConfig config = 14;
+  bool runtimeConfig = 15;
+  string stepNodeId = 16;
+  string sourceCode = 17;
+}
+
+message PipelineStep {
+  string id = 1;
+  string stepId = 2;
+  string stepCode = 3;
+  string stepName = 4;
+  string nodeName = 5;
+  string stepType = 6;
+  string icon = 7;
+  string iconColor = 8;
+  string parentNodeId = 9;
+  string branchType = 10;
+  int64 sortOrder = 11;
+  bool enabled = 12;
+  int64 x = 13;
+  int64 y = 14;
+  string paramValues = 15;
+  string stageContent = 16;
+  StepArtifactConfig artifactConfig = 17;
+  string containerName = 18;
+}
+
+message JenkinsAgentContainer {
+  string name = 1;
+  string image = 2;
+}
+
+message JenkinsAgent {
+  string type = 1;
+  string label = 2;
+  string dockerImage = 3;
+  string dockerArgs = 4;
+  string raw = 5;
+  string id = 6;
+  string name = 7;
+  string agentType = 8;
+  string matchMode = 9;
+  string matchValue = 10;
+  string cloud = 11;
+  string podYaml = 12;
+  repeated JenkinsAgentContainer containers = 13;
+}
+
+message JenkinsTool {
+  string name = 1;
+  string type = 2;
+  string version = 3;
+}
+
+message JenkinsOption {
+  string name = 1;
+  string value = 2;
+}
+
+message JenkinsTrigger {
+  string type = 1;
+  string spec = 2;
+  bool enabled = 3;
+}
+
+message ScanPlanItem {
+  string stepId = 1;
+  string stageId = 2;
+  string tool = 3;
+  string toolMode = 4;
+  string toolBindingId = 5;
+  string targetType = 6;
+  string targetName = 7;
+  string targetParamCode = 8;
+  string reportSource = 9;
+  string reportPath = 10;
+  string reportFormat = 11;
+  bool required = 12;
+  bool enforce = 13;
+  string parser = 14;
+}
+
+message JenkinsAgentListReq {
+  string projectId = 1;
+  string systemId = 2;
+  string environmentId = 3;
+  string buildChannelBindingId = 4;
+  uint64 currentUserId = 5;
+  repeated string currentRoles = 6;
+}
+
+message JenkinsAgentNode {
+  string name = 1;
+  string displayName = 2;
+  string label = 3;
+  bool offline = 4;
+  bool temporarilyOffline = 5;
+  repeated string labels = 6;
+}
+
+message JenkinsAgentListResp {
+  repeated JenkinsAgentNode data = 1;
+}
+
+message DevopsPipeline {
+  string id = 1;
+  string projectId = 2;
+  string projectName = 3;
+  string projectCode = 4;
+  string systemId = 5;
+  string systemName = 6;
+  string systemCode = 7;
+  string environmentId = 8;
+  string environmentName = 9;
+  string environmentCode = 10;
+  string name = 11;
+  string code = 12;
+  string engineType = 13;
+  string templateId = 14;
+  string buildChannelBindingId = 15;
+  string buildChannelName = 16;
+  repeated PipelineStep steps = 17;
+  repeated PipelineParam params = 18;
+  JenkinsAgent agent = 19;
+  repeated JenkinsTool tools = 20;
+  repeated JenkinsOption options = 21;
+  repeated JenkinsTrigger triggers = 22;
+  string jobName = 23;
+  string jobFullName = 24;
+  string syncStatus = 25;
+  string lastRunStatus = 26;
+  int64 status = 27;
+  string createdBy = 28;
+  string updatedBy = 29;
+  int64 createdAt = 30;
+  int64 updatedAt = 31;
+  string lastRunId = 32;
+  int64 lastRunBuildNumber = 33;
+  string lastRunBuildUrl = 34;
+  string lastRunStartedAt = 35;
+  string triggerMode = 36;
+  string syncMessage = 37;
+  bool scanEnabled = 38;
+  string scanMode = 39;
+  bool rejectUnexpectedReports = 40;
+  bool enforce = 41;
+  repeated ScanPlanItem scanItems = 42;
+  string tektonDagConfig = 43;
+  string tektonRunPolicy = 44;
+  string tektonTriggerConfig = 45;
+  string tektonPrunerPolicyRef = 46;
+  string tektonPipelineYamlSnapshot = 47;
+  string tektonTemplateId = 48;
+  string tektonTemplateSnapshot = 49;
+  string tektonParamBindings = 50;
+  string tektonWorkspaceBindings = 51;
+  string tektonResourceBindings = 52;
+}
+
+message CreatePipelineReq {
+  string projectId = 1;
+  string systemId = 2;
+  string environmentId = 3;
+  string name = 4;
+  string code = 5;
+  string engineType = 6;
+  string templateId = 7;
+  string buildChannelBindingId = 8;
+  repeated PipelineStep steps = 9;
+  repeated PipelineParam params = 10;
+  JenkinsAgent agent = 11;
+  repeated JenkinsTool tools = 12;
+  repeated JenkinsOption options = 13;
+  repeated JenkinsTrigger triggers = 14;
+  int64 status = 15;
+  string createdBy = 16;
+  uint64 currentUserId = 17;
+  repeated string currentRoles = 18;
+  string triggerMode = 19;
+  bool scanEnabled = 20;
+  string scanMode = 21;
+  bool rejectUnexpectedReports = 22;
+  bool enforce = 23;
+  repeated ScanPlanItem scanItems = 24;
+  string tektonDagConfig = 25;
+  string tektonRunPolicy = 26;
+  string tektonTriggerConfig = 27;
+  string tektonPrunerPolicyRef = 28;
+  string tektonTemplateId = 29;
+  string tektonTemplateSnapshot = 30;
+  string tektonParamBindings = 31;
+  string tektonWorkspaceBindings = 32;
+  string tektonResourceBindings = 33;
+}
+
+message UpdatePipelineReq {
+  string id = 1;
+  string systemId = 2;
+  string environmentId = 3;
+  string name = 4;
+  string code = 5;
+  string engineType = 6;
+  string templateId = 7;
+  string buildChannelBindingId = 8;
+  repeated PipelineStep steps = 9;
+  repeated PipelineParam params = 10;
+  JenkinsAgent agent = 11;
+  repeated JenkinsTool tools = 12;
+  repeated JenkinsOption options = 13;
+  repeated JenkinsTrigger triggers = 14;
+  int64 status = 15;
+  string updatedBy = 16;
+  uint64 currentUserId = 17;
+  repeated string currentRoles = 18;
+  string triggerMode = 19;
+  bool scanEnabled = 20;
+  string scanMode = 21;
+  bool rejectUnexpectedReports = 22;
+  bool enforce = 23;
+  repeated ScanPlanItem scanItems = 24;
+  string tektonDagConfig = 25;
+  string tektonRunPolicy = 26;
+  string tektonTriggerConfig = 27;
+  string tektonPrunerPolicyRef = 28;
+  string tektonTemplateId = 29;
+  string tektonTemplateSnapshot = 30;
+  string tektonParamBindings = 31;
+  string tektonWorkspaceBindings = 32;
+  string tektonResourceBindings = 33;
+}
+
+message GetPipelineReq {
+  string id = 1;
+  uint64 currentUserId = 2;
+  repeated string currentRoles = 3;
+}
+
+message DeletePipelineReq {
+  string id = 1;
+  string updatedBy = 2;
+  uint64 currentUserId = 3;
+  repeated string currentRoles = 4;
+}
+
+message ListPipelineReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string projectId = 3;
+  string systemId = 4;
+  string environmentId = 5;
+  string name = 6;
+  string code = 7;
+  string engineType = 8;
+  string syncStatus = 9;
+  string lastRunStatus = 10;
+  int64 status = 11;
+  uint64 currentUserId = 12;
+  repeated string currentRoles = 13;
+  string triggerMode = 14;
+}
+
+message GetPipelineResp {
+  DevopsPipeline data = 1;
+}
+
+message ListPipelineResp {
+  repeated DevopsPipeline data = 1;
+  uint64 total = 2;
+}
+
+message PipelinePreviewResp {
+  string pipeline = 1;
+}
+
+message TektonRuntimeResource {
+  string name = 1;
+  string namespace = 2;
+  string kind = 3;
+  string apiVersion = 4;
+  string description = 5;
+  repeated string params = 6;
+  repeated string workspaces = 7;
+  repeated string results = 8;
+  string provisioner = 9;
+  string reclaimPolicy = 10;
+  string volumeBindingMode = 11;
+  bool allowVolumeExpansion = 12;
+  repeated string secrets = 13;
+  repeated string imagePullSecrets = 14;
+  int64 createdAt = 15;
+  string yaml = 16;
+  repeated string keys = 17;
+}
+
+message ListTektonRuntimeResourceReq {
+  string resourceType = 1;
+  string projectId = 2;
+  string systemId = 3;
+  string environmentId = 4;
+  string buildChannelBindingId = 5;
+  string keyword = 6;
+  uint64 currentUserId = 7;
+  repeated string currentRoles = 8;
+}
+
+message ListTektonRuntimeResourceResp {
+  repeated TektonRuntimeResource data = 1;
+  uint64 total = 2;
+}
+
+message RunPipelineReq {
+  string id = 1;
+  string params = 2;
+  string triggerType = 3;
+  uint64 currentUserId = 4;
+  string currentUsername = 5;
+  repeated string currentRoles = 6;
+  string workspaces = 7;
+}
+
+message StopPipelineRunReq {
+  string runId = 1;
+  string operator = 2;
+  uint64 currentUserId = 3;
+  repeated string currentRoles = 4;
+}
+
+message DeletePipelineRunReq {
+  string runId = 1;
+  string operator = 2;
+  uint64 currentUserId = 3;
+  repeated string currentRoles = 4;
+}
+
+message DevopsPipelineRun {
+  string id = 1;
+  string projectId = 2;
+  string projectName = 3;
+  string projectCode = 4;
+  string systemId = 5;
+  string systemName = 6;
+  string systemCode = 7;
+  string environmentId = 8;
+  string environmentName = 9;
+  string environmentCode = 10;
+  string pipelineId = 11;
+  string pipelineName = 12;
+  string pipelineCode = 13;
+  string engineType = 14;
+  string jenkinsJobName = 15;
+  string jenkinsJobFullName = 16;
+  int64 jenkinsBuildNumber = 17;
+  string jenkinsQueueId = 18;
+  string jenkinsBuildUrl = 19;
+  string tektonNamespace = 20;
+  string tektonPipelineName = 21;
+  string tektonPipelineRunName = 22;
+  string triggerType = 23;
+  uint64 triggerUserId = 24;
+  string triggerUsername = 25;
+  string status = 26;
+  string startedAt = 27;
+  string finishedAt = 28;
+  int64 durationSeconds = 29;
+  string errorMessage = 30;
+  string logStorageType = 31;
+  string logObjectKey = 32;
+  int64 logSize = 33;
+  string logArchivedAt = 34;
+  int64 buildId = 35;
+}
+
+message ListPipelineRunReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string projectId = 3;
+  string pipelineId = 4;
+  string status = 5;
+  uint64 currentUserId = 6;
+  repeated string currentRoles = 7;
+}
+
+message ListPipelineRunResp {
+  repeated DevopsPipelineRun data = 1;
+  uint64 total = 2;
+}
+
+message PipelineRunStage {
+  string id = 1;
+  string runId = 2;
+  string pipelineId = 3;
+  string nodeId = 4;
+  string stageName = 5;
+  string stageType = 6;
+  string status = 7;
+  string startedAt = 8;
+  string finishedAt = 9;
+  int64 durationSeconds = 10;
+  string jenkinsNodeId = 11;
+  string logObjectKey = 12;
+  string errorMessage = 13;
+  string tektonTaskRunName = 14;
+  string tektonPodName = 15;
+  string containerName = 16;
+  repeated string containerNames = 17;
+  repeated TektonTaskRunSnapshot tektonTaskRuns = 18;
+}
+
+message TektonTaskRunSnapshot {
+  string name = 1;
+  string pipelineTaskName = 2;
+  string podName = 3;
+  string containerName = 4;
+  repeated string containerNames = 5;
+  string status = 6;
+  string startedAt = 7;
+  string finishedAt = 8;
+  int64 durationSeconds = 9;
+  string errorMessage = 10;
+}
+
+message ListPipelineRunStageReq {
+  string runId = 1;
+  uint64 currentUserId = 2;
+  repeated string currentRoles = 3;
+}
+
+message ListPipelineRunStageResp {
+  repeated PipelineRunStage data = 1;
+}
+
+message PipelineRunLogReq {
+  string runId = 1;
+  string stageId = 2;
+  bool full = 3;
+  uint64 currentUserId = 4;
+  repeated string currentRoles = 5;
+  string taskRunName = 6;
+  string podName = 7;
+  string containerName = 8;
+}
+
+message PipelineRunLogResp {
+  string content = 1;
+  bool archived = 2;
+  string source = 3;
+}
+
+message PipelineRunYamlSnapshotReq {
+  string runId = 1;
+  uint64 currentUserId = 2;
+  repeated string currentRoles = 3;
+}
+
+message PipelineRunYamlSnapshotResp {
+  string runId = 1;
+  string pipelineId = 2;
+  string engineType = 3;
+  string tektonNamespace = 4;
+  string tektonPipelineName = 5;
+  string tektonPipelineRunName = 6;
+  string tektonPipelineYamlSnapshot = 7;
+  string tektonPipelineRunYamlSnapshot = 8;
+  string pipelineSnapshot = 9;
+}
+
+message PipelineRunArtifact {
+  string id = 1;
+  string runId = 2;
+  string stageId = 3;
+  string stepId = 4;
+  string name = 5;
+  string type = 6;
+  string bucket = 7;
+  string objectKey = 8;
+  int64 size = 9;
+  string contentType = 10;
+  string status = 11;
+  string errorMessage = 12;
+  string url = 13;
+  string createdAt = 14;
+}
+
+message PipelineRunArtifactListReq {
+  string runId = 1;
+  uint64 currentUserId = 2;
+  repeated string currentRoles = 3;
+}
+
+message PipelineRunArtifactListResp {
+  repeated PipelineRunArtifact data = 1;
+}
+
+message PipelineRunInputParam {
+  string name = 1;
+  string type = 2;
+  string description = 3;
+  string defaultValue = 4;
+  repeated StepParamOption options = 5;
+}
+
+message PipelineRunInput {
+  string id = 1;
+  string name = 2;
+  string message = 3;
+  repeated PipelineRunInputParam params = 4;
+}
+
+message PipelineRunInputListReq {
+  string runId = 1;
+  uint64 currentUserId = 2;
+  repeated string currentRoles = 3;
+}
+
+message PipelineRunInputListResp {
+  repeated PipelineRunInput data = 1;
+}
+
+message PipelineRunInputActionReq {
+  string runId = 1;
+  string inputId = 2;
+  string params = 3;
+  string operator = 4;
+  uint64 currentUserId = 5;
+  repeated string currentRoles = 6;
+}
+
+message PipelineDashboardReq {
+  string projectId = 1;
+  uint64 currentUserId = 2;
+  repeated string currentRoles = 3;
+}
+
+message PipelineDashboardOverview {
+  int64 buildCount = 1;
+  int64 successCount = 2;
+  int64 failureCount = 3;
+  int64 abortedCount = 4;
+  int64 totalDurationSeconds = 5;
+  double successRate = 6;
+  double failureRate = 7;
+  int64 avgDurationSeconds = 8;
+  int64 projectCount = 9;
+  int64 systemCount = 10;
+  int64 environmentCount = 11;
+  int64 pipelineCount = 12;
+  int64 channelCount = 13;
+}
+
+message PipelineDashboardMetric {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  int64 buildCount = 4;
+  int64 successCount = 5;
+  int64 failureCount = 6;
+  int64 abortedCount = 7;
+  int64 totalDurationSeconds = 8;
+  double successRate = 9;
+  double failureRate = 10;
+  int64 avgDurationSeconds = 11;
+  string lastRunAt = 12;
+}
+
+message PipelineDashboardTrend {
+  string date = 1;
+  int64 buildCount = 2;
+  int64 successCount = 3;
+  int64 failureCount = 4;
+  int64 durationSeconds = 5;
+}
+
+message PipelineDashboardResp {
+  PipelineDashboardOverview overview = 1;
+  repeated PipelineDashboardTrend trends = 2;
+  repeated PipelineDashboardMetric projectRanks = 3;
+  repeated PipelineDashboardMetric systemRanks = 4;
+  repeated PipelineDashboardMetric pipelineRanks = 5;
+  repeated PipelineDashboardMetric environmentRanks = 6;
+  repeated PipelineDashboardMetric channelRanks = 7;
+}
+
+service ExecutionService {
+  rpc Health(HealthReq) returns (HealthResp);
+  rpc PipelineCreate(CreatePipelineReq) returns (IdResp);
+  rpc PipelineUpdate(UpdatePipelineReq) returns (EmptyResp);
+  rpc PipelineDelete(DeletePipelineReq) returns (EmptyResp);
+  rpc PipelineGet(GetPipelineReq) returns (GetPipelineResp);
+  rpc PipelineList(ListPipelineReq) returns (ListPipelineResp);
+  rpc PipelinePreview(GetPipelineReq) returns (PipelinePreviewResp);
+  rpc TektonRuntimeResourceList(ListTektonRuntimeResourceReq) returns (ListTektonRuntimeResourceResp);
+  rpc PipelineRun(RunPipelineReq) returns (IdResp);
+  rpc PipelineRunStop(StopPipelineRunReq) returns (EmptyResp);
+  rpc PipelineRunDelete(DeletePipelineRunReq) returns (EmptyResp);
+  rpc PipelineRunList(ListPipelineRunReq) returns (ListPipelineRunResp);
+  rpc PipelineRunStageList(ListPipelineRunStageReq) returns (ListPipelineRunStageResp);
+  rpc PipelineRunLog(PipelineRunLogReq) returns (PipelineRunLogResp);
+  rpc PipelineRunYamlSnapshot(PipelineRunYamlSnapshotReq) returns (PipelineRunYamlSnapshotResp);
+  rpc PipelineRunArtifactList(PipelineRunArtifactListReq) returns (PipelineRunArtifactListResp);
+  rpc PipelineRunInputList(PipelineRunInputListReq) returns (PipelineRunInputListResp);
+  rpc PipelineRunInputProceed(PipelineRunInputActionReq) returns (EmptyResp);
+  rpc PipelineRunInputAbort(PipelineRunInputActionReq) returns (EmptyResp);
+  rpc PipelineDashboard(PipelineDashboardReq) returns (PipelineDashboardResp);
+  rpc JenkinsAgentList(JenkinsAgentListReq) returns (JenkinsAgentListResp);
+}

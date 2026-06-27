@@ -11,20 +11,23 @@ import (
 
 // UploaderOptions 定义了配置上传器所需的参数
 type UploaderOptions struct {
-	Provider      string   // 存储提供商类型，例如 aliyun、minio
-	Endpoints     []string // 端点地址
-	EndpointProxy string
-	AccessKey     string // 访问密钥
-	AccessSecret  string // 访问密钥的秘钥
-	CAFile        string // TLS CA证书文件路径
-	CAKey         string // TLS CA密钥文件路径
-	UseTLS        bool   // 是否启用 TLS
-	BucketName    string
+	Provider       string   // 存储提供商类型，例如 aliyun、minio
+	Endpoints      []string // 端点地址
+	EndpointProxy  string
+	AccessKey      string // 访问密钥
+	AccessSecret   string // 访问密钥的秘钥
+	CAFile         string // TLS CA 证书文件路径
+	CAKey          string // 兼容旧配置的客户端证书密钥路径
+	ClientCertFile string `json:",optional"` // TLS 客户端证书文件路径
+	ClientKeyFile  string `json:",optional"` // TLS 客户端证书密钥路径
+	UseTLS         bool   // 是否启用 TLS
+	BucketName     string
 }
 
 // 定义 Uploader 接口
 type Uploader interface {
 	Upload(bucketName, objectKey string, data io.Reader, size int64, contentType string) error
+	Download(ctx context.Context, bucketName, objectKey string) (io.ReadCloser, int64, string, error)
 	Ping() error
 }
 
@@ -43,11 +46,22 @@ func NewUploader(opts UploaderOptions) (Uploader, error) {
 	case "tencent":
 		// 腾讯云存储服务初始化（此处省略）
 		return nil, fmt.Errorf("tencent uploader not implemented")
-	case "minio":
-		// MinIO 存储服务初始化
-		uploader, err := minio.NewMinioStore(opts.Endpoints[0], opts.AccessKey, opts.AccessSecret, opts.CAFile, opts.CAKey, opts.UseTLS)
+	case "minio", "s3":
+		// S3 兼容存储服务初始化
+		if len(opts.Endpoints) == 0 || opts.Endpoints[0] == "" {
+			return nil, fmt.Errorf("对象存储 endpoint 不能为空")
+		}
+		if opts.AccessKey == "" || opts.AccessSecret == "" {
+			return nil, fmt.Errorf("对象存储访问密钥不能为空")
+		}
+		clientCertFile := opts.ClientCertFile
+		clientKeyFile := opts.ClientKeyFile
+		if clientCertFile != "" && clientKeyFile == "" {
+			clientKeyFile = opts.CAKey
+		}
+		uploader, err := minio.NewMinioStore(opts.Endpoints[0], opts.AccessKey, opts.AccessSecret, opts.CAFile, clientCertFile, clientKeyFile, opts.UseTLS)
 		if err != nil {
-			return nil, fmt.Errorf("创建 MinIO 客户端失败: %v", err)
+			return nil, fmt.Errorf("创建 S3 兼容客户端失败: %v", err)
 		}
 		return uploader, nil
 	default:

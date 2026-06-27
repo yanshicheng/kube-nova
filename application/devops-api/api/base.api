@@ -1,0 +1,19 @@
+syntax = "v1"
+
+info(
+    title: "DevOps base type"
+    desc: "DevOps 通用结构类型"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+type (
+    IdResponse {
+        Id string `json:"id"`
+    }
+
+    DefaultStringIdRequest {
+        Id string `path:"id" validate:"required"`
+    }
+)
