@@ -6,7 +6,7 @@ import (
 
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/config"
 	portalserviceServer "github.com/yanshicheng/kube-nova/application/portal-rpc/internal/server/portalservice"
-	projectserviceServer "github.com/yanshicheng/kube-nova/application/portal-rpc/internal/server/projectservice"
+	portalprojectserviceServer "github.com/yanshicheng/kube-nova/application/portal-rpc/internal/server/portalprojectservice"
 	sitemessagesServer "github.com/yanshicheng/kube-nova/application/portal-rpc/internal/server/sitemessagesservice"
 	storageserviceServer "github.com/yanshicheng/kube-nova/application/portal-rpc/internal/server/storageservice"
 	sysauthserviceServer "github.com/yanshicheng/kube-nova/application/portal-rpc/internal/server/sysauthservice"
@@ -38,7 +38,7 @@ func main() {
 		pb.RegisterPortalServiceServer(grpcServer, portalserviceServer.NewPortalServiceServer(ctx))
 		pb.RegisterAlertServiceServer(grpcServer, alertsServer.NewAlertServiceServer(ctx))
 		pb.RegisterSiteMessagesServiceServer(grpcServer, sitemessagesServer.NewSiteMessagesServiceServer(ctx))
-		pb.RegisterProjectServiceServer(grpcServer, projectserviceServer.NewProjectServiceServer(ctx))
+		pb.RegisterPortalProjectServiceServer(grpcServer, portalprojectserviceServer.NewPortalProjectServiceServer(ctx))
 		if c.Mode == service.DevMode || c.Mode == service.TestMode {
 			reflection.Register(grpcServer)
 		}

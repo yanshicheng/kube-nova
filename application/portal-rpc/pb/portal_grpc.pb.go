@@ -3149,20 +3149,20 @@ var PortalService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	ProjectService_CreateProject_FullMethodName    = "/pb.ProjectService/CreateProject"
-	ProjectService_UpdateProject_FullMethodName    = "/pb.ProjectService/UpdateProject"
-	ProjectService_DeleteProject_FullMethodName    = "/pb.ProjectService/DeleteProject"
-	ProjectService_GetProject_FullMethodName       = "/pb.ProjectService/GetProject"
-	ProjectService_ListProjects_FullMethodName     = "/pb.ProjectService/ListProjects"
-	ProjectService_BatchGetProjects_FullMethodName = "/pb.ProjectService/BatchGetProjects"
+	PortalProjectService_CreateProject_FullMethodName    = "/pb.PortalProjectService/CreateProject"
+	PortalProjectService_UpdateProject_FullMethodName    = "/pb.PortalProjectService/UpdateProject"
+	PortalProjectService_DeleteProject_FullMethodName    = "/pb.PortalProjectService/DeleteProject"
+	PortalProjectService_GetProject_FullMethodName       = "/pb.PortalProjectService/GetProject"
+	PortalProjectService_ListProjects_FullMethodName     = "/pb.PortalProjectService/ListProjects"
+	PortalProjectService_BatchGetProjects_FullMethodName = "/pb.PortalProjectService/BatchGetProjects"
 )
 
-// ProjectServiceClient is the client API for ProjectService service.
+// PortalProjectServiceClient is the client API for PortalProjectService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // --------------------------------项目管理服务--------------------------------
-type ProjectServiceClient interface {
+type PortalProjectServiceClient interface {
 	CreateProject(ctx context.Context, in *PortalCreateProjectReq, opts ...grpc.CallOption) (*PortalCreateProjectResp, error)
 	UpdateProject(ctx context.Context, in *PortalUpdateProjectReq, opts ...grpc.CallOption) (*PortalUpdateProjectResp, error)
 	DeleteProject(ctx context.Context, in *PortalDeleteProjectReq, opts ...grpc.CallOption) (*PortalDeleteProjectResp, error)
@@ -3171,273 +3171,273 @@ type ProjectServiceClient interface {
 	BatchGetProjects(ctx context.Context, in *PortalBatchGetProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error)
 }
 
-type projectServiceClient struct {
+type portalProjectServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewProjectServiceClient(cc grpc.ClientConnInterface) ProjectServiceClient {
-	return &projectServiceClient{cc}
+func NewPortalProjectServiceClient(cc grpc.ClientConnInterface) PortalProjectServiceClient {
+	return &portalProjectServiceClient{cc}
 }
 
-func (c *projectServiceClient) CreateProject(ctx context.Context, in *PortalCreateProjectReq, opts ...grpc.CallOption) (*PortalCreateProjectResp, error) {
+func (c *portalProjectServiceClient) CreateProject(ctx context.Context, in *PortalCreateProjectReq, opts ...grpc.CallOption) (*PortalCreateProjectResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PortalCreateProjectResp)
-	err := c.cc.Invoke(ctx, ProjectService_CreateProject_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, PortalProjectService_CreateProject_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *projectServiceClient) UpdateProject(ctx context.Context, in *PortalUpdateProjectReq, opts ...grpc.CallOption) (*PortalUpdateProjectResp, error) {
+func (c *portalProjectServiceClient) UpdateProject(ctx context.Context, in *PortalUpdateProjectReq, opts ...grpc.CallOption) (*PortalUpdateProjectResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PortalUpdateProjectResp)
-	err := c.cc.Invoke(ctx, ProjectService_UpdateProject_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, PortalProjectService_UpdateProject_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *projectServiceClient) DeleteProject(ctx context.Context, in *PortalDeleteProjectReq, opts ...grpc.CallOption) (*PortalDeleteProjectResp, error) {
+func (c *portalProjectServiceClient) DeleteProject(ctx context.Context, in *PortalDeleteProjectReq, opts ...grpc.CallOption) (*PortalDeleteProjectResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PortalDeleteProjectResp)
-	err := c.cc.Invoke(ctx, ProjectService_DeleteProject_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, PortalProjectService_DeleteProject_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *projectServiceClient) GetProject(ctx context.Context, in *PortalGetProjectReq, opts ...grpc.CallOption) (*PortalGetProjectResp, error) {
+func (c *portalProjectServiceClient) GetProject(ctx context.Context, in *PortalGetProjectReq, opts ...grpc.CallOption) (*PortalGetProjectResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PortalGetProjectResp)
-	err := c.cc.Invoke(ctx, ProjectService_GetProject_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, PortalProjectService_GetProject_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *projectServiceClient) ListProjects(ctx context.Context, in *PortalListProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error) {
+func (c *portalProjectServiceClient) ListProjects(ctx context.Context, in *PortalListProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PortalListProjectsResp)
-	err := c.cc.Invoke(ctx, ProjectService_ListProjects_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, PortalProjectService_ListProjects_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *projectServiceClient) BatchGetProjects(ctx context.Context, in *PortalBatchGetProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error) {
+func (c *portalProjectServiceClient) BatchGetProjects(ctx context.Context, in *PortalBatchGetProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PortalListProjectsResp)
-	err := c.cc.Invoke(ctx, ProjectService_BatchGetProjects_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, PortalProjectService_BatchGetProjects_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// ProjectServiceServer is the server API for ProjectService service.
-// All implementations must embed UnimplementedProjectServiceServer
+// PortalProjectServiceServer is the server API for PortalProjectService service.
+// All implementations must embed UnimplementedPortalProjectServiceServer
 // for forward compatibility.
 //
 // --------------------------------项目管理服务--------------------------------
-type ProjectServiceServer interface {
+type PortalProjectServiceServer interface {
 	CreateProject(context.Context, *PortalCreateProjectReq) (*PortalCreateProjectResp, error)
 	UpdateProject(context.Context, *PortalUpdateProjectReq) (*PortalUpdateProjectResp, error)
 	DeleteProject(context.Context, *PortalDeleteProjectReq) (*PortalDeleteProjectResp, error)
 	GetProject(context.Context, *PortalGetProjectReq) (*PortalGetProjectResp, error)
 	ListProjects(context.Context, *PortalListProjectsReq) (*PortalListProjectsResp, error)
 	BatchGetProjects(context.Context, *PortalBatchGetProjectsReq) (*PortalListProjectsResp, error)
-	mustEmbedUnimplementedProjectServiceServer()
+	mustEmbedUnimplementedPortalProjectServiceServer()
 }
 
-// UnimplementedProjectServiceServer must be embedded to have
+// UnimplementedPortalProjectServiceServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedProjectServiceServer struct{}
+type UnimplementedPortalProjectServiceServer struct{}
 
-func (UnimplementedProjectServiceServer) CreateProject(context.Context, *PortalCreateProjectReq) (*PortalCreateProjectResp, error) {
+func (UnimplementedPortalProjectServiceServer) CreateProject(context.Context, *PortalCreateProjectReq) (*PortalCreateProjectResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateProject not implemented")
 }
-func (UnimplementedProjectServiceServer) UpdateProject(context.Context, *PortalUpdateProjectReq) (*PortalUpdateProjectResp, error) {
+func (UnimplementedPortalProjectServiceServer) UpdateProject(context.Context, *PortalUpdateProjectReq) (*PortalUpdateProjectResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateProject not implemented")
 }
-func (UnimplementedProjectServiceServer) DeleteProject(context.Context, *PortalDeleteProjectReq) (*PortalDeleteProjectResp, error) {
+func (UnimplementedPortalProjectServiceServer) DeleteProject(context.Context, *PortalDeleteProjectReq) (*PortalDeleteProjectResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteProject not implemented")
 }
-func (UnimplementedProjectServiceServer) GetProject(context.Context, *PortalGetProjectReq) (*PortalGetProjectResp, error) {
+func (UnimplementedPortalProjectServiceServer) GetProject(context.Context, *PortalGetProjectReq) (*PortalGetProjectResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProject not implemented")
 }
-func (UnimplementedProjectServiceServer) ListProjects(context.Context, *PortalListProjectsReq) (*PortalListProjectsResp, error) {
+func (UnimplementedPortalProjectServiceServer) ListProjects(context.Context, *PortalListProjectsReq) (*PortalListProjectsResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListProjects not implemented")
 }
-func (UnimplementedProjectServiceServer) BatchGetProjects(context.Context, *PortalBatchGetProjectsReq) (*PortalListProjectsResp, error) {
+func (UnimplementedPortalProjectServiceServer) BatchGetProjects(context.Context, *PortalBatchGetProjectsReq) (*PortalListProjectsResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BatchGetProjects not implemented")
 }
-func (UnimplementedProjectServiceServer) mustEmbedUnimplementedProjectServiceServer() {}
-func (UnimplementedProjectServiceServer) testEmbeddedByValue()                        {}
+func (UnimplementedPortalProjectServiceServer) mustEmbedUnimplementedPortalProjectServiceServer() {}
+func (UnimplementedPortalProjectServiceServer) testEmbeddedByValue()                              {}
 
-// UnsafeProjectServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to ProjectServiceServer will
+// UnsafePortalProjectServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to PortalProjectServiceServer will
 // result in compilation errors.
-type UnsafeProjectServiceServer interface {
-	mustEmbedUnimplementedProjectServiceServer()
+type UnsafePortalProjectServiceServer interface {
+	mustEmbedUnimplementedPortalProjectServiceServer()
 }
 
-func RegisterProjectServiceServer(s grpc.ServiceRegistrar, srv ProjectServiceServer) {
-	// If the following call pancis, it indicates UnimplementedProjectServiceServer was
+func RegisterPortalProjectServiceServer(s grpc.ServiceRegistrar, srv PortalProjectServiceServer) {
+	// If the following call pancis, it indicates UnimplementedPortalProjectServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&ProjectService_ServiceDesc, srv)
+	s.RegisterService(&PortalProjectService_ServiceDesc, srv)
 }
 
-func _ProjectService_CreateProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _PortalProjectService_CreateProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PortalCreateProjectReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ProjectServiceServer).CreateProject(ctx, in)
+		return srv.(PortalProjectServiceServer).CreateProject(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ProjectService_CreateProject_FullMethodName,
+		FullMethod: PortalProjectService_CreateProject_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProjectServiceServer).CreateProject(ctx, req.(*PortalCreateProjectReq))
+		return srv.(PortalProjectServiceServer).CreateProject(ctx, req.(*PortalCreateProjectReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ProjectService_UpdateProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _PortalProjectService_UpdateProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PortalUpdateProjectReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ProjectServiceServer).UpdateProject(ctx, in)
+		return srv.(PortalProjectServiceServer).UpdateProject(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ProjectService_UpdateProject_FullMethodName,
+		FullMethod: PortalProjectService_UpdateProject_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProjectServiceServer).UpdateProject(ctx, req.(*PortalUpdateProjectReq))
+		return srv.(PortalProjectServiceServer).UpdateProject(ctx, req.(*PortalUpdateProjectReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ProjectService_DeleteProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _PortalProjectService_DeleteProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PortalDeleteProjectReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ProjectServiceServer).DeleteProject(ctx, in)
+		return srv.(PortalProjectServiceServer).DeleteProject(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ProjectService_DeleteProject_FullMethodName,
+		FullMethod: PortalProjectService_DeleteProject_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProjectServiceServer).DeleteProject(ctx, req.(*PortalDeleteProjectReq))
+		return srv.(PortalProjectServiceServer).DeleteProject(ctx, req.(*PortalDeleteProjectReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ProjectService_GetProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _PortalProjectService_GetProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PortalGetProjectReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ProjectServiceServer).GetProject(ctx, in)
+		return srv.(PortalProjectServiceServer).GetProject(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ProjectService_GetProject_FullMethodName,
+		FullMethod: PortalProjectService_GetProject_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProjectServiceServer).GetProject(ctx, req.(*PortalGetProjectReq))
+		return srv.(PortalProjectServiceServer).GetProject(ctx, req.(*PortalGetProjectReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ProjectService_ListProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _PortalProjectService_ListProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PortalListProjectsReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ProjectServiceServer).ListProjects(ctx, in)
+		return srv.(PortalProjectServiceServer).ListProjects(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ProjectService_ListProjects_FullMethodName,
+		FullMethod: PortalProjectService_ListProjects_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProjectServiceServer).ListProjects(ctx, req.(*PortalListProjectsReq))
+		return srv.(PortalProjectServiceServer).ListProjects(ctx, req.(*PortalListProjectsReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ProjectService_BatchGetProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _PortalProjectService_BatchGetProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PortalBatchGetProjectsReq)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ProjectServiceServer).BatchGetProjects(ctx, in)
+		return srv.(PortalProjectServiceServer).BatchGetProjects(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ProjectService_BatchGetProjects_FullMethodName,
+		FullMethod: PortalProjectService_BatchGetProjects_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProjectServiceServer).BatchGetProjects(ctx, req.(*PortalBatchGetProjectsReq))
+		return srv.(PortalProjectServiceServer).BatchGetProjects(ctx, req.(*PortalBatchGetProjectsReq))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// ProjectService_ServiceDesc is the grpc.ServiceDesc for ProjectService service.
+// PortalProjectService_ServiceDesc is the grpc.ServiceDesc for PortalProjectService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var ProjectService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "pb.ProjectService",
-	HandlerType: (*ProjectServiceServer)(nil),
+var PortalProjectService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "pb.PortalProjectService",
+	HandlerType: (*PortalProjectServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "CreateProject",
-			Handler:    _ProjectService_CreateProject_Handler,
+			Handler:    _PortalProjectService_CreateProject_Handler,
 		},
 		{
 			MethodName: "UpdateProject",
-			Handler:    _ProjectService_UpdateProject_Handler,
+			Handler:    _PortalProjectService_UpdateProject_Handler,
 		},
 		{
 			MethodName: "DeleteProject",
-			Handler:    _ProjectService_DeleteProject_Handler,
+			Handler:    _PortalProjectService_DeleteProject_Handler,
 		},
 		{
 			MethodName: "GetProject",
-			Handler:    _ProjectService_GetProject_Handler,
+			Handler:    _PortalProjectService_GetProject_Handler,
 		},
 		{
 			MethodName: "ListProjects",
-			Handler:    _ProjectService_ListProjects_Handler,
+			Handler:    _PortalProjectService_ListProjects_Handler,
 		},
 		{
 			MethodName: "BatchGetProjects",
-			Handler:    _ProjectService_BatchGetProjects_Handler,
+			Handler:    _PortalProjectService_BatchGetProjects_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

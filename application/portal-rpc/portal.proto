@@ -1408,7 +1408,7 @@ service PortalService {
 }
 
 //--------------------------------项目管理服务--------------------------------
-service ProjectService {
+service PortalProjectService {
   rpc CreateProject(PortalCreateProjectReq) returns (PortalCreateProjectResp);
   rpc UpdateProject(PortalUpdateProjectReq) returns (PortalUpdateProjectResp);
   rpc DeleteProject(PortalDeleteProjectReq) returns (PortalDeleteProjectResp);

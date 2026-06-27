@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	portalprojectservice "github.com/yanshicheng/kube-nova/application/portal-rpc/client/projectservice"
+	portalprojectservice "github.com/yanshicheng/kube-nova/application/portal-rpc/client/portalprojectservice"
 	"github.com/yanshicheng/kube-nova/common/interceptors"
 	"github.com/yanshicheng/kube-nova/application/devops-manager-rpc/internal/adapter"
 	"github.com/yanshicheng/kube-nova/application/devops-manager-rpc/internal/channelcheck"
@@ -46,13 +46,13 @@ type ServiceContext struct {
 	ChannelParamLookup       *stepChannelParamLookup
 	Storage                  storage.Uploader
 	ChannelVariableSpecModel model.ChannelVariableSpecModel
-	PortalRpc                portalprojectservice.ProjectService
+	PortalRpc                portalprojectservice.PortalProjectService
 	ChannelManagerAdapter    *adapter.ChannelManagerAdapter
 	CredentialManagerAdapter *adapter.CredentialManagerAdapter
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	portalRpc := portalprojectservice.NewProjectService(zrpc.MustNewClient(c.PortalRpc, zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor())))
+	portalRpc := portalprojectservice.NewPortalProjectService(zrpc.MustNewClient(c.PortalRpc, zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor())))
 	projectModel := model.NewDevopsProjectModel(c.Mongo.Url, c.Mongo.Db)
 	projectMavenModel := model.NewDevopsProjectMavenConfigModel(c.Mongo.Url, c.Mongo.Db)
 	configTypeModel := model.NewDevopsConfigTypeModel(c.Mongo.Url, c.Mongo.Db)

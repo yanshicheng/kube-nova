@@ -2,7 +2,7 @@
 // goctl 1.9.2
 // Source: portal.proto
 
-package projectservice
+package portalprojectservice
 
 import (
 	"context"
@@ -274,7 +274,7 @@ type (
 	VerifyTokenRequest                 = pb.VerifyTokenRequest
 	VerifyTokenResponse                = pb.VerifyTokenResponse
 
-	ProjectService interface {
+	PortalProjectService interface {
 		CreateProject(ctx context.Context, in *PortalCreateProjectReq, opts ...grpc.CallOption) (*PortalCreateProjectResp, error)
 		UpdateProject(ctx context.Context, in *PortalUpdateProjectReq, opts ...grpc.CallOption) (*PortalUpdateProjectResp, error)
 		DeleteProject(ctx context.Context, in *PortalDeleteProjectReq, opts ...grpc.CallOption) (*PortalDeleteProjectResp, error)
@@ -283,43 +283,43 @@ type (
 		BatchGetProjects(ctx context.Context, in *PortalBatchGetProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error)
 	}
 
-	defaultProjectService struct {
+	defaultPortalProjectService struct {
 		cli zrpc.Client
 	}
 )
 
-func NewProjectService(cli zrpc.Client) ProjectService {
-	return &defaultProjectService{
+func NewPortalProjectService(cli zrpc.Client) PortalProjectService {
+	return &defaultPortalProjectService{
 		cli: cli,
 	}
 }
 
-func (m *defaultProjectService) CreateProject(ctx context.Context, in *PortalCreateProjectReq, opts ...grpc.CallOption) (*PortalCreateProjectResp, error) {
-	client := pb.NewProjectServiceClient(m.cli.Conn())
+func (m *defaultPortalProjectService) CreateProject(ctx context.Context, in *PortalCreateProjectReq, opts ...grpc.CallOption) (*PortalCreateProjectResp, error) {
+	client := pb.NewPortalProjectServiceClient(m.cli.Conn())
 	return client.CreateProject(ctx, in, opts...)
 }
 
-func (m *defaultProjectService) UpdateProject(ctx context.Context, in *PortalUpdateProjectReq, opts ...grpc.CallOption) (*PortalUpdateProjectResp, error) {
-	client := pb.NewProjectServiceClient(m.cli.Conn())
+func (m *defaultPortalProjectService) UpdateProject(ctx context.Context, in *PortalUpdateProjectReq, opts ...grpc.CallOption) (*PortalUpdateProjectResp, error) {
+	client := pb.NewPortalProjectServiceClient(m.cli.Conn())
 	return client.UpdateProject(ctx, in, opts...)
 }
 
-func (m *defaultProjectService) DeleteProject(ctx context.Context, in *PortalDeleteProjectReq, opts ...grpc.CallOption) (*PortalDeleteProjectResp, error) {
-	client := pb.NewProjectServiceClient(m.cli.Conn())
+func (m *defaultPortalProjectService) DeleteProject(ctx context.Context, in *PortalDeleteProjectReq, opts ...grpc.CallOption) (*PortalDeleteProjectResp, error) {
+	client := pb.NewPortalProjectServiceClient(m.cli.Conn())
 	return client.DeleteProject(ctx, in, opts...)
 }
 
-func (m *defaultProjectService) GetProject(ctx context.Context, in *PortalGetProjectReq, opts ...grpc.CallOption) (*PortalGetProjectResp, error) {
-	client := pb.NewProjectServiceClient(m.cli.Conn())
+func (m *defaultPortalProjectService) GetProject(ctx context.Context, in *PortalGetProjectReq, opts ...grpc.CallOption) (*PortalGetProjectResp, error) {
+	client := pb.NewPortalProjectServiceClient(m.cli.Conn())
 	return client.GetProject(ctx, in, opts...)
 }
 
-func (m *defaultProjectService) ListProjects(ctx context.Context, in *PortalListProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error) {
-	client := pb.NewProjectServiceClient(m.cli.Conn())
+func (m *defaultPortalProjectService) ListProjects(ctx context.Context, in *PortalListProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error) {
+	client := pb.NewPortalProjectServiceClient(m.cli.Conn())
 	return client.ListProjects(ctx, in, opts...)
 }
 
-func (m *defaultProjectService) BatchGetProjects(ctx context.Context, in *PortalBatchGetProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error) {
-	client := pb.NewProjectServiceClient(m.cli.Conn())
+func (m *defaultPortalProjectService) BatchGetProjects(ctx context.Context, in *PortalBatchGetProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error) {
+	client := pb.NewPortalProjectServiceClient(m.cli.Conn())
 	return client.BatchGetProjects(ctx, in, opts...)
 }

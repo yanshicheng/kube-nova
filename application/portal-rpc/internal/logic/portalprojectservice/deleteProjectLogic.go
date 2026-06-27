@@ -1,4 +1,4 @@
-package projectservicelogic
+package portalprojectservicelogic
 
 import (
 	"context"
