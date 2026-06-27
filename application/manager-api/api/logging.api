@@ -1,0 +1,446 @@
+syntax = "v1"
+
+type (
+    LogQueryModeOptionsRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+    }
+
+    LogQueryModeOptionsResponse {
+        Loki bool `json:"loki"`
+        Elasticsearch bool `json:"elasticsearch"`
+    }
+
+    LogClusterConfigRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+    }
+
+    LogClusterConfigItem {
+        Id                 uint64 `json:"id"`
+        ClusterUuid        string `json:"clusterUuid"`
+        AppName            string `json:"appName"`
+        AppCode            string `json:"appCode"`
+        AppType            int64  `json:"appType"`
+        IsDefault          bool   `json:"isDefault"`
+        AppUrl             string `json:"appUrl"`
+        Port               int64  `json:"port"`
+        Protocol           string `json:"protocol"`
+        AuthEnabled        bool   `json:"authEnabled"`
+        AuthType           string `json:"authType"`
+        TlsEnabled         bool   `json:"tlsEnabled"`
+        InsecureSkipVerify bool   `json:"insecureSkipVerify"`
+        Status             int64  `json:"status"`
+        CreatedAt          int64  `json:"createdAt"`
+        UpdatedAt          int64  `json:"updatedAt"`
+    }
+
+    LogClusterConfigResponse {
+        ClusterUuid    string                 `json:"clusterUuid"`
+        DefaultBackend string                 `json:"defaultBackend"`
+        Backends       []LogClusterConfigItem `json:"backends"`
+    }
+
+    LogClusterSyncStatusRequest {
+        ClusterUuid string `form:"clusterUuid" validate:"required"`
+    }
+
+    LogClusterSyncStatusResponse {
+        ClusterUuid   string `json:"clusterUuid"`
+        TotalRules    uint64 `json:"totalRules"`
+        EnabledRules  uint64 `json:"enabledRules"`
+        SuccessRules  uint64 `json:"successRules"`
+        FailedRules   uint64 `json:"failedRules"`
+        PendingRules  uint64 `json:"pendingRules"`
+        DisabledRules uint64 `json:"disabledRules"`
+        HealthStatus  string `json:"healthStatus"`
+        LastSyncError string `json:"lastSyncError"`
+        LastSyncAt    int64  `json:"lastSyncAt"`
+    }
+
+    LogAlertEngineStatsRequest {
+        ClusterUuid string `form:"clusterUuid,optional"`
+    }
+
+    LogAlertEngineStatsResponse {
+        ClusterUuid         string `json:"clusterUuid"`
+        TotalRules          uint64 `json:"totalRules"`
+        EnabledRules        uint64 `json:"enabledRules"`
+        DisabledRules       uint64 `json:"disabledRules"`
+        SuccessRules        uint64 `json:"successRules"`
+        FailedRules         uint64 `json:"failedRules"`
+        PendingRules        uint64 `json:"pendingRules"`
+        ActiveFiringEvents  uint64 `json:"activeFiringEvents"`
+        FailedNotifyEvents  uint64 `json:"failedNotifyEvents"`
+        DeadNotifyEvents    uint64 `json:"deadNotifyEvents"`
+        CriticalRules       uint64 `json:"criticalRules"`
+        WarningRules        uint64 `json:"warningRules"`
+        InfoRules           uint64 `json:"infoRules"`
+        HotRules            uint64 `json:"hotRules"`
+        WarmRules           uint64 `json:"warmRules"`
+        ColdRules           uint64 `json:"coldRules"`
+    }
+
+    ManualRetryLogAlertEventRequest {
+        Id uint64 `path:"id"`
+    }
+
+    ManualRetryLogAlertEventResponse {
+        Id           uint64 `json:"id"`
+        NotifyStatus string `json:"notifyStatus"`
+        RetryCount   int64  `json:"retryCount"`
+        NotifyError  string `json:"notifyError"`
+        NextRetryAt  int64  `json:"nextRetryAt"`
+    }
+
+    CloseLogAlertEventRequest {
+        Id     uint64 `path:"id"`
+        Reason string `json:"reason" validate:"required,max=500"`
+    }
+
+    UpdateLogAlertEventReasonRequest {
+        Id     uint64 `path:"id"`
+        Reason string `json:"reason" validate:"required,max=500"`
+    }
+
+    DeleteLogAlertEventRequest {
+        Id uint64 `path:"id"`
+    }
+
+    SearchLogAlertEventsRequest {
+        ClusterUuid  string `form:"clusterUuid,optional"`
+        RuleId       uint64 `form:"ruleId,optional"`
+        EventStatus  string `form:"eventStatus,optional"`
+        NotifyStatus string `form:"notifyStatus,optional"`
+        Page         uint64 `form:"page,optional,default=1"`
+        PageSize     uint64 `form:"pageSize,optional,default=20"`
+    }
+
+    LogAlertEvent {
+        Id               uint64 `json:"id"`
+        RuleId           uint64 `json:"ruleId"`
+        RuleName         string `json:"ruleName"`
+        BackendType      string `json:"backendType"`
+        ClusterUuid      string `json:"clusterUuid"`
+        ClusterName      string `json:"clusterName"`
+        ProjectUuid      string `json:"projectUuid"`
+        ProjectName      string `json:"projectName"`
+        WorkspaceId      uint64 `json:"workspaceId"`
+        WorkspaceName    string `json:"workspaceName"`
+        Namespace        string `json:"namespace"`
+        Application      string `json:"application"`
+        ResourceName     string `json:"resourceName"`
+        PodName          string `json:"podName"`
+        ContainerName    string `json:"containerName"`
+        Host             string `json:"host"`
+        EventFingerprint string `json:"eventFingerprint"`
+        HitCount         int64  `json:"hitCount"`
+        Severity         string `json:"severity"`
+        EventStatus      string `json:"eventStatus"`
+        NotifyStatus     string `json:"notifyStatus"`
+        NotifyError      string `json:"notifyError"`
+        RetryCount       int64  `json:"retryCount"`
+        NextRetryAt      int64  `json:"nextRetryAt"`
+        SampleTimestamp  int64  `json:"sampleTimestamp"`
+        SampleMessage    string `json:"sampleMessage"`
+        SampleRaw        string `json:"sampleRaw"`
+        SampleLabels     map[string]string `json:"sampleLabels"`
+        CloseReason      string `json:"closeReason"`
+        ClosedBy         string `json:"closedBy"`
+        ClosedAt         int64  `json:"closedAt"`
+        ManualReason     string `json:"manualReason"`
+        ManualReasonBy   string `json:"manualReasonBy"`
+        ManualReasonAt   int64  `json:"manualReasonAt"`
+        CreatedAt        int64  `json:"createdAt"`
+        UpdatedAt        int64  `json:"updatedAt"`
+    }
+
+    SearchLogAlertEventsResponse {
+        Data  []LogAlertEvent `json:"data"`
+        Total uint64          `json:"total"`
+    }
+
+    LogLabelKeysRequest {
+        SourceType  string   `json:"sourceType" validate:"required,oneof=container system"`
+        ClusterUuid string   `json:"clusterUuid" validate:"required"`
+        QueryMode   string   `json:"queryMode" validate:"required,oneof=platform loki es"`
+        WorkspaceId uint64   `json:"workspaceId,optional"`
+        Namespace   string   `json:"namespace,optional"`
+        Application string   `json:"application,optional"`
+        ResourceName string  `json:"resourceName,optional"`
+        Hosts       []string `json:"hosts,optional"`
+    }
+
+    LogLabelKeysResponse {
+        Keys []string `json:"keys"`
+    }
+
+    LogLabelValuesRequest {
+        SourceType   string   `json:"sourceType" validate:"required,oneof=container system"`
+        ClusterUuid  string   `json:"clusterUuid" validate:"required"`
+        QueryMode    string   `json:"queryMode" validate:"required,oneof=platform loki es"`
+        LabelKey     string   `json:"labelKey" validate:"required"`
+        WorkspaceId  uint64   `json:"workspaceId,optional"`
+        Namespace    string   `json:"namespace,optional"`
+        Application  string   `json:"application,optional"`
+        ResourceName string   `json:"resourceName,optional"`
+        Hosts        []string `json:"hosts,optional"`
+    }
+
+    LogLabelValuesResponse {
+        Values []string `json:"values"`
+    }
+
+    LogQueryRequest {
+        LogType          string   `json:"logType,optional" form:"logType,optional" validate:"omitempty,oneof=container system"`
+        LegacyLogType    string   `json:"sourceType,optional" form:"sourceType,optional"`
+        ClusterUuid      string   `json:"clusterUuid" form:"clusterUuid,optional" validate:"required"`
+        Namespace        string   `json:"namespace,optional" form:"namespace,optional"`
+        ProjectUuid      string   `json:"projectUuid,optional" form:"projectUuid,optional"`
+        Application      string   `json:"application,optional" form:"application,optional"`
+        ResourceName     string   `json:"resourceName,optional" form:"resourceName,optional"`
+        PodName          string   `json:"podName,optional" form:"podName,optional"`
+        ContainerName    string   `json:"containerName,optional" form:"containerName,optional"`
+        Host             string   `json:"host,optional" form:"host,optional"`
+        SourceType       string   `json:"logSourceType,optional" form:"logSourceType,optional"`
+        Message          string   `json:"message,optional" form:"message,optional"`
+        Mode             string   `json:"mode,optional" form:"mode,optional" validate:"omitempty,oneof=form code"`
+        Expr             string   `json:"expr,optional" form:"expr,optional"`
+        Start            string   `json:"start" form:"start,optional" validate:"required"`
+        End              string   `json:"end" form:"end,optional" validate:"required"`
+        Limit            int64    `json:"limit,optional,default=100" form:"limit,optional,default=100"`
+        Direction        string   `json:"direction,optional,default=backward" form:"direction,optional,default=backward" validate:"omitempty,oneof=forward backward"`
+        NextToken        string   `json:"nextToken,optional" form:"nextToken,optional"`
+        QueryMode        string   `json:"queryMode,optional,default=platform" form:"queryMode,optional,default=platform" validate:"omitempty,oneof=platform loki es"`
+        QueryText        string   `json:"queryText,optional" form:"queryText,optional"`
+        Command          string   `json:"command,optional" form:"command,optional"`
+        Keyword          string   `json:"keyword,optional" form:"keyword,optional"`
+        PodIp            string   `json:"podIp,optional" form:"podIp,optional"`
+        Hosts            []string `json:"hosts,optional" form:"hosts,optional"`
+        Level            string   `json:"level,optional" form:"level,optional"`
+    }
+
+    LogDownloadRequest {
+        SourceType    string `json:"sourceType,optional" form:"sourceType,optional"`
+        ClusterUuid   string `json:"clusterUuid" form:"clusterUuid" validate:"required"`
+        Namespace     string `json:"namespace,optional" form:"namespace,optional"`
+        PodName       string `json:"podName,optional" form:"podName,optional"`
+        ContainerName string `json:"containerName,optional" form:"containerName,optional"`
+        PodIp         string `json:"podIp,optional" form:"podIp,optional"`
+        Message       string `json:"message,optional" form:"message,optional"`
+        Level         string `json:"level,optional" form:"level,optional"`
+        QueryMode     string `json:"queryMode,optional,default=platform" form:"queryMode,optional,default=platform" validate:"omitempty,oneof=platform loki es"`
+        QueryText     string `json:"queryText,optional" form:"queryText,optional"`
+        Keyword       string `json:"keyword,optional" form:"keyword,optional"`
+        Start         string `json:"start" form:"start" validate:"required"`
+        End           string `json:"end" form:"end" validate:"required"`
+        Limit         int64  `json:"limit,optional,default=10000" form:"limit,optional,default=10000"`
+        Direction     string `json:"direction,optional,default=backward" form:"direction,optional,default=backward"`
+        // 系统日志特有
+        Hosts []string `json:"hosts,optional" form:"hosts,optional"`
+    }
+
+    LogRecord {
+        Timestamp   int64             `json:"timestamp"`
+        Message     string            `json:"message"`
+        BackendType string            `json:"backendType"`
+        Labels      map[string]string `json:"labels"`
+        Raw         string            `json:"raw"`
+    }
+
+    LogQueryResponse {
+        BackendType  string      `json:"backendType"`
+        QueryMode    string      `json:"queryMode,optional"`
+        DataStream   string      `json:"dataStream,optional"`
+        IndexPattern string      `json:"indexPattern,optional"`
+        NextToken    string      `json:"nextToken,optional"`
+        List         []LogRecord `json:"list"`
+    }
+
+    LogAlertRule {
+        Id             uint64 `json:"id"`
+        ClusterUuid    string `json:"clusterUuid"`
+        BackendType    string `json:"backendType"`
+        ProjectUuid    string `json:"projectUuid"`
+        WorkspaceId    uint64 `json:"workspaceId"`
+        Namespace      string `json:"namespace"`
+        Application    string `json:"application"`
+        ResourceName   string `json:"resourceName"`
+        Name           string `json:"name"`
+        Description    string `json:"description"`
+        QueryText      string `json:"queryText"`
+        ConditionType  string `json:"conditionType"`
+        Threshold      string `json:"threshold"`
+        Window         string `json:"window"`
+        Severity       string `json:"severity"`
+        NotifyChannels string `json:"notifyChannels"`
+        Enabled        bool   `json:"enabled"`
+        BackendRuleId  string `json:"backendRuleId"`
+        LastSyncStatus string `json:"lastSyncStatus"`
+        LastSyncError  string `json:"lastSyncError"`
+        CreatedBy      string `json:"createdBy"`
+        UpdatedBy      string `json:"updatedBy"`
+        CreatedAt      int64  `json:"createdAt"`
+        UpdatedAt      int64  `json:"updatedAt"`
+        EvalInterval   string `json:"evalInterval"`
+        ForDuration    string `json:"forDuration"`
+        SilenceWindow  string `json:"silenceWindow"`
+    }
+
+    CreateLogAlertRuleRequest {
+        ClusterUuid    string `json:"clusterUuid,optional"`
+        WorkspaceId    uint64 `json:"workspaceId,optional"`
+        ProjectUuid    string `json:"projectUuid,optional"`
+        Namespace      string `json:"namespace,optional"`
+        Application    string `json:"application,optional"`
+        ResourceName   string `json:"resourceName,optional"`
+        Name           string `json:"name" validate:"required"`
+        Description    string `json:"description,optional"`
+        QueryText      string `json:"queryText,optional"`
+        ConditionType  string `json:"conditionType" validate:"required"`
+        Threshold      string `json:"threshold" validate:"required"`
+        Window         string `json:"window" validate:"required"`
+        Severity       string `json:"severity" validate:"required"`
+        NotifyChannels string `json:"notifyChannels,optional"`
+        Enabled        bool   `json:"enabled"`
+        EvalInterval   string `json:"evalInterval,optional"`
+        ForDuration    string `json:"forDuration,optional"`
+        SilenceWindow  string `json:"silenceWindow,optional"`
+    }
+
+    UpdateLogAlertRuleRequest {
+        Id             uint64 `path:"id"`
+        ClusterUuid    string `json:"clusterUuid,optional"`
+        WorkspaceId    uint64 `json:"workspaceId,optional"`
+        ProjectUuid    string `json:"projectUuid,optional"`
+        Namespace      string `json:"namespace,optional"`
+        Application    string `json:"application,optional"`
+        ResourceName   string `json:"resourceName,optional"`
+        Name           string `json:"name" validate:"required"`
+        Description    string `json:"description,optional"`
+        QueryText      string `json:"queryText,optional"`
+        ConditionType  string `json:"conditionType" validate:"required"`
+        Threshold      string `json:"threshold" validate:"required"`
+        Window         string `json:"window" validate:"required"`
+        Severity       string `json:"severity" validate:"required"`
+        NotifyChannels string `json:"notifyChannels,optional"`
+        Enabled        bool   `json:"enabled"`
+        EvalInterval   string `json:"evalInterval,optional"`
+        ForDuration    string `json:"forDuration,optional"`
+        SilenceWindow  string `json:"silenceWindow,optional"`
+    }
+
+    GetLogAlertRuleRequest {
+        Id uint64 `path:"id"`
+    }
+
+    DeleteLogAlertRuleRequest {
+        Id uint64 `path:"id"`
+    }
+
+    ToggleLogAlertRuleRequest {
+        Id uint64 `path:"id"`
+    }
+
+    ListLogAlertRulesRequest {
+        ClusterUuid  string `form:"clusterUuid,optional"`
+        WorkspaceId  uint64 `form:"workspaceId,optional"`
+        ProjectUuid  string `form:"projectUuid,optional"`
+        Namespace    string `form:"namespace,optional"`
+        Application  string `form:"application,optional"`
+        ResourceName string `form:"resourceName,optional"`
+        Enabled      *bool  `form:"enabled,optional"`
+        Page         uint64 `form:"page,optional,default=1"`
+        PageSize     uint64 `form:"pageSize,optional,default=20"`
+    }
+
+    ListLogAlertRulesResponse {
+        Data  []LogAlertRule `json:"data"`
+        Total uint64         `json:"total"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: logging
+    prefix: /manager/v1/logging
+)
+service manager-api {
+    @doc "获取日志查询模式可用性"
+    @handler GetLogQueryModeOptionsHandler
+    get /query-mode/options (LogQueryModeOptionsRequest) returns (LogQueryModeOptionsResponse)
+
+    @doc "查询集群日志后端配置摘要"
+    @handler GetLogClusterConfigHandler
+    get /cluster-config (LogClusterConfigRequest) returns (LogClusterConfigResponse)
+
+    @doc "查询集群日志规则同步状态"
+    @handler GetLogClusterSyncStatusHandler
+    get /cluster-sync-status (LogClusterSyncStatusRequest) returns (LogClusterSyncStatusResponse)
+
+    @doc "查询日志告警引擎统计面板"
+    @handler GetLogAlertEngineStatsHandler
+    get /alert-engine/stats (LogAlertEngineStatsRequest) returns (LogAlertEngineStatsResponse)
+
+    @doc "获取日志 label keys"
+    @handler ListLogLabelKeysHandler
+    post /labels/keys (LogLabelKeysRequest) returns (LogLabelKeysResponse)
+
+    @doc "获取日志 label values"
+    @handler ListLogLabelValuesHandler
+    post /labels/values (LogLabelValuesRequest) returns (LogLabelValuesResponse)
+
+    @doc "查询日志"
+    @handler QueryLogsHandler
+    post /query (LogQueryRequest) returns (LogQueryResponse)
+
+    @doc "下载日志"
+    @handler DownloadLogsHandler
+    post /download (LogDownloadRequest)
+
+    @doc "查询日志告警列表"
+    @handler ListLogAlertRulesHandler
+    get /alerts (ListLogAlertRulesRequest) returns (ListLogAlertRulesResponse)
+
+    @doc "查询日志告警详情"
+    @handler GetLogAlertRuleHandler
+    get /alerts/:id (GetLogAlertRuleRequest) returns (LogAlertRule)
+
+    @doc "创建日志告警"
+    @handler CreateLogAlertRuleHandler
+    post /alerts (CreateLogAlertRuleRequest) returns (LogAlertRule)
+
+    @doc "更新日志告警"
+    @handler UpdateLogAlertRuleHandler
+    put /alerts/:id (UpdateLogAlertRuleRequest) returns (LogAlertRule)
+
+    @doc "启用日志告警"
+    @handler EnableLogAlertRuleHandler
+    post /alerts/:id/enable (ToggleLogAlertRuleRequest) returns (string)
+
+    @doc "禁用日志告警"
+    @handler DisableLogAlertRuleHandler
+    post /alerts/:id/disable (ToggleLogAlertRuleRequest) returns (string)
+
+    @doc "删除日志告警"
+    @handler DeleteLogAlertRuleHandler
+    delete /alerts/:id (DeleteLogAlertRuleRequest) returns (string)
+
+    @doc "查询日志告警事件"
+    @handler SearchLogAlertEventsHandler
+    get /events (SearchLogAlertEventsRequest) returns (SearchLogAlertEventsResponse)
+
+    @doc "手动补偿重试日志告警事件通知"
+    @handler ManualRetryLogAlertEventHandler
+    post /events/:id/retry (ManualRetryLogAlertEventRequest) returns (ManualRetryLogAlertEventResponse)
+
+    @doc "手动关闭日志告警事件"
+    @handler CloseLogAlertEventHandler
+    post /events/:id/close (CloseLogAlertEventRequest) returns (LogAlertEvent)
+
+    @doc "补充日志告警事件原因"
+    @handler UpdateLogAlertEventReasonHandler
+    post /events/:id/reason (UpdateLogAlertEventReasonRequest) returns (LogAlertEvent)
+
+    @doc "删除日志告警事件"
+    @handler DeleteLogAlertEventHandler
+    delete /events/:id (DeleteLogAlertEventRequest) returns (string)
+}

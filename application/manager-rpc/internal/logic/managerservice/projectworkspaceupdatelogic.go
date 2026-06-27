@@ -403,8 +403,8 @@ func (l *ProjectWorkspaceUpdateLogic) checkResourceAvailable(projectCluster *mod
 	}
 	newStorageTotalAllocated := oldStorageAllocated - wsStorage + inStorage
 	if newStorageTotalAllocated > oldStorageLimit {
-		l.Logger.Errorf("存储资源不足，限制: %s，更新后总分配: %d GiB", projectCluster.StorageLimit, newStorageTotalAllocated)
-		return fmt.Errorf("存储资源不足，限制: %s，更新后总分配: %d GiB", projectCluster.StorageLimit, newStorageTotalAllocated)
+		l.Logger.Errorf("存储资源不足，限制: %s，更新后总分配: %.2f GiB", projectCluster.StorageLimit, newStorageTotalAllocated)
+		return fmt.Errorf("存储资源不足，限制: %s，更新后总分配: %.2f GiB", projectCluster.StorageLimit, newStorageTotalAllocated)
 	}
 
 	// GPU检查 - 使用 gpu_capacity（超分后容量）
@@ -477,8 +477,8 @@ func (l *ProjectWorkspaceUpdateLogic) checkResourceAvailable(projectCluster *mod
 	}
 	newEphemeralStorageTotalAllocated := oldEphemeralStorageAllocated - wsEphemeralStorage + inEphemeralStorage
 	if newEphemeralStorageTotalAllocated > oldEphemeralStorageLimit {
-		l.Logger.Errorf("临时存储配额不足，限制: %s，更新后总分配: %d GiB", projectCluster.EphemeralStorageLimit, newEphemeralStorageTotalAllocated)
-		return fmt.Errorf("临时存储配额不足，限制: %s，更新后总分配: %d GiB", projectCluster.EphemeralStorageLimit, newEphemeralStorageTotalAllocated)
+		l.Logger.Errorf("临时存储配额不足，限制: %s，更新后总分配: %.2f GiB", projectCluster.EphemeralStorageLimit, newEphemeralStorageTotalAllocated)
+		return fmt.Errorf("临时存储配额不足，限制: %s，更新后总分配: %.2f GiB", projectCluster.EphemeralStorageLimit, newEphemeralStorageTotalAllocated)
 	}
 
 	// Service检查 - 使用 service_limit

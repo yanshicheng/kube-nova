@@ -37,7 +37,7 @@ Log:
   Rotation: "daily"              # Rotation 表示日志轮换规则类型，默认为 "daily"。# "daily"：按天轮换。  # "size"：按大小限制轮换。
 
 Cache:
-  Host: 172.16.1.61:6379
+  Host: 127.0.0.1:6379
   Type: node # node or cluster
   Pass: "123456"
   Tls: false # bool
@@ -51,7 +51,7 @@ Mysql:
   ConnMaxLifetime: 30m
 
 DBCache:
-  - Host: 172.16.1.61:6379
+  - Host: 127.0.0.1:6379
     Type: node # node or cluster
     Pass: "123456"
     Tls: false # bool
@@ -79,3 +79,56 @@ LeaderElection:
   RenewDeadline: 10s                      # 续约超时
   RetryPeriod: 2s                         # 重试间隔
 
+Webhook:
+  Token: "loki-log-alert-secret-20260424"
+
+LogSearch:
+  QueryMode: "platform"
+  HTTPPool:
+    MaxIdleConns: 100
+    MaxIdleConnsPerHost: 20
+    MaxConnsPerHost: 50
+    IdleConnTimeout: 90s
+    ResponseHeaderTimeout: 15s
+    TLSHandshakeTimeout: 10s
+    ExpectContinueTimeout: 1s
+  Elasticsearch:
+    DataStream: "logs-kube-nova-default"
+    IndexPattern: "logs-kube-nova-*"
+    FieldMapping:
+      Timestamp: "@timestamp"
+      Message: "message"
+      ProjectUuid: "project_uuid"
+      ClusterUuid: "cluster_uuid"
+      NamespaceName: "namespace_name"
+      ResourceName: "resource_name"
+      PodName: "pod_name"
+      ContainerName: "container_name"
+      PodIp: "pod_ip"
+      LogType: "log_type"
+      Level: "level"
+
+LogAlertEngine:
+  Enabled: true
+  Mode: "platform"
+  EvalInterval: 60s
+  MinEvalInterval: 15s
+  MaxEvalInterval: 300s
+  RuleSyncInterval: 30s
+  LockEnabled: true
+  LockTTL: 45s
+  NotifyRetryScanInterval: 15s
+  NotifyRetryBase: 30s
+  SilenceWindow: 10m
+  MaxNotifyRetry: 5
+  ClusterWorkers: 2
+  MaxBatchRules: 100
+  MaxQueryLimit: 500
+
+InspectionEngine:
+  Enabled: true
+  ScanInterval: 30s
+  LockEnabled: true
+  LockTTL: 10m
+  ClusterWorkers: 2
+  MaxBatchTasks: 50

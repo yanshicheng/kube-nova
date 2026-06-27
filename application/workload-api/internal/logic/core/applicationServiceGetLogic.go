@@ -225,7 +225,7 @@ func (l *ApplicationServiceGetLogic) getVersionLabels(appId, workloadId uint64) 
 		versionLabels = append(versionLabels, versionLabelInfo{
 			VersionId:     version.Id,
 			VersionName:   version.Version,
-			VersionNumber: fmt.Sprintf("%d", version.Version),
+			VersionNumber: version.Version,
 			Labels:        podLabels,
 			IsAppOnly:     false,
 		})

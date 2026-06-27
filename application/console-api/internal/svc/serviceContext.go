@@ -34,7 +34,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		panic(err)
 	}
 
-	// 创建 Redis 客户端（共享）
 	cacheClient := redis.MustNewRedis(c.Cache)
 
 	managerRpc := zrpc.MustNewClient(c.ManagerRpc,
@@ -43,7 +42,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	)
 	managerService := managerservice.NewManagerService(managerRpc)
 
-	// K8s Manager 使用 Redis
 	manager := cluster.NewManager(managerService, cacheClient)
 
 	uploadServer := uploadcore.InitService(c.LocalCacheDir)
@@ -62,11 +60,10 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Validator: validator,
 		JWTAuthMiddleware: middleware.NewJWTAuthMiddleware(
 			sysauthservice.NewSysAuthService(authRpc)).Handle,
-		ManagerRpc:       managerService,
-		K8sManager:       manager,
-		UploadCoreClient: uploadServer,
-		RepositoryRpc:    repositoryservice.NewRepositoryService(repositoryRpc),
-		// 传入 Redis 客户端，使配置在多副本间共享
+		ManagerRpc:        managerService,
+		K8sManager:        manager,
+		UploadCoreClient:  uploadServer,
+		RepositoryRpc:     repositoryservice.NewRepositoryService(repositoryRpc),
 		PrometheusManager: cluster2.NewPrometheusManager(managerService, cacheClient),
 	}
 }

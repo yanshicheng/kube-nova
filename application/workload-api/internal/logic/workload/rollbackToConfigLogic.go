@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/workload-api/internal/types"
@@ -51,7 +52,11 @@ func (l *RollbackToConfigLogic) RollbackToConfig(req *types.RollbackToConfigRequ
 	if err == nil && configHistory != nil {
 		for _, ch := range configHistory {
 			if ch.Id == req.ConfigHistoryId {
-				targetConfigDesc = fmt.Sprintf("创建时间: %s, 原因: %s", ch.CreatedAt, ch.Reason)
+				targetConfigDesc = fmt.Sprintf(
+					"创建时间: %s, 原因: %s",
+					time.Unix(ch.CreatedAt, 0).Format("2006-01-02 15:04:05"),
+					ch.Reason,
+				)
 				break
 			}
 		}

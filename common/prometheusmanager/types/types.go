@@ -6,13 +6,18 @@ import (
 
 // PrometheusConfig Prometheus 连接配置
 type PrometheusConfig struct {
-	UUID     string `json:"uuid"`
-	Name     string `json:"name"`
-	Endpoint string `json:"endpoint"` // http://prometheus.example.com:9090
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-	Insecure bool   `json:"insecure"`
-	Timeout  int    `json:"timeout"` // 超时时间（秒）
+	UUID       string `json:"uuid"`
+	Name       string `json:"name"`
+	Endpoint   string `json:"endpoint"` // http://prometheus.example.com:9090
+	AuthType   string `json:"authType,omitempty"`
+	Username   string `json:"username,omitempty"`
+	Password   string `json:"password,omitempty"`
+	Token      string `json:"token,omitempty"`
+	Insecure   bool   `json:"insecure"`
+	CACert     string `json:"caCert,omitempty"`
+	ClientCert string `json:"clientCert,omitempty"`
+	ClientKey  string `json:"clientKey,omitempty"`
+	Timeout    int    `json:"timeout"` // 超时时间（秒）
 }
 
 // QueryRequest 通用查询请求

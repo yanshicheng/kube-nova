@@ -11,6 +11,8 @@ import (
 	app "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/app"
 	billing "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/billing"
 	cluster "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/cluster"
+	inspection "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/inspection"
+	logging "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/logging"
 	monitoring "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/monitoring"
 	node "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/node"
 	project "github.com/yanshicheng/kube-nova/application/manager-api/internal/handler/project"
@@ -498,6 +500,294 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
 			[]rest.Route{
 				{
+					// 查询巡检数据大盘
+					Method:  http.MethodGet,
+					Path:    "/dashboard",
+					Handler: inspection.GetInspectionDashboardHandler(serverCtx),
+				},
+				{
+					// 创建巡检分组
+					Method:  http.MethodPost,
+					Path:    "/groups",
+					Handler: inspection.AddInspectionGroupHandler(serverCtx),
+				},
+				{
+					// 查询巡检分组
+					Method:  http.MethodGet,
+					Path:    "/groups",
+					Handler: inspection.SearchInspectionGroupHandler(serverCtx),
+				},
+				{
+					// 更新巡检分组
+					Method:  http.MethodPut,
+					Path:    "/groups/:id",
+					Handler: inspection.UpdateInspectionGroupHandler(serverCtx),
+				},
+				{
+					// 删除巡检分组
+					Method:  http.MethodDelete,
+					Path:    "/groups/:id",
+					Handler: inspection.DeleteInspectionGroupHandler(serverCtx),
+				},
+				{
+					// 复制或迁移巡检分组
+					Method:  http.MethodPost,
+					Path:    "/groups/:id/transfer",
+					Handler: inspection.TransferInspectionGroupHandler(serverCtx),
+				},
+				{
+					// 创建巡检项
+					Method:  http.MethodPost,
+					Path:    "/items",
+					Handler: inspection.AddInspectionItemHandler(serverCtx),
+				},
+				{
+					// 查询巡检项
+					Method:  http.MethodGet,
+					Path:    "/items",
+					Handler: inspection.SearchInspectionItemHandler(serverCtx),
+				},
+				{
+					// 更新巡检项
+					Method:  http.MethodPut,
+					Path:    "/items/:id",
+					Handler: inspection.UpdateInspectionItemHandler(serverCtx),
+				},
+				{
+					// 删除巡检项
+					Method:  http.MethodDelete,
+					Path:    "/items/:id",
+					Handler: inspection.DeleteInspectionItemHandler(serverCtx),
+				},
+				{
+					// 查询巡检记录
+					Method:  http.MethodGet,
+					Path:    "/records",
+					Handler: inspection.SearchInspectionRecordHandler(serverCtx),
+				},
+				{
+					// 删除巡检报告
+					Method:  http.MethodDelete,
+					Path:    "/records/:recordId",
+					Handler: inspection.DeleteInspectionRecordHandler(serverCtx),
+				},
+				{
+					// 手动结束运行中巡检记录
+					Method:  http.MethodPost,
+					Path:    "/records/:recordId/finish",
+					Handler: inspection.FinishInspectionRecordHandler(serverCtx),
+				},
+				{
+					// 巡检执行日志SSE
+					Method:  http.MethodGet,
+					Path:    "/records/:recordId/logs/stream",
+					Handler: inspection.StreamInspectionRecordLogHandler(serverCtx),
+				},
+				{
+					// 查询巡检报告
+					Method:  http.MethodGet,
+					Path:    "/reports/:recordId",
+					Handler: inspection.GetInspectionReportHandler(serverCtx),
+				},
+				{
+					// 导出巡检报告Excel
+					Method:  http.MethodGet,
+					Path:    "/reports/:recordId/export",
+					Handler: inspection.ExportInspectionReportHandler(serverCtx),
+				},
+				{
+					// 创建巡检任务
+					Method:  http.MethodPost,
+					Path:    "/tasks",
+					Handler: inspection.AddInspectionTaskHandler(serverCtx),
+				},
+				{
+					// 查询巡检任务
+					Method:  http.MethodGet,
+					Path:    "/tasks",
+					Handler: inspection.SearchInspectionTaskHandler(serverCtx),
+				},
+				{
+					// 更新巡检任务
+					Method:  http.MethodPut,
+					Path:    "/tasks/:id",
+					Handler: inspection.UpdateInspectionTaskHandler(serverCtx),
+				},
+				{
+					// 删除巡检任务
+					Method:  http.MethodDelete,
+					Path:    "/tasks/:id",
+					Handler: inspection.DeleteInspectionTaskHandler(serverCtx),
+				},
+				{
+					// 立即执行巡检
+					Method:  http.MethodPost,
+					Path:    "/tasks/:id/run",
+					Handler: inspection.RunInspectionTaskHandler(serverCtx),
+				},
+				{
+					// 创建巡检模板
+					Method:  http.MethodPost,
+					Path:    "/templates",
+					Handler: inspection.AddInspectionTemplateHandler(serverCtx),
+				},
+				{
+					// 查询巡检模板
+					Method:  http.MethodGet,
+					Path:    "/templates",
+					Handler: inspection.SearchInspectionTemplateHandler(serverCtx),
+				},
+				{
+					// 更新巡检模板
+					Method:  http.MethodPut,
+					Path:    "/templates/:id",
+					Handler: inspection.UpdateInspectionTemplateHandler(serverCtx),
+				},
+				{
+					// 删除巡检模板
+					Method:  http.MethodDelete,
+					Path:    "/templates/:id",
+					Handler: inspection.DeleteInspectionTemplateHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/manager/v1/inspection"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
+			[]rest.Route{
+				{
+					// 查询日志告警引擎统计面板
+					Method:  http.MethodGet,
+					Path:    "/alert-engine/stats",
+					Handler: logging.GetLogAlertEngineStatsHandler(serverCtx),
+				},
+				{
+					// 查询日志告警列表
+					Method:  http.MethodGet,
+					Path:    "/alerts",
+					Handler: logging.ListLogAlertRulesHandler(serverCtx),
+				},
+				{
+					// 创建日志告警
+					Method:  http.MethodPost,
+					Path:    "/alerts",
+					Handler: logging.CreateLogAlertRuleHandler(serverCtx),
+				},
+				{
+					// 查询日志告警详情
+					Method:  http.MethodGet,
+					Path:    "/alerts/:id",
+					Handler: logging.GetLogAlertRuleHandler(serverCtx),
+				},
+				{
+					// 更新日志告警
+					Method:  http.MethodPut,
+					Path:    "/alerts/:id",
+					Handler: logging.UpdateLogAlertRuleHandler(serverCtx),
+				},
+				{
+					// 删除日志告警
+					Method:  http.MethodDelete,
+					Path:    "/alerts/:id",
+					Handler: logging.DeleteLogAlertRuleHandler(serverCtx),
+				},
+				{
+					// 禁用日志告警
+					Method:  http.MethodPost,
+					Path:    "/alerts/:id/disable",
+					Handler: logging.DisableLogAlertRuleHandler(serverCtx),
+				},
+				{
+					// 启用日志告警
+					Method:  http.MethodPost,
+					Path:    "/alerts/:id/enable",
+					Handler: logging.EnableLogAlertRuleHandler(serverCtx),
+				},
+				{
+					// 查询集群日志后端配置摘要
+					Method:  http.MethodGet,
+					Path:    "/cluster-config",
+					Handler: logging.GetLogClusterConfigHandler(serverCtx),
+				},
+				{
+					// 查询集群日志规则同步状态
+					Method:  http.MethodGet,
+					Path:    "/cluster-sync-status",
+					Handler: logging.GetLogClusterSyncStatusHandler(serverCtx),
+				},
+				{
+					// 下载日志
+					Method:  http.MethodPost,
+					Path:    "/download",
+					Handler: logging.DownloadLogsHandler(serverCtx),
+				},
+				{
+					// 查询日志告警事件
+					Method:  http.MethodGet,
+					Path:    "/events",
+					Handler: logging.SearchLogAlertEventsHandler(serverCtx),
+				},
+				{
+					// 删除日志告警事件
+					Method:  http.MethodDelete,
+					Path:    "/events/:id",
+					Handler: logging.DeleteLogAlertEventHandler(serverCtx),
+				},
+				{
+					// 手动关闭日志告警事件
+					Method:  http.MethodPost,
+					Path:    "/events/:id/close",
+					Handler: logging.CloseLogAlertEventHandler(serverCtx),
+				},
+				{
+					// 补充日志告警事件原因
+					Method:  http.MethodPost,
+					Path:    "/events/:id/reason",
+					Handler: logging.UpdateLogAlertEventReasonHandler(serverCtx),
+				},
+				{
+					// 手动补偿重试日志告警事件通知
+					Method:  http.MethodPost,
+					Path:    "/events/:id/retry",
+					Handler: logging.ManualRetryLogAlertEventHandler(serverCtx),
+				},
+				{
+					// 获取日志 label keys
+					Method:  http.MethodPost,
+					Path:    "/labels/keys",
+					Handler: logging.ListLogLabelKeysHandler(serverCtx),
+				},
+				{
+					// 获取日志 label values
+					Method:  http.MethodPost,
+					Path:    "/labels/values",
+					Handler: logging.ListLogLabelValuesHandler(serverCtx),
+				},
+				{
+					// 查询日志
+					Method:  http.MethodPost,
+					Path:    "/query",
+					Handler: logging.QueryLogsHandler(serverCtx),
+				},
+				{
+					// 获取日志查询模式可用性
+					Method:  http.MethodGet,
+					Path:    "/query-mode/options",
+					Handler: logging.GetLogQueryModeOptionsHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/manager/v1/logging"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
+			[]rest.Route{
+				{
 					// 获取指定集群的Alertmanager配置
 					Method:  http.MethodGet,
 					Path:    "/alertmanager/:clusterUuid/config",
@@ -849,6 +1139,12 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 				Method:  http.MethodPost,
 				Path:    "/alerts",
 				Handler: webhook.ReceiveAlertmanagerWebhookHandler(serverCtx),
+			},
+			{
+				// 接收日志告警
+				Method:  http.MethodPost,
+				Path:    "/log-alerts",
+				Handler: webhook.ReceiveLogAlertWebhookHandler(serverCtx),
 			},
 		},
 		rest.WithPrefix("/manager/v1/webhook"),

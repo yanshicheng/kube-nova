@@ -374,6 +374,11 @@ type BillingStatementSummary struct {
 	ManagementFee float64 `json:"managementFee"` // 管理服务费合计
 }
 
+type CloseLogAlertEventRequest struct {
+	Id     uint64 `path:"id"`
+	Reason string `json:"reason" validate:"required,max=500"`
+}
+
 type Cluster struct {
 	Id           uint64 `json:"id"`           // 自增主键
 	Name         string `json:"name"`         // 集群名称
@@ -637,6 +642,27 @@ type CostTrendItem struct {
 	EndTime        int64   `form:"endTime,optional"`   // 计费结束时间
 }
 
+type CreateLogAlertRuleRequest struct {
+	ClusterUuid    string `json:"clusterUuid,optional"`
+	WorkspaceId    uint64 `json:"workspaceId,optional"`
+	ProjectUuid    string `json:"projectUuid,optional"`
+	Namespace      string `json:"namespace,optional"`
+	Application    string `json:"application,optional"`
+	ResourceName   string `json:"resourceName,optional"`
+	Name           string `json:"name" validate:"required"`
+	Description    string `json:"description,optional"`
+	QueryText      string `json:"queryText,optional"`
+	ConditionType  string `json:"conditionType" validate:"required"`
+	Threshold      string `json:"threshold" validate:"required"`
+	Window         string `json:"window" validate:"required"`
+	Severity       string `json:"severity" validate:"required"`
+	NotifyChannels string `json:"notifyChannels,optional"`
+	Enabled        bool   `json:"enabled"`
+	EvalInterval   string `json:"evalInterval,optional"`
+	ForDuration    string `json:"forDuration,optional"`
+	SilenceWindow  string `json:"silenceWindow,optional"`
+}
+
 type DashboardSummaryCards struct {
 	ClusterTotalCount   int64   `json:"clusterTotalCount"`
 	ProjectTotalCount   int64   `json:"projectTotalCount"`
@@ -670,6 +696,14 @@ type DeleteAlertRuleFileRequest struct {
 type DeleteAlertRuleGroupRequest struct {
 	Id      uint64 `path:"id" validate:"required,gt=0"` // 主键ID
 	Cascade bool   `json:"cascade,optional"`            // 是否级联删除
+}
+
+type DeleteLogAlertEventRequest struct {
+	Id uint64 `path:"id"`
+}
+
+type DeleteLogAlertRuleRequest struct {
+	Id uint64 `path:"id"`
 }
 
 type DeleteProjectAuditLogBeforeDaysRequest struct {
@@ -868,6 +902,10 @@ type GetClusterResourceRankingResp struct {
 	Total int64                `json:"total"`
 }
 
+type GetLogAlertRuleRequest struct {
+	Id uint64 `path:"id"`
+}
+
 type GetProjectAdminsRequest struct {
 	ProjectId uint64 `form:"projectId" validate:"required,gt=0"` // 项目ID
 }
@@ -917,12 +955,741 @@ type GetWorkspaceResourceRankingResp struct {
 	Total int64                  `json:"total"`
 }
 
+type InspectionCategoryStat struct {
+	Category      string `json:"category"`
+	TotalCount    int64  `json:"totalCount"`
+	SuccessCount  int64  `json:"successCount"`
+	WarningCount  int64  `json:"warningCount"`
+	CriticalCount int64  `json:"criticalCount"`
+	FailedCount   int64  `json:"failedCount"`
+}
+
+type InspectionDashboardRequest struct {
+	ClusterUuid string `form:"clusterUuid,optional"`
+	Days        int64  `form:"days,optional,default=7"`
+}
+
+type InspectionDashboardResponse struct {
+	TotalRecords      int64                    `json:"totalRecords"`
+	SuccessRecords    int64                    `json:"successRecords"`
+	FailedRecords     int64                    `json:"failedRecords"`
+	CriticalRecords   int64                    `json:"criticalRecords"`
+	AvgScore          float64                  `json:"avgScore"`
+	LatestHealthLevel string                   `json:"latestHealthLevel"`
+	LatestRecordId    uint64                   `json:"latestRecordId"`
+	CategoryStats     []InspectionCategoryStat `json:"categoryStats"`
+}
+
+type InspectionGroup struct {
+	Id          uint64 `json:"id"`
+	TemplateId  uint64 `json:"templateId"`
+	GroupCode   string `json:"groupCode"`
+	GroupName   string `json:"groupName"`
+	Description string `json:"description"`
+	Enabled     bool   `json:"enabled"`
+	OrderNum    int64  `json:"orderNum"`
+	ConfigJson  string `json:"configJson"`
+	CreatedBy   string `json:"createdBy"`
+	UpdatedBy   string `json:"updatedBy"`
+	CreatedAt   int64  `json:"createdAt"`
+	UpdatedAt   int64  `json:"updatedAt"`
+}
+
+type InspectionGroupAddRequest struct {
+	TemplateId  uint64 `json:"templateId" validate:"required"`
+	GroupCode   string `json:"groupCode" validate:"required"`
+	GroupName   string `json:"groupName" validate:"required"`
+	Description string `json:"description,optional"`
+	Enabled     bool   `json:"enabled,optional"`
+	OrderNum    int64  `json:"orderNum,optional"`
+	ConfigJson  string `json:"configJson,optional"`
+}
+
+type InspectionGroupDelRequest struct {
+	Id uint64 `path:"id" validate:"required"`
+}
+
+type InspectionGroupSearchRequest struct {
+	TemplateId uint64 `form:"templateId,optional"`
+	GroupName  string `form:"groupName,optional"`
+	Enabled    *bool  `form:"enabled,optional"`
+	Page       uint64 `form:"page,optional,default=1"`
+	PageSize   uint64 `form:"pageSize,optional,default=20"`
+	OrderField string `form:"orderField,optional,default=order_num"`
+	IsAsc      bool   `form:"isAsc,optional,default=true"`
+}
+
+type InspectionGroupSearchResponse struct {
+	Data  []InspectionGroup `json:"data"`
+	Total uint64            `json:"total"`
+}
+
+type InspectionGroupTransferRequest struct {
+	Id               uint64 `path:"id" validate:"required"`
+	TargetTemplateId uint64 `json:"targetTemplateId" validate:"required"`
+	GroupCode        string `json:"groupCode" validate:"required"`
+	GroupName        string `json:"groupName" validate:"required"`
+	ItemCodePrefix   string `json:"itemCodePrefix,optional"`
+	Operation        string `json:"operation" validate:"required,oneof=copy move"`
+}
+
+type InspectionGroupTransferResponse struct {
+	Group     InspectionGroup `json:"group"`
+	ItemCount int64           `json:"itemCount"`
+}
+
+type InspectionGroupUpdateRequest struct {
+	Id          uint64 `path:"id" validate:"required"`
+	TemplateId  uint64 `json:"templateId" validate:"required"`
+	GroupCode   string `json:"groupCode" validate:"required"`
+	GroupName   string `json:"groupName" validate:"required"`
+	Description string `json:"description,optional"`
+	Enabled     bool   `json:"enabled,optional"`
+	OrderNum    int64  `json:"orderNum,optional"`
+	ConfigJson  string `json:"configJson,optional"`
+}
+
+type InspectionItem struct {
+	Id         uint64 `json:"id"`
+	TemplateId uint64 `json:"templateId"`
+	GroupId    uint64 `json:"groupId"`
+	ItemCode   string `json:"itemCode"`
+	ItemName   string `json:"itemName"`
+	Category   string `json:"category"`
+	CheckType  string `json:"checkType"`
+	TargetType string `json:"targetType"`
+	Severity   string `json:"severity"`
+	Weight     int64  `json:"weight"`
+	Enabled    bool   `json:"enabled"`
+	TimeoutSec int64  `json:"timeoutSec"`
+	OrderNum   int64  `json:"orderNum"`
+	Promql     string `json:"promql"`
+	Operator   string `json:"operator"`
+	Threshold  string `json:"threshold"`
+	Unit       string `json:"unit"`
+	ConfigJson string `json:"configJson"`
+	Advice     string `json:"advice"`
+	CreatedBy  string `json:"createdBy"`
+	UpdatedBy  string `json:"updatedBy"`
+	CreatedAt  int64  `json:"createdAt"`
+	UpdatedAt  int64  `json:"updatedAt"`
+}
+
+type InspectionItemAddRequest struct {
+	TemplateId uint64 `json:"templateId,optional"`
+	GroupId    uint64 `json:"groupId,optional"`
+	ItemCode   string `json:"itemCode" validate:"required"`
+	ItemName   string `json:"itemName" validate:"required"`
+	Category   string `json:"category,optional"`
+	CheckType  string `json:"checkType,optional"`
+	TargetType string `json:"targetType,optional"`
+	Severity   string `json:"severity,optional"`
+	Weight     int64  `json:"weight,optional"`
+	Enabled    bool   `json:"enabled,optional"`
+	TimeoutSec int64  `json:"timeoutSec,optional"`
+	OrderNum   int64  `json:"orderNum,optional"`
+	Promql     string `json:"promql,optional"`
+	Operator   string `json:"operator,optional"`
+	Threshold  string `json:"threshold,optional"`
+	Unit       string `json:"unit,optional"`
+	ConfigJson string `json:"configJson,optional"`
+	Advice     string `json:"advice,optional"`
+}
+
+type InspectionItemDelRequest struct {
+	Id uint64 `path:"id" validate:"required"`
+}
+
+type InspectionItemSearchRequest struct {
+	TemplateId uint64 `form:"templateId,optional"`
+	GroupId    uint64 `form:"groupId,optional"`
+	Category   string `form:"category,optional"`
+	CheckType  string `form:"checkType,optional"`
+	Enabled    *bool  `form:"enabled,optional"`
+	Page       uint64 `form:"page,optional,default=1"`
+	PageSize   uint64 `form:"pageSize,optional,default=20"`
+	OrderField string `form:"orderField,optional,default=order_num"`
+	IsAsc      bool   `form:"isAsc,optional,default=true"`
+}
+
+type InspectionItemSearchResponse struct {
+	Data  []InspectionItem `json:"data"`
+	Total uint64           `json:"total"`
+}
+
+type InspectionItemUpdateRequest struct {
+	Id         uint64 `path:"id" validate:"required"`
+	TemplateId uint64 `json:"templateId,optional"`
+	GroupId    uint64 `json:"groupId,optional"`
+	ItemCode   string `json:"itemCode" validate:"required"`
+	ItemName   string `json:"itemName" validate:"required"`
+	Category   string `json:"category,optional"`
+	CheckType  string `json:"checkType,optional"`
+	TargetType string `json:"targetType,optional"`
+	Severity   string `json:"severity,optional"`
+	Weight     int64  `json:"weight,optional"`
+	Enabled    bool   `json:"enabled,optional"`
+	TimeoutSec int64  `json:"timeoutSec,optional"`
+	OrderNum   int64  `json:"orderNum,optional"`
+	Promql     string `json:"promql,optional"`
+	Operator   string `json:"operator,optional"`
+	Threshold  string `json:"threshold,optional"`
+	Unit       string `json:"unit,optional"`
+	ConfigJson string `json:"configJson,optional"`
+	Advice     string `json:"advice,optional"`
+}
+
+type InspectionRecord struct {
+	Id            uint64  `json:"id"`
+	RecordNo      string  `json:"recordNo"`
+	TaskId        uint64  `json:"taskId"`
+	TemplateId    uint64  `json:"templateId"`
+	TriggerType   string  `json:"triggerType"`
+	ScopeType     string  `json:"scopeType"`
+	ClusterUuid   string  `json:"clusterUuid"`
+	ClusterName   string  `json:"clusterName"`
+	Status        string  `json:"status"`
+	Score         float64 `json:"score"`
+	HealthLevel   string  `json:"healthLevel"`
+	TotalCount    int64   `json:"totalCount"`
+	SuccessCount  int64   `json:"successCount"`
+	WarningCount  int64   `json:"warningCount"`
+	CriticalCount int64   `json:"criticalCount"`
+	FailedCount   int64   `json:"failedCount"`
+	SummaryJson   string  `json:"summaryJson"`
+	ReportJson    string  `json:"reportJson"`
+	StartedAt     int64   `json:"startedAt"`
+	FinishedAt    int64   `json:"finishedAt"`
+	DurationMs    int64   `json:"durationMs"`
+	ErrorMessage  string  `json:"errorMessage"`
+	CreatedBy     string  `json:"createdBy"`
+	UpdatedBy     string  `json:"updatedBy"`
+	CreatedAt     int64   `json:"createdAt"`
+	UpdatedAt     int64   `json:"updatedAt"`
+}
+
+type InspectionRecordDelRequest struct {
+	RecordId uint64 `path:"recordId" validate:"required"`
+}
+
+type InspectionRecordFinishRequest struct {
+	RecordId uint64 `path:"recordId" validate:"required"`
+	Message  string `json:"message,optional"`
+}
+
+type InspectionRecordFinishResponse struct {
+	Record InspectionRecord `json:"record"`
+}
+
+type InspectionRecordSearchRequest struct {
+	TaskId      uint64 `form:"taskId,optional"`
+	ClusterUuid string `form:"clusterUuid,optional"`
+	Status      string `form:"status,optional"`
+	HealthLevel string `form:"healthLevel,optional"`
+	StartTime   int64  `form:"startTime,optional"`
+	EndTime     int64  `form:"endTime,optional"`
+	Page        uint64 `form:"page,optional,default=1"`
+	PageSize    uint64 `form:"pageSize,optional,default=20"`
+	OrderField  string `form:"orderField,optional,default=id"`
+	IsAsc       bool   `form:"isAsc,optional"`
+}
+
+type InspectionRecordSearchResponse struct {
+	Data  []InspectionRecord `json:"data"`
+	Total uint64             `json:"total"`
+}
+
+type InspectionReportRequest struct {
+	RecordId uint64 `path:"recordId" validate:"required"`
+	Page     uint64 `form:"page,optional"`
+	PageSize uint64 `form:"pageSize,optional"`
+	Keyword  string `form:"keyword,optional"`
+	Status   string `form:"status,optional"`
+	Severity string `form:"severity,optional"`
+}
+
+type InspectionReportResponse struct {
+	Record       InspectionRecord   `json:"record"`
+	Results      []InspectionResult `json:"results"`
+	ResultsTotal uint64             `json:"resultsTotal"`
+}
+
+type InspectionResult struct {
+	Id         uint64  `json:"id"`
+	RecordId   uint64  `json:"recordId"`
+	ItemId     uint64  `json:"itemId"`
+	ItemCode   string  `json:"itemCode"`
+	ItemName   string  `json:"itemName"`
+	Category   string  `json:"category"`
+	TargetType string  `json:"targetType"`
+	TargetName string  `json:"targetName"`
+	Severity   string  `json:"severity"`
+	Status     string  `json:"status"`
+	Score      float64 `json:"score"`
+	Expected   string  `json:"expected"`
+	Actual     string  `json:"actual"`
+	Value      string  `json:"value"`
+	Unit       string  `json:"unit"`
+	Message    string  `json:"message"`
+	Suggestion string  `json:"suggestion"`
+	DetailJson string  `json:"detailJson"`
+	CreatedBy  string  `json:"createdBy"`
+	UpdatedBy  string  `json:"updatedBy"`
+	CreatedAt  int64   `json:"createdAt"`
+	UpdatedAt  int64   `json:"updatedAt"`
+}
+
+type InspectionTask struct {
+	Id                           uint64 `json:"id"`
+	Name                         string `json:"name"`
+	Description                  string `json:"description"`
+	TemplateId                   uint64 `json:"templateId"`
+	ScopeType                    string `json:"scopeType"`
+	ClusterUuid                  string `json:"clusterUuid"`
+	ScheduleType                 string `json:"scheduleType"`
+	CronExpr                     string `json:"cronExpr"`
+	Enabled                      bool   `json:"enabled"`
+	MaxConcurrency               int64  `json:"maxConcurrency"`
+	TimeoutSec                   int64  `json:"timeoutSec"`
+	LastRunAt                    int64  `json:"lastRunAt"`
+	NextRunAt                    int64  `json:"nextRunAt"`
+	LastRecordId                 uint64 `json:"lastRecordId"`
+	LastStatus                   string `json:"lastStatus"`
+	LastError                    string `json:"lastError"`
+	ConfigJson                   string `json:"configJson"`
+	PrometheusEnabled            bool   `json:"prometheusEnabled"`
+	PrometheusEndpoint           string `json:"prometheusEndpoint"`
+	PrometheusAuthEnabled        bool   `json:"prometheusAuthEnabled"`
+	PrometheusAuthType           string `json:"prometheusAuthType"`
+	PrometheusUsername           string `json:"prometheusUsername"`
+	PrometheusPassword           string `json:"prometheusPassword"`
+	PrometheusToken              string `json:"prometheusToken"`
+	PrometheusTlsEnabled         bool   `json:"prometheusTlsEnabled"`
+	PrometheusInsecureSkipVerify bool   `json:"prometheusInsecureSkipVerify"`
+	PrometheusCaCert             string `json:"prometheusCaCert"`
+	PrometheusClientCert         string `json:"prometheusClientCert"`
+	PrometheusClientKey          string `json:"prometheusClientKey"`
+	CreatedBy                    string `json:"createdBy"`
+	UpdatedBy                    string `json:"updatedBy"`
+	CreatedAt                    int64  `json:"createdAt"`
+	UpdatedAt                    int64  `json:"updatedAt"`
+}
+
+type InspectionTaskAddRequest struct {
+	Name                         string `json:"name" validate:"required"`
+	Description                  string `json:"description,optional"`
+	TemplateId                   uint64 `json:"templateId,optional"`
+	ScopeType                    string `json:"scopeType,optional"`
+	ClusterUuid                  string `json:"clusterUuid,optional"`
+	ScheduleType                 string `json:"scheduleType,optional"`
+	CronExpr                     string `json:"cronExpr,optional"`
+	Enabled                      bool   `json:"enabled,optional"`
+	MaxConcurrency               int64  `json:"maxConcurrency,optional"`
+	TimeoutSec                   int64  `json:"timeoutSec,optional"`
+	ConfigJson                   string `json:"configJson,optional"`
+	PrometheusEnabled            bool   `json:"prometheusEnabled,optional"`
+	PrometheusEndpoint           string `json:"prometheusEndpoint,optional"`
+	PrometheusAuthEnabled        bool   `json:"prometheusAuthEnabled,optional"`
+	PrometheusAuthType           string `json:"prometheusAuthType,optional"`
+	PrometheusUsername           string `json:"prometheusUsername,optional"`
+	PrometheusPassword           string `json:"prometheusPassword,optional"`
+	PrometheusToken              string `json:"prometheusToken,optional"`
+	PrometheusTlsEnabled         bool   `json:"prometheusTlsEnabled,optional"`
+	PrometheusInsecureSkipVerify bool   `json:"prometheusInsecureSkipVerify,optional"`
+	PrometheusCaCert             string `json:"prometheusCaCert,optional"`
+	PrometheusClientCert         string `json:"prometheusClientCert,optional"`
+	PrometheusClientKey          string `json:"prometheusClientKey,optional"`
+}
+
+type InspectionTaskDelRequest struct {
+	Id uint64 `path:"id" validate:"required"`
+}
+
+type InspectionTaskRunRequest struct {
+	Id          uint64 `path:"id" validate:"required"`
+	ClusterUuid string `json:"clusterUuid,optional"`
+}
+
+type InspectionTaskRunResponse struct {
+	Records []InspectionRecord `json:"records"`
+}
+
+type InspectionTaskSearchRequest struct {
+	Name         string `form:"name,optional"`
+	ScopeType    string `form:"scopeType,optional"`
+	ClusterUuid  string `form:"clusterUuid,optional"`
+	ScheduleType string `form:"scheduleType,optional"`
+	Enabled      *bool  `form:"enabled,optional"`
+	Page         uint64 `form:"page,optional,default=1"`
+	PageSize     uint64 `form:"pageSize,optional,default=20"`
+	OrderField   string `form:"orderField,optional,default=id"`
+	IsAsc        bool   `form:"isAsc,optional"`
+}
+
+type InspectionTaskSearchResponse struct {
+	Data  []InspectionTask `json:"data"`
+	Total uint64           `json:"total"`
+}
+
+type InspectionTaskUpdateRequest struct {
+	Id                           uint64 `path:"id" validate:"required"`
+	Name                         string `json:"name" validate:"required"`
+	Description                  string `json:"description,optional"`
+	TemplateId                   uint64 `json:"templateId,optional"`
+	ScopeType                    string `json:"scopeType,optional"`
+	ClusterUuid                  string `json:"clusterUuid,optional"`
+	ScheduleType                 string `json:"scheduleType,optional"`
+	CronExpr                     string `json:"cronExpr,optional"`
+	Enabled                      bool   `json:"enabled,optional"`
+	MaxConcurrency               int64  `json:"maxConcurrency,optional"`
+	TimeoutSec                   int64  `json:"timeoutSec,optional"`
+	ConfigJson                   string `json:"configJson,optional"`
+	PrometheusEnabled            bool   `json:"prometheusEnabled,optional"`
+	PrometheusEndpoint           string `json:"prometheusEndpoint,optional"`
+	PrometheusAuthEnabled        bool   `json:"prometheusAuthEnabled,optional"`
+	PrometheusAuthType           string `json:"prometheusAuthType,optional"`
+	PrometheusUsername           string `json:"prometheusUsername,optional"`
+	PrometheusPassword           string `json:"prometheusPassword,optional"`
+	PrometheusToken              string `json:"prometheusToken,optional"`
+	PrometheusTlsEnabled         bool   `json:"prometheusTlsEnabled,optional"`
+	PrometheusInsecureSkipVerify bool   `json:"prometheusInsecureSkipVerify,optional"`
+	PrometheusCaCert             string `json:"prometheusCaCert,optional"`
+	PrometheusClientCert         string `json:"prometheusClientCert,optional"`
+	PrometheusClientKey          string `json:"prometheusClientKey,optional"`
+}
+
+type InspectionTemplate struct {
+	Id          uint64 `json:"id"`
+	Name        string `json:"name"`
+	Code        string `json:"code"`
+	Description string `json:"description"`
+	ScopeType   string `json:"scopeType"`
+	Enabled     bool   `json:"enabled"`
+	IsBuiltin   bool   `json:"isBuiltin"`
+	Version     uint64 `json:"version"`
+	ConfigJson  string `json:"configJson"`
+	CreatedBy   string `json:"createdBy"`
+	UpdatedBy   string `json:"updatedBy"`
+	CreatedAt   int64  `json:"createdAt"`
+	UpdatedAt   int64  `json:"updatedAt"`
+}
+
+type InspectionTemplateAddRequest struct {
+	Name        string `json:"name" validate:"required"`
+	Code        string `json:"code" validate:"required"`
+	Description string `json:"description,optional"`
+	ScopeType   string `json:"scopeType,optional"`
+	Enabled     bool   `json:"enabled,optional"`
+	ConfigJson  string `json:"configJson,optional"`
+}
+
+type InspectionTemplateDelRequest struct {
+	Id uint64 `path:"id" validate:"required"`
+}
+
+type InspectionTemplateSearchRequest struct {
+	Name       string `form:"name,optional"`
+	ScopeType  string `form:"scopeType,optional"`
+	Enabled    *bool  `form:"enabled,optional"`
+	Page       uint64 `form:"page,optional,default=1"`
+	PageSize   uint64 `form:"pageSize,optional,default=20"`
+	OrderField string `form:"orderField,optional,default=id"`
+	IsAsc      bool   `form:"isAsc,optional"`
+}
+
+type InspectionTemplateSearchResponse struct {
+	Data  []InspectionTemplate `json:"data"`
+	Total uint64               `json:"total"`
+}
+
+type InspectionTemplateUpdateRequest struct {
+	Id          uint64 `path:"id" validate:"required"`
+	Name        string `json:"name" validate:"required"`
+	Code        string `json:"code" validate:"required"`
+	Description string `json:"description,optional"`
+	ScopeType   string `json:"scopeType,optional"`
+	Enabled     bool   `json:"enabled,optional"`
+	ConfigJson  string `json:"configJson,optional"`
+}
+
 type ListAlertRuleFileRequest struct {
 	Namespace string `form:"namespace,optional" validate:"omitempty,max=63"` // 命名空间
 }
 
 type ListAlertRuleGroupRequest struct {
 	FileId uint64 `form:"fileId,optional" validate:"omitempty,gt=0"` // 文件ID
+}
+
+type ListLogAlertRulesRequest struct {
+	ClusterUuid  string `form:"clusterUuid,optional"`
+	WorkspaceId  uint64 `form:"workspaceId,optional"`
+	ProjectUuid  string `form:"projectUuid,optional"`
+	Namespace    string `form:"namespace,optional"`
+	Application  string `form:"application,optional"`
+	ResourceName string `form:"resourceName,optional"`
+	Enabled      *bool  `form:"enabled,optional"`
+	Page         uint64 `form:"page,optional,default=1"`
+	PageSize     uint64 `form:"pageSize,optional,default=20"`
+}
+
+type ListLogAlertRulesResponse struct {
+	Data  []LogAlertRule `json:"data"`
+	Total uint64         `json:"total"`
+}
+
+type LogAlertEngineStatsRequest struct {
+	ClusterUuid string `form:"clusterUuid,optional"`
+}
+
+type LogAlertEngineStatsResponse struct {
+	ClusterUuid        string `json:"clusterUuid"`
+	TotalRules         uint64 `json:"totalRules"`
+	EnabledRules       uint64 `json:"enabledRules"`
+	DisabledRules      uint64 `json:"disabledRules"`
+	SuccessRules       uint64 `json:"successRules"`
+	FailedRules        uint64 `json:"failedRules"`
+	PendingRules       uint64 `json:"pendingRules"`
+	ActiveFiringEvents uint64 `json:"activeFiringEvents"`
+	FailedNotifyEvents uint64 `json:"failedNotifyEvents"`
+	DeadNotifyEvents   uint64 `json:"deadNotifyEvents"`
+	CriticalRules      uint64 `json:"criticalRules"`
+	WarningRules       uint64 `json:"warningRules"`
+	InfoRules          uint64 `json:"infoRules"`
+	HotRules           uint64 `json:"hotRules"`
+	WarmRules          uint64 `json:"warmRules"`
+	ColdRules          uint64 `json:"coldRules"`
+}
+
+type LogAlertEvent struct {
+	Id               uint64            `json:"id"`
+	RuleId           uint64            `json:"ruleId"`
+	RuleName         string            `json:"ruleName"`
+	BackendType      string            `json:"backendType"`
+	ClusterUuid      string            `json:"clusterUuid"`
+	ClusterName      string            `json:"clusterName"`
+	ProjectUuid      string            `json:"projectUuid"`
+	ProjectName      string            `json:"projectName"`
+	WorkspaceId      uint64            `json:"workspaceId"`
+	WorkspaceName    string            `json:"workspaceName"`
+	Namespace        string            `json:"namespace"`
+	Application      string            `json:"application"`
+	ResourceName     string            `json:"resourceName"`
+	PodName          string            `json:"podName"`
+	ContainerName    string            `json:"containerName"`
+	Host             string            `json:"host"`
+	EventFingerprint string            `json:"eventFingerprint"`
+	HitCount         int64             `json:"hitCount"`
+	Severity         string            `json:"severity"`
+	EventStatus      string            `json:"eventStatus"`
+	NotifyStatus     string            `json:"notifyStatus"`
+	NotifyError      string            `json:"notifyError"`
+	RetryCount       int64             `json:"retryCount"`
+	NextRetryAt      int64             `json:"nextRetryAt"`
+	SampleTimestamp  int64             `json:"sampleTimestamp"`
+	SampleMessage    string            `json:"sampleMessage"`
+	SampleRaw        string            `json:"sampleRaw"`
+	SampleLabels     map[string]string `json:"sampleLabels"`
+	CloseReason      string            `json:"closeReason"`
+	ClosedBy         string            `json:"closedBy"`
+	ClosedAt         int64             `json:"closedAt"`
+	ManualReason     string            `json:"manualReason"`
+	ManualReasonBy   string            `json:"manualReasonBy"`
+	ManualReasonAt   int64             `json:"manualReasonAt"`
+	CreatedAt        int64             `json:"createdAt"`
+	UpdatedAt        int64             `json:"updatedAt"`
+}
+
+type LogAlertRule struct {
+	Id             uint64 `json:"id"`
+	ClusterUuid    string `json:"clusterUuid"`
+	BackendType    string `json:"backendType"`
+	ProjectUuid    string `json:"projectUuid"`
+	WorkspaceId    uint64 `json:"workspaceId"`
+	Namespace      string `json:"namespace"`
+	Application    string `json:"application"`
+	ResourceName   string `json:"resourceName"`
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	QueryText      string `json:"queryText"`
+	ConditionType  string `json:"conditionType"`
+	Threshold      string `json:"threshold"`
+	Window         string `json:"window"`
+	Severity       string `json:"severity"`
+	NotifyChannels string `json:"notifyChannels"`
+	Enabled        bool   `json:"enabled"`
+	BackendRuleId  string `json:"backendRuleId"`
+	LastSyncStatus string `json:"lastSyncStatus"`
+	LastSyncError  string `json:"lastSyncError"`
+	CreatedBy      string `json:"createdBy"`
+	UpdatedBy      string `json:"updatedBy"`
+	CreatedAt      int64  `json:"createdAt"`
+	UpdatedAt      int64  `json:"updatedAt"`
+	EvalInterval   string `json:"evalInterval"`
+	ForDuration    string `json:"forDuration"`
+	SilenceWindow  string `json:"silenceWindow"`
+}
+
+type LogClusterConfigItem struct {
+	Id                 uint64 `json:"id"`
+	ClusterUuid        string `json:"clusterUuid"`
+	AppName            string `json:"appName"`
+	AppCode            string `json:"appCode"`
+	AppType            int64  `json:"appType"`
+	IsDefault          bool   `json:"isDefault"`
+	AppUrl             string `json:"appUrl"`
+	Port               int64  `json:"port"`
+	Protocol           string `json:"protocol"`
+	AuthEnabled        bool   `json:"authEnabled"`
+	AuthType           string `json:"authType"`
+	TlsEnabled         bool   `json:"tlsEnabled"`
+	InsecureSkipVerify bool   `json:"insecureSkipVerify"`
+	Status             int64  `json:"status"`
+	CreatedAt          int64  `json:"createdAt"`
+	UpdatedAt          int64  `json:"updatedAt"`
+}
+
+type LogClusterConfigRequest struct {
+	ClusterUuid string `form:"clusterUuid" validate:"required"`
+}
+
+type LogClusterConfigResponse struct {
+	ClusterUuid    string                 `json:"clusterUuid"`
+	DefaultBackend string                 `json:"defaultBackend"`
+	Backends       []LogClusterConfigItem `json:"backends"`
+}
+
+type LogClusterSyncStatusRequest struct {
+	ClusterUuid string `form:"clusterUuid" validate:"required"`
+}
+
+type LogClusterSyncStatusResponse struct {
+	ClusterUuid   string `json:"clusterUuid"`
+	TotalRules    uint64 `json:"totalRules"`
+	EnabledRules  uint64 `json:"enabledRules"`
+	SuccessRules  uint64 `json:"successRules"`
+	FailedRules   uint64 `json:"failedRules"`
+	PendingRules  uint64 `json:"pendingRules"`
+	DisabledRules uint64 `json:"disabledRules"`
+	HealthStatus  string `json:"healthStatus"`
+	LastSyncError string `json:"lastSyncError"`
+	LastSyncAt    int64  `json:"lastSyncAt"`
+}
+
+type LogDownloadRequest struct {
+	SourceType    string   `json:"sourceType,optional" form:"sourceType,optional"`
+	ClusterUuid   string   `json:"clusterUuid" form:"clusterUuid" validate:"required"`
+	Namespace     string   `json:"namespace,optional" form:"namespace,optional"`
+	PodName       string   `json:"podName,optional" form:"podName,optional"`
+	ContainerName string   `json:"containerName,optional" form:"containerName,optional"`
+	PodIp         string   `json:"podIp,optional" form:"podIp,optional"`
+	Message       string   `json:"message,optional" form:"message,optional"`
+	Level         string   `json:"level,optional" form:"level,optional"`
+	QueryMode     string   `json:"queryMode,optional,default=platform" form:"queryMode,optional,default=platform" validate:"omitempty,oneof=platform loki es"`
+	QueryText     string   `json:"queryText,optional" form:"queryText,optional"`
+	Keyword       string   `json:"keyword,optional" form:"keyword,optional"`
+	Start         string   `json:"start" form:"start" validate:"required"`
+	End           string   `json:"end" form:"end" validate:"required"`
+	Limit         int64    `json:"limit,optional,default=10000" form:"limit,optional,default=10000"`
+	Direction     string   `json:"direction,optional,default=backward" form:"direction,optional,default=backward"`
+	Hosts         []string `json:"hosts,optional" form:"hosts,optional"`
+}
+
+type LogLabelKeysRequest struct {
+	SourceType   string   `json:"sourceType" validate:"required,oneof=container system"`
+	ClusterUuid  string   `json:"clusterUuid" validate:"required"`
+	QueryMode    string   `json:"queryMode" validate:"required,oneof=platform loki es"`
+	WorkspaceId  uint64   `json:"workspaceId,optional"`
+	Namespace    string   `json:"namespace,optional"`
+	Application  string   `json:"application,optional"`
+	ResourceName string   `json:"resourceName,optional"`
+	Hosts        []string `json:"hosts,optional"`
+}
+
+type LogLabelKeysResponse struct {
+	Keys []string `json:"keys"`
+}
+
+type LogLabelValuesRequest struct {
+	SourceType   string   `json:"sourceType" validate:"required,oneof=container system"`
+	ClusterUuid  string   `json:"clusterUuid" validate:"required"`
+	QueryMode    string   `json:"queryMode" validate:"required,oneof=platform loki es"`
+	LabelKey     string   `json:"labelKey" validate:"required"`
+	WorkspaceId  uint64   `json:"workspaceId,optional"`
+	Namespace    string   `json:"namespace,optional"`
+	Application  string   `json:"application,optional"`
+	ResourceName string   `json:"resourceName,optional"`
+	Hosts        []string `json:"hosts,optional"`
+}
+
+type LogLabelValuesResponse struct {
+	Values []string `json:"values"`
+}
+
+type LogQueryModeOptionsRequest struct {
+	ClusterUuid string `form:"clusterUuid" validate:"required"`
+}
+
+type LogQueryModeOptionsResponse struct {
+	Loki          bool `json:"loki"`
+	Elasticsearch bool `json:"elasticsearch"`
+}
+
+type LogQueryRequest struct {
+	LogType       string   `json:"logType,optional" form:"logType,optional" validate:"omitempty,oneof=container system"`
+	LegacyLogType string   `json:"sourceType,optional" form:"sourceType,optional"`
+	ClusterUuid   string   `json:"clusterUuid" form:"clusterUuid,optional" validate:"required"`
+	Namespace     string   `json:"namespace,optional" form:"namespace,optional"`
+	ProjectUuid   string   `json:"projectUuid,optional" form:"projectUuid,optional"`
+	Application   string   `json:"application,optional" form:"application,optional"`
+	ResourceName  string   `json:"resourceName,optional" form:"resourceName,optional"`
+	PodName       string   `json:"podName,optional" form:"podName,optional"`
+	ContainerName string   `json:"containerName,optional" form:"containerName,optional"`
+	Host          string   `json:"host,optional" form:"host,optional"`
+	SourceType    string   `json:"logSourceType,optional" form:"logSourceType,optional"`
+	Message       string   `json:"message,optional" form:"message,optional"`
+	Mode          string   `json:"mode,optional" form:"mode,optional" validate:"omitempty,oneof=form code"`
+	Expr          string   `json:"expr,optional" form:"expr,optional"`
+	Start         string   `json:"start" form:"start,optional" validate:"required"`
+	End           string   `json:"end" form:"end,optional" validate:"required"`
+	Limit         int64    `json:"limit,optional,default=100" form:"limit,optional,default=100"`
+	Direction     string   `json:"direction,optional,default=backward" form:"direction,optional,default=backward" validate:"omitempty,oneof=forward backward"`
+	NextToken     string   `json:"nextToken,optional" form:"nextToken,optional"`
+	QueryMode     string   `json:"queryMode,optional,default=platform" form:"queryMode,optional,default=platform" validate:"omitempty,oneof=platform loki es"`
+	QueryText     string   `json:"queryText,optional" form:"queryText,optional"`
+	Command       string   `json:"command,optional" form:"command,optional"`
+	Keyword       string   `json:"keyword,optional" form:"keyword,optional"`
+	PodIp         string   `json:"podIp,optional" form:"podIp,optional"`
+	Hosts         []string `json:"hosts,optional" form:"hosts,optional"`
+	Level         string   `json:"level,optional" form:"level,optional"`
+}
+
+type LogQueryResponse struct {
+	BackendType  string      `json:"backendType"`
+	QueryMode    string      `json:"queryMode,optional"`
+	DataStream   string      `json:"dataStream,optional"`
+	IndexPattern string      `json:"indexPattern,optional"`
+	NextToken    string      `json:"nextToken,optional"`
+	List         []LogRecord `json:"list"`
+}
+
+type LogRecord struct {
+	Timestamp   int64             `json:"timestamp"`
+	Message     string            `json:"message"`
+	BackendType string            `json:"backendType"`
+	Labels      map[string]string `json:"labels"`
+	Raw         string            `json:"raw"`
+}
+
+type ManualRetryLogAlertEventRequest struct {
+	Id uint64 `path:"id"`
+}
+
+type ManualRetryLogAlertEventResponse struct {
+	Id           uint64 `json:"id"`
+	NotifyStatus string `json:"notifyStatus"`
+	RetryCount   int64  `json:"retryCount"`
+	NotifyError  string `json:"notifyError"`
+	NextRetryAt  int64  `json:"nextRetryAt"`
 }
 
 type MigrateVersionOnProjectRequest struct {
@@ -1635,6 +2402,20 @@ type SearchClusterResponse struct {
 	Total uint64    `json:"total"` // 总条数
 }
 
+type SearchLogAlertEventsRequest struct {
+	ClusterUuid  string `form:"clusterUuid,optional"`
+	RuleId       uint64 `form:"ruleId,optional"`
+	EventStatus  string `form:"eventStatus,optional"`
+	NotifyStatus string `form:"notifyStatus,optional"`
+	Page         uint64 `form:"page,optional,default=1"`
+	PageSize     uint64 `form:"pageSize,optional,default=20"`
+}
+
+type SearchLogAlertEventsResponse struct {
+	Data  []LogAlertEvent `json:"data"`
+	Total uint64          `json:"total"`
+}
+
 type SearchProjectAuditLogRequest struct {
 	Page          uint64 `form:"page,optional" validate:"omitempty,gt=0"`              // 页码，默认1
 	PageSize      uint64 `form:"pageSize,optional" validate:"omitempty,gte=1,lte=100"` // 每页数量，默认20，最大100
@@ -1721,6 +2502,10 @@ type TestClusterConnectivityRequest struct {
 	InsecureSkipVerify int64  `json:"insecureSkipVerify,optional" validate:"omitempty,oneof=0 1"`                // 是否跳
 }
 
+type ToggleLogAlertRuleRequest struct {
+	Id uint64 `path:"id"`
+}
+
 type TrendDataPoint struct {
 	Date          string `json:"date"`          // 日期
 	NewCount      int64  `json:"newCount"`      // 当日新增告警数
@@ -1798,6 +2583,33 @@ type UpdateClusterRequest struct {
 type UpdateClusterStorageCapacityRequest struct {
 	ResourceId              uint64  `path:"resourceId"`
 	StoragePhysicalCapacity float64 `json:"storagePhysicalCapacity" validate:"required"`
+}
+
+type UpdateLogAlertEventReasonRequest struct {
+	Id     uint64 `path:"id"`
+	Reason string `json:"reason" validate:"required,max=500"`
+}
+
+type UpdateLogAlertRuleRequest struct {
+	Id             uint64 `path:"id"`
+	ClusterUuid    string `json:"clusterUuid,optional"`
+	WorkspaceId    uint64 `json:"workspaceId,optional"`
+	ProjectUuid    string `json:"projectUuid,optional"`
+	Namespace      string `json:"namespace,optional"`
+	Application    string `json:"application,optional"`
+	ResourceName   string `json:"resourceName,optional"`
+	Name           string `json:"name" validate:"required"`
+	Description    string `json:"description,optional"`
+	QueryText      string `json:"queryText,optional"`
+	ConditionType  string `json:"conditionType" validate:"required"`
+	Threshold      string `json:"threshold" validate:"required"`
+	Window         string `json:"window" validate:"required"`
+	Severity       string `json:"severity" validate:"required"`
+	NotifyChannels string `json:"notifyChannels,optional"`
+	Enabled        bool   `json:"enabled"`
+	EvalInterval   string `json:"evalInterval,optional"`
+	ForDuration    string `json:"forDuration,optional"`
+	SilenceWindow  string `json:"silenceWindow,optional"`
 }
 
 type UpdateProjectClusterRequest struct {

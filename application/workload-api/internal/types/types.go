@@ -109,6 +109,12 @@ type ApplicationSummary struct {
 	IngressDomains   []string                 `json:"ingressDomains"`
 }
 
+type BatchCreateApplicationResource struct {
+	ClusterUuid string `json:"clusterUuid" validate:"required,uuid"`
+	Namespace   string `json:"namespace" validate:"required"`
+	YamlStr     string `json:"yamlStr" validate:"required,min=1"`
+}
+
 type BatchDeleteRequest struct {
 	Ids []uint64 `json:"ids" validate:"required,min=1"` // ID列表
 }

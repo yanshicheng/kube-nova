@@ -40,7 +40,7 @@ func (l *RefreshTokenLogic) RefreshToken(in *pb.RefreshTokenRequest) (*pb.Refres
 	// 查询用户信息
 	redisKey := fmt.Sprintf("%s%s", common.UuidKeyPrefix, jwtR.UserName.UserName)
 	if common.AllowMultiLogin {
-		redisKey = fmt.Sprintf("%s%s:%s", common.UuidKeyPrefix, jwtR.UserName.UserName, jwtR.UserName.UserId)
+		redisKey = fmt.Sprintf("%s%s:%d", common.UuidKeyPrefix, jwtR.UserName.UserName, jwtR.UserName.UserId)
 	}
 	key, errs := l.svcCtx.Cache.Get(redisKey)
 	if errs != nil {

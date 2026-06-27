@@ -2,10 +2,12 @@ package svc
 
 import (
 	"github.com/yanshicheng/kube-nova/application/manager-api/internal/config"
+	logservice "github.com/yanshicheng/kube-nova/application/manager-rpc/client/logservice"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/storageservice"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/sysauthservice"
 	"github.com/yanshicheng/kube-nova/common/interceptors"
+	logcluster "github.com/yanshicheng/kube-nova/common/logmanager/cluster"
 	"github.com/yanshicheng/kube-nova/common/middleware"
 	"github.com/yanshicheng/kube-nova/common/verify"
 	"github.com/zeromicro/go-zero/core/stores/redis"
@@ -20,7 +22,8 @@ type ServiceContext struct {
 	JWTAuthMiddleware rest.Middleware
 	StoreRpc          storageservice.StorageService
 	ManagerRpc        managerservice.ManagerService
-	//PrometheusManager *cluster2.PrometheusManager
+	LogRpc            logservice.LogService
+	LogManager        *logcluster.LogManager
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -40,14 +43,17 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		zrpc.WithUnaryClientInterceptor(interceptors.ClientMetadataInterceptor()),
 		zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor()),
 	)
+	cacheClient := redis.MustNewRedis(c.Cache)
+	managerService := managerservice.NewManagerService(managerRpc)
 	return &ServiceContext{
 		Config:    c,
-		Cache:     redis.MustNewRedis(c.Cache),
+		Cache:     cacheClient,
 		Validator: validator,
 		JWTAuthMiddleware: middleware.NewJWTAuthMiddleware(
 			sysauthservice.NewSysAuthService(authRpc)).Handle,
-		ManagerRpc: managerservice.NewManagerService(managerRpc),
+		ManagerRpc: managerService,
+		LogRpc:     logservice.NewLogService(managerRpc),
+		LogManager: logcluster.NewLogManager(managerService, cacheClient),
 		StoreRpc:   storageservice.NewStorageService(storeRpc),
-		//PrometheusManager: cluster2.NewPrometheusManager(managerservice.NewManagerService(managerRpc)),
 	}
 }

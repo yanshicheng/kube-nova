@@ -1,0 +1,567 @@
+syntax = "v1"
+
+type (
+    InspectionTemplate {
+        Id uint64 `json:"id"`
+        Name string `json:"name"`
+        Code string `json:"code"`
+        Description string `json:"description"`
+        ScopeType string `json:"scopeType"`
+        Enabled bool `json:"enabled"`
+        IsBuiltin bool `json:"isBuiltin"`
+        Version uint64 `json:"version"`
+        ConfigJson string `json:"configJson"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    InspectionTemplateAddRequest {
+        Name string `json:"name" validate:"required"`
+        Code string `json:"code" validate:"required"`
+        Description string `json:"description,optional"`
+        ScopeType string `json:"scopeType,optional"`
+        Enabled bool `json:"enabled,optional"`
+        ConfigJson string `json:"configJson,optional"`
+    }
+
+    InspectionTemplateUpdateRequest {
+        Id uint64 `path:"id" validate:"required"`
+        Name string `json:"name" validate:"required"`
+        Code string `json:"code" validate:"required"`
+        Description string `json:"description,optional"`
+        ScopeType string `json:"scopeType,optional"`
+        Enabled bool `json:"enabled,optional"`
+        ConfigJson string `json:"configJson,optional"`
+    }
+
+    InspectionTemplateDelRequest {
+        Id uint64 `path:"id" validate:"required"`
+    }
+
+    InspectionTemplateSearchRequest {
+        Name string `form:"name,optional"`
+        ScopeType string `form:"scopeType,optional"`
+        Enabled *bool `form:"enabled,optional"`
+        Page uint64 `form:"page,optional,default=1"`
+        PageSize uint64 `form:"pageSize,optional,default=20"`
+        OrderField string `form:"orderField,optional,default=id"`
+        IsAsc bool `form:"isAsc,optional"`
+    }
+
+    InspectionTemplateSearchResponse {
+        Data []InspectionTemplate `json:"data"`
+        Total uint64 `json:"total"`
+    }
+
+    InspectionGroup {
+        Id uint64 `json:"id"`
+        TemplateId uint64 `json:"templateId"`
+        GroupCode string `json:"groupCode"`
+        GroupName string `json:"groupName"`
+        Description string `json:"description"`
+        Enabled bool `json:"enabled"`
+        OrderNum int64 `json:"orderNum"`
+        ConfigJson string `json:"configJson"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    InspectionGroupAddRequest {
+        TemplateId uint64 `json:"templateId" validate:"required"`
+        GroupCode string `json:"groupCode" validate:"required"`
+        GroupName string `json:"groupName" validate:"required"`
+        Description string `json:"description,optional"`
+        Enabled bool `json:"enabled,optional"`
+        OrderNum int64 `json:"orderNum,optional"`
+        ConfigJson string `json:"configJson,optional"`
+    }
+
+    InspectionGroupUpdateRequest {
+        Id uint64 `path:"id" validate:"required"`
+        TemplateId uint64 `json:"templateId" validate:"required"`
+        GroupCode string `json:"groupCode" validate:"required"`
+        GroupName string `json:"groupName" validate:"required"`
+        Description string `json:"description,optional"`
+        Enabled bool `json:"enabled,optional"`
+        OrderNum int64 `json:"orderNum,optional"`
+        ConfigJson string `json:"configJson,optional"`
+    }
+
+    InspectionGroupDelRequest {
+        Id uint64 `path:"id" validate:"required"`
+    }
+
+    InspectionGroupSearchRequest {
+        TemplateId uint64 `form:"templateId,optional"`
+        GroupName string `form:"groupName,optional"`
+        Enabled *bool `form:"enabled,optional"`
+        Page uint64 `form:"page,optional,default=1"`
+        PageSize uint64 `form:"pageSize,optional,default=20"`
+        OrderField string `form:"orderField,optional,default=order_num"`
+        IsAsc bool `form:"isAsc,optional,default=true"`
+    }
+
+    InspectionGroupSearchResponse {
+        Data []InspectionGroup `json:"data"`
+        Total uint64 `json:"total"`
+    }
+
+    InspectionGroupTransferRequest {
+        Id uint64 `path:"id" validate:"required"`
+        TargetTemplateId uint64 `json:"targetTemplateId" validate:"required"`
+        GroupCode string `json:"groupCode" validate:"required"`
+        GroupName string `json:"groupName" validate:"required"`
+        ItemCodePrefix string `json:"itemCodePrefix,optional"`
+        Operation string `json:"operation" validate:"required,oneof=copy move"`
+    }
+
+    InspectionGroupTransferResponse {
+        Group InspectionGroup `json:"group"`
+        ItemCount int64 `json:"itemCount"`
+    }
+
+    InspectionItem {
+        Id uint64 `json:"id"`
+        TemplateId uint64 `json:"templateId"`
+        GroupId uint64 `json:"groupId"`
+        ItemCode string `json:"itemCode"`
+        ItemName string `json:"itemName"`
+        Category string `json:"category"`
+        CheckType string `json:"checkType"`
+        TargetType string `json:"targetType"`
+        Severity string `json:"severity"`
+        Weight int64 `json:"weight"`
+        Enabled bool `json:"enabled"`
+        TimeoutSec int64 `json:"timeoutSec"`
+        OrderNum int64 `json:"orderNum"`
+        Promql string `json:"promql"`
+        Operator string `json:"operator"`
+        Threshold string `json:"threshold"`
+        Unit string `json:"unit"`
+        ConfigJson string `json:"configJson"`
+        Advice string `json:"advice"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    InspectionItemAddRequest {
+        TemplateId uint64 `json:"templateId,optional"`
+        GroupId uint64 `json:"groupId,optional"`
+        ItemCode string `json:"itemCode" validate:"required"`
+        ItemName string `json:"itemName" validate:"required"`
+        Category string `json:"category,optional"`
+        CheckType string `json:"checkType,optional"`
+        TargetType string `json:"targetType,optional"`
+        Severity string `json:"severity,optional"`
+        Weight int64 `json:"weight,optional"`
+        Enabled bool `json:"enabled,optional"`
+        TimeoutSec int64 `json:"timeoutSec,optional"`
+        OrderNum int64 `json:"orderNum,optional"`
+        Promql string `json:"promql,optional"`
+        Operator string `json:"operator,optional"`
+        Threshold string `json:"threshold,optional"`
+        Unit string `json:"unit,optional"`
+        ConfigJson string `json:"configJson,optional"`
+        Advice string `json:"advice,optional"`
+    }
+
+    InspectionItemUpdateRequest {
+        Id uint64 `path:"id" validate:"required"`
+        TemplateId uint64 `json:"templateId,optional"`
+        GroupId uint64 `json:"groupId,optional"`
+        ItemCode string `json:"itemCode" validate:"required"`
+        ItemName string `json:"itemName" validate:"required"`
+        Category string `json:"category,optional"`
+        CheckType string `json:"checkType,optional"`
+        TargetType string `json:"targetType,optional"`
+        Severity string `json:"severity,optional"`
+        Weight int64 `json:"weight,optional"`
+        Enabled bool `json:"enabled,optional"`
+        TimeoutSec int64 `json:"timeoutSec,optional"`
+        OrderNum int64 `json:"orderNum,optional"`
+        Promql string `json:"promql,optional"`
+        Operator string `json:"operator,optional"`
+        Threshold string `json:"threshold,optional"`
+        Unit string `json:"unit,optional"`
+        ConfigJson string `json:"configJson,optional"`
+        Advice string `json:"advice,optional"`
+    }
+
+    InspectionItemDelRequest {
+        Id uint64 `path:"id" validate:"required"`
+    }
+
+    InspectionItemSearchRequest {
+        TemplateId uint64 `form:"templateId,optional"`
+        GroupId uint64 `form:"groupId,optional"`
+        Category string `form:"category,optional"`
+        CheckType string `form:"checkType,optional"`
+        Enabled *bool `form:"enabled,optional"`
+        Page uint64 `form:"page,optional,default=1"`
+        PageSize uint64 `form:"pageSize,optional,default=20"`
+        OrderField string `form:"orderField,optional,default=order_num"`
+        IsAsc bool `form:"isAsc,optional,default=true"`
+    }
+
+    InspectionItemSearchResponse {
+        Data []InspectionItem `json:"data"`
+        Total uint64 `json:"total"`
+    }
+
+    InspectionTask {
+        Id uint64 `json:"id"`
+        Name string `json:"name"`
+        Description string `json:"description"`
+        TemplateId uint64 `json:"templateId"`
+        ScopeType string `json:"scopeType"`
+        ClusterUuid string `json:"clusterUuid"`
+        ScheduleType string `json:"scheduleType"`
+        CronExpr string `json:"cronExpr"`
+        Enabled bool `json:"enabled"`
+        MaxConcurrency int64 `json:"maxConcurrency"`
+        TimeoutSec int64 `json:"timeoutSec"`
+        LastRunAt int64 `json:"lastRunAt"`
+        NextRunAt int64 `json:"nextRunAt"`
+        LastRecordId uint64 `json:"lastRecordId"`
+        LastStatus string `json:"lastStatus"`
+        LastError string `json:"lastError"`
+        ConfigJson string `json:"configJson"`
+        PrometheusEnabled bool `json:"prometheusEnabled"`
+        PrometheusEndpoint string `json:"prometheusEndpoint"`
+        PrometheusAuthEnabled bool `json:"prometheusAuthEnabled"`
+        PrometheusAuthType string `json:"prometheusAuthType"`
+        PrometheusUsername string `json:"prometheusUsername"`
+        PrometheusPassword string `json:"prometheusPassword"`
+        PrometheusToken string `json:"prometheusToken"`
+        PrometheusTlsEnabled bool `json:"prometheusTlsEnabled"`
+        PrometheusInsecureSkipVerify bool `json:"prometheusInsecureSkipVerify"`
+        PrometheusCaCert string `json:"prometheusCaCert"`
+        PrometheusClientCert string `json:"prometheusClientCert"`
+        PrometheusClientKey string `json:"prometheusClientKey"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    InspectionTaskAddRequest {
+        Name string `json:"name" validate:"required"`
+        Description string `json:"description,optional"`
+        TemplateId uint64 `json:"templateId,optional"`
+        ScopeType string `json:"scopeType,optional"`
+        ClusterUuid string `json:"clusterUuid,optional"`
+        ScheduleType string `json:"scheduleType,optional"`
+        CronExpr string `json:"cronExpr,optional"`
+        Enabled bool `json:"enabled,optional"`
+        MaxConcurrency int64 `json:"maxConcurrency,optional"`
+        TimeoutSec int64 `json:"timeoutSec,optional"`
+        ConfigJson string `json:"configJson,optional"`
+        PrometheusEnabled bool `json:"prometheusEnabled,optional"`
+        PrometheusEndpoint string `json:"prometheusEndpoint,optional"`
+        PrometheusAuthEnabled bool `json:"prometheusAuthEnabled,optional"`
+        PrometheusAuthType string `json:"prometheusAuthType,optional"`
+        PrometheusUsername string `json:"prometheusUsername,optional"`
+        PrometheusPassword string `json:"prometheusPassword,optional"`
+        PrometheusToken string `json:"prometheusToken,optional"`
+        PrometheusTlsEnabled bool `json:"prometheusTlsEnabled,optional"`
+        PrometheusInsecureSkipVerify bool `json:"prometheusInsecureSkipVerify,optional"`
+        PrometheusCaCert string `json:"prometheusCaCert,optional"`
+        PrometheusClientCert string `json:"prometheusClientCert,optional"`
+        PrometheusClientKey string `json:"prometheusClientKey,optional"`
+    }
+
+    InspectionTaskUpdateRequest {
+        Id uint64 `path:"id" validate:"required"`
+        Name string `json:"name" validate:"required"`
+        Description string `json:"description,optional"`
+        TemplateId uint64 `json:"templateId,optional"`
+        ScopeType string `json:"scopeType,optional"`
+        ClusterUuid string `json:"clusterUuid,optional"`
+        ScheduleType string `json:"scheduleType,optional"`
+        CronExpr string `json:"cronExpr,optional"`
+        Enabled bool `json:"enabled,optional"`
+        MaxConcurrency int64 `json:"maxConcurrency,optional"`
+        TimeoutSec int64 `json:"timeoutSec,optional"`
+        ConfigJson string `json:"configJson,optional"`
+        PrometheusEnabled bool `json:"prometheusEnabled,optional"`
+        PrometheusEndpoint string `json:"prometheusEndpoint,optional"`
+        PrometheusAuthEnabled bool `json:"prometheusAuthEnabled,optional"`
+        PrometheusAuthType string `json:"prometheusAuthType,optional"`
+        PrometheusUsername string `json:"prometheusUsername,optional"`
+        PrometheusPassword string `json:"prometheusPassword,optional"`
+        PrometheusToken string `json:"prometheusToken,optional"`
+        PrometheusTlsEnabled bool `json:"prometheusTlsEnabled,optional"`
+        PrometheusInsecureSkipVerify bool `json:"prometheusInsecureSkipVerify,optional"`
+        PrometheusCaCert string `json:"prometheusCaCert,optional"`
+        PrometheusClientCert string `json:"prometheusClientCert,optional"`
+        PrometheusClientKey string `json:"prometheusClientKey,optional"`
+    }
+
+    InspectionTaskDelRequest {
+        Id uint64 `path:"id" validate:"required"`
+    }
+
+    InspectionTaskSearchRequest {
+        Name string `form:"name,optional"`
+        ScopeType string `form:"scopeType,optional"`
+        ClusterUuid string `form:"clusterUuid,optional"`
+        ScheduleType string `form:"scheduleType,optional"`
+        Enabled *bool `form:"enabled,optional"`
+        Page uint64 `form:"page,optional,default=1"`
+        PageSize uint64 `form:"pageSize,optional,default=20"`
+        OrderField string `form:"orderField,optional,default=id"`
+        IsAsc bool `form:"isAsc,optional"`
+    }
+
+    InspectionTaskSearchResponse {
+        Data []InspectionTask `json:"data"`
+        Total uint64 `json:"total"`
+    }
+
+    InspectionTaskRunRequest {
+        Id uint64 `path:"id" validate:"required"`
+        ClusterUuid string `json:"clusterUuid,optional"`
+    }
+
+    InspectionTaskRunResponse {
+        Records []InspectionRecord `json:"records"`
+    }
+
+    InspectionRecord {
+        Id uint64 `json:"id"`
+        RecordNo string `json:"recordNo"`
+        TaskId uint64 `json:"taskId"`
+        TemplateId uint64 `json:"templateId"`
+        TriggerType string `json:"triggerType"`
+        ScopeType string `json:"scopeType"`
+        ClusterUuid string `json:"clusterUuid"`
+        ClusterName string `json:"clusterName"`
+        Status string `json:"status"`
+        Score float64 `json:"score"`
+        HealthLevel string `json:"healthLevel"`
+        TotalCount int64 `json:"totalCount"`
+        SuccessCount int64 `json:"successCount"`
+        WarningCount int64 `json:"warningCount"`
+        CriticalCount int64 `json:"criticalCount"`
+        FailedCount int64 `json:"failedCount"`
+        SummaryJson string `json:"summaryJson"`
+        ReportJson string `json:"reportJson"`
+        StartedAt int64 `json:"startedAt"`
+        FinishedAt int64 `json:"finishedAt"`
+        DurationMs int64 `json:"durationMs"`
+        ErrorMessage string `json:"errorMessage"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    InspectionRecordSearchRequest {
+        TaskId uint64 `form:"taskId,optional"`
+        ClusterUuid string `form:"clusterUuid,optional"`
+        Status string `form:"status,optional"`
+        HealthLevel string `form:"healthLevel,optional"`
+        StartTime int64 `form:"startTime,optional"`
+        EndTime int64 `form:"endTime,optional"`
+        Page uint64 `form:"page,optional,default=1"`
+        PageSize uint64 `form:"pageSize,optional,default=20"`
+        OrderField string `form:"orderField,optional,default=id"`
+        IsAsc bool `form:"isAsc,optional"`
+    }
+
+    InspectionRecordSearchResponse {
+        Data []InspectionRecord `json:"data"`
+        Total uint64 `json:"total"`
+    }
+
+    InspectionResult {
+        Id uint64 `json:"id"`
+        RecordId uint64 `json:"recordId"`
+        ItemId uint64 `json:"itemId"`
+        ItemCode string `json:"itemCode"`
+        ItemName string `json:"itemName"`
+        Category string `json:"category"`
+        TargetType string `json:"targetType"`
+        TargetName string `json:"targetName"`
+        Severity string `json:"severity"`
+        Status string `json:"status"`
+        Score float64 `json:"score"`
+        Expected string `json:"expected"`
+        Actual string `json:"actual"`
+        Value string `json:"value"`
+        Unit string `json:"unit"`
+        Message string `json:"message"`
+        Suggestion string `json:"suggestion"`
+        DetailJson string `json:"detailJson"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+    }
+
+    InspectionReportRequest {
+        RecordId uint64 `path:"recordId" validate:"required"`
+        Page uint64 `form:"page,optional"`
+        PageSize uint64 `form:"pageSize,optional"`
+        Keyword string `form:"keyword,optional"`
+        Status string `form:"status,optional"`
+        Severity string `form:"severity,optional"`
+    }
+
+    InspectionReportResponse {
+        Record InspectionRecord `json:"record"`
+        Results []InspectionResult `json:"results"`
+        ResultsTotal uint64 `json:"resultsTotal"`
+    }
+
+    InspectionRecordFinishRequest {
+        RecordId uint64 `path:"recordId" validate:"required"`
+        Message string `json:"message,optional"`
+    }
+
+    InspectionRecordFinishResponse {
+        Record InspectionRecord `json:"record"`
+    }
+
+    InspectionRecordDelRequest {
+        RecordId uint64 `path:"recordId" validate:"required"`
+    }
+
+    InspectionDashboardRequest {
+        ClusterUuid string `form:"clusterUuid,optional"`
+        Days int64 `form:"days,optional,default=7"`
+    }
+
+    InspectionCategoryStat {
+        Category string `json:"category"`
+        TotalCount int64 `json:"totalCount"`
+        SuccessCount int64 `json:"successCount"`
+        WarningCount int64 `json:"warningCount"`
+        CriticalCount int64 `json:"criticalCount"`
+        FailedCount int64 `json:"failedCount"`
+    }
+
+    InspectionDashboardResponse {
+        TotalRecords int64 `json:"totalRecords"`
+        SuccessRecords int64 `json:"successRecords"`
+        FailedRecords int64 `json:"failedRecords"`
+        CriticalRecords int64 `json:"criticalRecords"`
+        AvgScore float64 `json:"avgScore"`
+        LatestHealthLevel string `json:"latestHealthLevel"`
+        LatestRecordId uint64 `json:"latestRecordId"`
+        CategoryStats []InspectionCategoryStat `json:"categoryStats"`
+    }
+)
+
+@server(
+    middleware: JWTAuthMiddleware
+    group: inspection
+    prefix: /manager/v1/inspection
+)
+service manager-api {
+    @doc "创建巡检模板"
+    @handler AddInspectionTemplateHandler
+    post /templates (InspectionTemplateAddRequest) returns (InspectionTemplate)
+
+    @doc "更新巡检模板"
+    @handler UpdateInspectionTemplateHandler
+    put /templates/:id (InspectionTemplateUpdateRequest) returns (InspectionTemplate)
+
+    @doc "删除巡检模板"
+    @handler DeleteInspectionTemplateHandler
+    delete /templates/:id (InspectionTemplateDelRequest) returns (string)
+
+    @doc "查询巡检模板"
+    @handler SearchInspectionTemplateHandler
+    get /templates (InspectionTemplateSearchRequest) returns (InspectionTemplateSearchResponse)
+
+    @doc "创建巡检分组"
+    @handler AddInspectionGroupHandler
+    post /groups (InspectionGroupAddRequest) returns (InspectionGroup)
+
+    @doc "更新巡检分组"
+    @handler UpdateInspectionGroupHandler
+    put /groups/:id (InspectionGroupUpdateRequest) returns (InspectionGroup)
+
+    @doc "删除巡检分组"
+    @handler DeleteInspectionGroupHandler
+    delete /groups/:id (InspectionGroupDelRequest) returns (string)
+
+    @doc "查询巡检分组"
+    @handler SearchInspectionGroupHandler
+    get /groups (InspectionGroupSearchRequest) returns (InspectionGroupSearchResponse)
+
+    @doc "复制或迁移巡检分组"
+    @handler TransferInspectionGroupHandler
+    post /groups/:id/transfer (InspectionGroupTransferRequest) returns (InspectionGroupTransferResponse)
+
+    @doc "创建巡检项"
+    @handler AddInspectionItemHandler
+    post /items (InspectionItemAddRequest) returns (InspectionItem)
+
+    @doc "更新巡检项"
+    @handler UpdateInspectionItemHandler
+    put /items/:id (InspectionItemUpdateRequest) returns (InspectionItem)
+
+    @doc "删除巡检项"
+    @handler DeleteInspectionItemHandler
+    delete /items/:id (InspectionItemDelRequest) returns (string)
+
+    @doc "查询巡检项"
+    @handler SearchInspectionItemHandler
+    get /items (InspectionItemSearchRequest) returns (InspectionItemSearchResponse)
+
+    @doc "创建巡检任务"
+    @handler AddInspectionTaskHandler
+    post /tasks (InspectionTaskAddRequest) returns (InspectionTask)
+
+    @doc "更新巡检任务"
+    @handler UpdateInspectionTaskHandler
+    put /tasks/:id (InspectionTaskUpdateRequest) returns (InspectionTask)
+
+    @doc "删除巡检任务"
+    @handler DeleteInspectionTaskHandler
+    delete /tasks/:id (InspectionTaskDelRequest) returns (string)
+
+    @doc "查询巡检任务"
+    @handler SearchInspectionTaskHandler
+    get /tasks (InspectionTaskSearchRequest) returns (InspectionTaskSearchResponse)
+
+    @doc "立即执行巡检"
+    @handler RunInspectionTaskHandler
+    post /tasks/:id/run (InspectionTaskRunRequest) returns (InspectionTaskRunResponse)
+
+    @doc "查询巡检记录"
+    @handler SearchInspectionRecordHandler
+    get /records (InspectionRecordSearchRequest) returns (InspectionRecordSearchResponse)
+
+    @doc "查询巡检报告"
+    @handler GetInspectionReportHandler
+    get /reports/:recordId (InspectionReportRequest) returns (InspectionReportResponse)
+
+    @doc "导出巡检报告Excel"
+    @handler ExportInspectionReportHandler
+    get /reports/:recordId/export (InspectionReportRequest)
+
+    @doc "巡检执行日志SSE"
+    @handler StreamInspectionRecordLogHandler
+    get /records/:recordId/logs/stream (InspectionReportRequest)
+
+    @doc "手动结束运行中巡检记录"
+    @handler FinishInspectionRecordHandler
+    post /records/:recordId/finish (InspectionRecordFinishRequest) returns (InspectionRecordFinishResponse)
+
+    @doc "删除巡检报告"
+    @handler DeleteInspectionRecordHandler
+    delete /records/:recordId (InspectionRecordDelRequest) returns (string)
+
+    @doc "查询巡检数据大盘"
+    @handler GetInspectionDashboardHandler
+    get /dashboard (InspectionDashboardRequest) returns (InspectionDashboardResponse)
+}

@@ -2072,7 +2072,7 @@ func (p *podOperator) DeleteFiles(ctx context.Context, namespace, podName, conta
 			if pathErr := p.parsePathError(stderr, filePath); pathErr != nil {
 				errMsg = pathErr.Error()
 			}
-			result.Errors = append(result.Errors, fmt.Errorf(errMsg))
+			result.Errors = append(result.Errors, fmt.Errorf("%s", errMsg))
 		} else {
 			result.DeletedCount++
 		}

@@ -677,6 +677,122 @@ func (s *ManagerServiceServer) GetWorkspaceResourceRanking(ctx context.Context, 
 	return l.GetWorkspaceResourceRanking(in)
 }
 
+// -----------------------自动化集群巡检-----------------------
+func (s *ManagerServiceServer) InspectionTemplateAdd(ctx context.Context, in *pb.InspectionTemplateAddReq) (*pb.InspectionTemplateResp, error) {
+	l := managerservicelogic.NewInspectionTemplateAddLogic(ctx, s.svcCtx)
+	return l.InspectionTemplateAdd(in)
+}
+
+func (s *ManagerServiceServer) InspectionTemplateUpdate(ctx context.Context, in *pb.InspectionTemplateUpdateReq) (*pb.InspectionTemplateResp, error) {
+	l := managerservicelogic.NewInspectionTemplateUpdateLogic(ctx, s.svcCtx)
+	return l.InspectionTemplateUpdate(in)
+}
+
+func (s *ManagerServiceServer) InspectionTemplateDel(ctx context.Context, in *pb.InspectionTemplateDelReq) (*pb.DeleteClusterResp, error) {
+	l := managerservicelogic.NewInspectionTemplateDelLogic(ctx, s.svcCtx)
+	return l.InspectionTemplateDel(in)
+}
+
+func (s *ManagerServiceServer) InspectionTemplateSearch(ctx context.Context, in *pb.InspectionTemplateSearchReq) (*pb.InspectionTemplateSearchResp, error) {
+	l := managerservicelogic.NewInspectionTemplateSearchLogic(ctx, s.svcCtx)
+	return l.InspectionTemplateSearch(in)
+}
+
+func (s *ManagerServiceServer) InspectionGroupAdd(ctx context.Context, in *pb.InspectionGroupAddReq) (*pb.InspectionGroupResp, error) {
+	l := managerservicelogic.NewInspectionGroupAddLogic(ctx, s.svcCtx)
+	return l.InspectionGroupAdd(in)
+}
+
+func (s *ManagerServiceServer) InspectionGroupUpdate(ctx context.Context, in *pb.InspectionGroupUpdateReq) (*pb.InspectionGroupResp, error) {
+	l := managerservicelogic.NewInspectionGroupUpdateLogic(ctx, s.svcCtx)
+	return l.InspectionGroupUpdate(in)
+}
+
+func (s *ManagerServiceServer) InspectionGroupDel(ctx context.Context, in *pb.InspectionGroupDelReq) (*pb.DeleteClusterResp, error) {
+	l := managerservicelogic.NewInspectionGroupDelLogic(ctx, s.svcCtx)
+	return l.InspectionGroupDel(in)
+}
+
+func (s *ManagerServiceServer) InspectionGroupSearch(ctx context.Context, in *pb.InspectionGroupSearchReq) (*pb.InspectionGroupSearchResp, error) {
+	l := managerservicelogic.NewInspectionGroupSearchLogic(ctx, s.svcCtx)
+	return l.InspectionGroupSearch(in)
+}
+
+func (s *ManagerServiceServer) InspectionGroupTransfer(ctx context.Context, in *pb.InspectionGroupTransferReq) (*pb.InspectionGroupTransferResp, error) {
+	l := managerservicelogic.NewInspectionGroupTransferLogic(ctx, s.svcCtx)
+	return l.InspectionGroupTransfer(in)
+}
+
+func (s *ManagerServiceServer) InspectionItemAdd(ctx context.Context, in *pb.InspectionItemAddReq) (*pb.InspectionItemResp, error) {
+	l := managerservicelogic.NewInspectionItemAddLogic(ctx, s.svcCtx)
+	return l.InspectionItemAdd(in)
+}
+
+func (s *ManagerServiceServer) InspectionItemUpdate(ctx context.Context, in *pb.InspectionItemUpdateReq) (*pb.InspectionItemResp, error) {
+	l := managerservicelogic.NewInspectionItemUpdateLogic(ctx, s.svcCtx)
+	return l.InspectionItemUpdate(in)
+}
+
+func (s *ManagerServiceServer) InspectionItemDel(ctx context.Context, in *pb.InspectionItemDelReq) (*pb.DeleteClusterResp, error) {
+	l := managerservicelogic.NewInspectionItemDelLogic(ctx, s.svcCtx)
+	return l.InspectionItemDel(in)
+}
+
+func (s *ManagerServiceServer) InspectionItemSearch(ctx context.Context, in *pb.InspectionItemSearchReq) (*pb.InspectionItemSearchResp, error) {
+	l := managerservicelogic.NewInspectionItemSearchLogic(ctx, s.svcCtx)
+	return l.InspectionItemSearch(in)
+}
+
+func (s *ManagerServiceServer) InspectionTaskAdd(ctx context.Context, in *pb.InspectionTaskAddReq) (*pb.InspectionTaskResp, error) {
+	l := managerservicelogic.NewInspectionTaskAddLogic(ctx, s.svcCtx)
+	return l.InspectionTaskAdd(in)
+}
+
+func (s *ManagerServiceServer) InspectionTaskUpdate(ctx context.Context, in *pb.InspectionTaskUpdateReq) (*pb.InspectionTaskResp, error) {
+	l := managerservicelogic.NewInspectionTaskUpdateLogic(ctx, s.svcCtx)
+	return l.InspectionTaskUpdate(in)
+}
+
+func (s *ManagerServiceServer) InspectionTaskDel(ctx context.Context, in *pb.InspectionTaskDelReq) (*pb.DeleteClusterResp, error) {
+	l := managerservicelogic.NewInspectionTaskDelLogic(ctx, s.svcCtx)
+	return l.InspectionTaskDel(in)
+}
+
+func (s *ManagerServiceServer) InspectionTaskSearch(ctx context.Context, in *pb.InspectionTaskSearchReq) (*pb.InspectionTaskSearchResp, error) {
+	l := managerservicelogic.NewInspectionTaskSearchLogic(ctx, s.svcCtx)
+	return l.InspectionTaskSearch(in)
+}
+
+func (s *ManagerServiceServer) InspectionTaskRun(ctx context.Context, in *pb.InspectionTaskRunReq) (*pb.InspectionTaskRunResp, error) {
+	l := managerservicelogic.NewInspectionTaskRunLogic(ctx, s.svcCtx)
+	return l.InspectionTaskRun(in)
+}
+
+func (s *ManagerServiceServer) InspectionRecordSearch(ctx context.Context, in *pb.InspectionRecordSearchReq) (*pb.InspectionRecordSearchResp, error) {
+	l := managerservicelogic.NewInspectionRecordSearchLogic(ctx, s.svcCtx)
+	return l.InspectionRecordSearch(in)
+}
+
+func (s *ManagerServiceServer) InspectionReportGet(ctx context.Context, in *pb.InspectionReportReq) (*pb.InspectionReportResp, error) {
+	l := managerservicelogic.NewInspectionReportGetLogic(ctx, s.svcCtx)
+	return l.InspectionReportGet(in)
+}
+
+func (s *ManagerServiceServer) InspectionRecordFinish(ctx context.Context, in *pb.InspectionRecordFinishReq) (*pb.InspectionRecordFinishResp, error) {
+	l := managerservicelogic.NewInspectionRecordFinishLogic(ctx, s.svcCtx)
+	return l.InspectionRecordFinish(in)
+}
+
+func (s *ManagerServiceServer) InspectionRecordDel(ctx context.Context, in *pb.InspectionRecordDelReq) (*pb.DeleteClusterResp, error) {
+	l := managerservicelogic.NewInspectionRecordDelLogic(ctx, s.svcCtx)
+	return l.InspectionRecordDel(in)
+}
+
+func (s *ManagerServiceServer) InspectionDashboardGet(ctx context.Context, in *pb.InspectionDashboardReq) (*pb.InspectionDashboardResp, error) {
+	l := managerservicelogic.NewInspectionDashboardGetLogic(ctx, s.svcCtx)
+	return l.InspectionDashboardGet(in)
+}
+
 // -----------------------收费配置表-----------------------
 func (s *ManagerServiceServer) OnecBillingPriceConfigAdd(ctx context.Context, in *pb.OnecBillingPriceConfigAddReq) (*pb.OnecBillingPriceConfigAddResp, error) {
 	l := managerservicelogic.NewOnecBillingPriceConfigAddLogic(ctx, s.svcCtx)

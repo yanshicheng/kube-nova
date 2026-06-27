@@ -375,8 +375,8 @@ func (l *ProjectWorkspaceAddLogic) checkResourceAvailable(projectCluster *model.
 	}
 	newEphemeralStorageTotalAllocated := oldEphStorageAllocated + ephStorage
 	if newEphemeralStorageTotalAllocated > oldEphStorageLimit {
-		l.Errorf("临时存储配额不足，限制: %v，申请后总分配: %d GiB", projectCluster.EphemeralStorageLimit, newEphemeralStorageTotalAllocated)
-		return fmt.Errorf("临时存储配额不足，限制: %v，申请后总分配: %d GiB", projectCluster.EphemeralStorageLimit, newEphemeralStorageTotalAllocated)
+		l.Errorf("临时存储配额不足，限制: %v，申请后总分配: %.2f GiB", projectCluster.EphemeralStorageLimit, newEphemeralStorageTotalAllocated)
+		return fmt.Errorf("临时存储配额不足，限制: %v，申请后总分配: %.2f GiB", projectCluster.EphemeralStorageLimit, newEphemeralStorageTotalAllocated)
 	}
 
 	// Service检查 - 使用 service_limit

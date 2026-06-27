@@ -18,6 +18,7 @@ import (
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/storageservice"
 	"github.com/yanshicheng/kube-nova/common/interceptors"
 	"github.com/yanshicheng/kube-nova/common/k8smanager/cluster"
+	promcluster "github.com/yanshicheng/kube-nova/common/prometheusmanager/cluster"
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -41,6 +42,16 @@ type ServiceContext struct {
 	OnecProjectApplication        model.OnecProjectApplicationModel
 	OnecProjectVersion            model.OnecProjectVersionModel
 	OnecProjectAuditLog           model.OnecProjectAuditLogModel
+	OnecLogAlertRuleModel         model.OnecLogAlertRuleModel
+	OnecLogAlertEvalTaskModel     model.OnecLogAlertEvalTaskModel
+	OnecLogAlertEvalStateModel    model.OnecLogAlertEvalStateModel
+	OnecLogAlertFireEventModel    model.OnecLogAlertFireEventModel
+	OnecInspectionTemplateModel   model.OnecInspectionTemplateModel
+	OnecInspectionGroupModel      model.OnecInspectionGroupModel
+	OnecInspectionItemModel       model.OnecInspectionItemModel
+	OnecInspectionTaskModel       model.OnecInspectionTaskModel
+	OnecInspectionRecordModel     model.OnecInspectionRecordModel
+	OnecInspectionResultModel     model.OnecInspectionResultModel
 	OnecBillingPriceConfigModel   model.OnecBillingPriceConfigModel
 	OnecBillingStatementModel     model.OnecBillingStatementModel
 	OnecBillingConfigBindingModel model.OnecBillingConfigBindingModel
@@ -48,6 +59,7 @@ type ServiceContext struct {
 	PortalRpc                     portalservice.PortalService
 	BillingService                billing.Service
 	K8sManager                    cluster.Manager
+	PrometheusManager             *promcluster.PrometheusManager
 	SyncOperator                  types3.SyncService
 	AlertRuleFilesModel           model.AlertRuleFilesModel
 	AlertRuleGroupsModel          model.AlertRuleGroupsModel
@@ -195,11 +207,22 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		OnecProjectApplication:        projectApplicationModel,
 		OnecProjectVersion:            projectVersionModel,
 		OnecProjectAuditLog:           projectAuditLogModel,
+		OnecLogAlertRuleModel:         model.NewOnecLogAlertRuleModel(sqlConn, c.DBCache),
+		OnecLogAlertEvalTaskModel:     model.NewOnecLogAlertEvalTaskModel(sqlConn, c.DBCache),
+		OnecLogAlertEvalStateModel:    model.NewOnecLogAlertEvalStateModel(sqlConn, c.DBCache),
+		OnecLogAlertFireEventModel:    model.NewOnecLogAlertFireEventModel(sqlConn, c.DBCache),
+		OnecInspectionTemplateModel:   model.NewOnecInspectionTemplateModel(sqlConn, c.DBCache),
+		OnecInspectionGroupModel:      model.NewOnecInspectionGroupModel(sqlConn, c.DBCache),
+		OnecInspectionItemModel:       model.NewOnecInspectionItemModel(sqlConn, c.DBCache),
+		OnecInspectionTaskModel:       model.NewOnecInspectionTaskModel(sqlConn, c.DBCache),
+		OnecInspectionRecordModel:     model.NewOnecInspectionRecordModel(sqlConn, c.DBCache),
+		OnecInspectionResultModel:     model.NewOnecInspectionResultModel(sqlConn, c.DBCache),
 		OnecBillingPriceConfigModel:   model.NewOnecBillingPriceConfigModel(sqlConn, c.DBCache),
 		OnecBillingStatementModel:     model.NewOnecBillingStatementModel(sqlConn, c.DBCache),
 		OnecBillingConfigBindingModel: model.NewOnecBillingConfigBindingModel(sqlConn, c.DBCache),
 		BillingService:                billingService,
 		K8sManager:                    k8sManager,
+		PrometheusManager:             promcluster.NewPrometheusManager(managerservice.NewManagerService(managerRpc), rds),
 		SyncOperator:                  resourceSync,
 		AlertRuleGroupsModel:          model.NewAlertRuleGroupsModel(sqlConn, c.DBCache),
 		AlertRuleFilesModel:           model.NewAlertRuleFilesModel(sqlConn, c.DBCache),

@@ -45,6 +45,12 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Handler: application.AddApplicationResourceHandler(serverCtx),
 				},
 				{
+					// 批量导入 YAML 创建应用资源
+					Method:  http.MethodPost,
+					Path:    "/resource/yaml-batch",
+					Handler: application.BatchCreateApplicationResourceHandler(serverCtx),
+				},
+				{
 					// 查询应用列表
 					Method:  http.MethodGet,
 					Path:    "/search",

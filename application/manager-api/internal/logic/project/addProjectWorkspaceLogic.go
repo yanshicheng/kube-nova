@@ -89,7 +89,7 @@ func (l *AddProjectWorkspaceLogic) AddProjectWorkspace(req *types.AddProjectWork
 	if rpcResp != nil {
 		workspaceId = rpcResp.Id
 	}
-	actionDetail := fmt.Sprintf("用户 %s 创建项目工作空间, 名称: %s, 命名空间: %s, 集群UUID: %s, CPU分配: %d, 内存分配: %d, 存储分配: %d",
+	actionDetail := fmt.Sprintf("用户 %s 创建项目工作空间, 名称: %s, 命名空间: %s, 集群UUID: %s, CPU分配: %s, 内存分配: %s, 存储分配: %s",
 		username, req.Name, req.Namespace, req.ClusterUuid, req.CpuAllocated, req.MemAllocated, req.StorageAllocated)
 	_, auditErr := l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 		ClusterUuid:  req.ClusterUuid,

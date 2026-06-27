@@ -276,13 +276,18 @@ func (m *PrometheusManager) loadFromRPC(uuid string) (types.PrometheusClient, er
 
 	// 构建配置
 	config := &types.PrometheusConfig{
-		UUID:     uuid,
-		Name:     uuid,
-		Endpoint: url,
-		Username: prom.Username,
-		Password: prom.Password,
-		Insecure: prom.InsecureSkipVerify == 1,
-		Timeout:  3,
+		UUID:       uuid,
+		Name:       uuid,
+		Endpoint:   url,
+		AuthType:   prom.AuthType,
+		Username:   prom.Username,
+		Password:   prom.Password,
+		Token:      prom.Token,
+		Insecure:   prom.InsecureSkipVerify == 1,
+		CACert:     prom.CaCert,
+		ClientCert: prom.ClientCert,
+		ClientKey:  prom.ClientKey,
+		Timeout:    3,
 	}
 
 	// 添加到 Redis 和本地缓存

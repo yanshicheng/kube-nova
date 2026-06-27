@@ -35,7 +35,7 @@ Log:
   Rotation: "daily"              # Rotation 表示日志轮换规则类型，默认为 "daily"。# "daily"：按天轮换。  # "size"：按大小限制轮换。
 
 Cache:
-  Host: 172.16.1.61:6379
+  Host: 127.0.0.1:6379
   Type: node # node or cluster
   Pass: "123456"
   Tls: false # bool

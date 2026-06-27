@@ -2689,6 +2689,913 @@ message OnecBillingStatementGenerateAllResp {
 
 
 
+// ===================== 日志范围解析与日志告警 =====================
+message ResolveLogScopeReq {
+  string clusterUuid = 1;
+  uint64 workspaceId = 2;
+  string projectUuid = 3;
+  string namespace = 4;
+  string application = 5;
+  string resourceName = 6;
+  uint64 applicationId = 7;
+  uint64 versionId = 8;
+}
+
+message ResolveLogScopeResp {
+  string clusterUuid = 1;
+  string projectUuid = 2;
+  uint64 projectId = 3;
+  string namespace = 4;
+  uint64 workspaceId = 5;
+  string workspaceName = 6;
+  uint64 applicationId = 7;
+  string applicationName = 8;
+  string resourceType = 9;
+  uint64 versionId = 10;
+  string resourceName = 11;
+}
+
+message LogAlertRule {
+  uint64 id = 1;
+  string clusterUuid = 2;
+  string backendType = 3;
+  string projectUuid = 4;
+  uint64 workspaceId = 5;
+  string namespace = 6;
+  string application = 7;
+  string resourceName = 8;
+  string name = 9;
+  string description = 10;
+  string queryText = 11;
+  string conditionType = 12;
+  string threshold = 13;
+  string window = 14;
+  string severity = 15;
+  string notifyChannels = 16;
+  bool enabled = 17;
+  string backendRuleId = 18;
+  string backendPayload = 19;
+  string lastSyncStatus = 20;
+  string lastSyncError = 21;
+  string createdBy = 22;
+  string updatedBy = 23;
+  int64 createdAt = 24;
+  int64 updatedAt = 25;
+  string evalInterval = 26;
+  string forDuration = 27;
+  string silenceWindow = 28;
+}
+
+message AddLogAlertRuleReq {
+  string clusterUuid = 1;
+  uint64 workspaceId = 2;
+  string projectUuid = 3;
+  string namespace = 4;
+  string application = 5;
+  string resourceName = 6;
+  string name = 7;
+  string description = 8;
+  string queryText = 9;
+  string conditionType = 10;
+  string threshold = 11;
+  string window = 12;
+  string severity = 13;
+  string notifyChannels = 14;
+  bool enabled = 15;
+  string createdBy = 16;
+  string evalInterval = 17;
+  string forDuration = 18;
+  string silenceWindow = 19;
+}
+message AddLogAlertRuleResp {
+  LogAlertRule data = 1;
+}
+
+message UpdateLogAlertRuleReq {
+  uint64 id = 1;
+  string clusterUuid = 2;
+  uint64 workspaceId = 3;
+  string projectUuid = 4;
+  string namespace = 5;
+  string application = 6;
+  string resourceName = 7;
+  string name = 8;
+  string description = 9;
+  string queryText = 10;
+  string conditionType = 11;
+  string threshold = 12;
+  string window = 13;
+  string severity = 14;
+  string notifyChannels = 15;
+  bool enabled = 16;
+  string updatedBy = 17;
+  string evalInterval = 18;
+  string forDuration = 19;
+  string silenceWindow = 20;
+}
+message UpdateLogAlertRuleResp {
+  LogAlertRule data = 1;
+}
+
+message GetLogAlertRuleByIdReq {
+  uint64 id = 1;
+}
+message GetLogAlertRuleByIdResp {
+  LogAlertRule data = 1;
+}
+
+message DelLogAlertRuleReq {
+  uint64 id = 1;
+  string updatedBy = 2;
+}
+message DelLogAlertRuleResp {}
+
+message ToggleLogAlertRuleReq {
+  uint64 id = 1;
+  bool enabled = 2;
+  string updatedBy = 3;
+}
+message ToggleLogAlertRuleResp {
+  LogAlertRule data = 1;
+}
+
+message SearchLogAlertRuleReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string orderField = 3;
+  bool isAsc = 4;
+  string clusterUuid = 5;
+  uint64 workspaceId = 6;
+  string projectUuid = 7;
+  string namespace = 8;
+  string application = 9;
+  string resourceName = 10;
+  int64 enabled = 11;
+}
+message SearchLogAlertRuleResp {
+  repeated LogAlertRule data = 1;
+  uint64 total = 2;
+}
+
+message LogQueryModeOptionsReq {
+  string clusterUuid = 1;
+}
+
+message LogQueryModeOptionsResp {
+  bool loki = 1;
+  bool elasticsearch = 2;
+}
+
+message GetLogClusterConfigReq {
+  string clusterUuid = 1;
+}
+
+message LogClusterConfigItem {
+  uint64 id = 1;
+  string clusterUuid = 2;
+  string appName = 3;
+  string appCode = 4;
+  int64 appType = 5;
+  bool isDefault = 6;
+  string appUrl = 7;
+  int64 port = 8;
+  string protocol = 9;
+  bool authEnabled = 10;
+  string authType = 11;
+  bool tlsEnabled = 12;
+  bool insecureSkipVerify = 13;
+  int64 status = 14;
+  int64 createdAt = 15;
+  int64 updatedAt = 16;
+}
+
+message GetLogClusterConfigResp {
+  string clusterUuid = 1;
+  string defaultBackend = 2;
+  repeated LogClusterConfigItem backends = 3;
+}
+
+message GetLogClusterSyncStatusReq {
+  string clusterUuid = 1;
+}
+
+message GetLogClusterSyncStatusResp {
+  string clusterUuid = 1;
+  uint64 totalRules = 2;
+  uint64 enabledRules = 3;
+  uint64 successRules = 4;
+  uint64 failedRules = 5;
+  uint64 pendingRules = 6;
+  uint64 disabledRules = 7;
+  string healthStatus = 8;
+  string lastSyncError = 9;
+  int64 lastSyncAt = 10;
+}
+
+message GetLogAlertEngineStatsReq {
+  string clusterUuid = 1;
+}
+
+message GetLogAlertEngineStatsResp {
+  string clusterUuid = 1;
+  uint64 totalRules = 2;
+  uint64 enabledRules = 3;
+  uint64 disabledRules = 4;
+  uint64 successRules = 5;
+  uint64 failedRules = 6;
+  uint64 pendingRules = 7;
+  uint64 activeFiringEvents = 8;
+  uint64 failedNotifyEvents = 9;
+  uint64 deadNotifyEvents = 10;
+  uint64 criticalRules = 11;
+  uint64 warningRules = 12;
+  uint64 infoRules = 13;
+  uint64 hotRules = 14;
+  uint64 warmRules = 15;
+  uint64 coldRules = 16;
+}
+
+message ManualRetryLogAlertEventReq {
+  uint64 id = 1;
+  string operator = 2;
+}
+
+message ManualRetryLogAlertEventResp {
+  uint64 id = 1;
+  string notifyStatus = 2;
+  int64 retryCount = 3;
+  string notifyError = 4;
+  int64 nextRetryAt = 5;
+}
+
+message CloseLogAlertEventReq {
+  uint64 id = 1;
+  string operator = 2;
+  string reason = 3;
+}
+
+message CloseLogAlertEventResp {
+  LogAlertEvent data = 1;
+}
+
+message UpdateLogAlertEventReasonReq {
+  uint64 id = 1;
+  string operator = 2;
+  string reason = 3;
+}
+
+message UpdateLogAlertEventReasonResp {
+  LogAlertEvent data = 1;
+}
+
+message DeleteLogAlertEventReq {
+  uint64 id = 1;
+  string operator = 2;
+}
+
+message DeleteLogAlertEventResp {}
+
+message SearchLogAlertEventsReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string clusterUuid = 3;
+  uint64 ruleId = 4;
+  string eventStatus = 5;
+  string notifyStatus = 6;
+}
+
+message LogAlertEvent {
+  uint64 id = 1;
+  uint64 ruleId = 2;
+  string ruleName = 3;
+  string backendType = 4;
+  string clusterUuid = 5;
+  string clusterName = 6;
+  string projectUuid = 7;
+  string projectName = 8;
+  uint64 workspaceId = 9;
+  string workspaceName = 10;
+  string namespace = 11;
+  string application = 12;
+  string resourceName = 13;
+  string podName = 14;
+  string containerName = 15;
+  string host = 16;
+  string eventFingerprint = 17;
+  int64 hitCount = 18;
+  string severity = 19;
+  string eventStatus = 20;
+  string notifyStatus = 21;
+  string notifyError = 22;
+  int64 retryCount = 23;
+  int64 nextRetryAt = 24;
+  int64 sampleTimestamp = 25;
+  string sampleMessage = 26;
+  string sampleRaw = 27;
+  map<string, string> sampleLabels = 28;
+  string closeReason = 29;
+  string closedBy = 30;
+  int64 closedAt = 31;
+  string manualReason = 32;
+  string manualReasonBy = 33;
+  int64 manualReasonAt = 34;
+  int64 createdAt = 35;
+  int64 updatedAt = 36;
+}
+
+message SearchLogAlertEventsResp {
+  repeated LogAlertEvent data = 1;
+  uint64 total = 2;
+}
+
+message ListLogLabelKeysReq {
+  string sourceType = 1;
+  string clusterUuid = 2;
+  string queryMode = 3;
+  uint64 workspaceId = 4;
+  string namespace = 5;
+  string application = 6;
+  string resourceName = 7;
+  repeated string hosts = 8;
+}
+
+message ListLogLabelKeysResp {
+  repeated string keys = 1;
+}
+
+message ListLogLabelValuesReq {
+  string sourceType = 1;
+  string clusterUuid = 2;
+  string queryMode = 3;
+  string labelKey = 4;
+  uint64 workspaceId = 5;
+  string namespace = 6;
+  string application = 7;
+  string resourceName = 8;
+  repeated string hosts = 9;
+}
+
+message ListLogLabelValuesResp {
+  repeated string values = 1;
+}
+
+message LogQueryRecord {
+  int64 timestamp = 1;
+  string message = 2;
+  string backendType = 3;
+  map<string, string> labels = 4;
+  string raw = 5;
+}
+
+message QueryLogsReq {
+  string clusterUuid = 1;
+  string namespace = 2;
+  string podName = 3;
+  string containerName = 4;
+  string podIp = 5;
+  repeated string hosts = 6;
+  string level = 7;
+  string queryMode = 8;
+  string queryText = 9;
+  string command = 10;
+  string keyword = 11;
+  int64 startTime = 12;
+  int64 endTime = 13;
+  int64 limit = 14;
+  string direction = 15;
+  string nextToken = 16;
+  string logType = 17;
+  string projectUuid = 18;
+  string host = 19;
+  string sourceType = 20;
+  string mode = 21;
+  string expr = 22;
+  string application = 23;
+  string resourceName = 24;
+}
+
+message QueryLogsResp {
+  string backendType = 1;
+  string nextToken = 2;
+  repeated LogQueryRecord list = 3;
+  string queryMode = 4;
+  string dataStream = 5;
+  string indexPattern = 6;
+}
+
+// ===================== 自动化集群巡检 =====================
+message InspectionTemplate {
+  uint64 id = 1;
+  string name = 2;
+  string code = 3;
+  string description = 4;
+  string scopeType = 5;
+  bool enabled = 6;
+  bool isBuiltin = 7;
+  uint64 version = 8;
+  string configJson = 9;
+  string createdBy = 10;
+  string updatedBy = 11;
+  int64 createdAt = 12;
+  int64 updatedAt = 13;
+}
+
+message InspectionTemplateAddReq {
+  string name = 1;
+  string code = 2;
+  string description = 3;
+  string scopeType = 4;
+  bool enabled = 5;
+  string configJson = 6;
+  string createdBy = 7;
+}
+
+message InspectionTemplateUpdateReq {
+  uint64 id = 1;
+  string name = 2;
+  string code = 3;
+  string description = 4;
+  string scopeType = 5;
+  bool enabled = 6;
+  string configJson = 7;
+  string updatedBy = 8;
+}
+
+message InspectionTemplateDelReq {
+  uint64 id = 1;
+  string updatedBy = 2;
+}
+
+message InspectionTemplateSearchReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string orderField = 3;
+  bool isAsc = 4;
+  string name = 5;
+  string scopeType = 6;
+  int64 enabled = 7;
+}
+
+message InspectionTemplateResp {
+  InspectionTemplate data = 1;
+}
+
+message InspectionTemplateSearchResp {
+  repeated InspectionTemplate data = 1;
+  uint64 total = 2;
+}
+
+message InspectionGroup {
+  uint64 id = 1;
+  uint64 templateId = 2;
+  string groupCode = 3;
+  string groupName = 4;
+  string description = 5;
+  bool enabled = 6;
+  int64 orderNum = 7;
+  string configJson = 8;
+  string createdBy = 9;
+  string updatedBy = 10;
+  int64 createdAt = 11;
+  int64 updatedAt = 12;
+}
+
+message InspectionGroupAddReq {
+  uint64 templateId = 1;
+  string groupCode = 2;
+  string groupName = 3;
+  string description = 4;
+  bool enabled = 5;
+  int64 orderNum = 6;
+  string configJson = 7;
+  string createdBy = 8;
+}
+
+message InspectionGroupUpdateReq {
+  uint64 id = 1;
+  uint64 templateId = 2;
+  string groupCode = 3;
+  string groupName = 4;
+  string description = 5;
+  bool enabled = 6;
+  int64 orderNum = 7;
+  string configJson = 8;
+  string updatedBy = 9;
+}
+
+message InspectionGroupDelReq {
+  uint64 id = 1;
+  string updatedBy = 2;
+}
+
+message InspectionGroupSearchReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string orderField = 3;
+  bool isAsc = 4;
+  uint64 templateId = 5;
+  string groupName = 6;
+  int64 enabled = 7;
+}
+
+message InspectionGroupResp {
+  InspectionGroup data = 1;
+}
+
+message InspectionGroupSearchResp {
+  repeated InspectionGroup data = 1;
+  uint64 total = 2;
+}
+
+message InspectionGroupTransferReq {
+  uint64 id = 1;
+  uint64 targetTemplateId = 2;
+  string groupCode = 3;
+  string groupName = 4;
+  string itemCodePrefix = 5;
+  string operation = 6;
+  string operator = 7;
+}
+
+message InspectionGroupTransferResp {
+  InspectionGroup group = 1;
+  int64 itemCount = 2;
+}
+
+message InspectionItem {
+  uint64 id = 1;
+  uint64 templateId = 2;
+  string itemCode = 3;
+  string itemName = 4;
+  string category = 5;
+  string checkType = 6;
+  string targetType = 7;
+  string severity = 8;
+  int64 weight = 9;
+  bool enabled = 10;
+  int64 timeoutSec = 11;
+  int64 orderNum = 12;
+  string promql = 13;
+  string operator = 14;
+  string threshold = 15;
+  string unit = 16;
+  string configJson = 17;
+  string advice = 18;
+  string createdBy = 19;
+  string updatedBy = 20;
+  int64 createdAt = 21;
+  int64 updatedAt = 22;
+  uint64 groupId = 23;
+}
+
+message InspectionItemAddReq {
+  uint64 templateId = 1;
+  string itemCode = 2;
+  string itemName = 3;
+  string category = 4;
+  string checkType = 5;
+  string targetType = 6;
+  string severity = 7;
+  int64 weight = 8;
+  bool enabled = 9;
+  int64 timeoutSec = 10;
+  int64 orderNum = 11;
+  string promql = 12;
+  string operator = 13;
+  string threshold = 14;
+  string unit = 15;
+  string configJson = 16;
+  string advice = 17;
+  string createdBy = 18;
+  uint64 groupId = 19;
+}
+
+message InspectionItemUpdateReq {
+  uint64 id = 1;
+  uint64 templateId = 2;
+  string itemCode = 3;
+  string itemName = 4;
+  string category = 5;
+  string checkType = 6;
+  string targetType = 7;
+  string severity = 8;
+  int64 weight = 9;
+  bool enabled = 10;
+  int64 timeoutSec = 11;
+  int64 orderNum = 12;
+  string promql = 13;
+  string operator = 14;
+  string threshold = 15;
+  string unit = 16;
+  string configJson = 17;
+  string advice = 18;
+  string updatedBy = 19;
+  uint64 groupId = 20;
+}
+
+message InspectionItemDelReq {
+  uint64 id = 1;
+  string updatedBy = 2;
+}
+
+message InspectionItemSearchReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string orderField = 3;
+  bool isAsc = 4;
+  uint64 templateId = 5;
+  string category = 6;
+  string checkType = 7;
+  int64 enabled = 8;
+  uint64 groupId = 9;
+}
+
+message InspectionItemResp {
+  InspectionItem data = 1;
+}
+
+message InspectionItemSearchResp {
+  repeated InspectionItem data = 1;
+  uint64 total = 2;
+}
+
+message InspectionTask {
+  uint64 id = 1;
+  string name = 2;
+  string description = 3;
+  uint64 templateId = 4;
+  string scopeType = 5;
+  string clusterUuid = 6;
+  string scheduleType = 7;
+  string cronExpr = 8;
+  bool enabled = 9;
+  int64 maxConcurrency = 10;
+  int64 timeoutSec = 11;
+  int64 lastRunAt = 12;
+  int64 nextRunAt = 13;
+  uint64 lastRecordId = 14;
+  string lastStatus = 15;
+  string lastError = 16;
+  string configJson = 17;
+  string createdBy = 18;
+  string updatedBy = 19;
+  int64 createdAt = 20;
+  int64 updatedAt = 21;
+  bool prometheusEnabled = 22;
+  string prometheusEndpoint = 23;
+  bool prometheusAuthEnabled = 24;
+  string prometheusAuthType = 25;
+  string prometheusUsername = 26;
+  string prometheusPassword = 27;
+  string prometheusToken = 28;
+  bool prometheusTlsEnabled = 29;
+  bool prometheusInsecureSkipVerify = 30;
+  string prometheusCaCert = 31;
+  string prometheusClientCert = 32;
+  string prometheusClientKey = 33;
+}
+
+message InspectionTaskAddReq {
+  string name = 1;
+  string description = 2;
+  uint64 templateId = 3;
+  string scopeType = 4;
+  string clusterUuid = 5;
+  string scheduleType = 6;
+  string cronExpr = 7;
+  bool enabled = 8;
+  int64 maxConcurrency = 9;
+  int64 timeoutSec = 10;
+  string configJson = 11;
+  string createdBy = 12;
+  bool prometheusEnabled = 13;
+  string prometheusEndpoint = 14;
+  bool prometheusAuthEnabled = 15;
+  string prometheusAuthType = 16;
+  string prometheusUsername = 17;
+  string prometheusPassword = 18;
+  string prometheusToken = 19;
+  bool prometheusTlsEnabled = 20;
+  bool prometheusInsecureSkipVerify = 21;
+  string prometheusCaCert = 22;
+  string prometheusClientCert = 23;
+  string prometheusClientKey = 24;
+}
+
+message InspectionTaskUpdateReq {
+  uint64 id = 1;
+  string name = 2;
+  string description = 3;
+  uint64 templateId = 4;
+  string scopeType = 5;
+  string clusterUuid = 6;
+  string scheduleType = 7;
+  string cronExpr = 8;
+  bool enabled = 9;
+  int64 maxConcurrency = 10;
+  int64 timeoutSec = 11;
+  string configJson = 12;
+  string updatedBy = 13;
+  bool prometheusEnabled = 14;
+  string prometheusEndpoint = 15;
+  bool prometheusAuthEnabled = 16;
+  string prometheusAuthType = 17;
+  string prometheusUsername = 18;
+  string prometheusPassword = 19;
+  string prometheusToken = 20;
+  bool prometheusTlsEnabled = 21;
+  bool prometheusInsecureSkipVerify = 22;
+  string prometheusCaCert = 23;
+  string prometheusClientCert = 24;
+  string prometheusClientKey = 25;
+}
+
+message InspectionTaskDelReq {
+  uint64 id = 1;
+  string updatedBy = 2;
+}
+
+message InspectionTaskSearchReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string orderField = 3;
+  bool isAsc = 4;
+  string name = 5;
+  string scopeType = 6;
+  string clusterUuid = 7;
+  string scheduleType = 8;
+  int64 enabled = 9;
+}
+
+message InspectionTaskResp {
+  InspectionTask data = 1;
+}
+
+message InspectionTaskSearchResp {
+  repeated InspectionTask data = 1;
+  uint64 total = 2;
+}
+
+message InspectionTaskRunReq {
+  uint64 id = 1;
+  string clusterUuid = 2;
+  string operator = 3;
+}
+
+message InspectionTaskRunResp {
+  repeated InspectionRecord records = 1;
+}
+
+message InspectionRecord {
+  uint64 id = 1;
+  string recordNo = 2;
+  uint64 taskId = 3;
+  uint64 templateId = 4;
+  string triggerType = 5;
+  string scopeType = 6;
+  string clusterUuid = 7;
+  string clusterName = 8;
+  string status = 9;
+  double score = 10;
+  string healthLevel = 11;
+  int64 totalCount = 12;
+  int64 successCount = 13;
+  int64 warningCount = 14;
+  int64 criticalCount = 15;
+  int64 failedCount = 16;
+  string summaryJson = 17;
+  string reportJson = 18;
+  int64 startedAt = 19;
+  int64 finishedAt = 20;
+  int64 durationMs = 21;
+  string errorMessage = 22;
+  string createdBy = 23;
+  string updatedBy = 24;
+  int64 createdAt = 25;
+  int64 updatedAt = 26;
+}
+
+message InspectionRecordSearchReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string orderField = 3;
+  bool isAsc = 4;
+  uint64 taskId = 5;
+  string clusterUuid = 6;
+  string status = 7;
+  string healthLevel = 8;
+  int64 startTime = 9;
+  int64 endTime = 10;
+}
+
+message InspectionRecordSearchResp {
+  repeated InspectionRecord data = 1;
+  uint64 total = 2;
+}
+
+message InspectionResult {
+  uint64 id = 1;
+  uint64 recordId = 2;
+  uint64 itemId = 3;
+  string itemCode = 4;
+  string itemName = 5;
+  string category = 6;
+  string targetType = 7;
+  string targetName = 8;
+  string severity = 9;
+  string status = 10;
+  double score = 11;
+  string expected = 12;
+  string actual = 13;
+  string value = 14;
+  string unit = 15;
+  string message = 16;
+  string suggestion = 17;
+  string detailJson = 18;
+  string createdBy = 19;
+  string updatedBy = 20;
+  int64 createdAt = 21;
+  int64 updatedAt = 22;
+}
+
+message InspectionReportReq {
+  uint64 recordId = 1;
+  uint64 page = 2;
+  uint64 pageSize = 3;
+  string keyword = 4;
+  string status = 5;
+  string severity = 6;
+}
+
+message InspectionReportResp {
+  InspectionRecord record = 1;
+  repeated InspectionResult results = 2;
+  uint64 resultsTotal = 3;
+}
+
+message InspectionRecordFinishReq {
+  uint64 recordId = 1;
+  string message = 2;
+  string operator = 3;
+}
+
+message InspectionRecordFinishResp {
+  InspectionRecord record = 1;
+}
+
+message InspectionRecordDelReq {
+  uint64 recordId = 1;
+  string operator = 2;
+}
+
+message InspectionDashboardReq {
+  string clusterUuid = 1;
+  int64 days = 2;
+}
+
+message InspectionCategoryStat {
+  string category = 1;
+  int64 totalCount = 2;
+  int64 successCount = 3;
+  int64 warningCount = 4;
+  int64 criticalCount = 5;
+  int64 failedCount = 6;
+}
+
+message InspectionDashboardResp {
+  int64 totalRecords = 1;
+  int64 successRecords = 2;
+  int64 failedRecords = 3;
+  int64 criticalRecords = 4;
+  double avgScore = 5;
+  string latestHealthLevel = 6;
+  uint64 latestRecordId = 7;
+  repeated InspectionCategoryStat categoryStats = 8;
+}
+
+service LogService {
+  // 日志范围解析与日志告警
+  rpc ResolveLogScope(ResolveLogScopeReq) returns (ResolveLogScopeResp);
+  rpc QueryLogs(QueryLogsReq) returns (QueryLogsResp);
+  rpc GetLogQueryModeOptions(LogQueryModeOptionsReq) returns (LogQueryModeOptionsResp);
+  rpc GetLogClusterConfig(GetLogClusterConfigReq) returns (GetLogClusterConfigResp);
+  rpc GetLogClusterSyncStatus(GetLogClusterSyncStatusReq) returns (GetLogClusterSyncStatusResp);
+  rpc GetLogAlertEngineStats(GetLogAlertEngineStatsReq) returns (GetLogAlertEngineStatsResp);
+  rpc ManualRetryLogAlertEvent(ManualRetryLogAlertEventReq) returns (ManualRetryLogAlertEventResp);
+  rpc CloseLogAlertEvent(CloseLogAlertEventReq) returns (CloseLogAlertEventResp);
+  rpc UpdateLogAlertEventReason(UpdateLogAlertEventReasonReq) returns (UpdateLogAlertEventReasonResp);
+  rpc DeleteLogAlertEvent(DeleteLogAlertEventReq) returns (DeleteLogAlertEventResp);
+  rpc SearchLogAlertEvents(SearchLogAlertEventsReq) returns (SearchLogAlertEventsResp);
+  rpc ListLogLabelKeys(ListLogLabelKeysReq) returns (ListLogLabelKeysResp);
+  rpc ListLogLabelValues(ListLogLabelValuesReq) returns (ListLogLabelValuesResp);
+  rpc AddLogAlertRule(AddLogAlertRuleReq) returns (AddLogAlertRuleResp);
+  rpc UpdateLogAlertRule(UpdateLogAlertRuleReq) returns (UpdateLogAlertRuleResp);
+  rpc GetLogAlertRuleById(GetLogAlertRuleByIdReq) returns (GetLogAlertRuleByIdResp);
+  rpc DelLogAlertRule(DelLogAlertRuleReq) returns (DelLogAlertRuleResp);
+  rpc ToggleLogAlertRule(ToggleLogAlertRuleReq) returns (ToggleLogAlertRuleResp);
+  rpc SearchLogAlertRule(SearchLogAlertRuleReq) returns (SearchLogAlertRuleResp);
+}
+
 // 获取Alertmanager配置请求
 message GetAlertmanagerConfigReq {
   string clusterUuid = 1;  // 集群UUID
@@ -2954,6 +3861,31 @@ service ManagerService {
   // 获取工作空间资源排行
   rpc GetWorkspaceResourceRanking(WorkspaceResourceRankingReq) returns (WorkspaceResourceRankingResp);
 
+
+  //-----------------------自动化集群巡检-----------------------
+  rpc InspectionTemplateAdd(InspectionTemplateAddReq) returns (InspectionTemplateResp);
+  rpc InspectionTemplateUpdate(InspectionTemplateUpdateReq) returns (InspectionTemplateResp);
+  rpc InspectionTemplateDel(InspectionTemplateDelReq) returns (DeleteClusterResp);
+  rpc InspectionTemplateSearch(InspectionTemplateSearchReq) returns (InspectionTemplateSearchResp);
+  rpc InspectionGroupAdd(InspectionGroupAddReq) returns (InspectionGroupResp);
+  rpc InspectionGroupUpdate(InspectionGroupUpdateReq) returns (InspectionGroupResp);
+  rpc InspectionGroupDel(InspectionGroupDelReq) returns (DeleteClusterResp);
+  rpc InspectionGroupSearch(InspectionGroupSearchReq) returns (InspectionGroupSearchResp);
+  rpc InspectionGroupTransfer(InspectionGroupTransferReq) returns (InspectionGroupTransferResp);
+  rpc InspectionItemAdd(InspectionItemAddReq) returns (InspectionItemResp);
+  rpc InspectionItemUpdate(InspectionItemUpdateReq) returns (InspectionItemResp);
+  rpc InspectionItemDel(InspectionItemDelReq) returns (DeleteClusterResp);
+  rpc InspectionItemSearch(InspectionItemSearchReq) returns (InspectionItemSearchResp);
+  rpc InspectionTaskAdd(InspectionTaskAddReq) returns (InspectionTaskResp);
+  rpc InspectionTaskUpdate(InspectionTaskUpdateReq) returns (InspectionTaskResp);
+  rpc InspectionTaskDel(InspectionTaskDelReq) returns (DeleteClusterResp);
+  rpc InspectionTaskSearch(InspectionTaskSearchReq) returns (InspectionTaskSearchResp);
+  rpc InspectionTaskRun(InspectionTaskRunReq) returns (InspectionTaskRunResp);
+  rpc InspectionRecordSearch(InspectionRecordSearchReq) returns (InspectionRecordSearchResp);
+  rpc InspectionReportGet(InspectionReportReq) returns (InspectionReportResp);
+  rpc InspectionRecordFinish(InspectionRecordFinishReq) returns (InspectionRecordFinishResp);
+  rpc InspectionRecordDel(InspectionRecordDelReq) returns (DeleteClusterResp);
+  rpc InspectionDashboardGet(InspectionDashboardReq) returns (InspectionDashboardResp);
 
 
   //-----------------------收费配置表-----------------------

@@ -8,6 +8,9 @@ import (
 
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/config"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/consumer"
+	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/inspection"
+	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/logalertengine"
+	logserviceServer "github.com/yanshicheng/kube-nova/application/manager-rpc/internal/server/logservice"
 	managerserviceServer "github.com/yanshicheng/kube-nova/application/manager-rpc/internal/server/managerservice"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/manager-rpc/internal/watch"
@@ -42,6 +45,10 @@ func main() {
 			grpcServer,
 			managerserviceServer.NewManagerServiceServer(svcCtx),
 		)
+		pb.RegisterLogServiceServer(
+			grpcServer,
+			logserviceServer.NewLogServiceServer(svcCtx),
+		)
 
 		// 开发/测试模式下启用 gRPC 反射，方便调试
 		if c.Mode == service.DevMode || c.Mode == service.TestMode {
@@ -64,6 +71,8 @@ func main() {
 		AlertRpc:                  svcCtx.AlertRpc,
 	})
 	alertService := consumer.NewAlertConsumerService(alertConsumer)
+	logAlertEngineService := logalertengine.NewService(svcCtx)
+	inspectionService := inspection.NewService(svcCtx)
 
 	// ==================== 创建增量同步服务 ====================
 	// 这个服务会在启动时等待 RPC 服务就绪，然后再初始化集群监听器
@@ -83,9 +92,11 @@ func main() {
 	defer group.Stop() // 确保程序退出时停止所有服务
 
 	// 添加服务（添加顺序决定了日志输出顺序，但启动是并发的）
-	group.Add(rpcServer)          // RPC 服务
-	group.Add(alertService)       // 告警消费者服务
-	group.Add(incrementalService) // 增量同步服务（会等待 RPC 就绪）
+	group.Add(rpcServer)             // RPC 服务
+	group.Add(alertService)          // 告警消费者服务
+	group.Add(logAlertEngineService) // 日志告警平台引擎
+	group.Add(inspectionService)     // 自动化集群巡检引擎
+	group.Add(incrementalService)    // 增量同步服务（会等待 RPC 就绪）
 
 	fmt.Printf("Starting manager-rpc server at %s...\n", c.ListenOn)
 	logx.Info("[Main] 所有服务启动中...")

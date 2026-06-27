@@ -2,7 +2,7 @@ syntax = "v1"
 
 info(
     title: "告警接收 API"
-    desc: "接收 Alertmanager Webhook"
+    desc: "接收 Alertmanager 与日志告警 Webhook"
     author: "Yan Shicheng"
     email: "ikubeops@gmail.com"
     version: "1.0"
@@ -47,4 +47,8 @@ service  manager-api {
     @doc "接收 Alertmanager 告警"
     @handler ReceiveAlertmanagerWebhook
     post /alerts (AlertmanagerWebhook) returns (string)
+
+    @doc "接收日志告警"
+    @handler ReceiveLogAlertWebhook
+    post /log-alerts (AlertmanagerWebhook) returns (string)
 }

@@ -27,7 +27,7 @@ func NewPrometheusClient(ctx context.Context, config *types.PrometheusConfig) (t
 		timeout = 30
 	}
 
-	base, err := NewBaseOperator(ctx, config.Endpoint, config.Username, config.Password, config.Insecure, timeout)
+	base, err := NewBaseOperator(ctx, config.Endpoint, config.AuthType, config.Username, config.Password, config.Token, config.Insecure, timeout, config.CACert, config.ClientCert, config.ClientKey)
 	if err != nil {
 		return nil, fmt.Errorf("创建基础操作器失败: %w", err)
 	}
@@ -210,9 +210,7 @@ func (p *PrometheusClientImpl) Ping() error {
 		return fmt.Errorf("创建 Ping 请求失败")
 	}
 
-	if p.username != "" && p.password != "" {
-		req.SetBasicAuth(p.username, p.password)
-	}
+	p.applyAuth(req)
 
 	resp, err := p.client.Do(req)
 	if err != nil {

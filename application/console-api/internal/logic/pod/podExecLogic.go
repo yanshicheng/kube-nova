@@ -29,6 +29,22 @@ type PodExecLogic struct {
 	ws     *wsutil.WSConnection
 }
 
+const (
+	shellProbeTimeout  = 3 * time.Second
+	shellSelectTimeout = 12 * time.Second
+	shellCacheTTL      = 10 * time.Minute
+)
+
+type shellCacheEntry struct {
+	shell    []string
+	expireAt time.Time
+}
+
+var (
+	shellCache   = make(map[string]shellCacheEntry)
+	shellCacheMu sync.RWMutex
+)
+
 func NewPodExecLogic(ctx context.Context, svcCtx *svc.ServiceContext, ws *wsutil.WSConnection) *PodExecLogic {
 	return &PodExecLogic{
 		Logger: logx.WithContext(ctx),
@@ -98,7 +114,7 @@ func (l *PodExecLogic) probeShell(ctx context.Context, podClient interface{}, na
 		return err
 	}
 
-	probeCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	probeCtx, cancel := context.WithTimeout(ctx, shellProbeTimeout)
 	defer cancel()
 
 	var stderrBuf bytes.Buffer
@@ -118,14 +134,69 @@ func (l *PodExecLogic) probeShell(ctx context.Context, podClient interface{}, na
 	return nil
 }
 
-// shellProbeResult 探测结果
-type shellProbeResult struct {
-	shell    []string
-	shellStr string
-	err      error
+func (l *PodExecLogic) shellCacheKey(clusterUuid, namespace, podName, containerName string) string {
+	return strings.Join([]string{clusterUuid, namespace, podName, containerName}, "|")
 }
 
-func (l *PodExecLogic) selectAvailableShell(podClient interface{}, namespace, podName, containerName string, requestedCommand []string) ([]string, string, error) {
+func copyShellCommand(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]string, len(in))
+	copy(out, in)
+	return out
+}
+
+func (l *PodExecLogic) getCachedShell(clusterUuid, namespace, podName, containerName string) ([]string, bool) {
+	key := l.shellCacheKey(clusterUuid, namespace, podName, containerName)
+
+	shellCacheMu.RLock()
+	entry, ok := shellCache[key]
+	shellCacheMu.RUnlock()
+	if !ok {
+		return nil, false
+	}
+
+	if time.Now().After(entry.expireAt) {
+		shellCacheMu.Lock()
+		delete(shellCache, key)
+		shellCacheMu.Unlock()
+		return nil, false
+	}
+
+	return copyShellCommand(entry.shell), true
+}
+
+func (l *PodExecLogic) setCachedShell(clusterUuid, namespace, podName, containerName string, shell []string) {
+	key := l.shellCacheKey(clusterUuid, namespace, podName, containerName)
+	shellCacheMu.Lock()
+	shellCache[key] = shellCacheEntry{
+		shell:    copyShellCommand(shell),
+		expireAt: time.Now().Add(shellCacheTTL),
+	}
+	shellCacheMu.Unlock()
+}
+
+func (l *PodExecLogic) clearCachedShell(clusterUuid, namespace, podName, containerName string) {
+	key := l.shellCacheKey(clusterUuid, namespace, podName, containerName)
+	shellCacheMu.Lock()
+	delete(shellCache, key)
+	shellCacheMu.Unlock()
+}
+
+func (l *PodExecLogic) selectAvailableShell(podClient interface{}, clusterUuid, namespace, podName, containerName string, requestedCommand []string) ([]string, string, error) {
+	if cachedShell, ok := l.getCachedShell(clusterUuid, namespace, podName, containerName); ok {
+		if err := l.probeShell(l.ctx, podClient, namespace, podName, containerName, cachedShell); err == nil {
+			cachedShellStr := strings.Join(cachedShell, " ")
+			msg := fmt.Sprintf("已连接到终端 (%s)", cachedShellStr)
+			if len(requestedCommand) > 0 && strings.Join(requestedCommand, " ") != cachedShellStr {
+				msg = fmt.Sprintf("命令 '%s' 不可用，自动切换至 %s",
+					strings.Join(requestedCommand, " "), cachedShellStr)
+			}
+			return cachedShell, msg, nil
+		}
+		l.clearCachedShell(clusterUuid, namespace, podName, containerName)
+	}
 
 	candidates := l.buildShellCandidates(requestedCommand)
 
@@ -133,81 +204,56 @@ func (l *PodExecLogic) selectAvailableShell(podClient interface{}, namespace, po
 		return nil, "", fmt.Errorf("没有可用的 Shell 候选")
 	}
 
-	l.Infof("开始并发探测 %d 个 Shell 候选...", len(candidates))
+	l.Infof("开始顺序探测 %d 个 Shell 候选...", len(candidates))
 
-	ctx, cancel := context.WithTimeout(l.ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(l.ctx, shellSelectTimeout)
 	defer cancel()
 
-	// 3. 并发探测
-	resultChan := make(chan *shellProbeResult, len(candidates))
-	var wg sync.WaitGroup
-
-	for _, shell := range candidates {
-		wg.Add(1)
-		go func(sh []string) {
-			defer wg.Done()
-
-			shellStr := strings.Join(sh, " ")
-			l.Infof("探测: %s", shellStr)
-
-			err := l.probeShell(ctx, podClient, namespace, podName, containerName, sh)
-
-			select {
-			case resultChan <- &shellProbeResult{
-				shell:    sh,
-				shellStr: shellStr,
-				err:      err,
-			}:
-			case <-ctx.Done():
-			}
-		}(shell)
-	}
-
-	// 4. 等待所有 goroutine 完成后关闭 channel
-	go func() {
-		wg.Wait()
-		close(resultChan)
-	}()
-
-	// 5. 收集结果，优先返回第一个成功的
-	var firstSuccess *shellProbeResult
 	var lastErr error
 	failedShells := make([]string, 0)
 
-	for result := range resultChan {
-		if result.err == nil {
-			if firstSuccess == nil {
-				firstSuccess = result
-				l.Infof("Shell 可用: %s", result.shellStr)
+	// 顺序探测，避免并发探测在网络抖动时放大超时和限流问题
+	for _, shell := range candidates {
+		if ctx.Err() != nil {
+			lastErr = ctx.Err()
+			break
+		}
 
-				// 取消其他探测
-				cancel()
+		shellStr := strings.Join(shell, " ")
+		l.Infof("探测: %s", shellStr)
+
+		err := l.probeShell(ctx, podClient, namespace, podName, containerName, shell)
+		if err == nil {
+			l.Infof("Shell 可用: %s", shellStr)
+			l.setCachedShell(clusterUuid, namespace, podName, containerName, shell)
+			msg := fmt.Sprintf("已连接到终端 (%s)", shellStr)
+			if len(requestedCommand) > 0 && strings.Join(requestedCommand, " ") != shellStr {
+				msg = fmt.Sprintf("命令 '%s' 不可用，自动切换至 %s",
+					strings.Join(requestedCommand, " "), shellStr)
 			}
-		} else {
-			l.Infof("Shell 不可用: %s, 原因: %v", result.shellStr, result.err)
-			failedShells = append(failedShells, result.shellStr)
-			lastErr = result.err
+			return shell, msg, nil
+		}
+
+		l.Infof("Shell 不可用: %s, 原因: %v", shellStr, err)
+		failedShells = append(failedShells, shellStr)
+		lastErr = err
+	}
+
+	if len(failedShells) > 0 {
+		// 优先保留上下文超时之外的最后错误，便于上层分类
+		if ctx.Err() != nil && lastErr == nil {
+			lastErr = ctx.Err()
 		}
 	}
 
-	// 6. 返回结果
-	if firstSuccess != nil {
-		msg := fmt.Sprintf("已连接到终端 (%s)", firstSuccess.shellStr)
-		if len(requestedCommand) > 0 && strings.Join(requestedCommand, " ") != firstSuccess.shellStr {
-			msg = fmt.Sprintf("命令 '%s' 不可用，自动切换至 %s",
-				strings.Join(requestedCommand, " "), firstSuccess.shellStr)
-		}
-		return firstSuccess.shell, msg, nil
-	}
-
-	// 所有 shell 都失败
+	// 返回失败
 	return nil, "", fmt.Errorf("未找到可用 Shell (已尝试: %v), 最后错误: %v",
 		failedShells, lastErr)
 }
 
 func (l *PodExecLogic) buildShellCandidates(requestedCommand []string) [][]string {
 	seen := make(map[string]bool)
-	candidates := make([][]string, 0, 4)
+	candidates := make([][]string, 0, 6)
 
 	// 辅助函数：添加候选（去重）
 	addCandidate := func(shell []string) {
@@ -229,10 +275,36 @@ func (l *PodExecLogic) buildShellCandidates(requestedCommand []string) [][]strin
 	// 2. 常用 shell（按优先级）
 	addCandidate([]string{"/bin/bash"})
 	addCandidate([]string{"/bin/sh"})
+	addCandidate([]string{"/bin/ash"})
+	addCandidate([]string{"bash"})
 	addCandidate([]string{"sh"})
-	addCandidate([]string{"bash"}) // 增加一个候选
 
 	return candidates
+}
+
+func classifyShellProbeError(err error) (code, message string) {
+	if err == nil {
+		return "", ""
+	}
+
+	errText := strings.ToLower(err.Error())
+
+	switch {
+	case strings.Contains(errText, "forbidden"):
+		return "EXEC_FORBIDDEN", "无法启动终端: 当前服务账号缺少 pods/exec 权限"
+	case strings.Contains(errText, "context deadline exceeded"):
+		return "EXEC_TIMEOUT", "无法启动终端: 连接容器终端超时，请稍后重试"
+	case strings.Contains(errText, "dial tcp"), strings.Contains(errText, "no such host"),
+		(strings.Contains(errText, "lookup") && strings.Contains(errText, "timeout")),
+		strings.Contains(errText, "tls handshake timeout"), strings.Contains(errText, "i/o timeout"):
+		return "CLUSTER_ERROR", "无法启动终端: 集群 API 连接异常，请检查网络或 DNS"
+	case strings.Contains(errText, "rate limiter wait returned an error"):
+		return "EXEC_TIMEOUT", "无法启动终端: 集群请求拥塞，请稍后重试"
+	case strings.Contains(errText, "container not found"), strings.Contains(errText, "not found in pod"):
+		return "CONTAINER_ERROR", "无法启动终端: 目标容器不存在或已重建，请刷新后重试"
+	default:
+		return "", ""
+	}
 }
 
 // messageDispatcher 消息分发器
@@ -416,9 +488,19 @@ func (l *PodExecLogic) PodExec(req *types.PodExecReq) error {
 		}
 	}
 
-	selectedShell, initMessage, err := l.selectAvailableShell(podClient, workloadInfo.Data.Namespace, req.PodName, containerName, req.Command)
+	selectedShell, initMessage, err := l.selectAvailableShell(
+		podClient,
+		workloadInfo.Data.ClusterUuid,
+		workloadInfo.Data.Namespace,
+		req.PodName,
+		containerName,
+		req.Command,
+	)
 	if err != nil {
 		l.Errorf("Shell 探测完全失败: %v", err)
+		if code, msg := classifyShellProbeError(err); code != "" {
+			return l.sendWsError(code, msg)
+		}
 		return l.sendWsError("NO_SHELL", "无法启动终端: 容器内未找到可用 Shell (sh/bash)")
 	}
 

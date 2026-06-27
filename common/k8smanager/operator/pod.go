@@ -371,7 +371,7 @@ func (p *podOperator) DeleteBySelector(namespace string, labelSelector string, o
 				errMsg += e.Error()
 			}
 		}
-		return fmt.Errorf(errMsg)
+		return fmt.Errorf("%s", errMsg)
 	}
 
 	p.log.Infof("成功删除所有匹配的Pod: count=%d", succeeded)

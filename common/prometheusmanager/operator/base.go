@@ -3,6 +3,7 @@ package operator
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,18 +20,34 @@ type BaseOperator struct {
 	log      logx.Logger
 	ctx      context.Context
 	endpoint string
+	authType string
 	username string
 	password string
+	token    string
 	client   *http.Client
 }
 
-func NewBaseOperator(ctx context.Context, endpoint, username, password string, insecure bool, timeout int) (*BaseOperator, error) {
+func NewBaseOperator(ctx context.Context, endpoint, authType, username, password, token string, insecure bool, timeout int, caCert, clientCert, clientKey string) (*BaseOperator, error) {
 	if timeout <= 0 {
 		timeout = 30
 	}
 
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: insecure,
+	}
+	if strings.TrimSpace(caCert) != "" {
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM([]byte(caCert)) {
+			return nil, fmt.Errorf("Prometheus CA证书解析失败")
+		}
+		tlsConfig.RootCAs = pool
+	}
+	if strings.TrimSpace(clientCert) != "" || strings.TrimSpace(clientKey) != "" {
+		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
+		if err != nil {
+			return nil, fmt.Errorf("Prometheus客户端证书解析失败: %w", err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
 	transport := &http.Transport{
@@ -44,8 +61,10 @@ func NewBaseOperator(ctx context.Context, endpoint, username, password string, i
 		log:      logx.WithContext(ctx),
 		ctx:      ctx,
 		endpoint: strings.TrimRight(endpoint, "/"),
+		authType: strings.ToLower(strings.TrimSpace(authType)),
 		username: username,
 		password: password,
+		token:    token,
 		client: &http.Client{
 			Transport: transport,
 			Timeout:   time.Duration(timeout) * time.Second,
@@ -84,10 +103,7 @@ func (b *BaseOperator) doRequest(method, path string, params map[string]string, 
 		return fmt.Errorf("创建请求失败")
 	}
 
-	// 设置认证
-	if b.username != "" && b.password != "" {
-		req.SetBasicAuth(b.username, b.password)
-	}
+	b.applyAuth(req)
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
@@ -118,6 +134,27 @@ func (b *BaseOperator) doRequest(method, path string, params map[string]string, 
 	}
 
 	return nil
+}
+
+func (b *BaseOperator) applyAuth(req *http.Request) {
+	switch b.authType {
+	case "token", "bearer":
+		if strings.TrimSpace(b.token) != "" {
+			req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(b.token))
+		}
+	case "basic":
+		if b.username != "" || b.password != "" {
+			req.SetBasicAuth(b.username, b.password)
+		}
+	default:
+		if b.username != "" || b.password != "" {
+			req.SetBasicAuth(b.username, b.password)
+			return
+		}
+		if strings.TrimSpace(b.token) != "" {
+			req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(b.token))
+		}
+	}
 }
 
 // buildQuery 构建查询字符串

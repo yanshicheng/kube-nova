@@ -25,6 +25,8 @@ type (
 	AddClusterAppResp                    = pb.AddClusterAppResp
 	AddClusterRequest                    = pb.AddClusterRequest
 	AddClusterResponse                   = pb.AddClusterResponse
+	AddLogAlertRuleReq                   = pb.AddLogAlertRuleReq
+	AddLogAlertRuleResp                  = pb.AddLogAlertRuleResp
 	AddOnecProjectAdminReq               = pb.AddOnecProjectAdminReq
 	AddOnecProjectAdminResp              = pb.AddOnecProjectAdminResp
 	AddOnecProjectApplicationReq         = pb.AddOnecProjectApplicationReq
@@ -60,6 +62,8 @@ type (
 	BatchImportAlertRulesReq             = pb.BatchImportAlertRulesReq
 	BatchImportAlertRulesResp            = pb.BatchImportAlertRulesResp
 	BillingStatementSummary              = pb.BillingStatementSummary
+	CloseLogAlertEventReq                = pb.CloseLogAlertEventReq
+	CloseLogAlertEventResp               = pb.CloseLogAlertEventResp
 	Cluster                              = pb.Cluster
 	ClusterAppDetailReq                  = pb.ClusterAppDetailReq
 	ClusterAppDetailResp                 = pb.ClusterAppDetailResp
@@ -127,6 +131,8 @@ type (
 	DelAlertRuleGroupResp                = pb.DelAlertRuleGroupResp
 	DelAlertRuleReq                      = pb.DelAlertRuleReq
 	DelAlertRuleResp                     = pb.DelAlertRuleResp
+	DelLogAlertRuleReq                   = pb.DelLogAlertRuleReq
+	DelLogAlertRuleResp                  = pb.DelLogAlertRuleResp
 	DelOnecProjectApplicationReq         = pb.DelOnecProjectApplicationReq
 	DelOnecProjectApplicationResp        = pb.DelOnecProjectApplicationResp
 	DelOnecProjectAuditLogBeforeDaysReq  = pb.DelOnecProjectAuditLogBeforeDaysReq
@@ -143,6 +149,8 @@ type (
 	DelOnecProjectWorkspaceResp          = pb.DelOnecProjectWorkspaceResp
 	DeleteClusterReq                     = pb.DeleteClusterReq
 	DeleteClusterResp                    = pb.DeleteClusterResp
+	DeleteLogAlertEventReq               = pb.DeleteLogAlertEventReq
+	DeleteLogAlertEventResp              = pb.DeleteLogAlertEventResp
 	DeployAlertRulesReq                  = pb.DeployAlertRulesReq
 	DeployAlertRulesResp                 = pb.DeployAlertRulesResp
 	DeployAllAlertRulesReq               = pb.DeployAllAlertRulesReq
@@ -192,6 +200,14 @@ type (
 	GetClusterNsDetailResp               = pb.GetClusterNsDetailResp
 	GetClusterNsReq                      = pb.GetClusterNsReq
 	GetClusterNsResp                     = pb.GetClusterNsResp
+	GetLogAlertEngineStatsReq            = pb.GetLogAlertEngineStatsReq
+	GetLogAlertEngineStatsResp           = pb.GetLogAlertEngineStatsResp
+	GetLogAlertRuleByIdReq               = pb.GetLogAlertRuleByIdReq
+	GetLogAlertRuleByIdResp              = pb.GetLogAlertRuleByIdResp
+	GetLogClusterConfigReq               = pb.GetLogClusterConfigReq
+	GetLogClusterConfigResp              = pb.GetLogClusterConfigResp
+	GetLogClusterSyncStatusReq           = pb.GetLogClusterSyncStatusReq
+	GetLogClusterSyncStatusResp          = pb.GetLogClusterSyncStatusResp
 	GetOnecProjectAdminsByProjectIdReq   = pb.GetOnecProjectAdminsByProjectIdReq
 	GetOnecProjectAdminsByProjectIdResp  = pb.GetOnecProjectAdminsByProjectIdResp
 	GetOnecProjectApplicationByIdReq     = pb.GetOnecProjectApplicationByIdReq
@@ -209,10 +225,66 @@ type (
 	GetOnecProjectsByUserIdResp          = pb.GetOnecProjectsByUserIdResp
 	GetPrometheusConfigReq               = pb.GetPrometheusConfigReq
 	GetPrometheusConfigResp              = pb.GetPrometheusConfigResp
+	InspectionCategoryStat               = pb.InspectionCategoryStat
+	InspectionDashboardReq               = pb.InspectionDashboardReq
+	InspectionDashboardResp              = pb.InspectionDashboardResp
+	InspectionGroup                      = pb.InspectionGroup
+	InspectionGroupAddReq                = pb.InspectionGroupAddReq
+	InspectionGroupDelReq                = pb.InspectionGroupDelReq
+	InspectionGroupResp                  = pb.InspectionGroupResp
+	InspectionGroupSearchReq             = pb.InspectionGroupSearchReq
+	InspectionGroupSearchResp            = pb.InspectionGroupSearchResp
+	InspectionGroupTransferReq           = pb.InspectionGroupTransferReq
+	InspectionGroupTransferResp          = pb.InspectionGroupTransferResp
+	InspectionGroupUpdateReq             = pb.InspectionGroupUpdateReq
+	InspectionItem                       = pb.InspectionItem
+	InspectionItemAddReq                 = pb.InspectionItemAddReq
+	InspectionItemDelReq                 = pb.InspectionItemDelReq
+	InspectionItemResp                   = pb.InspectionItemResp
+	InspectionItemSearchReq              = pb.InspectionItemSearchReq
+	InspectionItemSearchResp             = pb.InspectionItemSearchResp
+	InspectionItemUpdateReq              = pb.InspectionItemUpdateReq
+	InspectionRecord                     = pb.InspectionRecord
+	InspectionRecordDelReq               = pb.InspectionRecordDelReq
+	InspectionRecordFinishReq            = pb.InspectionRecordFinishReq
+	InspectionRecordFinishResp           = pb.InspectionRecordFinishResp
+	InspectionRecordSearchReq            = pb.InspectionRecordSearchReq
+	InspectionRecordSearchResp           = pb.InspectionRecordSearchResp
+	InspectionReportReq                  = pb.InspectionReportReq
+	InspectionReportResp                 = pb.InspectionReportResp
+	InspectionResult                     = pb.InspectionResult
+	InspectionTask                       = pb.InspectionTask
+	InspectionTaskAddReq                 = pb.InspectionTaskAddReq
+	InspectionTaskDelReq                 = pb.InspectionTaskDelReq
+	InspectionTaskResp                   = pb.InspectionTaskResp
+	InspectionTaskRunReq                 = pb.InspectionTaskRunReq
+	InspectionTaskRunResp                = pb.InspectionTaskRunResp
+	InspectionTaskSearchReq              = pb.InspectionTaskSearchReq
+	InspectionTaskSearchResp             = pb.InspectionTaskSearchResp
+	InspectionTaskUpdateReq              = pb.InspectionTaskUpdateReq
+	InspectionTemplate                   = pb.InspectionTemplate
+	InspectionTemplateAddReq             = pb.InspectionTemplateAddReq
+	InspectionTemplateDelReq             = pb.InspectionTemplateDelReq
+	InspectionTemplateResp               = pb.InspectionTemplateResp
+	InspectionTemplateSearchReq          = pb.InspectionTemplateSearchReq
+	InspectionTemplateSearchResp         = pb.InspectionTemplateSearchResp
+	InspectionTemplateUpdateReq          = pb.InspectionTemplateUpdateReq
 	ListAlertRuleFileReq                 = pb.ListAlertRuleFileReq
 	ListAlertRuleFileResp                = pb.ListAlertRuleFileResp
 	ListAlertRuleGroupReq                = pb.ListAlertRuleGroupReq
 	ListAlertRuleGroupResp               = pb.ListAlertRuleGroupResp
+	ListLogLabelKeysReq                  = pb.ListLogLabelKeysReq
+	ListLogLabelKeysResp                 = pb.ListLogLabelKeysResp
+	ListLogLabelValuesReq                = pb.ListLogLabelValuesReq
+	ListLogLabelValuesResp               = pb.ListLogLabelValuesResp
+	LogAlertEvent                        = pb.LogAlertEvent
+	LogAlertRule                         = pb.LogAlertRule
+	LogClusterConfigItem                 = pb.LogClusterConfigItem
+	LogQueryModeOptionsReq               = pb.LogQueryModeOptionsReq
+	LogQueryModeOptionsResp              = pb.LogQueryModeOptionsResp
+	LogQueryRecord                       = pb.LogQueryRecord
+	ManualRetryLogAlertEventReq          = pb.ManualRetryLogAlertEventReq
+	ManualRetryLogAlertEventResp         = pb.ManualRetryLogAlertEventResp
 	MigrateWorkspaceReq                  = pb.MigrateWorkspaceReq
 	MigrateWorkspaceResp                 = pb.MigrateWorkspaceResp
 	OnecBillingClusterTopReq             = pb.OnecBillingClusterTopReq
@@ -279,9 +351,13 @@ type (
 	ProjectSyncResp                      = pb.ProjectSyncResp
 	ProjectWorkspaceSyncReq              = pb.ProjectWorkspaceSyncReq
 	ProjectWorkspaceSyncResp             = pb.ProjectWorkspaceSyncResp
+	QueryLogsReq                         = pb.QueryLogsReq
+	QueryLogsResp                        = pb.QueryLogsResp
 	RankingItem                          = pb.RankingItem
 	ReceiveAlertmanagerWebhookReq        = pb.ReceiveAlertmanagerWebhookReq
 	ReceiveAlertmanagerWebhookResp       = pb.ReceiveAlertmanagerWebhookResp
+	ResolveLogScopeReq                   = pb.ResolveLogScopeReq
+	ResolveLogScopeResp                  = pb.ResolveLogScopeResp
 	ResourceAllocationOverview           = pb.ResourceAllocationOverview
 	ResourceDashboardSummaryReq          = pb.ResourceDashboardSummaryReq
 	ResourceDashboardSummaryResp         = pb.ResourceDashboardSummaryResp
@@ -299,6 +375,10 @@ type (
 	SearchAlertRuleResp                  = pb.SearchAlertRuleResp
 	SearchClusterReq                     = pb.SearchClusterReq
 	SearchClusterResp                    = pb.SearchClusterResp
+	SearchLogAlertEventsReq              = pb.SearchLogAlertEventsReq
+	SearchLogAlertEventsResp             = pb.SearchLogAlertEventsResp
+	SearchLogAlertRuleReq                = pb.SearchLogAlertRuleReq
+	SearchLogAlertRuleResp               = pb.SearchLogAlertRuleResp
 	SearchOnecProjectApplicationReq      = pb.SearchOnecProjectApplicationReq
 	SearchOnecProjectApplicationResp     = pb.SearchOnecProjectApplicationResp
 	SearchOnecProjectAuditLogReq         = pb.SearchOnecProjectAuditLogReq
@@ -316,6 +396,8 @@ type (
 	SeverityStatItem                     = pb.SeverityStatItem
 	SyncClusterReq                       = pb.SyncClusterReq
 	SyncClusterResp                      = pb.SyncClusterResp
+	ToggleLogAlertRuleReq                = pb.ToggleLogAlertRuleReq
+	ToggleLogAlertRuleResp               = pb.ToggleLogAlertRuleResp
 	TrendDataPoint                       = pb.TrendDataPoint
 	UpdateAlertRuleFileReq               = pb.UpdateAlertRuleFileReq
 	UpdateAlertRuleFileResp              = pb.UpdateAlertRuleFileResp
@@ -327,6 +409,10 @@ type (
 	UpdateClusterResp                    = pb.UpdateClusterResp
 	UpdateClusterStorageCapacityReq      = pb.UpdateClusterStorageCapacityReq
 	UpdateClusterStorageCapacityResp     = pb.UpdateClusterStorageCapacityResp
+	UpdateLogAlertEventReasonReq         = pb.UpdateLogAlertEventReasonReq
+	UpdateLogAlertEventReasonResp        = pb.UpdateLogAlertEventReasonResp
+	UpdateLogAlertRuleReq                = pb.UpdateLogAlertRuleReq
+	UpdateLogAlertRuleResp               = pb.UpdateLogAlertRuleResp
 	UpdateOnecProjectApplicationReq      = pb.UpdateOnecProjectApplicationReq
 	UpdateOnecProjectApplicationResp     = pb.UpdateOnecProjectApplicationResp
 	UpdateOnecProjectClusterReq          = pb.UpdateOnecProjectClusterReq
@@ -522,6 +608,30 @@ type (
 		GetProjectResourceRanking(ctx context.Context, in *ProjectResourceRankingReq, opts ...grpc.CallOption) (*ProjectResourceRankingResp, error)
 		// 获取工作空间资源排行
 		GetWorkspaceResourceRanking(ctx context.Context, in *WorkspaceResourceRankingReq, opts ...grpc.CallOption) (*WorkspaceResourceRankingResp, error)
+		// -----------------------自动化集群巡检-----------------------
+		InspectionTemplateAdd(ctx context.Context, in *InspectionTemplateAddReq, opts ...grpc.CallOption) (*InspectionTemplateResp, error)
+		InspectionTemplateUpdate(ctx context.Context, in *InspectionTemplateUpdateReq, opts ...grpc.CallOption) (*InspectionTemplateResp, error)
+		InspectionTemplateDel(ctx context.Context, in *InspectionTemplateDelReq, opts ...grpc.CallOption) (*DeleteClusterResp, error)
+		InspectionTemplateSearch(ctx context.Context, in *InspectionTemplateSearchReq, opts ...grpc.CallOption) (*InspectionTemplateSearchResp, error)
+		InspectionGroupAdd(ctx context.Context, in *InspectionGroupAddReq, opts ...grpc.CallOption) (*InspectionGroupResp, error)
+		InspectionGroupUpdate(ctx context.Context, in *InspectionGroupUpdateReq, opts ...grpc.CallOption) (*InspectionGroupResp, error)
+		InspectionGroupDel(ctx context.Context, in *InspectionGroupDelReq, opts ...grpc.CallOption) (*DeleteClusterResp, error)
+		InspectionGroupSearch(ctx context.Context, in *InspectionGroupSearchReq, opts ...grpc.CallOption) (*InspectionGroupSearchResp, error)
+		InspectionGroupTransfer(ctx context.Context, in *InspectionGroupTransferReq, opts ...grpc.CallOption) (*InspectionGroupTransferResp, error)
+		InspectionItemAdd(ctx context.Context, in *InspectionItemAddReq, opts ...grpc.CallOption) (*InspectionItemResp, error)
+		InspectionItemUpdate(ctx context.Context, in *InspectionItemUpdateReq, opts ...grpc.CallOption) (*InspectionItemResp, error)
+		InspectionItemDel(ctx context.Context, in *InspectionItemDelReq, opts ...grpc.CallOption) (*DeleteClusterResp, error)
+		InspectionItemSearch(ctx context.Context, in *InspectionItemSearchReq, opts ...grpc.CallOption) (*InspectionItemSearchResp, error)
+		InspectionTaskAdd(ctx context.Context, in *InspectionTaskAddReq, opts ...grpc.CallOption) (*InspectionTaskResp, error)
+		InspectionTaskUpdate(ctx context.Context, in *InspectionTaskUpdateReq, opts ...grpc.CallOption) (*InspectionTaskResp, error)
+		InspectionTaskDel(ctx context.Context, in *InspectionTaskDelReq, opts ...grpc.CallOption) (*DeleteClusterResp, error)
+		InspectionTaskSearch(ctx context.Context, in *InspectionTaskSearchReq, opts ...grpc.CallOption) (*InspectionTaskSearchResp, error)
+		InspectionTaskRun(ctx context.Context, in *InspectionTaskRunReq, opts ...grpc.CallOption) (*InspectionTaskRunResp, error)
+		InspectionRecordSearch(ctx context.Context, in *InspectionRecordSearchReq, opts ...grpc.CallOption) (*InspectionRecordSearchResp, error)
+		InspectionReportGet(ctx context.Context, in *InspectionReportReq, opts ...grpc.CallOption) (*InspectionReportResp, error)
+		InspectionRecordFinish(ctx context.Context, in *InspectionRecordFinishReq, opts ...grpc.CallOption) (*InspectionRecordFinishResp, error)
+		InspectionRecordDel(ctx context.Context, in *InspectionRecordDelReq, opts ...grpc.CallOption) (*DeleteClusterResp, error)
+		InspectionDashboardGet(ctx context.Context, in *InspectionDashboardReq, opts ...grpc.CallOption) (*InspectionDashboardResp, error)
 		// -----------------------收费配置表-----------------------
 		OnecBillingPriceConfigAdd(ctx context.Context, in *OnecBillingPriceConfigAddReq, opts ...grpc.CallOption) (*OnecBillingPriceConfigAddResp, error)
 		OnecBillingPriceConfigUpdate(ctx context.Context, in *OnecBillingPriceConfigUpdateReq, opts ...grpc.CallOption) (*OnecBillingPriceConfigUpdateResp, error)
@@ -1218,6 +1328,122 @@ func (m *defaultManagerService) GetProjectResourceRanking(ctx context.Context, i
 func (m *defaultManagerService) GetWorkspaceResourceRanking(ctx context.Context, in *WorkspaceResourceRankingReq, opts ...grpc.CallOption) (*WorkspaceResourceRankingResp, error) {
 	client := pb.NewManagerServiceClient(m.cli.Conn())
 	return client.GetWorkspaceResourceRanking(ctx, in, opts...)
+}
+
+// -----------------------自动化集群巡检-----------------------
+func (m *defaultManagerService) InspectionTemplateAdd(ctx context.Context, in *InspectionTemplateAddReq, opts ...grpc.CallOption) (*InspectionTemplateResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionTemplateAdd(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionTemplateUpdate(ctx context.Context, in *InspectionTemplateUpdateReq, opts ...grpc.CallOption) (*InspectionTemplateResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionTemplateUpdate(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionTemplateDel(ctx context.Context, in *InspectionTemplateDelReq, opts ...grpc.CallOption) (*DeleteClusterResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionTemplateDel(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionTemplateSearch(ctx context.Context, in *InspectionTemplateSearchReq, opts ...grpc.CallOption) (*InspectionTemplateSearchResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionTemplateSearch(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionGroupAdd(ctx context.Context, in *InspectionGroupAddReq, opts ...grpc.CallOption) (*InspectionGroupResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionGroupAdd(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionGroupUpdate(ctx context.Context, in *InspectionGroupUpdateReq, opts ...grpc.CallOption) (*InspectionGroupResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionGroupUpdate(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionGroupDel(ctx context.Context, in *InspectionGroupDelReq, opts ...grpc.CallOption) (*DeleteClusterResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionGroupDel(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionGroupSearch(ctx context.Context, in *InspectionGroupSearchReq, opts ...grpc.CallOption) (*InspectionGroupSearchResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionGroupSearch(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionGroupTransfer(ctx context.Context, in *InspectionGroupTransferReq, opts ...grpc.CallOption) (*InspectionGroupTransferResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionGroupTransfer(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionItemAdd(ctx context.Context, in *InspectionItemAddReq, opts ...grpc.CallOption) (*InspectionItemResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionItemAdd(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionItemUpdate(ctx context.Context, in *InspectionItemUpdateReq, opts ...grpc.CallOption) (*InspectionItemResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionItemUpdate(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionItemDel(ctx context.Context, in *InspectionItemDelReq, opts ...grpc.CallOption) (*DeleteClusterResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionItemDel(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionItemSearch(ctx context.Context, in *InspectionItemSearchReq, opts ...grpc.CallOption) (*InspectionItemSearchResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionItemSearch(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionTaskAdd(ctx context.Context, in *InspectionTaskAddReq, opts ...grpc.CallOption) (*InspectionTaskResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionTaskAdd(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionTaskUpdate(ctx context.Context, in *InspectionTaskUpdateReq, opts ...grpc.CallOption) (*InspectionTaskResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionTaskUpdate(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionTaskDel(ctx context.Context, in *InspectionTaskDelReq, opts ...grpc.CallOption) (*DeleteClusterResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionTaskDel(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionTaskSearch(ctx context.Context, in *InspectionTaskSearchReq, opts ...grpc.CallOption) (*InspectionTaskSearchResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionTaskSearch(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionTaskRun(ctx context.Context, in *InspectionTaskRunReq, opts ...grpc.CallOption) (*InspectionTaskRunResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionTaskRun(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionRecordSearch(ctx context.Context, in *InspectionRecordSearchReq, opts ...grpc.CallOption) (*InspectionRecordSearchResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionRecordSearch(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionReportGet(ctx context.Context, in *InspectionReportReq, opts ...grpc.CallOption) (*InspectionReportResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionReportGet(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionRecordFinish(ctx context.Context, in *InspectionRecordFinishReq, opts ...grpc.CallOption) (*InspectionRecordFinishResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionRecordFinish(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionRecordDel(ctx context.Context, in *InspectionRecordDelReq, opts ...grpc.CallOption) (*DeleteClusterResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionRecordDel(ctx, in, opts...)
+}
+
+func (m *defaultManagerService) InspectionDashboardGet(ctx context.Context, in *InspectionDashboardReq, opts ...grpc.CallOption) (*InspectionDashboardResp, error) {
+	client := pb.NewManagerServiceClient(m.cli.Conn())
+	return client.InspectionDashboardGet(ctx, in, opts...)
 }
 
 // -----------------------收费配置表-----------------------

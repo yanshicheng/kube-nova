@@ -57,7 +57,7 @@ func (l *ClusterDeleteLogic) ClusterDelete(in *pb.DeleteClusterReq) (*pb.DeleteC
 	// 3. 如果有非默认项目在使用，返回详细错误信息
 	if len(usageInfos) > 0 {
 		errMsg := l.buildUsageErrorMessage(usageInfos)
-		return nil, fmt.Errorf(errMsg)
+		return nil, fmt.Errorf("%s", errMsg)
 	}
 
 	// 4. 执行删除操作（事务）

@@ -61,7 +61,7 @@ func (l *AddClusterAppLogic) AddClusterApp(req *types.AddClusterAppRequest) (res
 		_, _ = l.svcCtx.ManagerRpc.ProjectAuditLogAdd(l.ctx, &managerservice.AddOnecProjectAuditLogReq{
 			ClusterUuid:  req.ClusterUuid,
 			Title:        "集群中间件保存",
-			ActionDetail: fmt.Sprintf("保存集群中间件配置失败，中间件名称：%s，类型：%s，地址：%s:%d", req.AppName, req.AppType, req.AppUrl, req.Port),
+			ActionDetail: fmt.Sprintf("保存集群中间件配置失败，中间件名称：%s，类型：%d，地址：%s:%d", req.AppName, req.AppType, req.AppUrl, req.Port),
 			Status:       0,
 		})
 

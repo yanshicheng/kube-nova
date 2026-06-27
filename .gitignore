@@ -30,3 +30,8 @@ local/*
 .claude
 .docs
 tmp
+.worktrees
+
+devops
+
+docs

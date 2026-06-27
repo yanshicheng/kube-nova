@@ -25,6 +25,12 @@ type (
         Description string `json:"description" validate:"omitempty,max=200"`
     }
 
+    BatchCreateApplicationResource {
+        ClusterUuid string `json:"clusterUuid" validate:"required,uuid"`
+        Namespace string `json:"namespace" validate:"required"`
+        YamlStr string `json:"yamlStr" validate:"required,min=1"`
+    }
+
 
     OnecProjectApplication {
         Id uint64 `json:"id"`
@@ -104,6 +110,10 @@ service workload-api {
     @doc "添加应用资源"
     @handler AddApplicationResourceHandler
     post /resource (AddApplicationResource) returns (string)
+
+    @doc "批量导入 YAML 创建应用资源"
+    @handler BatchCreateApplicationResourceHandler
+    post /resource/yaml-batch (BatchCreateApplicationResource) returns (string)
 
     @doc "获取应用详情"
     @handler ApplicationDetailHandler
