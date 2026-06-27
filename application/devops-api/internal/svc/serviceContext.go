@@ -52,10 +52,14 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		zrpc.WithUnaryClientInterceptor(interceptors.ClientMetadataInterceptor()),
 		zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor()),
 	)
-	devopsQualityRpc := zrpc.MustNewClient(c.DevopsQualityRpc,
-		zrpc.WithUnaryClientInterceptor(interceptors.ClientMetadataInterceptor()),
-		zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor()),
-	)
+	var qualityRpcClient qualityservice.QualityService
+	if c.DevopsQualityRpc.Target != "" {
+		devopsQualityRpc := zrpc.MustNewClient(c.DevopsQualityRpc,
+			zrpc.WithUnaryClientInterceptor(interceptors.ClientMetadataInterceptor()),
+			zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor()),
+		)
+		qualityRpcClient = qualityservice.NewQualityService(devopsQualityRpc)
+	}
 	sysAuthRpc := sysauthservice.NewSysAuthService(portalRpc)
 	var uploader storage.Uploader
 	if c.StorageConf.Provider != "" {
@@ -71,7 +75,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		ChannelRpc:        channelservice.NewChannelService(devopsManagerRpc),
 		PipelineRpc:       pipelineconfigservice.NewPipelineConfigService(devopsManagerRpc),
 		PipelineExecRpc:   executionservice.NewExecutionService(devopsPipelineRpc),
-		QualityRpc:        qualityservice.NewQualityService(devopsQualityRpc),
+		QualityRpc:        qualityRpcClient,
 		SysAuthRpc:        sysAuthRpc,
 		Storage:           uploader,
 		JWTAuthMiddleware: middleware.NewJWTAuthMiddleware(sysAuthRpc).Handle,

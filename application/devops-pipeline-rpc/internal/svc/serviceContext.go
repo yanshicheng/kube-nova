@@ -34,10 +34,14 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		zrpc.WithUnaryClientInterceptor(interceptors.ClientMetadataInterceptor()),
 		zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor()),
 	)
-	qualityRpc := zrpc.MustNewClient(c.DevopsQualityRpc,
-		zrpc.WithUnaryClientInterceptor(interceptors.ClientMetadataInterceptor()),
-		zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor()),
-	)
+	var qualityRpcClient qualityservice.QualityService
+	if c.DevopsQualityRpc.Target != "" {
+		qualityRpc := zrpc.MustNewClient(c.DevopsQualityRpc,
+			zrpc.WithUnaryClientInterceptor(interceptors.ClientMetadataInterceptor()),
+			zrpc.WithUnaryClientInterceptor(interceptors.ClientErrorInterceptor()),
+		)
+		qualityRpcClient = qualityservice.NewQualityService(qualityRpc)
+	}
 	ctx := &ServiceContext{
 		Config:            c,
 		Cache:             redis.MustNewRedis(c.Cache),
@@ -49,7 +53,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		MetricModel:       model.NewDevopsPipelineMetricModel(c.Mongo.Url, c.Mongo.Db),
 		ProjectRpc:        projectservice.NewProjectService(managerRpc),
 		PipelineConfigRpc: pipelineconfigservice.NewPipelineConfigService(managerRpc),
-		QualityRpc:        qualityservice.NewQualityService(qualityRpc),
+		QualityRpc:        qualityRpcClient,
 	}
 	ctx.ensureIndexesAsync()
 	return ctx

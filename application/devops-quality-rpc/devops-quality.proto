@@ -1,0 +1,611 @@
+syntax = "proto3";
+
+option go_package = "github.com/yanshicheng/kube-nova/application/devops-quality-rpc/pb";
+
+package devopsqualitypb;
+
+message EmptyResp {}
+
+message HealthReq {}
+
+message HealthResp {
+  string status = 1;
+}
+
+message IdResp {
+  string id = 1;
+}
+
+message ScanPlanItem {
+  string stepId = 1;
+  string stageId = 2;
+  string tool = 3;
+  string toolMode = 4;
+  string toolBindingId = 5;
+  string targetType = 6;
+  string targetName = 7;
+  string targetParamCode = 8;
+  string reportSource = 9;
+  string reportPath = 10;
+  string reportFormat = 11;
+  bool required = 12;
+  string gatePolicyId = 13;
+  bool enforce = 14;
+  string parser = 15;
+}
+
+message CreateScanPlanSnapshotReq {
+  string runId = 1;
+  string pipelineId = 2;
+  string projectId = 3;
+  string projectName = 4;
+  string projectCode = 5;
+  string systemId = 6;
+  string systemName = 7;
+  string systemCode = 8;
+  string environmentId = 9;
+  string environmentName = 10;
+  string environmentCode = 11;
+  string scanMode = 12;
+  bool scanEnabled = 13;
+  bool rejectUnexpectedReports = 14;
+  repeated ScanPlanItem items = 15;
+  string createdBy = 16;
+  bool enforce = 17;
+}
+
+message GetScanPlanSnapshotReq {
+  string runId = 1;
+  uint64 currentUserId = 2;
+  repeated string currentRoles = 3;
+  repeated string projectIds = 4;
+  bool projectRestricted = 5;
+}
+
+message ScanPlanSnapshotResp {
+  string id = 1;
+  string runId = 2;
+  string pipelineId = 3;
+  string projectId = 4;
+  string scanMode = 5;
+  bool scanEnabled = 6;
+  bool rejectUnexpectedReports = 7;
+  repeated ScanPlanItem items = 8;
+  string createdAt = 9;
+}
+
+message CompleteScanReportReq {
+  string runId = 1;
+  string stageId = 2;
+  string stepId = 3;
+  string tool = 4;
+  string reportFormat = 5;
+  string targetType = 6;
+  string targetName = 7;
+  string imageRef = 8;
+  string bucket = 9;
+  string objectKey = 10;
+  int64 size = 11;
+  string contentType = 12;
+  string sha256 = 13;
+  string metadataJson = 14;
+  string summaryJson = 15;
+  string issuesJson = 16;
+  string operator = 17;
+  uint64 currentUserId = 18;
+  repeated string currentRoles = 19;
+  string reportPath = 20;
+  string parser = 21;
+  repeated string projectIds = 22;
+  bool projectRestricted = 23;
+  string batchId = 24;
+  string entryId = 25;
+  string sourceType = 26;
+  string archiveEntryPath = 27;
+  string originalFileName = 28;
+}
+
+message SyncServiceScanReportReq {
+  string runId = 1;
+  string tool = 2;
+  string operator = 3;
+  uint64 currentUserId = 20;
+  repeated string currentRoles = 21;
+  repeated string projectIds = 22;
+  bool projectRestricted = 23;
+}
+
+message SyncServiceScanReportResp {
+  repeated string reportIds = 1;
+  uint64 syncedCount = 2;
+  uint64 skippedCount = 3;
+  string message = 4;
+}
+
+message ScanReport {
+  string id = 1;
+  string projectId = 2;
+  string projectName = 3;
+  string projectCode = 4;
+  string systemId = 5;
+  string systemName = 6;
+  string systemCode = 7;
+  string environmentId = 8;
+  string environmentName = 9;
+  string environmentCode = 10;
+  string pipelineId = 11;
+  string runId = 12;
+  string stageId = 13;
+  string stepId = 14;
+  string tool = 15;
+  string toolMode = 16;
+  string toolBindingId = 17;
+  string targetType = 18;
+  string targetName = 19;
+  string imageRef = 20;
+  string reportSource = 21;
+  string reportFormat = 22;
+  string bucket = 23;
+  string objectKey = 24;
+  int64 size = 25;
+  string contentType = 26;
+  string sha256 = 27;
+  string status = 28;
+  string rejectReason = 29;
+  string gateStatus = 30;
+  string summaryJson = 31;
+  string createdAt = 32;
+  string reportPath = 33;
+  string parser = 34;
+  string batchId = 35;
+  string entryId = 36;
+  string sourceType = 37;
+  string archiveEntryPath = 38;
+  string originalFileName = 39;
+  bool current = 40;
+  string supersededBy = 41;
+}
+
+message ListScanReportReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string projectId = 3;
+  string systemId = 4;
+  string pipelineId = 5;
+  string runId = 6;
+  string tool = 7;
+  string targetType = 8;
+  string status = 9;
+  string gateStatus = 10;
+  uint64 currentUserId = 11;
+  repeated string currentRoles = 12;
+  repeated string projectIds = 13;
+  bool projectRestricted = 14;
+}
+
+message ListScanReportResp {
+  repeated ScanReport data = 1;
+  uint64 total = 2;
+}
+
+message GetScanReportReq {
+  string id = 1;
+  uint64 currentUserId = 2;
+  repeated string currentRoles = 3;
+  repeated string projectIds = 4;
+  bool projectRestricted = 5;
+}
+
+message GetScanReportResp {
+  ScanReport data = 1;
+}
+
+message ReportUploadBatch {
+  string id = 1;
+  string projectId = 2;
+  string projectName = 3;
+  string projectCode = 4;
+  string systemId = 5;
+  string systemName = 6;
+  string systemCode = 7;
+  string environmentId = 8;
+  string environmentName = 9;
+  string environmentCode = 10;
+  string pipelineId = 11;
+  string pipelineName = 12;
+  string runId = 13;
+  string stageId = 14;
+  string stepId = 15;
+  string tool = 16;
+  string reportFormat = 17;
+  string parser = 18;
+  string sourceType = 19;
+  string originalFileName = 20;
+  string bucket = 21;
+  string objectKey = 22;
+  int64 size = 23;
+  string contentType = 24;
+  string sha256 = 25;
+  string status = 26;
+  int64 acceptedCount = 27;
+  int64 rejectedCount = 28;
+  int64 ignoredCount = 29;
+  string message = 30;
+  string createdAt = 31;
+}
+
+message ReportUploadEntry {
+  string id = 1;
+  string batchId = 2;
+  string runId = 3;
+  string stageId = 4;
+  string stepId = 5;
+  string tool = 6;
+  string reportFormat = 7;
+  string parser = 8;
+  string entryPath = 9;
+  string originalFileName = 10;
+  string bucket = 11;
+  string objectKey = 12;
+  int64 size = 13;
+  string contentType = 14;
+  string sha256 = 15;
+  string status = 16;
+  string reason = 17;
+  string reportId = 18;
+  string createdAt = 19;
+}
+
+message CreateReportUploadBatchReq {
+  string runId = 1;
+  string stageId = 2;
+  string stepId = 3;
+  string tool = 4;
+  string reportFormat = 5;
+  string parser = 6;
+  string sourceType = 7;
+  string originalFileName = 8;
+  string bucket = 9;
+  string objectKey = 10;
+  int64 size = 11;
+  string contentType = 12;
+  string sha256 = 13;
+  string operator = 14;
+  uint64 currentUserId = 15;
+  repeated string currentRoles = 16;
+  repeated string projectIds = 17;
+  bool projectRestricted = 18;
+}
+
+message UpdateReportUploadBatchReq {
+  string id = 1;
+  string status = 2;
+  int64 acceptedCount = 3;
+  int64 rejectedCount = 4;
+  int64 ignoredCount = 5;
+  string message = 6;
+  string operator = 7;
+  uint64 currentUserId = 8;
+  repeated string currentRoles = 9;
+  repeated string projectIds = 10;
+  bool projectRestricted = 11;
+}
+
+message CreateReportUploadEntryReq {
+  string batchId = 1;
+  string runId = 2;
+  string stageId = 3;
+  string stepId = 4;
+  string tool = 5;
+  string reportFormat = 6;
+  string parser = 7;
+  string entryPath = 8;
+  string originalFileName = 9;
+  string bucket = 10;
+  string objectKey = 11;
+  int64 size = 12;
+  string contentType = 13;
+  string sha256 = 14;
+  string status = 15;
+  string reason = 16;
+  string reportId = 17;
+  string operator = 18;
+  repeated string projectIds = 19;
+  bool projectRestricted = 20;
+}
+
+message ListReportUploadBatchReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string projectId = 3;
+  string systemId = 4;
+  string pipelineId = 5;
+  string runId = 6;
+  string tool = 7;
+  string status = 8;
+  uint64 currentUserId = 9;
+  repeated string currentRoles = 10;
+  repeated string projectIds = 11;
+  bool projectRestricted = 12;
+}
+
+message ListReportUploadBatchResp {
+  repeated ReportUploadBatch data = 1;
+  uint64 total = 2;
+}
+
+message GetReportUploadBatchReq {
+  string id = 1;
+  uint64 currentUserId = 2;
+  repeated string currentRoles = 3;
+  repeated string projectIds = 4;
+  bool projectRestricted = 5;
+}
+
+message GetReportUploadBatchResp {
+  ReportUploadBatch data = 1;
+}
+
+message ListReportUploadEntryReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string batchId = 3;
+  string runId = 4;
+  string status = 5;
+  uint64 currentUserId = 6;
+  repeated string currentRoles = 7;
+  repeated string projectIds = 8;
+  bool projectRestricted = 9;
+}
+
+message ListReportUploadEntryResp {
+  repeated ReportUploadEntry data = 1;
+  uint64 total = 2;
+}
+
+message GetReportUploadEntryReq {
+  string id = 1;
+  uint64 currentUserId = 2;
+  repeated string currentRoles = 3;
+  repeated string projectIds = 4;
+  bool projectRestricted = 5;
+}
+
+message GetReportUploadEntryResp {
+  ReportUploadEntry data = 1;
+}
+
+message ScanIssue {
+  string id = 1;
+  string reportId = 2;
+  string projectId = 3;
+  string systemId = 4;
+  string runId = 5;
+  string tool = 6;
+  string issueType = 7;
+  string severity = 8;
+  string title = 9;
+  string description = 10;
+  string filePath = 11;
+  int64 line = 12;
+  string component = 13;
+  string packageName = 14;
+  string imageRef = 15;
+  string ruleId = 16;
+  string status = 17;
+  string rawJson = 18;
+  string createdAt = 19;
+  string targetType = 20;
+  string cveId = 21;
+  string installedVersion = 22;
+  string fixedVersion = 23;
+  string imageDigest = 24;
+}
+
+message ListScanIssueReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string reportId = 3;
+  string projectId = 4;
+  string systemId = 5;
+  string runId = 6;
+  string tool = 7;
+  string issueType = 8;
+  string severity = 9;
+  string status = 10;
+  uint64 currentUserId = 11;
+  repeated string currentRoles = 12;
+  repeated string projectIds = 13;
+  bool projectRestricted = 14;
+  string targetType = 15;
+}
+
+message ListScanIssueResp {
+  repeated ScanIssue data = 1;
+  uint64 total = 2;
+}
+
+message GatePolicy {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string scope = 4;
+  string projectId = 5;
+  string ruleJson = 6;
+  int64 status = 7;
+  string createdBy = 8;
+  string updatedBy = 9;
+  string createdAt = 10;
+  string updatedAt = 11;
+}
+
+message SaveGatePolicyReq {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string scope = 4;
+  string projectId = 5;
+  string ruleJson = 6;
+  int64 status = 7;
+  string operator = 8;
+  uint64 currentUserId = 9;
+  repeated string currentRoles = 10;
+}
+
+message ListGatePolicyReq {
+  uint64 page = 1;
+  uint64 pageSize = 2;
+  string scope = 3;
+  string projectId = 4;
+  string name = 5;
+  string code = 6;
+  int64 status = 7;
+  uint64 currentUserId = 8;
+  repeated string currentRoles = 9;
+}
+
+message ListGatePolicyResp {
+  repeated GatePolicy data = 1;
+  uint64 total = 2;
+}
+
+message QualityDashboardReq {
+  string projectId = 1;
+  string systemId = 2;
+  string startDate = 3;
+  string endDate = 4;
+  uint64 currentUserId = 5;
+  repeated string currentRoles = 6;
+  repeated string projectIds = 7;
+  bool projectRestricted = 8;
+  string targetType = 9;
+}
+
+message QualityDashboardOverview {
+  int64 reportCount = 1;
+  int64 passedCount = 2;
+  int64 failedCount = 3;
+  int64 rejectedCount = 4;
+  int64 issueCount = 5;
+  int64 criticalCount = 6;
+  int64 highCount = 7;
+  double gatePassRate = 8;
+}
+
+message QualityDashboardTrend {
+  string date = 1;
+  int64 reportCount = 2;
+  int64 issueCount = 3;
+  int64 criticalCount = 4;
+  int64 highCount = 5;
+}
+
+message QualityDashboardMetric {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  int64 reportCount = 4;
+  int64 issueCount = 5;
+  int64 criticalCount = 6;
+  int64 highCount = 7;
+  double gatePassRate = 8;
+}
+
+message QualityDashboardResp {
+  QualityDashboardOverview overview = 1;
+  repeated QualityDashboardTrend trends = 2;
+  repeated QualityDashboardMetric projectRanks = 3;
+  repeated QualityDashboardMetric systemRanks = 4;
+  repeated QualityDashboardMetric toolRanks = 5;
+}
+
+message QualityRunSummaryReq {
+  string runId = 1;
+  uint64 currentUserId = 2;
+  repeated string currentRoles = 3;
+  repeated string projectIds = 4;
+  bool projectRestricted = 5;
+}
+
+message QualityRunTypeSummary {
+  string targetType = 1;
+  int64 reportCount = 2;
+  int64 issueCount = 3;
+  int64 criticalCount = 4;
+  int64 highCount = 5;
+  int64 mediumCount = 6;
+  int64 lowCount = 7;
+}
+
+message QualityImageSummary {
+  string imageRef = 1;
+  string imageDigest = 2;
+  int64 reportCount = 3;
+  int64 issueCount = 4;
+  int64 criticalCount = 5;
+  int64 highCount = 6;
+  int64 fixableCount = 7;
+}
+
+message QualityRunSummaryResp {
+  string runId = 1;
+  string gateStatus = 2;
+  QualityDashboardOverview overview = 3;
+  QualityRunTypeSummary staticCode = 4;
+  QualityRunTypeSummary image = 5;
+  repeated ScanPlanItem scanPlan = 6;
+  repeated ScanReport reports = 7;
+  repeated ScanIssue staticCodeIssues = 8;
+  repeated ScanIssue imageIssues = 9;
+  repeated ScanGateMissingReport missingReports = 10;
+  repeated ScanReport rejectedReports = 11;
+  repeated QualityImageSummary images = 12;
+  repeated ReportUploadEntry rejectedEntries = 13;
+}
+
+message ScanGateEvaluateReq {
+  string runId = 1;
+  string operator = 2;
+  uint64 currentUserId = 3;
+  repeated string currentRoles = 4;
+  repeated string projectIds = 5;
+  bool projectRestricted = 6;
+}
+
+message ScanGateMissingReport {
+  string tool = 1;
+  string stepId = 2;
+  string reportFormat = 3;
+  string reportPath = 4;
+}
+
+message ScanGateEvaluateResp {
+  string runId = 1;
+  string gateStatus = 2;
+  string message = 3;
+  repeated ScanGateMissingReport missingReports = 4;
+}
+
+service QualityService {
+  rpc Health(HealthReq) returns (HealthResp);
+  rpc ScanPlanSnapshotCreate(CreateScanPlanSnapshotReq) returns (IdResp);
+  rpc ScanPlanSnapshotGet(GetScanPlanSnapshotReq) returns (ScanPlanSnapshotResp);
+  rpc ScanReportValidate(CompleteScanReportReq) returns (EmptyResp);
+  rpc ScanReportComplete(CompleteScanReportReq) returns (IdResp);
+  rpc ScanServiceReportSync(SyncServiceScanReportReq) returns (SyncServiceScanReportResp);
+  rpc ScanReportList(ListScanReportReq) returns (ListScanReportResp);
+  rpc ScanReportGet(GetScanReportReq) returns (GetScanReportResp);
+  rpc ReportUploadBatchCreate(CreateReportUploadBatchReq) returns (IdResp);
+  rpc ReportUploadBatchUpdate(UpdateReportUploadBatchReq) returns (EmptyResp);
+  rpc ReportUploadBatchList(ListReportUploadBatchReq) returns (ListReportUploadBatchResp);
+  rpc ReportUploadBatchGet(GetReportUploadBatchReq) returns (GetReportUploadBatchResp);
+  rpc ReportUploadEntryCreate(CreateReportUploadEntryReq) returns (IdResp);
+  rpc ReportUploadEntryList(ListReportUploadEntryReq) returns (ListReportUploadEntryResp);
+  rpc ReportUploadEntryGet(GetReportUploadEntryReq) returns (GetReportUploadEntryResp);
+  rpc ScanIssueList(ListScanIssueReq) returns (ListScanIssueResp);
+  rpc ScanGateEvaluate(ScanGateEvaluateReq) returns (ScanGateEvaluateResp);
+  rpc GatePolicySave(SaveGatePolicyReq) returns (IdResp);
+  rpc GatePolicyList(ListGatePolicyReq) returns (ListGatePolicyResp);
+  rpc QualityDashboard(QualityDashboardReq) returns (QualityDashboardResp);
+  rpc QualityRunSummary(QualityRunSummaryReq) returns (QualityRunSummaryResp);
+}
