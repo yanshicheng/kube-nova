@@ -330,7 +330,11 @@ func writeInspectionOverviewSheet(f *excelize.File, sheet string, report *pb.Ins
 
 	writeStatusSource(f, sheet, report, styles)
 	writeTrendSource(f, sheet, trendRecords, styles)
-	addOverviewCharts(f, sheet, len(trendRecords))
+	categoryLastRow := 18 + len(categoryStats)
+	chartTitleRow := categoryLastRow + 2
+	writeSection(f, sheet, fmt.Sprintf("A%d", chartTitleRow), fmt.Sprintf("J%d", chartTitleRow), "图表分析", styles.section)
+	addOverviewCharts(f, sheet, len(trendRecords), chartTitleRow+1)
+	_ = f.SetColVisible(sheet, "AA:AG", false)
 
 	f.SetColWidth(sheet, "A", "A", 16)
 	f.SetColWidth(sheet, "B", "B", 24)
@@ -1002,10 +1006,10 @@ func inspectionDetailLabel(key string) string {
 }
 
 func writeStatusSource(f *excelize.File, sheet string, report *pb.InspectionReportResp, styles inspectionExportStyles) {
-	f.SetCellValue(sheet, "L3", "状态")
-	f.SetCellValue(sheet, "M3", "数量")
-	f.SetCellValue(sheet, "N3", "占比(%)")
-	f.SetCellStyle(sheet, "L3", "N3", styles.header)
+	f.SetCellValue(sheet, "AA3", "状态")
+	f.SetCellValue(sheet, "AB3", "数量")
+	f.SetCellValue(sheet, "AC3", "占比(%)")
+	f.SetCellStyle(sheet, "AA3", "AC3", styles.header)
 	counts := []int64{
 		report.Record.SuccessCount,
 		report.Record.WarningCount,
@@ -1020,31 +1024,33 @@ func writeStatusSource(f *excelize.File, sheet string, report *pb.InspectionRepo
 		{"失败", counts[3], percents[3]},
 	}
 	for i, row := range rows {
-		writeStyledRow(f, sheet, i+4, row, styles.row, 12)
+		writeStyledRow(f, sheet, i+4, row, styles.row, 27)
 	}
 }
 
 func writeTrendSource(f *excelize.File, sheet string, records []*pb.InspectionRecord, styles inspectionExportStyles) {
-	f.SetCellValue(sheet, "O3", "时间")
-	f.SetCellValue(sheet, "P3", "得分")
-	f.SetCellValue(sheet, "Q3", "风险项")
-	f.SetCellStyle(sheet, "O3", "Q3", styles.header)
+	f.SetCellValue(sheet, "AE3", "时间")
+	f.SetCellValue(sheet, "AF3", "得分")
+	f.SetCellValue(sheet, "AG3", "风险项")
+	f.SetCellStyle(sheet, "AE3", "AG3", styles.header)
 	for i, record := range records {
 		rowNo := i + 4
-		f.SetCellValue(sheet, fmt.Sprintf("O%d", rowNo), formatUnix(recordTime(record)))
-		f.SetCellValue(sheet, fmt.Sprintf("P%d", rowNo), record.Score)
-		f.SetCellValue(sheet, fmt.Sprintf("Q%d", rowNo), record.WarningCount+record.CriticalCount+record.FailedCount)
-		f.SetCellStyle(sheet, fmt.Sprintf("O%d", rowNo), fmt.Sprintf("Q%d", rowNo), styles.row)
+		f.SetCellValue(sheet, fmt.Sprintf("AE%d", rowNo), formatUnix(recordTime(record)))
+		f.SetCellValue(sheet, fmt.Sprintf("AF%d", rowNo), record.Score)
+		f.SetCellValue(sheet, fmt.Sprintf("AG%d", rowNo), record.WarningCount+record.CriticalCount+record.FailedCount)
+		f.SetCellStyle(sheet, fmt.Sprintf("AE%d", rowNo), fmt.Sprintf("AG%d", rowNo), styles.row)
 	}
 }
 
-func addOverviewCharts(f *excelize.File, sheet string, trendCount int) {
-	_ = f.AddChart(sheet, "F3", &excelize.Chart{
+func addOverviewCharts(f *excelize.File, sheet string, trendCount int, startRow int) {
+	statusCell := fmt.Sprintf("A%d", startRow)
+	trendCell := fmt.Sprintf("H%d", startRow)
+	_ = f.AddChart(sheet, statusCell, &excelize.Chart{
 		Type: excelize.Bar,
 		Series: []excelize.ChartSeries{{
-			Name:       fmt.Sprintf("'%s'!$N$3", sheet),
-			Categories: fmt.Sprintf("'%s'!$L$4:$L$7", sheet),
-			Values:     fmt.Sprintf("'%s'!$N$4:$N$7", sheet),
+			Name:       fmt.Sprintf("'%s'!$AC$3", sheet),
+			Categories: fmt.Sprintf("'%s'!$AA$4:$AA$7", sheet),
+			Values:     fmt.Sprintf("'%s'!$AC$4:$AC$7", sheet),
 		}},
 		Dimension: excelize.ChartDimension{Width: 420, Height: 230},
 		Legend:    excelize.ChartLegend{Position: "none"},
@@ -1054,18 +1060,18 @@ func addOverviewCharts(f *excelize.File, sheet string, trendCount int) {
 		return
 	}
 	endRow := trendCount + 3
-	_ = f.AddChart(sheet, "F17", &excelize.Chart{
+	_ = f.AddChart(sheet, trendCell, &excelize.Chart{
 		Type: excelize.Line,
 		Series: []excelize.ChartSeries{
 			{
-				Name:       fmt.Sprintf("'%s'!$P$3", sheet),
-				Categories: fmt.Sprintf("'%s'!$O$4:$O$%d", sheet, endRow),
-				Values:     fmt.Sprintf("'%s'!$P$4:$P$%d", sheet, endRow),
+				Name:       fmt.Sprintf("'%s'!$AF$3", sheet),
+				Categories: fmt.Sprintf("'%s'!$AE$4:$AE$%d", sheet, endRow),
+				Values:     fmt.Sprintf("'%s'!$AF$4:$AF$%d", sheet, endRow),
 			},
 			{
-				Name:       fmt.Sprintf("'%s'!$Q$3", sheet),
-				Categories: fmt.Sprintf("'%s'!$O$4:$O$%d", sheet, endRow),
-				Values:     fmt.Sprintf("'%s'!$Q$4:$Q$%d", sheet, endRow),
+				Name:       fmt.Sprintf("'%s'!$AG$3", sheet),
+				Categories: fmt.Sprintf("'%s'!$AE$4:$AE$%d", sheet, endRow),
+				Values:     fmt.Sprintf("'%s'!$AG$4:$AG$%d", sheet, endRow),
 			},
 		},
 		Dimension: excelize.ChartDimension{Width: 520, Height: 260},

@@ -38,7 +38,7 @@ func (l *InspectionTaskUpdateLogic) InspectionTaskUpdate(in *pb.InspectionTaskUp
 	if scopeType != "cluster" && scopeType != "global" {
 		return nil, errorx.Msg("巡检范围仅支持 global 或 cluster")
 	}
-	if scopeType == "cluster" && strings.TrimSpace(in.ClusterUuid) == "" {
+	if scopeType == "cluster" && strings.TrimSpace(in.ClusterUuid) == "" && !in.PrometheusEnabled {
 		return nil, errorx.Msg("单集群巡检必须指定集群UUID")
 	}
 	scheduleType := inspectionString(in.ScheduleType, "manual")

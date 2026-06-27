@@ -570,7 +570,25 @@ func (r *Runner) resolveClusters(task *model.OnecInspectionTask, overrideCluster
 		}
 		return []*model.OnecCluster{cluster}, nil
 	}
+	if task != nil && task.PrometheusEnabled == 1 && strings.TrimSpace(task.PrometheusEndpoint) != "" {
+		return []*model.OnecCluster{prometheusOnlyCluster(task)}, nil
+	}
+	if task != nil && !strings.EqualFold(task.ScopeType, "global") {
+		return nil, fmt.Errorf("单集群巡检未配置目标集群")
+	}
 	return r.svcCtx.OnecClusterModel.GetAllClusters(r.ctx)
+}
+
+func prometheusOnlyCluster(task *model.OnecInspectionTask) *model.OnecCluster {
+	name := "计划级 Prometheus"
+	uuid := "inspection-prometheus"
+	if task != nil && task.Id > 0 {
+		uuid = fmt.Sprintf("inspection-prometheus-%d", task.Id)
+	}
+	return &model.OnecCluster{
+		Uuid: uuid,
+		Name: name,
+	}
 }
 
 func (r *Runner) ensureTemplateEnabled(templateID uint64) error {
@@ -705,30 +723,36 @@ func (r *Runner) executeClusterRecord(task *model.OnecInspectionTask, cluster *m
 			}, "巡检项未返回结果")}
 		}
 		itemStatus := statusSuccess
-		for _, checkResult := range checkResults {
-			if current, stopped := r.finishedRecordSnapshot(record.Id); stopped {
-				if current != nil {
-					*record = *current
+		persistResults := make([]*model.OnecInspectionResult, 0, len(checkResults))
+		for idx, checkResult := range checkResults {
+			if idx == 0 || idx%100 == 0 {
+				if current, stopped := r.finishedRecordSnapshot(record.Id); stopped {
+					if current != nil {
+						*record = *current
+					}
+					return record, nil
 				}
-				return record, nil
 			}
 			if checkResult == nil {
 				continue
 			}
 			checkResult.RecordId = record.Id
 			if execCfg.RecordAllResults || checkResult.Status != statusSuccess {
-				if _, err := r.svcCtx.OnecInspectionResultModel.Insert(r.ctx, checkResult); err != nil {
-					logx.WithContext(r.ctx).Errorf("写入巡检结果失败: recordId=%d, item=%s, target=%s, err=%v", record.Id, item.ItemCode, checkResult.TargetName, err)
-					checkResult.Status = statusFailed
-					checkResult.Score = 0
-					checkResult.Message = "写入巡检结果失败"
-					appendRecordLog(r.ctx, r.svcCtx, record.Id, "error", fmt.Sprintf("写入巡检结果失败: %s / %s", item.ItemName, checkResult.TargetName))
-				}
+				persistResults = append(persistResults, checkResult)
 			}
 			if statusRank(checkResult.Status) < statusRank(itemStatus) {
 				itemStatus = checkResult.Status
 			}
 			results = append(results, checkResult)
+		}
+		if len(persistResults) > 0 {
+			if err := r.svcCtx.OnecInspectionResultModel.InsertBatch(r.ctx, persistResults); err != nil {
+				logx.WithContext(r.ctx).Errorf("批量写入巡检结果失败: recordId=%d, item=%s, count=%d, err=%v", record.Id, item.ItemCode, len(persistResults), err)
+				appendRecordLog(r.ctx, r.svcCtx, record.Id, "error", fmt.Sprintf("批量写入巡检结果失败: %s，数量 %d", item.ItemName, len(persistResults)))
+				if err := r.insertResultsOneByOne(record, item, persistResults); err != nil {
+					appendRecordLog(r.ctx, r.svcCtx, record.Id, "error", "巡检结果降级写入仍失败: "+err.Error())
+				}
+			}
 		}
 		appendRecordLog(r.ctx, r.svcCtx, record.Id, logLevelByStatus(itemStatus), fmt.Sprintf("巡检项完成: %s，生成明细 %d 条，结果 %s", item.ItemName, len(checkResults), itemStatus))
 	}
@@ -739,6 +763,33 @@ func (r *Runner) executeClusterRecord(task *model.OnecInspectionTask, cluster *m
 	}
 	appendRecordLog(r.ctx, r.svcCtx, record.Id, logLevelByStatus(record.Status), fmt.Sprintf("巡检完成，状态 %s，得分 %.2f", record.Status, record.Score))
 	return record, nil
+}
+
+func (r *Runner) insertResultsOneByOne(record *model.OnecInspectionRecord, item *model.OnecInspectionItem, results []*model.OnecInspectionResult) error {
+	var lastErr error
+	for _, result := range results {
+		if result == nil {
+			continue
+		}
+		if _, err := r.svcCtx.OnecInspectionResultModel.Insert(r.ctx, result); err != nil {
+			lastErr = err
+			itemCode := ""
+			itemName := ""
+			if item != nil {
+				itemCode = item.ItemCode
+				itemName = item.ItemName
+			}
+			recordID := uint64(0)
+			if record != nil {
+				recordID = record.Id
+			}
+			logx.WithContext(r.ctx).Errorf("写入巡检结果失败: recordId=%d, item=%s, target=%s, err=%v", recordID, itemCode, result.TargetName, err)
+			if recordID > 0 {
+				appendRecordLog(r.ctx, r.svcCtx, recordID, "error", fmt.Sprintf("写入巡检结果失败: %s / %s", itemName, result.TargetName))
+			}
+		}
+	}
+	return lastErr
 }
 
 func (r *Runner) loadItems(templateID uint64) ([]*model.OnecInspectionItem, error) {
@@ -914,11 +965,11 @@ func (r *Runner) runItem(task *model.OnecInspectionTask, cluster *model.OnecClus
 	case "promql":
 		return r.runPromQLItem(task, cluster, item, result, execCfg)
 	default:
-		return r.runBuiltinItem(task, cluster, item, result)
+		return r.runBuiltinItem(task, cluster, item, result, execCfg)
 	}
 }
 
-func (r *Runner) runBuiltinItem(task *model.OnecInspectionTask, cluster *model.OnecCluster, item *model.OnecInspectionItem, result *model.OnecInspectionResult) []*model.OnecInspectionResult {
+func (r *Runner) runBuiltinItem(task *model.OnecInspectionTask, cluster *model.OnecCluster, item *model.OnecInspectionItem, result *model.OnecInspectionResult, execCfg inspectionExecutionConfig) []*model.OnecInspectionResult {
 	if item.ItemCode == "prometheus_available" {
 		prom, cleanup, err := r.prometheusClientForTask(task, cluster)
 		if err != nil {
@@ -952,19 +1003,22 @@ func (r *Runner) runBuiltinItem(task *model.OnecInspectionTask, cluster *model.O
 		if err != nil {
 			return []*model.OnecInspectionResult{failedResult(result, fmt.Sprintf("查询节点失败: %v", err))}
 		}
-		return buildNodeReadyResults(cluster, result, nodes.Items)
+		nodeItems := filterNodesByTargets(nodes.Items, r.expectedTargetsForItem(cluster, item, parseInspectionItemConfig(item.ConfigJson.String), execCfg))
+		return buildNodeReadyResults(cluster, result, nodeItems)
 	case "node_pressure":
 		nodes, err := client.GetKubeClient().CoreV1().Nodes().List(r.ctx, metav1.ListOptions{})
 		if err != nil {
 			return []*model.OnecInspectionResult{failedResult(result, fmt.Sprintf("查询节点压力失败: %v", err))}
 		}
-		return buildNodePressureResults(cluster, result, nodes.Items)
+		nodeItems := filterNodesByTargets(nodes.Items, r.expectedTargetsForItem(cluster, item, parseInspectionItemConfig(item.ConfigJson.String), execCfg))
+		return buildNodePressureResults(cluster, result, nodeItems)
 	case "pod_abnormal":
 		pods, err := client.GetKubeClient().CoreV1().Pods(metav1.NamespaceAll).List(r.ctx, metav1.ListOptions{})
 		if err != nil {
 			return []*model.OnecInspectionResult{failedResult(result, fmt.Sprintf("查询 Pod 失败: %v", err))}
 		}
-		return r.buildPodAbnormalResults(cluster, result, pods.Items)
+		podItems := filterPodsByTargets(pods.Items, r.expectedTargetsForItem(cluster, item, parseInspectionItemConfig(item.ConfigJson.String), execCfg))
+		return r.buildPodAbnormalResults(cluster, result, podItems)
 	default:
 		return []*model.OnecInspectionResult{failedResult(result, "不支持的内置巡检项: "+item.ItemCode)}
 	}
@@ -1031,19 +1085,25 @@ func (r *Runner) runPromQLItem(task *model.OnecInspectionTask, cluster *model.On
 	if strings.TrimSpace(item.Promql.String) == "" {
 		return []*model.OnecInspectionResult{failedResult(result, "PromQL 不能为空")}
 	}
+	itemConfig := parseInspectionItemConfig(item.ConfigJson.String)
+	query := firstString(itemConfig.DetailPromQL, deriveDetailPromQL(item), item.Promql.String)
+	result.Expected = strings.TrimSpace(item.Operator + " " + item.Threshold)
+	expectedTargets := r.expectedTargetsForItem(cluster, item, itemConfig, execCfg)
 	prom, cleanup, err := r.prometheusClientForTask(task, cluster)
 	if err != nil {
+		if len(expectedTargets) > 0 {
+			return buildPromQLFailedTargetResults(cluster, item, itemConfig, result, expectedTargets, query, fmt.Sprintf("获取 Prometheus 失败: %v", err))
+		}
 		return []*model.OnecInspectionResult{failedResult(result, fmt.Sprintf("获取 Prometheus 失败: %v", err))}
 	}
 	defer cleanup()
-	itemConfig := parseInspectionItemConfig(item.ConfigJson.String)
-	query := firstString(itemConfig.DetailPromQL, deriveDetailPromQL(item), item.Promql.String)
 	values, err := prom.Query(query, nil)
 	if err != nil {
+		if len(expectedTargets) > 0 {
+			return buildPromQLFailedTargetResults(cluster, item, itemConfig, result, expectedTargets, query, fmt.Sprintf("执行 PromQL 失败: %v", err))
+		}
 		return []*model.OnecInspectionResult{failedResult(result, fmt.Sprintf("执行 PromQL 失败: %v", err))}
 	}
-	result.Expected = strings.TrimSpace(item.Operator + " " + item.Threshold)
-	expectedTargets := r.expectedTargetsForItem(cluster, item, itemConfig, execCfg)
 	if len(values) == 0 {
 		if len(expectedTargets) > 0 {
 			return buildPromQLMissingTargetResults(cluster, item, itemConfig, result, expectedTargets, query)
@@ -1056,9 +1116,6 @@ func (r *Runner) runPromQLItem(task *model.OnecInspectionTask, cluster *model.On
 }
 
 func (r *Runner) expectedTargetsForItem(cluster *model.OnecCluster, item *model.OnecInspectionItem, cfg inspectionItemConfig, execCfg inspectionExecutionConfig) []inspectionTargetCandidate {
-	if strings.ToLower(strings.TrimSpace(execCfg.InspectionMode)) != "instance" {
-		return nil
-	}
 	if len(execCfg.Instances) > 0 {
 		targets := make([]inspectionTargetCandidate, 0, len(execCfg.Instances))
 		for _, instance := range execCfg.Instances {
@@ -1066,8 +1123,14 @@ func (r *Runner) expectedTargetsForItem(cluster *model.OnecCluster, item *model.
 		}
 		return targets
 	}
+	if strings.ToLower(strings.TrimSpace(execCfg.InspectionMode)) != "instance" {
+		return nil
+	}
 	targetType := canonicalTargetType(item.TargetType, cfg.TargetKind)
 	if targetType != "host" {
+		return nil
+	}
+	if cluster == nil || strings.TrimSpace(cluster.Uuid) == "" {
 		return nil
 	}
 	client, err := r.svcCtx.K8sManager.GetCluster(r.ctx, cluster.Uuid)
@@ -1091,6 +1154,58 @@ func (r *Runner) expectedTargetsForItem(cluster *model.OnecCluster, item *model.
 		}
 	}
 	return targets
+}
+
+func filterNodesByTargets(nodes []corev1.Node, targets []inspectionTargetCandidate) []corev1.Node {
+	if len(targets) == 0 {
+		return nodes
+	}
+	out := make([]corev1.Node, 0, len(nodes))
+	for _, node := range nodes {
+		actual := inspectionTargetCandidate{Name: node.Name, Aliases: []string{node.Name}}
+		for _, address := range node.Status.Addresses {
+			if strings.TrimSpace(address.Address) != "" {
+				actual.Aliases = append(actual.Aliases, address.Address)
+			}
+		}
+		if targetCandidateWasSeen(actual, targetNames(targets)) {
+			out = append(out, node)
+		}
+	}
+	return out
+}
+
+func filterPodsByTargets(pods []corev1.Pod, targets []inspectionTargetCandidate) []corev1.Pod {
+	if len(targets) == 0 {
+		return pods
+	}
+	out := make([]corev1.Pod, 0, len(pods))
+	for _, pod := range pods {
+		actual := inspectionTargetCandidate{
+			Name: pod.Namespace + "/" + pod.Name,
+			Aliases: []string{
+				pod.Name,
+				pod.Namespace + "/" + pod.Name,
+				pod.Status.PodIP,
+				pod.Spec.NodeName,
+			},
+		}
+		if targetCandidateWasSeen(actual, targetNames(targets)) {
+			out = append(out, pod)
+		}
+	}
+	return out
+}
+
+func targetNames(targets []inspectionTargetCandidate) []string {
+	names := make([]string, 0, len(targets))
+	for _, target := range targets {
+		if strings.TrimSpace(target.Name) != "" {
+			names = append(names, target.Name)
+		}
+		names = append(names, target.Aliases...)
+	}
+	return trimStringList(names)
 }
 
 func parseInspectionItemConfig(raw string) inspectionItemConfig {
@@ -1313,6 +1428,28 @@ func buildPromQLResults(cluster *model.OnecCluster, item *model.OnecInspectionIt
 			continue
 		}
 		results = append(results, buildPromQLMissingTargetResult(cluster, item, cfg, base, target.Name, query))
+	}
+	return results
+}
+
+func buildPromQLFailedTargetResults(cluster *model.OnecCluster, item *model.OnecInspectionItem, cfg inspectionItemConfig, base *model.OnecInspectionResult, targets []inspectionTargetCandidate, query, message string) []*model.OnecInspectionResult {
+	results := make([]*model.OnecInspectionResult, 0, len(targets))
+	condition := resolveDetailMetricCondition(item, cfg)
+	for _, target := range targets {
+		result := cloneInspectionResult(base)
+		result.TargetType = canonicalTargetType(item.TargetType, cfg.TargetKind)
+		result.TargetName = target.Name
+		result.Expected = condition.Expected
+		detail := map[string]string{
+			"query": query,
+			"error": message,
+		}
+		if cluster != nil {
+			setDetailValue(detail, "clusterUuid", cluster.Uuid)
+			setDetailValue(detail, "clusterName", cluster.Name)
+		}
+		result.DetailJson = nullableJSON(detail)
+		results = append(results, failedResult(result, message))
 	}
 	return results
 }
