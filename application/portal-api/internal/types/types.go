@@ -421,6 +421,51 @@ type PageRequest struct {
 	IsAsc    bool   `form:"isAsc,optional" default:"false" validate:"omitempty"`              // 是否升序，默认 false
 }
 
+type PortalBatchGetProjectReq struct {
+	Ids string `form:"ids"`
+}
+
+type PortalCreateProjectReq struct {
+	Name        string `json:"name" validate:"required,min=1,max=100"`
+	Description string `json:"description,optional" validate:"omitempty,max=500"`
+	IsSystem    int64  `json:"isSystem,optional" validate:"omitempty,oneof=0 1"`
+}
+
+type PortalProject struct {
+	Id          uint64 `json:"id"`
+	Name        string `json:"name"`
+	Uuid        string `json:"uuid"`
+	IsSystem    int64  `json:"isSystem"`
+	Description string `json:"description"`
+	CreatedBy   string `json:"createdBy"`
+	UpdatedBy   string `json:"updatedBy"`
+	CreatedAt   int64  `json:"createdAt"`
+	UpdatedAt   int64  `json:"updatedAt"`
+}
+
+type PortalProjectIdReq struct {
+	Id uint64 `path:"id" validate:"required,gt=0"`
+}
+
+type PortalSearchProjectReq struct {
+	Page     uint64 `form:"page,optional" validate:"omitempty,gt=0"`
+	PageSize uint64 `form:"pageSize,optional"`
+	Name     string `form:"name,optional" validate:"omitempty,max=100"`
+	Uuid     string `form:"uuid,optional" validate:"omitempty,max=100"`
+	IsSystem int64  `form:"isSystem,optional"`
+}
+
+type PortalSearchProjectResp struct {
+	Data  []PortalProject `json:"data"`
+	Total uint64          `json:"total"`
+}
+
+type PortalUpdateProjectReq struct {
+	Id          uint64 `path:"id" validate:"required,gt=0"`
+	Name        string `json:"name" validate:"required,min=1,max=100"`
+	Description string `json:"description,optional" validate:"omitempty,max=500"`
+}
+
 type RefreshTokenRequest struct {
 	RefreshToken string `json:"refreshToken" validate:"required"` // 刷新令牌
 }

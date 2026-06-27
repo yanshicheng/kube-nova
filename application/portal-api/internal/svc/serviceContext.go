@@ -1,6 +1,7 @@
 package svc
 
 import (
+	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/projectservice"
 	"github.com/yanshicheng/kube-nova/application/portal-api/internal/config"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/alertservice"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/portalservice"
@@ -26,6 +27,7 @@ type ServiceContext struct {
 	AlertPortalRpc    alertservice.AlertService
 	JWTAuthMiddleware rest.Middleware
 	SiteMessagesRpc   sitemessagesservice.SiteMessagesService
+	ProjectRpc        projectservice.ProjectService
 	SiteMessageHub    *SiteMessageHub
 }
 
@@ -69,6 +71,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		JWTAuthMiddleware: middleware.NewJWTAuthMiddleware(
 			sysAuthRpc,
 		).Handle,
+		ProjectRpc:        projectservice.NewProjectService(protalRpc),
 		SiteMessagesRpc: sitemessagesservice.NewSiteMessagesService(protalRpc),
 		SiteMessageHub:  messageHub,
 	}

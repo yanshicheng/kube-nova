@@ -13,6 +13,7 @@ import (
 	loginLog "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/loginLog"
 	menu "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/menu"
 	platform "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/platform"
+	project "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/project"
 	role "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/role"
 	sitemessage "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/sitemessage"
 	storage "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/storage"
@@ -457,6 +458,51 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithPrefix("/portal/v1/platform"),
+	)
+
+	server.AddRoutes(
+		rest.WithMiddlewares(
+			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
+			[]rest.Route{
+				{
+					// 批量获取项目
+					Method:  http.MethodGet,
+					Path:    "/batch",
+					Handler: project.BatchGetProjectsHandler(serverCtx),
+				},
+				{
+					// 创建项目
+					Method:  http.MethodPost,
+					Path:    "/create",
+					Handler: project.CreateProjectHandler(serverCtx),
+				},
+				{
+					// 删除项目
+					Method:  http.MethodDelete,
+					Path:    "/delete/:id",
+					Handler: project.DeleteProjectHandler(serverCtx),
+				},
+				{
+					// 获取项目详情
+					Method:  http.MethodGet,
+					Path:    "/get/:id",
+					Handler: project.GetProjectHandler(serverCtx),
+				},
+				{
+					// 搜索项目列表
+					Method:  http.MethodGet,
+					Path:    "/list",
+					Handler: project.SearchProjectHandler(serverCtx),
+				},
+				{
+					// 更新项目
+					Method:  http.MethodPut,
+					Path:    "/update/:id",
+					Handler: project.UpdateProjectHandler(serverCtx),
+				},
+			}...,
+		),
+		rest.WithPrefix("/portal/v1/project"),
 	)
 
 	server.AddRoutes(
