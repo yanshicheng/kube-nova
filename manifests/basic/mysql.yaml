@@ -33,7 +33,7 @@ spec:
     spec:
       containers:
       - name: mysql
-        image: mysql:8.0
+        image: registry.cn-hangzhou.aliyuncs.com/kube-nova/mysql:8.0
         env:
         - name: MYSQL_ROOT_PASSWORD
           value: "8VlZ2lvIsKBCYSE3"
