@@ -25,15 +25,11 @@ func NewCreateProjectLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cre
 }
 
 func (l *CreateProjectLogic) CreateProject(req *types.PortalCreateProjectReq) (resp string, err error) {
-	username, _ := l.ctx.Value("username").(string)
-	if username == "" {
-		username = "system"
-	}
-
 	_, err = l.svcCtx.ProjectRpc.CreateProject(l.ctx, &pb.PortalCreateProjectReq{
 		Name:        req.Name,
 		Description: req.Description,
-		IsSystem:    req.IsSystem,
+		IsSystem:    0,
+		CreatedBy:   currentUsername(l.ctx),
 	})
 	if err != nil {
 		l.Errorf("创建项目失败: %v", err)

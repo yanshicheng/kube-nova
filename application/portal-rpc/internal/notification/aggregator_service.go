@@ -39,6 +39,10 @@ type AggregatorService struct {
 	healthCheckTicker *time.Ticker
 }
 
+func (s *AggregatorService) Context() context.Context {
+	return s.ctx
+}
+
 // LeaderElectionConfig Leader 选举配置
 type LeaderElectionConfig struct {
 	Enabled        bool

@@ -1,12 +1,12 @@
 // Code scaffolded by goctl. Safe to edit.
 // goctl 1.9.2
 
-package platform
+package project
 
 import (
 	"github.com/go-playground/validator/v10"
 	"github.com/mcuadros/go-defaults"
-	"github.com/yanshicheng/kube-nova/application/portal-api/internal/logic/platform"
+	"github.com/yanshicheng/kube-nova/application/portal-api/internal/logic/project"
 	"github.com/yanshicheng/kube-nova/application/portal-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/portal-api/internal/types"
 	"github.com/yanshicheng/kube-nova/common/handler/errorx"
@@ -15,9 +15,10 @@ import (
 	"net/http"
 )
 
-func BindUserPlatformHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+// 设置项目成员
+func SetProjectMembersHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.BindUserPlatformRequest
+		var req types.PortalSetProjectMembersReq
 		if err := httpx.Parse(r, &req); err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 			return
@@ -30,12 +31,12 @@ func BindUserPlatformHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 			httpx.ErrorCtx(r.Context(), w, errorx.New(40020, strErr))
 			return
 		}
-		l := platform.NewBindUserPlatformLogic(r.Context(), svcCtx)
-		resp, err := l.BindUserPlatform(&req)
+		l := project.NewSetProjectMembersLogic(r.Context(), svcCtx)
+		err := l.SetProjectMembers(&req)
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 		} else {
-			httpx.OkJsonCtx(r.Context(), w, resp)
+			httpx.OkJsonCtx(r.Context(), w, nil)
 		}
 	}
 }

@@ -2,11 +2,10 @@ package project
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/yanshicheng/kube-nova/application/manager-api/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/manager-api/internal/types"
-	"github.com/yanshicheng/kube-nova/application/manager-rpc/pb"
+	"github.com/yanshicheng/kube-nova/application/portal-rpc/pb"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -34,39 +33,38 @@ func (l *SearchProjectLogic) SearchProject(req *types.SearchProjectRequest) (res
 		req.PageSize = 10
 	}
 
-	// 调用RPC服务搜索项目
-	result, err := l.svcCtx.ManagerRpc.ProjectSearch(l.ctx, &pb.SearchOnecProjectReq{
-		Page:     req.Page,
-		PageSize: req.PageSize,
-		Name:     req.Name,
-		Uuid:     req.Uuid,
+	userId := uint64(0)
+	platformId := currentPlatformID(l.ctx)
+	if !isSuperAdmin(currentRoles(l.ctx)) {
+		userId = currentUserID(l.ctx)
+		if userId == 0 {
+			return &types.SearchProjectResponse{Items: []types.Project{}, Total: 0}, nil
+		}
+		if platformId == 0 {
+			return &types.SearchProjectResponse{Items: []types.Project{}, Total: 0}, nil
+		}
+	}
+	if isSuperAdmin(currentRoles(l.ctx)) && platformId == 0 {
+		return &types.SearchProjectResponse{Items: []types.Project{}, Total: 0}, nil
+	}
+
+	result, err := l.svcCtx.ProjectRpc.ListProjects(l.ctx, &pb.PortalListProjectsReq{
+		Page:       req.Page,
+		PageSize:   req.PageSize,
+		Name:       req.Name,
+		Uuid:       req.Uuid,
+		IsSystem:   0,
+		UserId:     userId,
+		PlatformId: platformId,
 	})
 
 	if err != nil {
 		l.Errorf("搜索项目失败: %v", err)
-		return nil, fmt.Errorf("搜索项目失败")
-	}
-
-	// 转换数据结构
-	var projects []types.Project
-	for _, item := range result.Data {
-		projects = append(projects, types.Project{
-			Id:            item.Id,
-			Name:          item.Name,
-			Uuid:          item.Uuid,
-			Description:   item.Description,
-			IsSystem:      item.IsSystem,
-			CreatedBy:     item.CreatedBy,
-			UpdatedBy:     item.UpdatedBy,
-			CreatedAt:     item.CreatedAt,
-			UpdatedAt:     item.UpdatedAt,
-			AdminCount:    item.AdminCount,
-			ResourceCount: item.ResourceCount,
-		})
+		return nil, err
 	}
 
 	resp = &types.SearchProjectResponse{
-		Items: projects,
+		Items: projectsToType(result.Data),
 		Total: result.Total,
 	}
 

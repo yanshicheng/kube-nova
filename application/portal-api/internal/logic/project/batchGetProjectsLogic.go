@@ -27,6 +27,7 @@ func NewBatchGetProjectsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 }
 
 func (l *BatchGetProjectsLogic) BatchGetProjects(req *types.PortalBatchGetProjectReq) (resp *types.PortalSearchProjectResp, err error) {
+	platformId, _ := l.ctx.Value("platformId").(uint64)
 	idStrs := strings.Split(req.Ids, ",")
 	ids := make([]uint64, 0, len(idStrs))
 	for _, s := range idStrs {
@@ -45,6 +46,44 @@ func (l *BatchGetProjectsLogic) BatchGetProjects(req *types.PortalBatchGetProjec
 		return &types.PortalSearchProjectResp{Data: []types.PortalProject{}, Total: 0}, nil
 	}
 
+	if !isSuperAdmin(currentRoles(l.ctx)) {
+		userId := currentUserID(l.ctx)
+		if userId == 0 {
+			return &types.PortalSearchProjectResp{Data: []types.PortalProject{}, Total: 0}, nil
+		}
+		if platformId == 0 {
+			platformId = currentPlatformID(l.ctx)
+		}
+		if platformId == 0 {
+			return &types.PortalSearchProjectResp{Data: []types.PortalProject{}, Total: 0}, nil
+		}
+		allowedResp, err := l.svcCtx.ProjectRpc.ListProjects(l.ctx, &pb.PortalListProjectsReq{
+			Page:       1,
+			PageSize:   uint64(len(ids)),
+			IsSystem:   0,
+			UserId:     userId,
+			PlatformId: platformId,
+		})
+		if err != nil {
+			l.Errorf("校验项目权限失败: %v", err)
+			return nil, err
+		}
+		allowed := make(map[uint64]struct{}, len(allowedResp.Data))
+		for _, item := range allowedResp.Data {
+			allowed[item.Id] = struct{}{}
+		}
+		filtered := ids[:0]
+		for _, id := range ids {
+			if _, ok := allowed[id]; ok {
+				filtered = append(filtered, id)
+			}
+		}
+		ids = filtered
+		if len(ids) == 0 {
+			return &types.PortalSearchProjectResp{Data: []types.PortalProject{}, Total: 0}, nil
+		}
+	}
+
 	rpcResp, err := l.svcCtx.ProjectRpc.BatchGetProjects(l.ctx, &pb.PortalBatchGetProjectsReq{
 		Ids: ids,
 	})
@@ -53,23 +92,8 @@ func (l *BatchGetProjectsLogic) BatchGetProjects(req *types.PortalBatchGetProjec
 		return nil, err
 	}
 
-	items := make([]types.PortalProject, 0, len(rpcResp.Data))
-	for _, p := range rpcResp.Data {
-		items = append(items, types.PortalProject{
-			Id:          p.Id,
-			Name:        p.Name,
-			Uuid:        p.Uuid,
-			IsSystem:    p.IsSystem,
-			Description: p.Description,
-			CreatedBy:   p.CreatedBy,
-			UpdatedBy:   p.UpdatedBy,
-			CreatedAt:   p.CreatedAt,
-			UpdatedAt:   p.UpdatedAt,
-		})
-	}
-
 	return &types.PortalSearchProjectResp{
-		Data:  items,
+		Data:  projectsToType(rpcResp.Data),
 		Total: rpcResp.Total,
 	}, nil
 }

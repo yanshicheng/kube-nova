@@ -436,19 +436,9 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Handler: platform.UnsetDefaultSysPlatformHandler(serverCtx),
 				},
 				{
-					Method:  http.MethodPost,
-					Path:    "/user/bind",
-					Handler: platform.BindUserPlatformHandler(serverCtx),
-				},
-				{
 					Method:  http.MethodGet,
 					Path:    "/user/platforms",
 					Handler: platform.GetUserPlatformsHandler(serverCtx),
-				},
-				{
-					Method:  http.MethodPost,
-					Path:    "/user/unbind",
-					Handler: platform.UnbindUserPlatformHandler(serverCtx),
 				},
 				{
 					Method:  http.MethodGet,
@@ -464,6 +454,36 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 		rest.WithMiddlewares(
 			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
 			[]rest.Route{
+				{
+					// 设置项目成员
+					Method:  http.MethodPut,
+					Path:    "/:id/members",
+					Handler: project.SetProjectMembersHandler(serverCtx),
+				},
+				{
+					// 获取项目成员
+					Method:  http.MethodGet,
+					Path:    "/:id/members",
+					Handler: project.ListProjectMembersHandler(serverCtx),
+				},
+				{
+					// 绑定项目平台
+					Method:  http.MethodPost,
+					Path:    "/:id/platforms",
+					Handler: project.BindProjectPlatformHandler(serverCtx),
+				},
+				{
+					// 获取项目平台
+					Method:  http.MethodGet,
+					Path:    "/:id/platforms",
+					Handler: project.GetProjectPlatformsHandler(serverCtx),
+				},
+				{
+					// 解绑项目平台
+					Method:  http.MethodDelete,
+					Path:    "/:id/platforms/:platformId",
+					Handler: project.UnbindProjectPlatformHandler(serverCtx),
+				},
 				{
 					// 批量获取项目
 					Method:  http.MethodGet,
@@ -493,6 +513,12 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Method:  http.MethodGet,
 					Path:    "/list",
 					Handler: project.SearchProjectHandler(serverCtx),
+				},
+				{
+					// 获取平台下项目
+					Method:  http.MethodGet,
+					Path:    "/platform/:platformId/projects",
+					Handler: project.GetProjectByPlatformHandler(serverCtx),
 				},
 				{
 					// 更新项目

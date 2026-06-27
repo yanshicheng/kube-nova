@@ -663,6 +663,9 @@ message PortalListProjectsReq {
   string name = 3; // 项目名称（模糊搜索）
   string uuid = 4; // 项目 UUID（精确搜索）
   int64 isSystem = 5; // 是否为系统级别项目，-1 表示不过滤
+  uint64 userId = 6; // 用户ID，过滤用户可访问项目
+  uint64 platformId = 7; // 平台ID，过滤平台可访问项目
+  uint64 id = 8; // 项目ID，精确过滤
 }
 
 message PortalListProjectsResp {
@@ -672,6 +675,54 @@ message PortalListProjectsResp {
 
 message PortalBatchGetProjectsReq {
   repeated uint64 ids = 1; // 项目 ID 列表
+}
+
+message PortalProjectMember {
+  uint64 id = 1; // 自增主键
+  uint64 projectId = 2; // 项目ID
+  uint64 userId = 3; // 用户ID
+  string username = 4; // 用户名
+  string nickname = 5; // 昵称
+  string role = 6; // 项目角色(owner, admin, member)
+  string createdBy = 7; // 创建人
+  string updatedBy = 8; // 更新人
+  int64 createdAt = 9; // 创建时间
+  int64 updatedAt = 10; // 更新时间
+  repeated PortalProjectMemberPlatformRole platformRoles = 11; // 成员平台角色
+}
+
+message PortalProjectMemberPlatformRole {
+  uint64 platformId = 1; // 平台ID
+  string platformCode = 2; // 平台编码
+  string platformName = 3; // 平台名称
+  string role = 4; // 项目平台角色(owner, admin, member)
+}
+
+message PortalProjectMemberPlatformRoleInput {
+  uint64 platformId = 1; // 平台ID
+  string role = 2; // 项目平台角色(owner, admin, member)
+}
+
+message PortalProjectMemberInput {
+  uint64 userId = 1; // 用户ID
+  string role = 2; // 项目角色(owner, admin, member)
+  repeated PortalProjectMemberPlatformRoleInput platformRoles = 3; // 成员平台角色
+}
+
+message PortalSetProjectMembersReq {
+  uint64 projectId = 1; // 项目ID
+  repeated PortalProjectMemberInput members = 2; // 成员列表
+  string updatedBy = 3; // 操作人
+}
+
+message PortalSetProjectMembersResp {}
+
+message PortalListProjectMembersReq {
+  uint64 projectId = 1; // 项目ID
+}
+
+message PortalListProjectMembersResp {
+  repeated PortalProjectMember data = 1; // 成员列表
 }
 
 
@@ -1272,6 +1323,7 @@ message UnbindUserPlatformResp {
 
 // 查询用户绑定的平台列表  通过 context 获取用户 id 查询 用户绑定的平台列表，启用状态的。
 message GetUserPlatformsReq {
+  uint64 projectId = 1; //项目ID，为空时查询用户所有可访问平台
 }
 
 message GetUserPlatformsResp {
@@ -1415,6 +1467,12 @@ service PortalProjectService {
   rpc GetProject(PortalGetProjectReq) returns (PortalGetProjectResp);
   rpc ListProjects(PortalListProjectsReq) returns (PortalListProjectsResp);
   rpc BatchGetProjects(PortalBatchGetProjectsReq) returns (PortalListProjectsResp);
+  rpc SetProjectMembers(PortalSetProjectMembersReq) returns (PortalSetProjectMembersResp);
+  rpc ListProjectMembers(PortalListProjectMembersReq) returns (PortalListProjectMembersResp);
+  rpc BindProjectPlatform(BindProjectPlatformReq) returns (BindProjectPlatformResp);
+  rpc UnbindProjectPlatform(UnbindProjectPlatformReq) returns (UnbindProjectPlatformResp);
+  rpc GetProjectPlatforms(GetProjectPlatformsReq) returns (GetProjectPlatformsResp);
+  rpc GetProjectByPlatform(GetProjectByPlatformReq) returns (GetProjectByPlatformResp);
 }
 
 
@@ -1425,6 +1483,50 @@ service PortalProjectService {
 
 
 //--------------------------------告警渠道配置表--------------------------------
+
+//--------------------------------项目-平台绑定--------------------------------
+message ProjectPlatformBinding {
+  uint64 id = 1; //自增主键
+  uint64 projectId = 2; //项目ID
+  uint64 platformId = 3; //平台ID
+  string platformCode = 4; //平台编码（冗余，方便展示）
+  string platformName = 5; //平台名称（冗余，方便展示）
+  string createdBy = 6; //创建人
+  int64 createdAt = 7; //创建时间
+}
+
+message BindProjectPlatformReq {
+  uint64 projectId = 1; //项目ID
+  uint64 platformId = 2; //平台ID
+  string createdBy = 3; //创建人
+}
+
+message BindProjectPlatformResp {}
+
+message UnbindProjectPlatformReq {
+  uint64 projectId = 1; //项目ID
+  uint64 platformId = 2; //平台ID
+  string updatedBy = 3; //操作人
+}
+
+message UnbindProjectPlatformResp {}
+
+message GetProjectPlatformsReq {
+  uint64 projectId = 1; //项目ID
+}
+
+message GetProjectPlatformsResp {
+  repeated ProjectPlatformBinding data = 1; //绑定的平台列表
+}
+
+message GetProjectByPlatformReq {
+  uint64 platformId = 1; //平台ID
+}
+
+message GetProjectByPlatformResp {
+  repeated PortalProject data = 1; //该平台下的项目列表
+}
+
 message AlertChannels {
   uint64 id = 1; //主键ID
   string uuid = 2; //渠道唯一标识UUID

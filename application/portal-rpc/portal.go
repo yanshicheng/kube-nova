@@ -31,6 +31,7 @@ func main() {
 	var c config.Config
 	conf.MustLoad(*configFile, &c, conf.UseEnv())
 	ctx := svc.NewServiceContext(c)
+	defer ctx.Stop()
 
 	s := zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		pb.RegisterStorageServiceServer(grpcServer, storageserviceServer.NewStorageServiceServer(ctx))

@@ -29,7 +29,11 @@ func NewDevopsProjectGetLogic(ctx context.Context, svcCtx *svc.ServiceContext) *
 }
 
 func (l *DevopsProjectGetLogic) DevopsProjectGet(req *types.DefaultStringIdRequest) (resp *types.DevopsProject, err error) {
-	result, err := l.svcCtx.ProjectRpc.ProjectGet(l.ctx, &projectservice.GetByIdReq{Id: req.Id})
+	result, err := l.svcCtx.ProjectRpc.ProjectGet(l.ctx, &projectservice.GetByIdReq{
+		Id:            req.Id,
+		CurrentUserId: currentUserID(l.ctx),
+		CurrentRoles:  currentRoles(l.ctx),
+	})
 	if err != nil {
 		return nil, err
 	}

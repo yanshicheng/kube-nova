@@ -35,20 +35,7 @@ func (l *BatchGetProjectsLogic) BatchGetProjects(in *pb.PortalBatchGetProjectsRe
 		return nil, fmt.Errorf("批量查询项目失败: %v", err)
 	}
 
-	var data []*pb.PortalProject
-	for _, p := range projects {
-		data = append(data, &pb.PortalProject{
-			Id:          p.Id,
-			Name:        p.Name,
-			Uuid:        p.Uuid,
-			IsSystem:    p.IsSystem,
-			Description: p.Description,
-			CreatedBy:   p.CreatedBy,
-			UpdatedBy:   p.UpdatedBy,
-			CreatedAt:   p.CreatedAt.Unix(),
-			UpdatedAt:   p.UpdatedAt.Unix(),
-		})
-	}
+	data := projectsToPb(projects)
 
 	return &pb.PortalListProjectsResp{
 		Data:  data,

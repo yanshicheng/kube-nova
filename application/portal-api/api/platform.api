@@ -88,16 +88,9 @@ type (
         Id uint64 `path:"id" validate:"required,gt=0"`     // 平台ID
     }
 
-    // 用户绑定平台请求
-    BindUserPlatformRequest {
-        UserId uint64 `json:"userId" validate:"required,gt=0"`                                            // 用户ID
-        PlatformIds []uint64 `json:"platformIds" validate:"required,min=1,dive,gt=0"`                     // 平台ID列表
-    }
-
-    // 用户解绑平台请求
-    UnbindUserPlatformRequest {
-        UserId uint64 `json:"userId" validate:"required,gt=0"`                                            // 用户ID
-        PlatformIds []uint64 `json:"platformIds" validate:"required,min=1,dive,gt=0"`                     // 平台ID列表
+    // 获取用户绑定平台请求
+    GetUserPlatformsRequest {
+        ProjectId uint64 `form:"projectId,optional" validate:"omitempty,gt=0"`                            // 项目ID
     }
 
     // 获取平台下用户请求
@@ -164,17 +157,9 @@ service portal-api {
     @handler GetAllEnabledPlatformsHandler
     get /enabled () returns ([]SysPlatform)
 
-    // 用户绑定平台
-    @handler BindUserPlatformHandler
-    post /user/bind (BindUserPlatformRequest) returns (string)
-
-    // 用户解绑平台
-    @handler UnbindUserPlatformHandler
-    post /user/unbind (UnbindUserPlatformRequest) returns (string)
-
     // 获取用户绑定的平台列表
     @handler GetUserPlatformsHandler
-    get /user/platforms () returns ([]SysPlatform)
+    get /user/platforms (GetUserPlatformsRequest) returns ([]SysPlatform)
 
     // 获取平台下的用户列表
     @handler GetPlatformUsersHandler

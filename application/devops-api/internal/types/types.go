@@ -851,6 +851,7 @@ type DevopsProject struct {
 	Id                     string `json:"id"`
 	Name                   string `json:"name"`
 	Code                   string `json:"code"`
+	PortalProjectUuid      string `json:"portalProjectUuid"`
 	Description            string `json:"description"`
 	PipelineEngineType     string `json:"pipelineEngineType"`
 	DefaultEngineChannelId string `json:"defaultEngineChannelId"`

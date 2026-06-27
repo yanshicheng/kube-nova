@@ -33,6 +33,10 @@ func (l *ListProjectsLogic) ListProjects(in *pb.PortalListProjectsReq) (*pb.Port
 		conditions = append(conditions, "`name` LIKE ?")
 		args = append(args, "%"+in.Name+"%")
 	}
+	if in.Id > 0 {
+		conditions = append(conditions, "`id` = ?")
+		args = append(args, in.Id)
+	}
 	if in.Uuid != "" {
 		conditions = append(conditions, "`uuid` = ?")
 		args = append(args, in.Uuid)
@@ -40,6 +44,17 @@ func (l *ListProjectsLogic) ListProjects(in *pb.PortalListProjectsReq) (*pb.Port
 	if in.IsSystem >= 0 {
 		conditions = append(conditions, "`is_system` = ?")
 		args = append(args, in.IsSystem)
+	}
+	if in.UserId > 0 && in.PlatformId > 0 {
+		conditions = append(conditions, "`id` in (select pmpr.`project_id` from `project_member_platform_role` pmpr inner join `project_platform_binding` ppb on ppb.`project_id` = pmpr.`project_id` and ppb.`platform_id` = pmpr.`platform_id` and ppb.`is_deleted` = 0 where pmpr.`user_id` = ? and pmpr.`platform_id` = ? and pmpr.`is_deleted` = 0)")
+		args = append(args, in.UserId, in.PlatformId)
+	} else if in.UserId > 0 {
+		conditions = append(conditions, "`id` in (select `project_id` from `project_member_binding` where `user_id` = ? and `is_deleted` = 0)")
+		args = append(args, in.UserId)
+	}
+	if in.PlatformId > 0 && in.UserId == 0 {
+		conditions = append(conditions, "`id` in (select `project_id` from `project_platform_binding` where `platform_id` = ? and `is_deleted` = 0)")
+		args = append(args, in.PlatformId)
 	}
 
 	queryStr := strings.Join(conditions, " AND ")
@@ -59,23 +74,8 @@ func (l *ListProjectsLogic) ListProjects(in *pb.PortalListProjectsReq) (*pb.Port
 		return nil, fmt.Errorf("查询项目列表失败: %v", err)
 	}
 
-	var data []*pb.PortalProject
-	for _, p := range projects {
-		data = append(data, &pb.PortalProject{
-			Id:          p.Id,
-			Name:        p.Name,
-			Uuid:        p.Uuid,
-			IsSystem:    p.IsSystem,
-			Description: p.Description,
-			CreatedBy:   p.CreatedBy,
-			UpdatedBy:   p.UpdatedBy,
-			CreatedAt:   p.CreatedAt.Unix(),
-			UpdatedAt:   p.UpdatedAt.Unix(),
-		})
-	}
-
 	return &pb.PortalListProjectsResp{
-		Data:  data,
+		Data:  projectsToPb(projects),
 		Total: total,
 	}, nil
 }

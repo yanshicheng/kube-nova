@@ -24,14 +24,7 @@ func NewSyncProjectInfoLogic(ctx context.Context, svcCtx *svc.ServiceContext) *S
 }
 
 func (l *SyncProjectInfoLogic) SyncProjectInfo(in *pb.DevopsSyncProjectInfoReq) (*pb.EmptyResp, error) {
-	_, err := l.svcCtx.ProjectModel.FindOneByPortalUuid(l.ctx, in.PortalProjectUuid)
-	if err != nil {
-		l.Infof("DevOps 项目不存在，跳过同步，portalProjectUuid: %s", in.PortalProjectUuid)
-		return &pb.EmptyResp{}, nil
-	}
-
-	err = l.svcCtx.ProjectModel.UpdateNameByPortalUuid(l.ctx, in.PortalProjectUuid, in.Name, in.Description, "system")
-	if err != nil {
+	if err := l.svcCtx.ProjectModel.UpsertByPortalUuid(l.ctx, in.PortalProjectUuid, in.Name, in.Description, "system"); err != nil {
 		l.Errorf("同步 DevOps 项目信息失败，portalProjectUuid: %s, 错误: %v", in.PortalProjectUuid, err)
 		return nil, err
 	}

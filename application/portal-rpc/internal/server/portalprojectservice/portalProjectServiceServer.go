@@ -52,3 +52,33 @@ func (s *PortalProjectServiceServer) BatchGetProjects(ctx context.Context, in *p
 	l := portalprojectservicelogic.NewBatchGetProjectsLogic(ctx, s.svcCtx)
 	return l.BatchGetProjects(in)
 }
+
+func (s *PortalProjectServiceServer) SetProjectMembers(ctx context.Context, in *pb.PortalSetProjectMembersReq) (*pb.PortalSetProjectMembersResp, error) {
+	l := portalprojectservicelogic.NewSetProjectMembersLogic(ctx, s.svcCtx)
+	return l.SetProjectMembers(in)
+}
+
+func (s *PortalProjectServiceServer) ListProjectMembers(ctx context.Context, in *pb.PortalListProjectMembersReq) (*pb.PortalListProjectMembersResp, error) {
+	l := portalprojectservicelogic.NewListProjectMembersLogic(ctx, s.svcCtx)
+	return l.ListProjectMembers(in)
+}
+
+func (s *PortalProjectServiceServer) BindProjectPlatform(ctx context.Context, in *pb.BindProjectPlatformReq) (*pb.BindProjectPlatformResp, error) {
+	l := portalprojectservicelogic.NewBindProjectPlatformLogic(ctx, s.svcCtx)
+	return l.BindProjectPlatform(in)
+}
+
+func (s *PortalProjectServiceServer) UnbindProjectPlatform(ctx context.Context, in *pb.UnbindProjectPlatformReq) (*pb.UnbindProjectPlatformResp, error) {
+	l := portalprojectservicelogic.NewUnbindProjectPlatformLogic(ctx, s.svcCtx)
+	return l.UnbindProjectPlatform(in)
+}
+
+func (s *PortalProjectServiceServer) GetProjectPlatforms(ctx context.Context, in *pb.GetProjectPlatformsReq) (*pb.GetProjectPlatformsResp, error) {
+	l := portalprojectservicelogic.NewGetProjectPlatformsLogic(ctx, s.svcCtx)
+	return l.GetProjectPlatforms(in)
+}
+
+func (s *PortalProjectServiceServer) GetProjectByPlatform(ctx context.Context, in *pb.GetProjectByPlatformReq) (*pb.GetProjectByPlatformResp, error) {
+	l := portalprojectservicelogic.NewGetProjectByPlatformLogic(ctx, s.svcCtx)
+	return l.GetProjectByPlatform(in)
+}

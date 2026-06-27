@@ -378,21 +378,6 @@ type (
 service manager-api {
     // ============= 项目基础信息相关接口 =============
 
-    // 添加项目
-    @doc "创建新项目"
-    @handler AddProjectHandler
-    post / (AddProjectRequest) returns (string)
-
-    // 更新项目
-    @doc "更新项目基本信息"
-    @handler UpdateProjectHandler
-    put /:id (UpdateProjectRequest) returns (string)
-
-    // 删除项目
-    @doc "软删除项目"
-    @handler DeleteProjectHandler
-    delete /:id (DefaultIdRequest) returns (string)
-
     // 获取项目详情
     @doc "根据ID获取项目详细信息"
     @handler GetProjectHandler

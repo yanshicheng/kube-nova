@@ -15,6 +15,7 @@ type (
         Id string `json:"id"`
         Name string `json:"name"`
         Code string `json:"code"`
+        PortalProjectUuid string `json:"portalProjectUuid"`
         Description string `json:"description"`
         PipelineEngineType string `json:"pipelineEngineType"`
         DefaultEngineChannelId string `json:"defaultEngineChannelId"`
@@ -528,18 +529,6 @@ type (
     middleware: JWTAuthMiddleware
 )
 service devops-api {
-    @doc "创建 DevOps 项目"
-    @handler DevopsProjectCreate
-    post /project (CreateDevopsProjectRequest) returns (IdResponse)
-
-    @doc "更新 DevOps 项目"
-    @handler DevopsProjectUpdate
-    put /project/:id (UpdateDevopsProjectRequest)
-
-    @doc "删除 DevOps 项目"
-    @handler DevopsProjectDelete
-    delete /project/:id (DefaultStringIdRequest)
-
     @doc "分页查询 DevOps 项目"
     @handler DevopsProjectList
     get /project/list (ListDevopsProjectRequest) returns (ListDevopsProjectResponse)

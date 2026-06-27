@@ -259,6 +259,11 @@ func (s *ProjectServiceServer) SyncProjectInfo(ctx context.Context, in *pb.Devop
 	return l.SyncProjectInfo(in)
 }
 
+func (s *ProjectServiceServer) SyncProjectMembers(ctx context.Context, in *pb.DevopsSyncProjectMembersReq) (*pb.EmptyResp, error) {
+	l := projectservicelogic.NewSyncProjectMembersLogic(ctx, s.svcCtx)
+	return l.SyncProjectMembers(in)
+}
+
 func (s *ProjectServiceServer) SyncProjectDeleted(ctx context.Context, in *pb.DevopsSyncProjectDeletedReq) (*pb.EmptyResp, error) {
 	l := projectservicelogic.NewSyncProjectDeletedLogic(ctx, s.svcCtx)
 	return l.SyncProjectDeleted(in)

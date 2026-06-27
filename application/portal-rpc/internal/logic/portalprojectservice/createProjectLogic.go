@@ -7,8 +7,6 @@ import (
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/pb"
 	"github.com/yanshicheng/kube-nova/common/handler/errorx"
 
-	devopspb "github.com/yanshicheng/kube-nova/application/devops-manager-rpc/pb"
-
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -30,29 +28,21 @@ func (l *CreateProjectLogic) CreateProject(in *pb.PortalCreateProjectReq) (*pb.P
 	if in.Name == "" {
 		return nil, errorx.Msg("项目名称不能为空")
 	}
+	if in.IsSystem == 1 {
+		return nil, errorx.Msg("平台项目不允许通过接口创建")
+	}
 
 	project, err := l.svcCtx.OnecProjectModel.InsertWithUuid(l.ctx, in.Name, in.IsSystem, in.Description, in.CreatedBy)
 	if err != nil {
 		l.Errorf("创建项目失败: %v", err)
 		return nil, errorx.Msg("创建项目失败")
 	}
+	if _, err := ensureProjectPortalPlatform(l.ctx, l.svcCtx, project.Id, in.CreatedBy); err != nil {
+		l.Errorf("创建项目后绑定门户平台失败，projectId: %d, 错误: %v", project.Id, err)
+		return nil, errorx.Msg("创建项目失败")
+	}
 
 	l.Infof("创建项目成功，ID: %d, UUID: %s, Name: %s", project.Id, project.Uuid, project.Name)
-
-	// 同步到 DevOps
-	if l.svcCtx.DevopsManagerRpc != nil {
-		syncReq := &devopspb.DevopsSyncProjectInfoReq{
-			PortalProjectUuid: project.Uuid,
-			Name:              project.Name,
-			Description:       in.Description,
-		}
-		_, syncErr := l.svcCtx.DevopsManagerRpc.SyncProjectInfo(l.ctx, syncReq)
-		if syncErr != nil {
-			l.Errorf("同步项目信息到 DevOps 失败: %v", syncErr)
-		} else {
-			l.Infof("同步项目到 DevOps 成功，UUID: %s", project.Uuid)
-		}
-	}
 
 	return &pb.PortalCreateProjectResp{
 		Id:   project.Id,

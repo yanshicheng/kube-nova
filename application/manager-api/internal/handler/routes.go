@@ -894,24 +894,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			[]rest.Middleware{serverCtx.JWTAuthMiddleware},
 			[]rest.Route{
 				{
-					// 创建新项目
-					Method:  http.MethodPost,
-					Path:    "/",
-					Handler: project.AddProjectHandler(serverCtx),
-				},
-				{
-					// 更新项目基本信息
-					Method:  http.MethodPut,
-					Path:    "/:id",
-					Handler: project.UpdateProjectHandler(serverCtx),
-				},
-				{
-					// 软删除项目
-					Method:  http.MethodDelete,
-					Path:    "/:id",
-					Handler: project.DeleteProjectHandler(serverCtx),
-				},
-				{
 					// 根据ID获取项目详细信息
 					Method:  http.MethodGet,
 					Path:    "/:id",

@@ -25,15 +25,11 @@ func NewUpdateProjectLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Upd
 }
 
 func (l *UpdateProjectLogic) UpdateProject(req *types.PortalUpdateProjectReq) error {
-	username, _ := l.ctx.Value("username").(string)
-	if username == "" {
-		username = "system"
-	}
-
 	_, err := l.svcCtx.ProjectRpc.UpdateProject(l.ctx, &pb.PortalUpdateProjectReq{
 		Id:          req.Id,
 		Name:        req.Name,
 		Description: req.Description,
+		UpdatedBy:   currentUsername(l.ctx),
 	})
 	if err != nil {
 		l.Errorf("更新项目失败: %v", err)

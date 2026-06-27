@@ -3,7 +3,11 @@
 
 package middleware
 
-import "net/http"
+import (
+	"context"
+	"net/http"
+	"strconv"
+)
 
 type JWTAuthMiddleware struct {
 }
@@ -14,9 +18,18 @@ func NewJWTAuthMiddleware() *JWTAuthMiddleware {
 
 func (m *JWTAuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO generate middleware implement function, delete after code implementation
-
-		// Passthrough to next handler if need
-		next(w, r)
+		ctx := r.Context()
+		if platformId := parsePlatformID(r.Header.Get("X-Platform-Id")); platformId > 0 {
+			ctx = context.WithValue(ctx, "platformId", platformId)
+		}
+		next(w, r.WithContext(ctx))
 	}
+}
+
+func parsePlatformID(raw string) uint64 {
+	if raw == "" {
+		return 0
+	}
+	id, _ := strconv.ParseUint(raw, 10, 64)
+	return id
 }

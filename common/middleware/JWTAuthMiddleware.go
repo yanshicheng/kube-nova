@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/client/sysauthservice"
 )
@@ -65,6 +66,9 @@ func (m *JWTAuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 		ctx = context.WithValue(ctx, "roles", res.Roles)
 		ctx = context.WithValue(ctx, "nickName", res.NickName)
 		ctx = context.WithValue(ctx, "uuid", res.Uuid)
+		if platformId := parsePlatformID(r.Header.Get("X-Platform-Id")); platformId > 0 {
+			ctx = context.WithValue(ctx, "platformId", platformId)
+		}
 
 		// 获取请求的 url
 		url := r.URL.Path
@@ -87,4 +91,12 @@ func (m *JWTAuthMiddleware) Handle(next http.HandlerFunc) http.HandlerFunc {
 		}
 		next(w, r.WithContext(ctx))
 	}
+}
+
+func parsePlatformID(raw string) uint64 {
+	if raw == "" {
+		return 0
+	}
+	id, _ := strconv.ParseUint(raw, 10, 64)
+	return id
 }

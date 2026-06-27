@@ -76,6 +76,8 @@ type (
 	DevopsStepTemplate                  = pb.DevopsStepTemplate
 	DevopsSyncProjectDeletedReq         = pb.DevopsSyncProjectDeletedReq
 	DevopsSyncProjectInfoReq            = pb.DevopsSyncProjectInfoReq
+	DevopsSyncProjectMemberInput        = pb.DevopsSyncProjectMemberInput
+	DevopsSyncProjectMembersReq         = pb.DevopsSyncProjectMembersReq
 	DevopsSystem                        = pb.DevopsSystem
 	DevopsTektonTaskParam               = pb.DevopsTektonTaskParam
 	DevopsTektonTaskResult              = pb.DevopsTektonTaskResult
@@ -288,6 +290,7 @@ type (
 		// -----------------------项目依赖检查与同步（供 portal 调用）-----------------------
 		CheckProjectDependencies(ctx context.Context, in *DevopsCheckProjectDependenciesReq, opts ...grpc.CallOption) (*DevopsCheckProjectDependenciesResp, error)
 		SyncProjectInfo(ctx context.Context, in *DevopsSyncProjectInfoReq, opts ...grpc.CallOption) (*EmptyResp, error)
+		SyncProjectMembers(ctx context.Context, in *DevopsSyncProjectMembersReq, opts ...grpc.CallOption) (*EmptyResp, error)
 		SyncProjectDeleted(ctx context.Context, in *DevopsSyncProjectDeletedReq, opts ...grpc.CallOption) (*EmptyResp, error)
 	}
 
@@ -536,6 +539,11 @@ func (m *defaultProjectService) CheckProjectDependencies(ctx context.Context, in
 func (m *defaultProjectService) SyncProjectInfo(ctx context.Context, in *DevopsSyncProjectInfoReq, opts ...grpc.CallOption) (*EmptyResp, error) {
 	client := pb.NewProjectServiceClient(m.cli.Conn())
 	return client.SyncProjectInfo(ctx, in, opts...)
+}
+
+func (m *defaultProjectService) SyncProjectMembers(ctx context.Context, in *DevopsSyncProjectMembersReq, opts ...grpc.CallOption) (*EmptyResp, error) {
+	client := pb.NewProjectServiceClient(m.cli.Conn())
+	return client.SyncProjectMembers(ctx, in, opts...)
 }
 
 func (m *defaultProjectService) SyncProjectDeleted(ctx context.Context, in *DevopsSyncProjectDeletedReq, opts ...grpc.CallOption) (*EmptyResp, error) {

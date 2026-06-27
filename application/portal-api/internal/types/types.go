@@ -263,6 +263,11 @@ type BindAlertGroupAppsRequest struct {
 	AppType string `json:"appType" validate:"required,max=50"` // 应用类型
 }
 
+type BindProjectPlatformReq struct {
+	Id         uint64 `path:"id" validate:"required,gt=0"`
+	PlatformId uint64 `json:"platformId" validate:"required,gt=0"`
+}
+
 type BindSysRoleApiRequest struct {
 	RoleId uint64   `path:"roleId" validate:"required,gt=0"` // 角色ID，必填
 	ApiIds []uint64 `json:"apiIds" validate:"required"`      // API权限ID列表
@@ -271,11 +276,6 @@ type BindSysRoleApiRequest struct {
 type BindSysRoleMenuRequest struct {
 	RoleId  uint64   `path:"roleId" validate:"required,gt=0"` // 角色ID，必填
 	MenuIds []uint64 `json:"menuIds" validate:"required"`     // 菜单ID列表
-}
-
-type BindUserPlatformRequest struct {
-	UserId      uint64   `json:"userId" validate:"required,gt=0"`                 // 用户ID
-	PlatformIds []uint64 `json:"platformIds" validate:"required,min=1,dive,gt=0"` // 平台ID列表
 }
 
 type DefaultIdRequest struct {
@@ -315,6 +315,14 @@ type GetPlatformUsersRequest struct {
 type GetPlatformUsersResponse struct {
 	UserIds []uint64 `json:"userIds"` // 用户ID列表
 	Total   uint64   `json:"total"`   // 总数
+}
+
+type GetProjectByPlatformReq struct {
+	PlatformId uint64 `path:"platformId" validate:"required,gt=0"`
+}
+
+type GetProjectPlatformsResp struct {
+	Data []ProjectPlatformBinding `json:"data"`
 }
 
 type GetRolesMenuTreeRequest struct {
@@ -377,6 +385,10 @@ type GetUnreadCountResponse struct {
 	Count uint64 `json:"count"` // 未读消息数量
 }
 
+type GetUserPlatformsRequest struct {
+	ProjectId uint64 `form:"projectId,optional" validate:"omitempty,gt=0"` // 项目ID
+}
+
 type GroupTreeNode struct {
 	Id       uint64          `json:"id"`       // 主键ID
 	Name     string          `json:"name"`     // 分组名称
@@ -428,7 +440,10 @@ type PortalBatchGetProjectReq struct {
 type PortalCreateProjectReq struct {
 	Name        string `json:"name" validate:"required,min=1,max=100"`
 	Description string `json:"description,optional" validate:"omitempty,max=500"`
-	IsSystem    int64  `json:"isSystem,optional" validate:"omitempty,oneof=0 1"`
+}
+
+type PortalListProjectMembersResp struct {
+	Data []PortalProjectMember `json:"data"`
 }
 
 type PortalProject struct {
@@ -447,12 +462,50 @@ type PortalProjectIdReq struct {
 	Id uint64 `path:"id" validate:"required,gt=0"`
 }
 
+type PortalProjectMember struct {
+	Id            uint64                            `json:"id"`
+	ProjectId     uint64                            `json:"projectId"`
+	UserId        uint64                            `json:"userId"`
+	Username      string                            `json:"username"`
+	Nickname      string                            `json:"nickname"`
+	Role          string                            `json:"role"`
+	CreatedBy     string                            `json:"createdBy"`
+	UpdatedBy     string                            `json:"updatedBy"`
+	CreatedAt     int64                             `json:"createdAt"`
+	UpdatedAt     int64                             `json:"updatedAt"`
+	PlatformRoles []PortalProjectMemberPlatformRole `json:"platformRoles"`
+}
+
+type PortalProjectMemberInput struct {
+	UserId        uint64                                 `json:"userId" validate:"required,gt=0"`
+	Role          string                                 `json:"role,optional" validate:"omitempty,oneof=owner admin member"`
+	PlatformRoles []PortalProjectMemberPlatformRoleInput `json:"platformRoles,optional"`
+}
+
+type PortalProjectMemberPlatformRole struct {
+	PlatformId   uint64 `json:"platformId"`
+	PlatformCode string `json:"platformCode"`
+	PlatformName string `json:"platformName"`
+	Role         string `json:"role"`
+}
+
+type PortalProjectMemberPlatformRoleInput struct {
+	PlatformId uint64 `json:"platformId" validate:"required,gt=0"`
+	Role       string `json:"role,optional" validate:"omitempty,oneof=owner admin member"`
+}
+
+type PortalProjectMemberReq struct {
+	Id uint64 `path:"id" validate:"required,gt=0"`
+}
+
 type PortalSearchProjectReq struct {
-	Page     uint64 `form:"page,optional" validate:"omitempty,gt=0"`
-	PageSize uint64 `form:"pageSize,optional"`
-	Name     string `form:"name,optional" validate:"omitempty,max=100"`
-	Uuid     string `form:"uuid,optional" validate:"omitempty,max=100"`
-	IsSystem int64  `form:"isSystem,optional"`
+	Page       uint64 `form:"page,optional" validate:"omitempty,gt=0"`
+	PageSize   uint64 `form:"pageSize,optional"`
+	Name       string `form:"name,optional" validate:"omitempty,max=100"`
+	Uuid       string `form:"uuid,optional" validate:"omitempty,max=100"`
+	IsSystem   int64  `form:"isSystem,optional" default:"-1" validate:"omitempty,oneof=-1 0 1"`
+	UserId     uint64 `form:"userId,optional" validate:"omitempty,gt=0"`
+	PlatformId uint64 `form:"platformId,optional" validate:"omitempty,gt=0"`
 }
 
 type PortalSearchProjectResp struct {
@@ -460,10 +513,25 @@ type PortalSearchProjectResp struct {
 	Total uint64          `json:"total"`
 }
 
+type PortalSetProjectMembersReq struct {
+	Id      uint64                     `path:"id" validate:"required,gt=0"`
+	Members []PortalProjectMemberInput `json:"members" validate:"required"`
+}
+
 type PortalUpdateProjectReq struct {
 	Id          uint64 `path:"id" validate:"required,gt=0"`
 	Name        string `json:"name" validate:"required,min=1,max=100"`
 	Description string `json:"description,optional" validate:"omitempty,max=500"`
+}
+
+type ProjectPlatformBinding struct {
+	Id           uint64 `json:"id"`
+	ProjectId    uint64 `json:"projectId"`
+	PlatformId   uint64 `json:"platformId"`
+	PlatformCode string `json:"platformCode"`
+	PlatformName string `json:"platformName"`
+	CreatedBy    string `json:"createdBy"`
+	CreatedAt    int64  `json:"createdAt"`
 }
 
 type RefreshTokenRequest struct {
@@ -1009,9 +1077,9 @@ type UnbindAlertGroupAppsRequest struct {
 	Id uint64 `path:"id" validate:"required,gt=0"` // 关联ID
 }
 
-type UnbindUserPlatformRequest struct {
-	UserId      uint64   `json:"userId" validate:"required,gt=0"`                 // 用户ID
-	PlatformIds []uint64 `json:"platformIds" validate:"required,min=1,dive,gt=0"` // 平台ID列表
+type UnbindProjectPlatformReq struct {
+	Id         uint64 `path:"id" validate:"required,gt=0"`
+	PlatformId uint64 `path:"platformId" validate:"required,gt=0"`
 }
 
 type UnsetDefaultSysPlatformRequest struct {

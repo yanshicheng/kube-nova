@@ -25,13 +25,9 @@ func NewDeleteProjectLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Del
 }
 
 func (l *DeleteProjectLogic) DeleteProject(req *types.PortalProjectIdReq) error {
-	username, _ := l.ctx.Value("username").(string)
-	if username == "" {
-		username = "system"
-	}
-
 	_, err := l.svcCtx.ProjectRpc.DeleteProject(l.ctx, &pb.PortalDeleteProjectReq{
-		Id: req.Id,
+		Id:        req.Id,
+		UpdatedBy: currentUsername(l.ctx),
 	})
 	if err != nil {
 		l.Errorf("删除项目失败: %v", err)

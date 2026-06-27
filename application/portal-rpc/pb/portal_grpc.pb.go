@@ -3149,12 +3149,18 @@ var PortalService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	PortalProjectService_CreateProject_FullMethodName    = "/pb.PortalProjectService/CreateProject"
-	PortalProjectService_UpdateProject_FullMethodName    = "/pb.PortalProjectService/UpdateProject"
-	PortalProjectService_DeleteProject_FullMethodName    = "/pb.PortalProjectService/DeleteProject"
-	PortalProjectService_GetProject_FullMethodName       = "/pb.PortalProjectService/GetProject"
-	PortalProjectService_ListProjects_FullMethodName     = "/pb.PortalProjectService/ListProjects"
-	PortalProjectService_BatchGetProjects_FullMethodName = "/pb.PortalProjectService/BatchGetProjects"
+	PortalProjectService_CreateProject_FullMethodName         = "/pb.PortalProjectService/CreateProject"
+	PortalProjectService_UpdateProject_FullMethodName         = "/pb.PortalProjectService/UpdateProject"
+	PortalProjectService_DeleteProject_FullMethodName         = "/pb.PortalProjectService/DeleteProject"
+	PortalProjectService_GetProject_FullMethodName            = "/pb.PortalProjectService/GetProject"
+	PortalProjectService_ListProjects_FullMethodName          = "/pb.PortalProjectService/ListProjects"
+	PortalProjectService_BatchGetProjects_FullMethodName      = "/pb.PortalProjectService/BatchGetProjects"
+	PortalProjectService_SetProjectMembers_FullMethodName     = "/pb.PortalProjectService/SetProjectMembers"
+	PortalProjectService_ListProjectMembers_FullMethodName    = "/pb.PortalProjectService/ListProjectMembers"
+	PortalProjectService_BindProjectPlatform_FullMethodName   = "/pb.PortalProjectService/BindProjectPlatform"
+	PortalProjectService_UnbindProjectPlatform_FullMethodName = "/pb.PortalProjectService/UnbindProjectPlatform"
+	PortalProjectService_GetProjectPlatforms_FullMethodName   = "/pb.PortalProjectService/GetProjectPlatforms"
+	PortalProjectService_GetProjectByPlatform_FullMethodName  = "/pb.PortalProjectService/GetProjectByPlatform"
 )
 
 // PortalProjectServiceClient is the client API for PortalProjectService service.
@@ -3169,6 +3175,12 @@ type PortalProjectServiceClient interface {
 	GetProject(ctx context.Context, in *PortalGetProjectReq, opts ...grpc.CallOption) (*PortalGetProjectResp, error)
 	ListProjects(ctx context.Context, in *PortalListProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error)
 	BatchGetProjects(ctx context.Context, in *PortalBatchGetProjectsReq, opts ...grpc.CallOption) (*PortalListProjectsResp, error)
+	SetProjectMembers(ctx context.Context, in *PortalSetProjectMembersReq, opts ...grpc.CallOption) (*PortalSetProjectMembersResp, error)
+	ListProjectMembers(ctx context.Context, in *PortalListProjectMembersReq, opts ...grpc.CallOption) (*PortalListProjectMembersResp, error)
+	BindProjectPlatform(ctx context.Context, in *BindProjectPlatformReq, opts ...grpc.CallOption) (*BindProjectPlatformResp, error)
+	UnbindProjectPlatform(ctx context.Context, in *UnbindProjectPlatformReq, opts ...grpc.CallOption) (*UnbindProjectPlatformResp, error)
+	GetProjectPlatforms(ctx context.Context, in *GetProjectPlatformsReq, opts ...grpc.CallOption) (*GetProjectPlatformsResp, error)
+	GetProjectByPlatform(ctx context.Context, in *GetProjectByPlatformReq, opts ...grpc.CallOption) (*GetProjectByPlatformResp, error)
 }
 
 type portalProjectServiceClient struct {
@@ -3239,6 +3251,66 @@ func (c *portalProjectServiceClient) BatchGetProjects(ctx context.Context, in *P
 	return out, nil
 }
 
+func (c *portalProjectServiceClient) SetProjectMembers(ctx context.Context, in *PortalSetProjectMembersReq, opts ...grpc.CallOption) (*PortalSetProjectMembersResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PortalSetProjectMembersResp)
+	err := c.cc.Invoke(ctx, PortalProjectService_SetProjectMembers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *portalProjectServiceClient) ListProjectMembers(ctx context.Context, in *PortalListProjectMembersReq, opts ...grpc.CallOption) (*PortalListProjectMembersResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PortalListProjectMembersResp)
+	err := c.cc.Invoke(ctx, PortalProjectService_ListProjectMembers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *portalProjectServiceClient) BindProjectPlatform(ctx context.Context, in *BindProjectPlatformReq, opts ...grpc.CallOption) (*BindProjectPlatformResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BindProjectPlatformResp)
+	err := c.cc.Invoke(ctx, PortalProjectService_BindProjectPlatform_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *portalProjectServiceClient) UnbindProjectPlatform(ctx context.Context, in *UnbindProjectPlatformReq, opts ...grpc.CallOption) (*UnbindProjectPlatformResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UnbindProjectPlatformResp)
+	err := c.cc.Invoke(ctx, PortalProjectService_UnbindProjectPlatform_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *portalProjectServiceClient) GetProjectPlatforms(ctx context.Context, in *GetProjectPlatformsReq, opts ...grpc.CallOption) (*GetProjectPlatformsResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetProjectPlatformsResp)
+	err := c.cc.Invoke(ctx, PortalProjectService_GetProjectPlatforms_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *portalProjectServiceClient) GetProjectByPlatform(ctx context.Context, in *GetProjectByPlatformReq, opts ...grpc.CallOption) (*GetProjectByPlatformResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetProjectByPlatformResp)
+	err := c.cc.Invoke(ctx, PortalProjectService_GetProjectByPlatform_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PortalProjectServiceServer is the server API for PortalProjectService service.
 // All implementations must embed UnimplementedPortalProjectServiceServer
 // for forward compatibility.
@@ -3251,6 +3323,12 @@ type PortalProjectServiceServer interface {
 	GetProject(context.Context, *PortalGetProjectReq) (*PortalGetProjectResp, error)
 	ListProjects(context.Context, *PortalListProjectsReq) (*PortalListProjectsResp, error)
 	BatchGetProjects(context.Context, *PortalBatchGetProjectsReq) (*PortalListProjectsResp, error)
+	SetProjectMembers(context.Context, *PortalSetProjectMembersReq) (*PortalSetProjectMembersResp, error)
+	ListProjectMembers(context.Context, *PortalListProjectMembersReq) (*PortalListProjectMembersResp, error)
+	BindProjectPlatform(context.Context, *BindProjectPlatformReq) (*BindProjectPlatformResp, error)
+	UnbindProjectPlatform(context.Context, *UnbindProjectPlatformReq) (*UnbindProjectPlatformResp, error)
+	GetProjectPlatforms(context.Context, *GetProjectPlatformsReq) (*GetProjectPlatformsResp, error)
+	GetProjectByPlatform(context.Context, *GetProjectByPlatformReq) (*GetProjectByPlatformResp, error)
 	mustEmbedUnimplementedPortalProjectServiceServer()
 }
 
@@ -3278,6 +3356,24 @@ func (UnimplementedPortalProjectServiceServer) ListProjects(context.Context, *Po
 }
 func (UnimplementedPortalProjectServiceServer) BatchGetProjects(context.Context, *PortalBatchGetProjectsReq) (*PortalListProjectsResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BatchGetProjects not implemented")
+}
+func (UnimplementedPortalProjectServiceServer) SetProjectMembers(context.Context, *PortalSetProjectMembersReq) (*PortalSetProjectMembersResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetProjectMembers not implemented")
+}
+func (UnimplementedPortalProjectServiceServer) ListProjectMembers(context.Context, *PortalListProjectMembersReq) (*PortalListProjectMembersResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListProjectMembers not implemented")
+}
+func (UnimplementedPortalProjectServiceServer) BindProjectPlatform(context.Context, *BindProjectPlatformReq) (*BindProjectPlatformResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BindProjectPlatform not implemented")
+}
+func (UnimplementedPortalProjectServiceServer) UnbindProjectPlatform(context.Context, *UnbindProjectPlatformReq) (*UnbindProjectPlatformResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnbindProjectPlatform not implemented")
+}
+func (UnimplementedPortalProjectServiceServer) GetProjectPlatforms(context.Context, *GetProjectPlatformsReq) (*GetProjectPlatformsResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProjectPlatforms not implemented")
+}
+func (UnimplementedPortalProjectServiceServer) GetProjectByPlatform(context.Context, *GetProjectByPlatformReq) (*GetProjectByPlatformResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProjectByPlatform not implemented")
 }
 func (UnimplementedPortalProjectServiceServer) mustEmbedUnimplementedPortalProjectServiceServer() {}
 func (UnimplementedPortalProjectServiceServer) testEmbeddedByValue()                              {}
@@ -3408,6 +3504,114 @@ func _PortalProjectService_BatchGetProjects_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PortalProjectService_SetProjectMembers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PortalSetProjectMembersReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PortalProjectServiceServer).SetProjectMembers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PortalProjectService_SetProjectMembers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PortalProjectServiceServer).SetProjectMembers(ctx, req.(*PortalSetProjectMembersReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PortalProjectService_ListProjectMembers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PortalListProjectMembersReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PortalProjectServiceServer).ListProjectMembers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PortalProjectService_ListProjectMembers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PortalProjectServiceServer).ListProjectMembers(ctx, req.(*PortalListProjectMembersReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PortalProjectService_BindProjectPlatform_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BindProjectPlatformReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PortalProjectServiceServer).BindProjectPlatform(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PortalProjectService_BindProjectPlatform_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PortalProjectServiceServer).BindProjectPlatform(ctx, req.(*BindProjectPlatformReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PortalProjectService_UnbindProjectPlatform_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnbindProjectPlatformReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PortalProjectServiceServer).UnbindProjectPlatform(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PortalProjectService_UnbindProjectPlatform_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PortalProjectServiceServer).UnbindProjectPlatform(ctx, req.(*UnbindProjectPlatformReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PortalProjectService_GetProjectPlatforms_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProjectPlatformsReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PortalProjectServiceServer).GetProjectPlatforms(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PortalProjectService_GetProjectPlatforms_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PortalProjectServiceServer).GetProjectPlatforms(ctx, req.(*GetProjectPlatformsReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PortalProjectService_GetProjectByPlatform_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProjectByPlatformReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PortalProjectServiceServer).GetProjectByPlatform(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PortalProjectService_GetProjectByPlatform_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PortalProjectServiceServer).GetProjectByPlatform(ctx, req.(*GetProjectByPlatformReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PortalProjectService_ServiceDesc is the grpc.ServiceDesc for PortalProjectService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3438,6 +3642,30 @@ var PortalProjectService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BatchGetProjects",
 			Handler:    _PortalProjectService_BatchGetProjects_Handler,
+		},
+		{
+			MethodName: "SetProjectMembers",
+			Handler:    _PortalProjectService_SetProjectMembers_Handler,
+		},
+		{
+			MethodName: "ListProjectMembers",
+			Handler:    _PortalProjectService_ListProjectMembers_Handler,
+		},
+		{
+			MethodName: "BindProjectPlatform",
+			Handler:    _PortalProjectService_BindProjectPlatform_Handler,
+		},
+		{
+			MethodName: "UnbindProjectPlatform",
+			Handler:    _PortalProjectService_UnbindProjectPlatform_Handler,
+		},
+		{
+			MethodName: "GetProjectPlatforms",
+			Handler:    _PortalProjectService_GetProjectPlatforms_Handler,
+		},
+		{
+			MethodName: "GetProjectByPlatform",
+			Handler:    _PortalProjectService_GetProjectByPlatform_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

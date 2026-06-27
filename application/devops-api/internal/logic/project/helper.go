@@ -71,6 +71,7 @@ func projectToType(in *projectservice.DevopsProject) types.DevopsProject {
 		Id:                     in.Id,
 		Name:                   in.Name,
 		Code:                   in.Code,
+		PortalProjectUuid:      in.PortalProjectUuid,
 		Description:            in.Description,
 		PipelineEngineType:     in.PipelineEngineType,
 		DefaultEngineChannelId: in.DefaultEngineChannelId,

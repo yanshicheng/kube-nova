@@ -36,16 +36,6 @@ func (l *GetProjectLogic) GetProject(in *pb.PortalGetProjectReq) (*pb.PortalGetP
 	}
 
 	return &pb.PortalGetProjectResp{
-		Data: &pb.PortalProject{
-			Id:          project.Id,
-			Name:        project.Name,
-			Uuid:        project.Uuid,
-			IsSystem:    project.IsSystem,
-			Description: project.Description,
-			CreatedBy:   project.CreatedBy,
-			UpdatedBy:   project.UpdatedBy,
-			CreatedAt:   project.CreatedAt.Unix(),
-			UpdatedAt:   project.UpdatedAt.Unix(),
-		},
+		Data: projectToPb(project),
 	}, nil
 }

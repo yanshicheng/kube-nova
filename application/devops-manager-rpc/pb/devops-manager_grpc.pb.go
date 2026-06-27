@@ -66,6 +66,7 @@ const (
 	ProjectService_ProjectMemberList_FullMethodName        = "/pb.ProjectService/ProjectMemberList"
 	ProjectService_CheckProjectDependencies_FullMethodName = "/pb.ProjectService/CheckProjectDependencies"
 	ProjectService_SyncProjectInfo_FullMethodName          = "/pb.ProjectService/SyncProjectInfo"
+	ProjectService_SyncProjectMembers_FullMethodName       = "/pb.ProjectService/SyncProjectMembers"
 	ProjectService_SyncProjectDeleted_FullMethodName       = "/pb.ProjectService/SyncProjectDeleted"
 )
 
@@ -121,6 +122,7 @@ type ProjectServiceClient interface {
 	// -----------------------项目依赖检查与同步（供 portal 调用）-----------------------
 	CheckProjectDependencies(ctx context.Context, in *DevopsCheckProjectDependenciesReq, opts ...grpc.CallOption) (*DevopsCheckProjectDependenciesResp, error)
 	SyncProjectInfo(ctx context.Context, in *DevopsSyncProjectInfoReq, opts ...grpc.CallOption) (*EmptyResp, error)
+	SyncProjectMembers(ctx context.Context, in *DevopsSyncProjectMembersReq, opts ...grpc.CallOption) (*EmptyResp, error)
 	SyncProjectDeleted(ctx context.Context, in *DevopsSyncProjectDeletedReq, opts ...grpc.CallOption) (*EmptyResp, error)
 }
 
@@ -602,6 +604,16 @@ func (c *projectServiceClient) SyncProjectInfo(ctx context.Context, in *DevopsSy
 	return out, nil
 }
 
+func (c *projectServiceClient) SyncProjectMembers(ctx context.Context, in *DevopsSyncProjectMembersReq, opts ...grpc.CallOption) (*EmptyResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EmptyResp)
+	err := c.cc.Invoke(ctx, ProjectService_SyncProjectMembers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *projectServiceClient) SyncProjectDeleted(ctx context.Context, in *DevopsSyncProjectDeletedReq, opts ...grpc.CallOption) (*EmptyResp, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(EmptyResp)
@@ -664,6 +676,7 @@ type ProjectServiceServer interface {
 	// -----------------------项目依赖检查与同步（供 portal 调用）-----------------------
 	CheckProjectDependencies(context.Context, *DevopsCheckProjectDependenciesReq) (*DevopsCheckProjectDependenciesResp, error)
 	SyncProjectInfo(context.Context, *DevopsSyncProjectInfoReq) (*EmptyResp, error)
+	SyncProjectMembers(context.Context, *DevopsSyncProjectMembersReq) (*EmptyResp, error)
 	SyncProjectDeleted(context.Context, *DevopsSyncProjectDeletedReq) (*EmptyResp, error)
 	mustEmbedUnimplementedProjectServiceServer()
 }
@@ -815,6 +828,9 @@ func (UnimplementedProjectServiceServer) CheckProjectDependencies(context.Contex
 }
 func (UnimplementedProjectServiceServer) SyncProjectInfo(context.Context, *DevopsSyncProjectInfoReq) (*EmptyResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SyncProjectInfo not implemented")
+}
+func (UnimplementedProjectServiceServer) SyncProjectMembers(context.Context, *DevopsSyncProjectMembersReq) (*EmptyResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SyncProjectMembers not implemented")
 }
 func (UnimplementedProjectServiceServer) SyncProjectDeleted(context.Context, *DevopsSyncProjectDeletedReq) (*EmptyResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SyncProjectDeleted not implemented")
@@ -1686,6 +1702,24 @@ func _ProjectService_SyncProjectInfo_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProjectService_SyncProjectMembers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DevopsSyncProjectMembersReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProjectServiceServer).SyncProjectMembers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProjectService_SyncProjectMembers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProjectServiceServer).SyncProjectMembers(ctx, req.(*DevopsSyncProjectMembersReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ProjectService_SyncProjectDeleted_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DevopsSyncProjectDeletedReq)
 	if err := dec(in); err != nil {
@@ -1898,6 +1932,10 @@ var ProjectService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SyncProjectInfo",
 			Handler:    _ProjectService_SyncProjectInfo_Handler,
+		},
+		{
+			MethodName: "SyncProjectMembers",
+			Handler:    _ProjectService_SyncProjectMembers_Handler,
 		},
 		{
 			MethodName: "SyncProjectDeleted",

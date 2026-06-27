@@ -116,7 +116,10 @@ func (m *DevopsProjectModel) DeleteSoft(ctx context.Context, id, updatedBy strin
 }
 
 func (m *DevopsProjectModel) List(ctx context.Context, filter DevopsProjectListFilter) ([]*DevopsProject, uint64, error) {
-	query := bson.M{"isDeleted": false}
+	query := bson.M{
+		"isDeleted":         false,
+		"portalProjectUuid": bson.M{"$exists": true, "$ne": ""},
+	}
 	if filter.Restricted {
 		if len(filter.ProjectIDs) == 0 {
 			return []*DevopsProject{}, 0, nil
@@ -173,6 +176,42 @@ func (m *DevopsProjectModel) FindOneByPortalUuid(ctx context.Context, portalProj
 		return nil, err
 	}
 	return &data, nil
+}
+
+// UpsertByPortalUuid 根据 portal 项目 UUID 同步 DevOps 扩展项目
+func (m *DevopsProjectModel) UpsertByPortalUuid(ctx context.Context, portalProjectUuid, name, description, updatedBy string) error {
+	t := now()
+	if updatedBy == "" {
+		updatedBy = "system"
+	}
+	code := "portal-" + portalProjectUuid
+	res, err := m.conn.UpdateOne(ctx,
+		bson.M{"portalProjectUuid": portalProjectUuid},
+		bson.M{
+			"$set": bson.M{
+				"name":        name,
+				"description": description,
+				"status":      int64(1),
+				"updatedBy":   updatedBy,
+				"updateAt":    t,
+				"isDeleted":   false,
+			},
+			"$setOnInsert": bson.M{
+				"code":              code,
+				"portalProjectUuid": portalProjectUuid,
+				"createdBy":         updatedBy,
+				"createAt":          t,
+			},
+		},
+		options.UpdateOne().SetUpsert(true),
+	)
+	if err != nil {
+		return err
+	}
+	if res == nil {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // UpdateNameByPortalUuid 根据 portal 项目 UUID 同步更新项目名称和描述

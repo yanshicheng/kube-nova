@@ -14,6 +14,7 @@ import (
 	"github.com/yanshicheng/kube-nova/application/devops-manager-rpc/internal/model"
 	"github.com/yanshicheng/kube-nova/application/devops-manager-rpc/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/devops-manager-rpc/pb"
+	portalprojectservice "github.com/yanshicheng/kube-nova/application/portal-rpc/client/portalprojectservice"
 	"github.com/yanshicheng/kube-nova/common/devops/channelvars"
 	"github.com/yanshicheng/kube-nova/common/devops/jenkins"
 	devopstekton "github.com/yanshicheng/kube-nova/common/devops/tekton"
@@ -2613,7 +2614,38 @@ func userProjectIDs(ctx context.Context, svcCtx *svc.ServiceContext, userID uint
 		logx.Errorf("处理流水线配置辅助逻辑失败: %v", err)
 		return nil, false, err
 	}
-	return ids, true, nil
+	platformID, _ := ctx.Value("platformId").(uint64)
+	if platformID == 0 || len(ids) == 0 {
+		return []string{}, true, nil
+	}
+	portalResp, err := svcCtx.PortalRpc.ListProjects(ctx, &portalprojectservice.PortalListProjectsReq{
+		Page:       1,
+		PageSize:   uint64(len(ids)),
+		UserId:     userID,
+		PlatformId: platformID,
+	})
+	if err != nil {
+		logx.Errorf("处理流水线配置辅助逻辑失败: %v", err)
+		return nil, false, err
+	}
+	allowed := make(map[string]struct{}, len(portalResp.Data))
+	for _, item := range portalResp.Data {
+		if item == nil || item.Uuid == "" {
+			continue
+		}
+		allowed[item.Uuid] = struct{}{}
+	}
+	filtered := make([]string, 0, len(ids))
+	for _, id := range ids {
+		project, err := svcCtx.ProjectModel.FindOne(ctx, id)
+		if err != nil || project == nil || project.PortalProjectUuid == "" {
+			continue
+		}
+		if _, ok := allowed[project.PortalProjectUuid]; ok {
+			filtered = append(filtered, id)
+		}
+	}
+	return filtered, true, nil
 }
 
 func ensureTemplateTargetAccess(ctx context.Context, svcCtx *svc.ServiceContext, scope, projectID string, userID uint64, roles []string) error {

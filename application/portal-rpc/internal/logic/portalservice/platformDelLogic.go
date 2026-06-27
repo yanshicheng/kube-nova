@@ -62,15 +62,15 @@ func (l *PlatformDelLogic) PlatformDel(in *pb.DelSysPlatformReq) (*pb.DelSysPlat
 		return nil, errorx.Msg("平台下存在菜单，请先删除菜单")
 	}
 
-	// 检查平台下是否有用户绑定
-	userPlatforms, err := l.svcCtx.SysUserPlatformModel.SearchNoPage(l.ctx, "", true, "`platform_id` = ?", in.Id)
+	// 检查平台下是否有项目绑定
+	projectPlatforms, err := l.svcCtx.ProjectPlatformBindingModel.SearchNoPage(l.ctx, "", true, "`platform_id` = ?", in.Id)
 	if err != nil && !errors.Is(err, model.ErrNotFound) {
-		l.Errorf("查询平台用户绑定失败: %v", err)
-		return nil, errorx.Msg("查询平台用户绑定失败")
+		l.Errorf("查询平台项目绑定失败: %v", err)
+		return nil, errorx.Msg("查询平台项目绑定失败")
 	}
-	if len(userPlatforms) > 0 {
-		l.Errorf("删除平台失败：平台下存在用户绑定，请先解绑用户, id: %d, 用户数量: %d", in.Id, len(userPlatforms))
-		return nil, errorx.Msg("平台下存在用户绑定，请先解绑用户")
+	if len(projectPlatforms) > 0 {
+		l.Errorf("删除平台失败：平台下存在项目绑定，请先解绑项目, id: %d, 项目数量: %d", in.Id, len(projectPlatforms))
+		return nil, errorx.Msg("平台下存在项目绑定，请先解绑项目")
 	}
 
 	// 执行软删除

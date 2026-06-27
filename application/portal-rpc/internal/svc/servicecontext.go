@@ -1,20 +1,21 @@
 package svc
 
 import (
+	"context"
 	"log"
 
-	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/authz"
-	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/config"
 	devopsprojectservice "github.com/yanshicheng/kube-nova/application/devops-manager-rpc/client/projectservice"
 	managerservice "github.com/yanshicheng/kube-nova/application/manager-rpc/client/managerservice"
+	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/authz"
+	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/config"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/message"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/model"
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/internal/notification"
 	"github.com/yanshicheng/kube-nova/common/interceptors"
-	notification2 "github.com/yanshicheng/kube-nova/application/portal-rpc/internal/notification"
 	"github.com/yanshicheng/kube-nova/pkg/storage"
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/core/stores/sqlx"
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -24,7 +25,11 @@ type ServiceContext struct {
 	Storage storage.Uploader `json:"Storage,omitempty"`
 
 	// 数据模型
-	OnecProjectModel             model.OnecProjectModel             `json:"OnecProjectModel,omitempty"`
+	OnecProjectModel             model.OnecProjectModel            `json:"OnecProjectModel,omitempty"`
+	ProjectPlatformBindingModel  model.ProjectPlatformBindingModel `json:"ProjectPlatformBindingModel,omitempty"`
+	ProjectMemberBindingModel    model.ProjectMemberBindingModel   `json:"ProjectMemberBindingModel,omitempty"`
+	ProjectMemberPlatformRole    model.ProjectMemberPlatformRoleModel
+	ProjectPlatformSyncTaskModel model.ProjectPlatformSyncTaskModel
 	SysUser                      model.SysUserModel                 `json:"SysUser,omitempty"`
 	SysUserRole                  model.SysUserRoleModel             `json:"SysUserRole,omitempty"`
 	SysUserDept                  model.SysUserDeptModel             `json:"SysUserDept,omitempty"`
@@ -51,17 +56,17 @@ type ServiceContext struct {
 	AuthzManager *authz.CasbinRBACManager `json:"AuthzManager,omitempty"`
 
 	// 告警通知管理器
-	AlertManager notification2.Manager `json:"AlertManager,omitempty"`
+	AlertManager notification.Manager `json:"AlertManager,omitempty"`
 
 	// RPC 客户端
-	ManagerRpc        managerservice.ManagerService
-	DevopsManagerRpc  devopsprojectservice.ProjectService
+	ManagerRpc       managerservice.ManagerService
+	DevopsManagerRpc devopsprojectservice.ProjectService
 
 	// 消息推送器
 	MessagePusher *message.MessagePusher `json:"MessagePusher,omitempty"`
 
 	// 告警聚合器服务（支持 K8s Leader Election 和 Redis 降级）
-	AggregatorService *notification2.AggregatorService `json:"AggregatorService,omitempty"`
+	AggregatorService *notification.AggregatorService `json:"AggregatorService,omitempty"`
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -107,11 +112,16 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	sysUserDept := model.NewSysUserDeptModel(sqlConn, c.DBCache)
 	sysApi := model.NewSysApiModel(sqlConn, c.DBCache)
 	sysMenu := model.NewSysMenuModel(sqlConn, c.DBCache)
+	normalizeDevopsMenuTitles(sysMenu)
 	sysLoginLog := model.NewSysLoginLogModel(sqlConn, c.DBCache)
 	sysToken := model.NewSysTokenModel(sqlConn, c.DBCache)
 	sysDept := model.NewSysDeptModel(sqlConn, c.DBCache)
 	sysPlatform := model.NewSysPlatformModel(sqlConn, c.DBCache)
 	sysUserPlatform := model.NewSysUserPlatformModel(sqlConn, c.DBCache)
+	projectPlatformBindingModel := model.NewProjectPlatformBindingModel(sqlConn, c.DBCache)
+	projectMemberBindingModel := model.NewProjectMemberBindingModel(sqlConn, c.DBCache)
+	projectMemberPlatformRoleModel := model.NewProjectMemberPlatformRoleModel(sqlConn, c.DBCache)
+	projectPlatformSyncTaskModel := model.NewProjectPlatformSyncTaskModel(sqlConn, c.DBCache)
 	onecProjectModel := model.NewOnecProjectModel(sqlConn, c.DBCache)
 	siteMessagesModel := model.NewSiteMessagesModel(sqlConn, c.DBCache)
 	alertChannelsModel := model.NewAlertChannelsModel(sqlConn, c.DBCache)
@@ -190,11 +200,15 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		log.Fatalf("启动告警聚合器服务失败: %v", err)
 	}
 
-	return &ServiceContext{
+	svcCtx := &ServiceContext{
 		Config:                       c,
 		Cache:                        rdb,
 		Storage:                      uploader,
 		OnecProjectModel:             onecProjectModel,
+		ProjectPlatformBindingModel:  projectPlatformBindingModel,
+		ProjectMemberBindingModel:    projectMemberBindingModel,
+		ProjectMemberPlatformRole:    projectMemberPlatformRoleModel,
+		ProjectPlatformSyncTaskModel: projectPlatformSyncTaskModel,
 		SysUser:                      sysUser,
 		SysRole:                      sysRole,
 		SysRoleMenu:                  sysRoleMenu,
@@ -223,4 +237,31 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		MessagePusher:                messagePusher,
 		AggregatorService:            aggregatorService,
 	}
+	svcCtx.startDevopsSyncReconciler()
+	return svcCtx
+}
+
+func normalizeDevopsMenuTitles(sysMenu model.SysMenuModel) {
+	menu, err := sysMenu.FindOneByName(context.Background(), "DevOpsProjectChannelBinding")
+	if err != nil {
+		if err != model.ErrNotFound {
+			log.Printf("校正 DevOps 菜单标题失败: %v", err)
+		}
+		return
+	}
+	if menu.Title != "项目渠道绑定" {
+		return
+	}
+	menu.Title = "渠道绑定"
+	menu.UpdateBy = "system"
+	if err := sysMenu.Update(context.Background(), menu); err != nil {
+		log.Printf("校正 DevOps 菜单标题失败: %v", err)
+	}
+}
+
+func (s *ServiceContext) Stop() {
+	if s.AggregatorService != nil {
+		s.AggregatorService.Stop()
+	}
+	logx.Info("portal-rpc service context 已停止")
 }

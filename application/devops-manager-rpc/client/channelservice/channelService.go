@@ -76,6 +76,8 @@ type (
 	DevopsStepTemplate                  = pb.DevopsStepTemplate
 	DevopsSyncProjectDeletedReq         = pb.DevopsSyncProjectDeletedReq
 	DevopsSyncProjectInfoReq            = pb.DevopsSyncProjectInfoReq
+	DevopsSyncProjectMemberInput        = pb.DevopsSyncProjectMemberInput
+	DevopsSyncProjectMembersReq         = pb.DevopsSyncProjectMembersReq
 	DevopsSystem                        = pb.DevopsSystem
 	DevopsTektonTaskParam               = pb.DevopsTektonTaskParam
 	DevopsTektonTaskResult              = pb.DevopsTektonTaskResult

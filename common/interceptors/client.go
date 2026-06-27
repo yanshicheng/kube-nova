@@ -31,6 +31,11 @@ func ClientMetadataInterceptor() grpc.UnaryClientInterceptor {
 			ctx = metadata.AppendToOutgoingContext(ctx, "roles", rolesStr)
 		}
 
+		// 提取 platformId
+		if platformId, ok := ctx.Value("platformId").(uint64); ok && platformId > 0 {
+			ctx = metadata.AppendToOutgoingContext(ctx, "platform-id", fmt.Sprintf("%d", platformId))
+		}
+
 		return invoker(ctx, method, req, reply, cc, opts...)
 	}
 }

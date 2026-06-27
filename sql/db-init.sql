@@ -1113,6 +1113,93 @@ CREATE TABLE `onec_project_admin` (
   KEY `idx_is_deleted` (`is_deleted`)
 ) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='项目管理员表，关联项目与用户的多对多关系';
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `project_platform_binding`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `project_platform_binding` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  `project_id` bigint unsigned NOT NULL COMMENT '项目ID',
+  `platform_id` bigint unsigned NOT NULL COMMENT '平台ID',
+  `created_by` varchar(32) NOT NULL DEFAULT '' COMMENT '记录创建人',
+  `updated_by` varchar(32) NOT NULL DEFAULT '' COMMENT '记录最后更新人',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '记录更新时间',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否已删除，软删除标记',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_project_platform` (`project_id`,`platform_id`),
+  KEY `idx_project_id` (`project_id`),
+  KEY `idx_platform_id` (`platform_id`),
+  KEY `idx_is_deleted` (`is_deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='项目-平台绑定表，控制项目可访问的平台';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `project_member_binding`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `project_member_binding` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  `project_id` bigint unsigned NOT NULL COMMENT '项目ID',
+  `user_id` bigint unsigned NOT NULL COMMENT '用户ID',
+  `role` varchar(32) NOT NULL DEFAULT 'member' COMMENT '项目角色：owner/admin/member',
+  `created_by` varchar(32) NOT NULL DEFAULT '' COMMENT '记录创建人',
+  `updated_by` varchar(32) NOT NULL DEFAULT '' COMMENT '记录最后更新人',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '记录更新时间',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否已删除，软删除标记',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_project_user` (`project_id`,`user_id`),
+  KEY `idx_project_id` (`project_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_is_deleted` (`is_deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='项目成员绑定表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `project_member_platform_role`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `project_member_platform_role` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  `project_id` bigint unsigned NOT NULL COMMENT '项目ID',
+  `user_id` bigint unsigned NOT NULL COMMENT '用户ID',
+  `platform_id` bigint unsigned NOT NULL COMMENT '平台ID',
+  `role` varchar(32) NOT NULL DEFAULT 'member' COMMENT '项目平台角色：owner/admin/member',
+  `created_by` varchar(32) NOT NULL DEFAULT '' COMMENT '记录创建人',
+  `updated_by` varchar(32) NOT NULL DEFAULT '' COMMENT '记录最后更新人',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '记录更新时间',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否已删除，软删除标记',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_project_user_platform` (`project_id`,`user_id`,`platform_id`),
+  KEY `idx_project_id` (`project_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_platform_id` (`platform_id`),
+  KEY `idx_is_deleted` (`is_deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='项目成员平台角色表';
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `project_platform_sync_task`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `project_platform_sync_task` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+  `project_id` bigint unsigned NOT NULL COMMENT '项目ID',
+  `portal_project_uuid` varchar(64) NOT NULL DEFAULT '' COMMENT '门户项目UUID',
+  `platform_code` varchar(32) NOT NULL DEFAULT '' COMMENT '平台编码',
+  `action` varchar(32) NOT NULL DEFAULT '' COMMENT '同步动作：project_info/project_delete/project_members',
+  `payload` longtext NOT NULL COMMENT '同步快照JSON',
+  `status` varchar(16) NOT NULL DEFAULT 'pending' COMMENT '同步状态：pending/success/failed',
+  `retry_count` int NOT NULL DEFAULT '0' COMMENT '重试次数',
+  `last_error` varchar(500) NOT NULL DEFAULT '' COMMENT '最后一次错误信息',
+  `last_synced_at` timestamp NOT NULL DEFAULT '1970-01-01 00:00:00' COMMENT '最后同步成功时间',
+  `created_by` varchar(32) NOT NULL DEFAULT '' COMMENT '记录创建人',
+  `updated_by` varchar(32) NOT NULL DEFAULT '' COMMENT '记录最后更新人',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录创建时间',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '记录更新时间',
+  `is_deleted` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否已删除，软删除标记',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_platform_action_project` (`platform_code`,`action`,`portal_project_uuid`),
+  KEY `idx_status_retry` (`status`,`retry_count`),
+  KEY `idx_project_id` (`project_id`),
+  KEY `idx_is_deleted` (`is_deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='项目平台投影同步任务表';
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `onec_project_application`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

@@ -2049,6 +2049,19 @@ message DevopsSyncProjectInfoReq {
   string description = 3; // 项目描述
 }
 
+message DevopsSyncProjectMemberInput {
+  uint64 userId = 1; // 用户ID
+  string username = 2; // 用户名
+  string nickname = 3; // 昵称
+  string role = 4; // 项目角色
+}
+
+message DevopsSyncProjectMembersReq {
+  string portalProjectUuid = 1; // portal 项目 UUID
+  repeated DevopsSyncProjectMemberInput members = 2; // 成员列表
+  string updatedBy = 3; // 操作人
+}
+
 //--------------------------------项目删除同步（供 portal 调用）--------------------------------
 message DevopsSyncProjectDeletedReq {
   string portalProjectUuid = 1; // portal 项目 UUID
@@ -2105,6 +2118,7 @@ service ProjectService {
   //-----------------------项目依赖检查与同步（供 portal 调用）-----------------------
   rpc CheckProjectDependencies(DevopsCheckProjectDependenciesReq) returns (DevopsCheckProjectDependenciesResp);
   rpc SyncProjectInfo(DevopsSyncProjectInfoReq) returns (EmptyResp);
+  rpc SyncProjectMembers(DevopsSyncProjectMembersReq) returns (EmptyResp);
   rpc SyncProjectDeleted(DevopsSyncProjectDeletedReq) returns (EmptyResp);
 }
 

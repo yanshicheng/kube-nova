@@ -28,7 +28,6 @@ type (
     PortalCreateProjectReq {
         Name string `json:"name" validate:"required,min=1,max=100"`
         Description string `json:"description,optional" validate:"omitempty,max=500"`
-        IsSystem int64 `json:"isSystem,optional" validate:"omitempty,oneof=0 1"`
     }
 
     // 更新项目请求
@@ -49,7 +48,9 @@ type (
         PageSize uint64 `form:"pageSize,optional"`
         Name string `form:"name,optional" validate:"omitempty,max=100"`
         Uuid string `form:"uuid,optional" validate:"omitempty,max=100"`
-        IsSystem int64 `form:"isSystem,optional"`
+        IsSystem int64 `form:"isSystem,optional" default:"-1" validate:"omitempty,oneof=-1 0 1"`
+        UserId uint64 `form:"userId,optional" validate:"omitempty,gt=0"`
+        PlatformId uint64 `form:"platformId,optional" validate:"omitempty,gt=0"`
     }
 
     // 搜索项目响应
@@ -61,6 +62,81 @@ type (
     // 批量获取项目请求
     PortalBatchGetProjectReq {
         Ids string `form:"ids"`
+    }
+
+    // 项目成员
+    PortalProjectMember {
+        Id uint64 `json:"id"`
+        ProjectId uint64 `json:"projectId"`
+        UserId uint64 `json:"userId"`
+        Username string `json:"username"`
+        Nickname string `json:"nickname"`
+        Role string `json:"role"`
+        CreatedBy string `json:"createdBy"`
+        UpdatedBy string `json:"updatedBy"`
+        CreatedAt int64 `json:"createdAt"`
+        UpdatedAt int64 `json:"updatedAt"`
+        PlatformRoles []PortalProjectMemberPlatformRole `json:"platformRoles"`
+    }
+
+    PortalProjectMemberPlatformRole {
+        PlatformId uint64 `json:"platformId"`
+        PlatformCode string `json:"platformCode"`
+        PlatformName string `json:"platformName"`
+        Role string `json:"role"`
+    }
+
+    PortalProjectMemberPlatformRoleInput {
+        PlatformId uint64 `json:"platformId" validate:"required,gt=0"`
+        Role string `json:"role,optional" validate:"omitempty,oneof=owner admin member"`
+    }
+
+    PortalProjectMemberInput {
+        UserId uint64 `json:"userId" validate:"required,gt=0"`
+        Role string `json:"role,optional" validate:"omitempty,oneof=owner admin member"`
+        PlatformRoles []PortalProjectMemberPlatformRoleInput `json:"platformRoles,optional"`
+    }
+
+    PortalProjectMemberReq {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+    }
+
+    PortalSetProjectMembersReq {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+        Members []PortalProjectMemberInput `json:"members" validate:"required"`
+    }
+
+    PortalListProjectMembersResp {
+        Data []PortalProjectMember `json:"data"`
+    }
+
+    // 项目平台绑定
+    ProjectPlatformBinding {
+        Id uint64 `json:"id"`
+        ProjectId uint64 `json:"projectId"`
+        PlatformId uint64 `json:"platformId"`
+        PlatformCode string `json:"platformCode"`
+        PlatformName string `json:"platformName"`
+        CreatedBy string `json:"createdBy"`
+        CreatedAt int64 `json:"createdAt"`
+    }
+
+    BindProjectPlatformReq {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+        PlatformId uint64 `json:"platformId" validate:"required,gt=0"`
+    }
+
+    UnbindProjectPlatformReq {
+        Id uint64 `path:"id" validate:"required,gt=0"`
+        PlatformId uint64 `path:"platformId" validate:"required,gt=0"`
+    }
+
+    GetProjectByPlatformReq {
+        PlatformId uint64 `path:"platformId" validate:"required,gt=0"`
+    }
+
+    GetProjectPlatformsResp {
+        Data []ProjectPlatformBinding `json:"data"`
     }
 )
 
@@ -93,4 +169,28 @@ service portal-api {
     @doc "批量获取项目"
     @handler BatchGetProjectsHandler
     get /batch (PortalBatchGetProjectReq) returns (PortalSearchProjectResp)
+
+    @doc "设置项目成员"
+    @handler SetProjectMembersHandler
+    put /:id/members (PortalSetProjectMembersReq) returns ()
+
+    @doc "获取项目成员"
+    @handler ListProjectMembersHandler
+    get /:id/members (PortalProjectMemberReq) returns (PortalListProjectMembersResp)
+
+    @doc "绑定项目平台"
+    @handler BindProjectPlatformHandler
+    post /:id/platforms (BindProjectPlatformReq) returns ()
+
+    @doc "解绑项目平台"
+    @handler UnbindProjectPlatformHandler
+    delete /:id/platforms/:platformId (UnbindProjectPlatformReq) returns ()
+
+    @doc "获取项目平台"
+    @handler GetProjectPlatformsHandler
+    get /:id/platforms (PortalProjectMemberReq) returns (GetProjectPlatformsResp)
+
+    @doc "获取平台下项目"
+    @handler GetProjectByPlatformHandler
+    get /platform/:platformId/projects (GetProjectByPlatformReq) returns (PortalSearchProjectResp)
 }

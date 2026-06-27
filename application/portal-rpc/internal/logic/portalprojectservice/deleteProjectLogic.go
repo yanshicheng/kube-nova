@@ -9,8 +9,8 @@ import (
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/pb"
 	"github.com/yanshicheng/kube-nova/common/handler/errorx"
 
-	managerpb "github.com/yanshicheng/kube-nova/application/manager-rpc/pb"
 	devopspb "github.com/yanshicheng/kube-nova/application/devops-manager-rpc/pb"
+	managerpb "github.com/yanshicheng/kube-nova/application/manager-rpc/pb"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -39,6 +39,9 @@ func (l *DeleteProjectLogic) DeleteProject(in *pb.PortalDeleteProjectReq) (*pb.P
 	if err != nil {
 		l.Errorf("查询项目失败，ID: %d, 错误: %v", in.Id, err)
 		return nil, errorx.Msg("项目不存在")
+	}
+	if project.IsSystem == 1 {
+		return nil, errorx.Msg("平台项目不允许删除")
 	}
 
 	// 2. 检查 manager 依赖

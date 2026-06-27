@@ -7,8 +7,6 @@ import (
 	"github.com/yanshicheng/kube-nova/application/portal-rpc/pb"
 	"github.com/yanshicheng/kube-nova/common/handler/errorx"
 
-	devopspb "github.com/yanshicheng/kube-nova/application/devops-manager-rpc/pb"
-
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -36,6 +34,9 @@ func (l *UpdateProjectLogic) UpdateProject(in *pb.PortalUpdateProjectReq) (*pb.P
 		l.Errorf("查询项目失败，ID: %d, 错误: %v", in.Id, err)
 		return nil, errorx.Msg("项目不存在")
 	}
+	if project.IsSystem == 1 {
+		return nil, errorx.Msg("平台项目不允许编辑")
+	}
 
 	if in.Name != "" {
 		project.Name = in.Name
@@ -53,14 +54,10 @@ func (l *UpdateProjectLogic) UpdateProject(in *pb.PortalUpdateProjectReq) (*pb.P
 		return nil, errorx.Msg("更新项目失败")
 	}
 
-	// 同步 DevOps 项目信息
-	_, syncErr := l.svcCtx.DevopsManagerRpc.SyncProjectInfo(l.ctx, &devopspb.DevopsSyncProjectInfoReq{
-		PortalProjectUuid: project.Uuid,
-		Name:              project.Name,
-		Description:       project.Description,
-	})
-	if syncErr != nil {
-		l.Errorf("同步 DevOps 项目信息失败，portalProjectUuid: %s, 错误: %v", project.Uuid, syncErr)
+	if isProjectBoundToDevops(l.ctx, l.svcCtx, project.Id) {
+		if syncErr := syncDevopsProjectInfo(l.ctx, l.svcCtx, project, in.UpdatedBy); syncErr != nil {
+			l.Errorf("同步 DevOps 项目信息失败，portalProjectUuid: %s, 错误: %v", project.Uuid, syncErr)
+		}
 	}
 
 	l.Infof("更新项目成功，ID: %d, Name: %s", project.Id, project.Name)

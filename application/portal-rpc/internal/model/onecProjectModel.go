@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/zeromicro/go-zero/core/stores/cache"
@@ -76,8 +77,13 @@ func (m *customOnecProjectModel) BatchFindByIds(ctx context.Context, ids []uint6
 	if len(ids) == 0 {
 		return []*OnecProject{}, nil
 	}
-	query := fmt.Sprintf("select %s from %s where `id` in (?) and `is_deleted` = 0", onecProjectRows, m.table)
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
+	query := fmt.Sprintf("select %s from %s where `id` in (%s) and `is_deleted` = 0", onecProjectRows, m.table, placeholders)
+	args := make([]any, 0, len(ids))
+	for _, id := range ids {
+		args = append(args, id)
+	}
 	var resp []*OnecProject
-	err := m.QueryRowsNoCacheCtx(ctx, &resp, query, ids)
+	err := m.QueryRowsNoCacheCtx(ctx, &resp, query, args...)
 	return resp, err
 }

@@ -735,24 +735,6 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 					Handler: project.DevopsConfigTypeTreeHandler(serverCtx),
 				},
 				{
-					// 创建 DevOps 项目
-					Method:  http.MethodPost,
-					Path:    "/project",
-					Handler: project.DevopsProjectCreateHandler(serverCtx),
-				},
-				{
-					// 更新 DevOps 项目
-					Method:  http.MethodPut,
-					Path:    "/project/:id",
-					Handler: project.DevopsProjectUpdateHandler(serverCtx),
-				},
-				{
-					// 删除 DevOps 项目
-					Method:  http.MethodDelete,
-					Path:    "/project/:id",
-					Handler: project.DevopsProjectDeleteHandler(serverCtx),
-				},
-				{
 					// 获取 DevOps 项目详情
 					Method:  http.MethodGet,
 					Path:    "/project/:id",

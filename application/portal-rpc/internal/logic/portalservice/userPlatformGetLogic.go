@@ -27,9 +27,8 @@ func NewUserPlatformGetLogic(ctx context.Context, svcCtx *svc.ServiceContext) *U
 	}
 }
 
-// UserPlatformGet 获取用户绑定的平台列表
+// UserPlatformGet 获取用户可访问的平台列表
 func (l *UserPlatformGetLogic) UserPlatformGet(in *pb.GetUserPlatformsReq) (*pb.GetUserPlatformsResp, error) {
-	// 1. 从 context 获取角色列表并判断是否为 SUPER_ADMIN super_admin
 	roles, _ := l.ctx.Value("roles").([]string)
 	isSuperAdmin := false
 	for _, role := range roles {
@@ -40,42 +39,41 @@ func (l *UserPlatformGetLogic) UserPlatformGet(in *pb.GetUserPlatformsReq) (*pb.
 	}
 	var pbPlatforms []*pb.SysPlatform
 
-	// 2. 如果是超级管理员，直接获取所有正常状态的平台
 	if isSuperAdmin {
-		platforms, err := l.svcCtx.SysPlatformModel.SearchNoPage(l.ctx, "sort", true, "`is_enable` = ? AND `is_deleted` = ?", 1, 0)
+		platforms, err := l.listSuperAdminPlatforms(in.ProjectId)
 		if err != nil && !errors.Is(err, model.ErrNotFound) {
-			l.Errorf("超管查询全量平台失败: %v", err)
+			l.Errorf("超管查询平台失败: projectId=%d, err=%v", in.ProjectId, err)
 			return nil, errorx.Msg("查询平台列表失败")
 		}
 		for _, p := range platforms {
 			pbPlatforms = append(pbPlatforms, l.convertModelToPb(p))
 		}
 	} else {
-		// 3. 普通用户逻辑：按 userId 过滤绑定关系
 		userId, ok := l.ctx.Value("userId").(uint64)
 		if !ok || userId == 0 {
 			l.Errorf("获取用户平台列表失败：用户ID无效")
 			return nil, errorx.Msg("用户ID无效")
 		}
 
-		// 查询关联表
-		userPlatforms, err := l.svcCtx.SysUserPlatformModel.SearchNoPage(l.ctx, "id", true, "`user_id` = ? AND `is_enable` = ? AND `status` = ?", userId, 1, 1)
+		var platformIds []uint64
+		var err error
+		if in.ProjectId > 0 {
+			platformIds, err = l.svcCtx.ProjectMemberPlatformRole.ListPlatformIdsByUserAndProject(l.ctx, userId, in.ProjectId)
+		} else {
+			platformIds, err = l.svcCtx.ProjectMemberPlatformRole.ListPlatformIdsByUser(l.ctx, userId)
+		}
 		if err != nil {
-			if errors.Is(err, model.ErrNotFound) {
-				return &pb.GetUserPlatformsResp{Data: []*pb.SysPlatform{}}, nil
-			}
-			l.Errorf("查询用户平台绑定失败: userId=%d, error=%v", userId, err)
-			return nil, errorx.Msg("查询用户平台绑定失败")
+			l.Errorf("按项目查询用户平台失败: userId=%d, projectId=%d, error=%v", userId, in.ProjectId, err)
+			return nil, errorx.Msg("查询用户平台列表失败")
 		}
 
-		// 遍历关联关系查询详情
-		for _, up := range userPlatforms {
-			platform, err := l.svcCtx.SysPlatformModel.FindOne(l.ctx, up.PlatformId)
+		for _, platformId := range platformIds {
+			platform, err := l.svcCtx.SysPlatformModel.FindOne(l.ctx, platformId)
 			if err != nil {
 				if errors.Is(err, model.ErrNotFound) {
 					continue
 				}
-				l.Errorf("查询平台详情失败: id=%d, err=%v", up.PlatformId, err)
+				l.Errorf("查询平台详情失败: id=%d, err=%v", platformId, err)
 				return nil, errorx.Msg("查询平台详情失败")
 			}
 
@@ -89,6 +87,36 @@ func (l *UserPlatformGetLogic) UserPlatformGet(in *pb.GetUserPlatformsReq) (*pb.
 	return &pb.GetUserPlatformsResp{
 		Data: pbPlatforms,
 	}, nil
+}
+
+func (l *UserPlatformGetLogic) listSuperAdminPlatforms(projectId uint64) ([]*model.SysPlatform, error) {
+	if projectId == 0 {
+		return l.svcCtx.SysPlatformModel.SearchNoPage(l.ctx, "sort", true, "`is_enable` = ? AND `is_deleted` = ?", 1, 0)
+	}
+
+	bindings, err := l.svcCtx.ProjectPlatformBindingModel.SearchNoPage(l.ctx, "id", true, "`project_id` = ?", projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	platforms := make([]*model.SysPlatform, 0, len(bindings))
+	for _, binding := range bindings {
+		if binding.IsDeleted != 0 {
+			continue
+		}
+		platform, err := l.svcCtx.SysPlatformModel.FindOne(l.ctx, binding.PlatformId)
+		if err != nil {
+			if errors.Is(err, model.ErrNotFound) {
+				continue
+			}
+			return nil, err
+		}
+		if platform.IsEnable == 1 && platform.IsDeleted == 0 {
+			platforms = append(platforms, platform)
+		}
+	}
+
+	return platforms, nil
 }
 
 // 辅助方法：统一转换模型

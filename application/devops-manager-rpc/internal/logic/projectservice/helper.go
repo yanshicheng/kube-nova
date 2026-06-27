@@ -11,6 +11,7 @@ import (
 	"github.com/yanshicheng/kube-nova/application/devops-manager-rpc/internal/svc"
 	"github.com/yanshicheng/kube-nova/application/devops-manager-rpc/internal/tektonsync"
 	"github.com/yanshicheng/kube-nova/application/devops-manager-rpc/pb"
+	portalprojectservice "github.com/yanshicheng/kube-nova/application/portal-rpc/client/portalprojectservice"
 	"github.com/yanshicheng/kube-nova/common/handler/errorx"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -27,6 +28,7 @@ func projectToPb(in *model.DevopsProject) *pb.DevopsProject {
 		Id:                     in.ID.Hex(),
 		Name:                   in.Name,
 		Code:                   in.Code,
+		PortalProjectUuid:      in.PortalProjectUuid,
 		Description:            in.Description,
 		PipelineEngineType:     in.PipelineEngineType,
 		DefaultEngineChannelId: in.DefaultEngineChannelID,
@@ -256,7 +258,56 @@ func memberProjectScope(ctx context.Context, svcCtx *svc.ServiceContext, userID 
 		logx.Errorf("处理项目渠道辅助逻辑失败: %v", err)
 		return nil, false, err
 	}
-	return ids, true, nil
+	return filterPortalAuthorizedProjectIDs(ctx, svcCtx, userID, ids), true, nil
+}
+
+func filterPortalAuthorizedProjectIDs(ctx context.Context, svcCtx *svc.ServiceContext, userID uint64, projectIDs []string) []string {
+	if len(projectIDs) == 0 {
+		return []string{}
+	}
+	platformID, _ := ctx.Value("platformId").(uint64)
+	if platformID == 0 {
+		return []string{}
+	}
+	allowed, err := loadPortalAuthorizedProjectIDs(ctx, svcCtx, userID, platformID)
+	if err != nil {
+		logx.Errorf("过滤门户授权项目失败: %v", err)
+		return []string{}
+	}
+	if len(allowed) == 0 {
+		return []string{}
+	}
+	filtered := make([]string, 0, len(projectIDs))
+	for _, id := range projectIDs {
+		project, err := svcCtx.ProjectModel.FindOne(ctx, id)
+		if err != nil || project == nil || project.PortalProjectUuid == "" {
+			continue
+		}
+		if _, ok := allowed[project.PortalProjectUuid]; ok {
+			filtered = append(filtered, id)
+		}
+	}
+	return filtered
+}
+
+func loadPortalAuthorizedProjectIDs(ctx context.Context, svcCtx *svc.ServiceContext, userID, platformID uint64) (map[string]struct{}, error) {
+	resp, err := svcCtx.PortalRpc.ListProjects(ctx, &portalprojectservice.PortalListProjectsReq{
+		Page:       1,
+		PageSize:   1000,
+		UserId:     userID,
+		PlatformId: platformID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	allowed := make(map[string]struct{}, len(resp.Data))
+	for _, item := range resp.Data {
+		if item == nil || item.Uuid == "" {
+			continue
+		}
+		allowed[item.Uuid] = struct{}{}
+	}
+	return allowed, nil
 }
 
 func ensureProjectAccess(ctx context.Context, svcCtx *svc.ServiceContext, projectID string, userID uint64, roles []string) error {
@@ -265,9 +316,14 @@ func ensureProjectAccess(ctx context.Context, svcCtx *svc.ServiceContext, projec
 		logx.Errorf("请选择 DevOps 项目")
 		return errorx.Msg("请选择 DevOps 项目")
 	}
-	if _, err := svcCtx.ProjectModel.FindOne(ctx, projectID); err != nil {
+	project, err := svcCtx.ProjectModel.FindOne(ctx, projectID)
+	if err != nil {
 		logx.Errorf("查询 DevOps 项目失败: %v", err)
 		return err
+	}
+	if project == nil || project.PortalProjectUuid == "" {
+		logx.Errorf("查询 DevOps 项目失败")
+		return errorx.Msg("无权访问当前 DevOps 项目")
 	}
 	if isSuperAdminRole(roles) {
 		return nil
@@ -277,10 +333,25 @@ func ensureProjectAccess(ctx context.Context, svcCtx *svc.ServiceContext, projec
 		logx.Errorf("校验项目权限失败: %v", err)
 		return err
 	}
+	member := false
 	for _, id := range ids {
 		if id == projectID {
-			return nil
+			member = true
+			break
 		}
+	}
+	if !member {
+		logx.Errorf("无权访问当前 DevOps 项目，projectId: %s", projectID)
+		return errorx.Msg("无权访问当前 DevOps 项目")
+	}
+	platformID, _ := ctx.Value("platformId").(uint64)
+	allowed, err := loadPortalAuthorizedProjectIDs(ctx, svcCtx, userID, platformID)
+	if err != nil {
+		logx.Errorf("校验项目权限失败: %v", err)
+		return err
+	}
+	if _, ok := allowed[project.PortalProjectUuid]; ok {
+		return nil
 	}
 	logx.Errorf("无权访问当前 DevOps 项目，projectId: %s", projectID)
 	return errorx.Msg("无权访问当前 DevOps 项目")

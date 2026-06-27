@@ -44,6 +44,13 @@ func ServerMetadataInterceptor() grpc.UnaryServerInterceptor {
 			if uuids := md.Get("uuid"); len(uuids) > 0 {
 				ctx = context.WithValue(ctx, "uuid", uuids[0])
 			}
+
+			// 提取 platformId
+			if platformIds := md.Get("platform-id"); len(platformIds) > 0 {
+				if platformId, err := strconv.ParseUint(platformIds[0], 10, 64); err == nil {
+					ctx = context.WithValue(ctx, "platformId", platformId)
+				}
+			}
 		}
 
 		// 调用实际的 RPC 方法
