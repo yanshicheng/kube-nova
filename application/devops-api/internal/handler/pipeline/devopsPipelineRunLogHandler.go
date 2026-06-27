@@ -90,10 +90,16 @@ func streamDevopsPipelineRunLog(svcCtx *svc.ServiceContext, w http.ResponseWrite
 	lastLogContent := ""
 	lastStagePayload := ""
 	lastInputPayload := ""
+	// 跟踪流水线完成状态，连续 N 轮未变化且全部阶段结束才发送 end 事件
+	var lastStageResp *types.ListDevopsPipelineRunStageResponse
+	var lastLogResp *types.DevopsPipelineRunLogResponse
+	doneStableCount := 0
+	const doneStableThreshold = 3
 
 	fetchAndSend := func() bool {
 		logLogic := pipeline.NewDevopsPipelineRunLogLogic(r.Context(), svcCtx)
 		logResp, err := logLogic.DevopsPipelineRunLog(&req)
+		lastLogResp = logResp
 		if err != nil {
 			return send("log-error", map[string]string{"message": err.Error()})
 		}
@@ -107,6 +113,7 @@ func streamDevopsPipelineRunLog(svcCtx *svc.ServiceContext, w http.ResponseWrite
 
 		stageLogic := pipeline.NewDevopsPipelineRunStageListLogic(r.Context(), svcCtx)
 		stageResp, err := stageLogic.DevopsPipelineRunStageList(&types.ListDevopsPipelineRunStageRequest{RunId: req.RunId})
+		lastStageResp = stageResp
 		if err != nil {
 			return send("log-error", map[string]string{"message": err.Error()})
 		}
@@ -141,15 +148,43 @@ func streamDevopsPipelineRunLog(svcCtx *svc.ServiceContext, w http.ResponseWrite
 		return true
 	}
 
-	if !fetchAndSend() {
-		return
+	sendEndIfDone := func() bool {
+		if lastStageResp == nil || lastLogResp == nil {
+			return false
+		}
+		if !pipelineRunStageStreamDone(lastStageResp) {
+			doneStableCount = 0
+			return false
+		}
+		if lastLogResp.Changed {
+			doneStableCount = 0
+			return false
+		}
+		doneStableCount++
+		if doneStableCount >= doneStableThreshold {
+			return true
+		}
+		return false
 	}
+
 	for {
+		if !fetchAndSend() {
+			return
+		}
+		if sendEndIfDone() {
+			_ = send("end", map[string]string{"status": "completed"})
+			return
+		}
+
 		select {
 		case <-r.Context().Done():
 			return
 		case <-ticker.C:
 			if !fetchAndSend() {
+				return
+			}
+			if sendEndIfDone() {
+				_ = send("end", map[string]string{"status": "completed"})
 				return
 			}
 		case <-heartbeat.C:

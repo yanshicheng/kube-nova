@@ -18,6 +18,7 @@ import (
 	storage "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/storage"
 	token "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/token"
 	user "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/user"
+	version "github.com/yanshicheng/kube-nova/application/portal-api/internal/handler/version"
 	"github.com/yanshicheng/kube-nova/application/portal-api/internal/svc"
 
 	"github.com/zeromicro/go-zero/rest"
@@ -702,5 +703,16 @@ func RegisterHandlers(server *rest.Server, serverCtx *svc.ServiceContext) {
 			}...,
 		),
 		rest.WithPrefix("/portal/v1/user"),
+	)
+
+	server.AddRoutes(
+		[]rest.Route{
+			{
+				Method:  http.MethodGet,
+				Path:    "/version",
+				Handler: version.GetVersionHandler(serverCtx),
+			},
+		},
+		rest.WithPrefix("/portal"),
 	)
 }

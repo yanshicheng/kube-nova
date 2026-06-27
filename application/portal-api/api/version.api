@@ -1,0 +1,24 @@
+syntax = "v1"
+
+info(
+    title: "version type"
+    desc: "版本信息接口"
+    author: "Yan Shicheng"
+    email: "ikubeops@gmail.com"
+    version: "1.0"
+)
+
+type (
+    VersionResponse {
+        Version string `json:"version"` // 版本号
+    }
+)
+
+@server(
+    prefix: /portal
+    group: version
+)
+service portal-api {
+    @handler GetVersionHandler
+    get /version returns (VersionResponse)
+}

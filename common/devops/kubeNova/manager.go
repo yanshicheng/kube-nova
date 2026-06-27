@@ -186,8 +186,10 @@ func serviceProvider() httpcheck.ServiceProvider {
 	return httpcheck.ServiceProvider{
 		ProductName: "kube-nova",
 		Probes: []httpcheck.Probe{
-			{Path: "/version", PlainVersion: true, Capability: "versionApi"},
+			{Path: "/portal/version", PlainVersion: false, Capability: "versionApi"},
+			{Path: "/api/portal/version", PlainVersion: false, Capability: "versionApi"},
 			{Path: "/healthz", Capability: "healthApi"},
+			{Path: "/api/healthz", Capability: "healthApi"},
 		},
 	}
 }

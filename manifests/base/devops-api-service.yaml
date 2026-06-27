@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devops-api
+  namespace: kube-nova
+spec:
+  selector:
+    app: devops-api
+  ports:
+    - port: 8813
+      targetPort: 8813
+  type: ClusterIP

@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devops-manager-rpc
+  namespace: kube-nova
+spec:
+  selector:
+    app: devops-manager-rpc
+  ports:
+    - port: 30031
+      targetPort: 30031
+  type: ClusterIP

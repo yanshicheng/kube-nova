@@ -13,7 +13,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
+      storage: 20Gi
   # storageClassName: standard
 
 ---
@@ -28,7 +28,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 20Gi
+      storage: 10Gi
   # storageClassName: standard
 
 ---
@@ -45,9 +45,11 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 10Gi
+      storage: 5Gi
   # storageClassName: standard
+
 ---
+# Redis 数据存储 PVC
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -61,4 +63,21 @@ spec:
   resources:
     requests:
       storage: 5Gi
+  # storageClassName: standard
+
+---
+# MongoDB 数据存储 PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb-pvc
+  namespace: kube-nova
+  labels:
+    app: mongodb
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
   # storageClassName: standard

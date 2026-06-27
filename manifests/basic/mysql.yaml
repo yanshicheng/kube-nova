@@ -24,6 +24,8 @@ spec:
   selector:
     matchLabels:
       app: mysql
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
@@ -31,7 +33,7 @@ spec:
     spec:
       containers:
       - name: mysql
-        image: registry.cn-hangzhou.aliyuncs.com/kube-nova/mysql:8.0
+        image: mysql:8.0
         env:
         - name: MYSQL_ROOT_PASSWORD
           value: "8VlZ2lvIsKBCYSE3"
@@ -47,17 +49,7 @@ spec:
           mountPath: /var/lib/mysql
         - name: mysql-config
           mountPath: /etc/mysql/conf.d
-        livenessProbe:
-          exec:
-            command:
-            - mysqladmin
-            - ping
-            - -h
-            - localhost
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-        readinessProbe:
+        startupProbe:
           exec:
             command:
             - mysqladmin
@@ -65,8 +57,31 @@ spec:
             - -h
             - localhost
           initialDelaySeconds: 10
-          periodSeconds: 5
+          periodSeconds: 10
+          failureThreshold: 30
+          timeoutSeconds: 5
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          initialDelaySeconds: 0
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          initialDelaySeconds: 0
+          periodSeconds: 10
           timeoutSeconds: 3
+          failureThreshold: 3
       volumes:
       - name: mysql-data
         persistentVolumeClaim:

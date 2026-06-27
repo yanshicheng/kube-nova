@@ -409,9 +409,15 @@ func (l *PipelineRunLogLogic) collectCompletedFullLog(run *model.DevopsPipelineR
 	}
 	content := cache.Content
 	offset := cache.Offset
-	for i := 0; i < 20; i++ {
+	// 已完成流水线：优先用 ProgressiveLog 分段拉取；最多 10 轮避免因 Jenkins 未及时关闭流而阻塞
+	for i := 0; i < 10; i++ {
+		if err := l.ctx.Err(); err != nil {
+			l.Errorf("上下文已超时或取消，退出重试: %v", err)
+			break
+		}
 		chunk, next, more, err := manager.ProgressiveLog(l.ctx, run.JenkinsJobFullName, run.JenkinsBuildNumber, offset)
 		if err != nil {
+			l.Errorf("ProgressiveLog 失败，回退 ConsoleText: %v", err)
 			break
 		}
 		if chunk != "" {
@@ -431,15 +437,24 @@ func (l *PipelineRunLogLogic) collectCompletedFullLog(run *model.DevopsPipelineR
 			return content, nil
 		}
 	}
-	if strings.TrimSpace(content) == "" {
-		fullLog, err := manager.ConsoleText(l.ctx, run.JenkinsJobFullName, run.JenkinsBuildNumber)
-		if err != nil {
-			l.Errorf("收集已完成完整日志失败: %v", err)
-			return "", err
+	// ProgressiveLog 未完整获取或失败时，ConsoleText 兜底
+	fullLog, err := manager.ConsoleText(l.ctx, run.JenkinsJobFullName, run.JenkinsBuildNumber)
+	if err != nil {
+		// ConsoleText 也失败，但有部分内容也保留
+		if strings.TrimSpace(content) != "" {
+			l.Errorf("ConsoleText 失败，保留已收集的部分日志: %v", err)
+			cache.Content = content
+			cache.Offset = offset
+			cache.Complete = true
+			cache.UpdatedAt = time.Now().Unix()
+			_ = l.savePipelineLogCache(cacheKey, cache)
+			return content, nil
 		}
-		content = fullLog
-		offset = int64(len([]byte(fullLog)))
+		l.Errorf("收集已完成完整日志失败: %v", err)
+		return "", err
 	}
+	content = fullLog
+	offset = int64(len([]byte(fullLog)))
 	cache.Content = content
 	cache.Offset = offset
 	cache.Complete = true
@@ -455,9 +470,15 @@ func (l *PipelineRunLogLogic) collectCompletedStageLog(run *model.DevopsPipeline
 	}
 	content := cache.Content
 	offset := cache.Offset
-	for i := 0; i < 20; i++ {
+	// 已完成阶段：最多 10 轮，避免阻塞
+	for i := 0; i < 10; i++ {
+		if err := l.ctx.Err(); err != nil {
+			l.Errorf("上下文已超时或取消，退出重试: %v", err)
+			break
+		}
 		chunk, next, more, err := manager.NodeProgressiveLog(l.ctx, run.JenkinsJobFullName, run.JenkinsBuildNumber, stage.JenkinsNodeID, offset)
 		if err != nil {
+			l.Errorf("NodeProgressiveLog 失败，回退 StageLog: %v", err)
 			break
 		}
 		if chunk != "" {
@@ -471,25 +492,34 @@ func (l *PipelineRunLogLogic) collectCompletedStageLog(run *model.DevopsPipeline
 		if !more {
 			cache.Content = content
 			cache.Offset = offset
-			cache.Complete = !isRunLogActive(run.Status)
+			cache.Complete = true
 			cache.NodeID = stage.JenkinsNodeID
 			cache.UpdatedAt = time.Now().Unix()
 			_ = l.savePipelineLogCache(cacheKey, cache)
 			return content, nil
 		}
 	}
-	if strings.TrimSpace(content) == "" {
-		fullStageLog, err := manager.StageLog(l.ctx, run.JenkinsJobFullName, run.JenkinsBuildNumber, stage.JenkinsNodeID)
-		if err != nil {
-			l.Errorf("收集已完成阶段日志失败: %v", err)
-			return "", err
+	// NodeProgressiveLog 兜底
+	fullStageLog, err := manager.StageLog(l.ctx, run.JenkinsJobFullName, run.JenkinsBuildNumber, stage.JenkinsNodeID)
+	if err != nil {
+		if strings.TrimSpace(content) != "" {
+			l.Errorf("StageLog 失败，保留已收集的部分日志: %v", err)
+			cache.Content = content
+			cache.Offset = offset
+			cache.Complete = true
+			cache.NodeID = stage.JenkinsNodeID
+			cache.UpdatedAt = time.Now().Unix()
+			_ = l.savePipelineLogCache(cacheKey, cache)
+			return content, nil
 		}
-		content = fullStageLog
-		offset = int64(len([]byte(fullStageLog)))
+		l.Errorf("收集已完成阶段日志失败: %v", err)
+		return "", err
 	}
+	content = fullStageLog
+	offset = int64(len([]byte(fullStageLog)))
 	cache.Content = content
 	cache.Offset = offset
-	cache.Complete = strings.TrimSpace(content) != "" && !isRunLogActive(run.Status)
+	cache.Complete = true
 	cache.NodeID = stage.JenkinsNodeID
 	cache.UpdatedAt = time.Now().Unix()
 	_ = l.savePipelineLogCache(cacheKey, cache)

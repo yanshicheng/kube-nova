@@ -1146,3 +1146,7 @@ type VerifyTokenResponse struct {
 	NickName     string   `json:"nickName"`     // 昵称
 	Roles        []string `json:"roles"`        // 角色列表
 }
+
+type VersionResponse struct {
+	Version string `json:"version"` // 版本号
+}

@@ -1,0 +1,65 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devops-pipeline-rpc-config
+  namespace: kube-nova
+data:
+  config.yaml: |
+    Name: devops-pipeline.rpc
+    ListenOn: 0.0.0.0:30032
+    Mode: pro
+    Timeout: ${DEFAULT_TIMEOUT}
+
+    DevServer:
+      Enabled: true
+      Port: 9999
+      HealthPath: "/healthz"
+      MetricsPath: "/metrics"
+      EnableMetrics: true
+
+    Telemetry:
+      Name: devops-pipeline-rpc
+      Endpoint: ${JAEGER_ENDPOINT}
+      Sampler: ${TELEMETRY_SAMPLER}
+      Batcher: ${TELEMETRY_BATCHER}
+
+    Log:
+      ServiceName: devops-pipeline-rpc
+      Mode: console
+      Encoding: plain
+      TimeFormat: "2006-01-02 15:04:05"
+      Path: logs
+      Level: info
+      MaxContentLength: 1024
+      Compress: false
+      Stat: true
+      KeepDays: 7
+      StackCooldownMillis: 100
+      MaxBackups: 0
+      MaxSize: 0
+      Rotation: daily
+
+    Mongo:
+      Url: ${MONGO_URL}
+      Db: ${MONGO_DB}
+
+    Cache:
+      Host: ${REDIS_HOST}:${REDIS_PORT}
+      Type: ${REDIS_TYPE}
+      Pass: ${REDIS_PASSWORD}
+      Tls: ${REDIS_TLS}
+      NonBlock: ${REDIS_NONBLOCK}
+      PingTimeout: ${REDIS_PING_TIMEOUT}
+
+    DevopsManagerRpc:
+      Target: k8s://${POD_NAMESPACE}/devops-manager-rpc:30031
+      Optional: true
+      NonBlock: true
+      Timeout: ${DEFAULT_TIMEOUT}
+
+    DevopsQualityRpc:
+      Target: k8s://${POD_NAMESPACE}/devops-quality-rpc:30033
+      Optional: true
+      NonBlock: true
+      Timeout: ${DEFAULT_TIMEOUT}
